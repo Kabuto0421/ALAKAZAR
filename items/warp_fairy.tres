@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/warp_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/warp_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "warp_fairy"
+title = "ワープ妖精"
+description = "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"
+color = Color(0.16, 0.86, 0.79, 1)
+target = 1
+effect = ExtResource("2")
+icon = ExtResource("3")

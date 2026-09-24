@@ -1,0 +1,39 @@
+{
+  "texture": "res://assets/sprites/effects/element_connection_atlas_24.png",
+  "cell_size": [
+    24,
+    24
+  ],
+  "rows": [
+    "normal",
+    "fire",
+    "ice",
+    "lightning",
+    "poison"
+  ],
+  "columns": {
+    "0": 0,
+    "1": 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    "11": 11,
+    "12": 12,
+    "13": 13,
+    "14": 14,
+    "15": 15,
+    "origin": 16
+  },
+  "mask_bits": {
+    "up": 1,
+    "right": 2,
+    "down": 4,
+    "left": 8
+  }
+}

@@ -1,0 +1,239 @@
+{
+  "atlas_source": "res://assets/sprites/gadget_editor_ui_parts_sheet_64_capacity5.png",
+  "output_dir": "res://assets/sprites/editor_ui",
+  "frames": {
+    "backdrop": {
+      "path": "res://assets/sprites/editor_ui/backdrop.png",
+      "width": 1152,
+      "height": 648
+    },
+    "shell": {
+      "path": "res://assets/sprites/editor_ui/shell.png",
+      "width": 1088,
+      "height": 592
+    },
+    "panel_header": {
+      "path": "res://assets/sprites/editor_ui/panel_header.png",
+      "width": 1040,
+      "height": 96
+    },
+    "panel_program": {
+      "path": "res://assets/sprites/editor_ui/panel_program.png",
+      "width": 688,
+      "height": 318
+    },
+    "panel_memory": {
+      "path": "res://assets/sprites/editor_ui/panel_memory.png",
+      "width": 320,
+      "height": 318
+    },
+    "panel_output": {
+      "path": "res://assets/sprites/editor_ui/panel_output.png",
+      "width": 1032,
+      "height": 78
+    },
+    "row_normal": {
+      "path": "res://assets/sprites/editor_ui/row_normal.png",
+      "width": 652,
+      "height": 62
+    },
+    "row_selected": {
+      "path": "res://assets/sprites/editor_ui/row_selected.png",
+      "width": 652,
+      "height": 62
+    },
+    "row_error": {
+      "path": "res://assets/sprites/editor_ui/row_error.png",
+      "width": 652,
+      "height": 62
+    },
+    "input_field": {
+      "path": "res://assets/sprites/editor_ui/input_field.png",
+      "width": 296,
+      "height": 40
+    },
+    "meter_wide": {
+      "path": "res://assets/sprites/editor_ui/meter_wide.png",
+      "width": 196,
+      "height": 26
+    },
+    "meter_small": {
+      "path": "res://assets/sprites/editor_ui/meter_small.png",
+      "width": 126,
+      "height": 28
+    },
+    "cost_number_normal": {
+      "path": "res://assets/sprites/editor_ui/cost_number_normal.png",
+      "width": 40,
+      "height": 32
+    },
+    "cost_number_error": {
+      "path": "res://assets/sprites/editor_ui/cost_number_error.png",
+      "width": 40,
+      "height": 32
+    },
+    "status_normal": {
+      "path": "res://assets/sprites/editor_ui/status_normal.png",
+      "width": 268,
+      "height": 36
+    },
+    "status_error": {
+      "path": "res://assets/sprites/editor_ui/status_error.png",
+      "width": 268,
+      "height": 36
+    },
+    "chip_attack": {
+      "path": "res://assets/sprites/editor_ui/chip_attack.png",
+      "width": 132,
+      "height": 30
+    },
+    "chip_land": {
+      "path": "res://assets/sprites/editor_ui/chip_land.png",
+      "width": 132,
+      "height": 30
+    },
+    "chip_wall": {
+      "path": "res://assets/sprites/editor_ui/chip_wall.png",
+      "width": 132,
+      "height": 30
+    },
+    "chip_number": {
+      "path": "res://assets/sprites/editor_ui/chip_number.png",
+      "width": 132,
+      "height": 30
+    },
+    "chip_trail": {
+      "path": "res://assets/sprites/editor_ui/chip_trail.png",
+      "width": 132,
+      "height": 30
+    }
+  },
+  "parts": {
+    "editor_panel_frame": {
+      "path": "res://assets/sprites/editor_ui/part_editor_panel_frame.png",
+      "width": 56,
+      "height": 56
+    },
+    "code_line_slot_normal": {
+      "path": "res://assets/sprites/editor_ui/part_code_line_slot_normal.png",
+      "width": 56,
+      "height": 56
+    },
+    "code_line_slot_selected": {
+      "path": "res://assets/sprites/editor_ui/part_code_line_slot_selected.png",
+      "width": 56,
+      "height": 56
+    },
+    "code_line_slot_error": {
+      "path": "res://assets/sprites/editor_ui/part_code_line_slot_error.png",
+      "width": 56,
+      "height": 56
+    },
+    "capacity_unit_empty": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_unit_empty.png",
+      "width": 56,
+      "height": 56
+    },
+    "capacity_unit_filled": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_unit_filled.png",
+      "width": 56,
+      "height": 56
+    },
+    "capacity_unit_error": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_unit_error.png",
+      "width": 56,
+      "height": 56
+    },
+    "capacity_meter_frame": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_meter_frame.png",
+      "width": 48,
+      "height": 16
+    },
+    "capacity_meter_fill": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_meter_fill.png",
+      "width": 48,
+      "height": 16
+    },
+    "capacity_meter_error": {
+      "path": "res://assets/sprites/editor_ui/part_capacity_meter_error.png",
+      "width": 52,
+      "height": 20
+    },
+    "input_cursor": {
+      "path": "res://assets/sprites/editor_ui/part_input_cursor.png",
+      "width": 56,
+      "height": 56
+    },
+    "syntax_valid_badge": {
+      "path": "res://assets/sprites/editor_ui/part_syntax_valid_badge.png",
+      "width": 56,
+      "height": 56
+    },
+    "syntax_error_badge": {
+      "path": "res://assets/sprites/editor_ui/part_syntax_error_badge.png",
+      "width": 56,
+      "height": 56
+    },
+    "line_cost_chip_frame": {
+      "path": "res://assets/sprites/editor_ui/part_line_cost_chip_frame.png",
+      "width": 56,
+      "height": 56
+    },
+    "gadget_editor_icon": {
+      "path": "res://assets/sprites/editor_ui/part_gadget_editor_icon.png",
+      "width": 56,
+      "height": 56
+    },
+    "selection_glow_plate": {
+      "path": "res://assets/sprites/editor_ui/part_selection_glow_plate.png",
+      "width": 56,
+      "height": 56
+    }
+  },
+  "layout": {
+    "design_width": 1152,
+    "design_height": 648,
+    "shell": {
+      "x": 32,
+      "y": 28,
+      "w": 1088,
+      "h": 592
+    },
+    "header": {
+      "x": 56,
+      "y": 50,
+      "w": 1040,
+      "h": 96
+    },
+    "program": {
+      "x": 60,
+      "y": 168,
+      "w": 688,
+      "h": 318
+    },
+    "memory": {
+      "x": 772,
+      "y": 168,
+      "w": 320,
+      "h": 318
+    },
+    "output": {
+      "x": 60,
+      "y": 502,
+      "w": 1032,
+      "h": 78
+    },
+    "code_row": {
+      "w": 652,
+      "h": 62
+    },
+    "input_field": {
+      "w": 296,
+      "h": 40
+    },
+    "capacity": {
+      "limit": 5,
+      "slot_count": 5
+    }
+  }
+}

@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://dnc2l8jejsddg"]
+
+[ext_resource type="Script" uid="uid://b68kf82tq6on7" path="res://scripts/formation_layout.gd" id="1"]
+[ext_resource type="Script" uid="uid://20k2wkmokadf" path="res://scripts/enemy_placement.gd" id="2"]
+
+[node name="Formation3" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Enemy1_infantry" type="Node2D" parent="."]
+position = Vector2(96, 96)
+script = ExtResource("2")
+
+[node name="Enemy2_infantry" type="Node2D" parent="."]
+position = Vector2(288, 96)
+script = ExtResource("2")
+
+[node name="Enemy3_heavy" type="Node2D" parent="."]
+position = Vector2(224, 160)
+script = ExtResource("2")
+enemy_kind = 2
+
+[node name="Enemy4_cavalry" type="Node2D" parent="."]
+position = Vector2(352, 32)
+script = ExtResource("2")
+enemy_kind = 3

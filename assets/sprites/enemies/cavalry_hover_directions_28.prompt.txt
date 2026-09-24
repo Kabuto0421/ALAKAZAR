@@ -1,0 +1,6 @@
+Use case: stylized-concept
+Asset type: Godot enemy sprite atlas
+Input image 1: Existing police enemy atlas as the pixel-density, palette, outline, and direction-sheet reference.
+Input image 2: Generated hover cavalry concept as the design reference for the mounted enemy silhouette, armor, cyan lift thrusters, orange warning lights, and electric lance.
+Primary request: Create four compact pixel-art directions of one cyber hover cavalry enemy in one horizontal row: left, front, right, back.
+Constraints: Transparent background, equal square cells, compact game-scale detail, navy armor, cyan glow, no text or background.

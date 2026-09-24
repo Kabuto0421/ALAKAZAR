@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/magic_bolt.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/magic_bolt_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "magic_bolt"
+title = "魔弾精霊"
+description = "攻撃範囲の空きマスに配置。\n縦横の向きを選び、直線上の\n敵すべてに1ダメージ。\n障害物で止まる。"
+color = Color(1, 0.71, 0.3, 1)
+directional = true
+effect = ExtResource("2")
+icon = ExtResource("3")
