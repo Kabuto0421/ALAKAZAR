@@ -18,6 +18,10 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      tails wrap into the start; Vorbis keeps the exact frame
                      count, so the loop stays seamless (`loop=true` in
                      battle_loop.ogg.import).
+    title_loop.ogg   the battle palette at rest, 16 bars with two bars per
+                     chord: pad and slow arp first, then a half-time kick
+                     and the battle hook at half speed as a preview
+                     (`loop=true` in title_loop.ogg.import).
     victory.ogg      rising arp that resolves D minor -> D major
     defeat.ogg       the battle pad powering down (tape-stop and filter close)
 """
@@ -211,7 +215,7 @@ class Mix:
         for i in range(n):
             buf[i] *= gain[i]
 
-    def write(self, path, peak=0.85):
+    def write(self, path, peak=0.85, target_rms=TARGET_RMS):
         import numpy
         import soundfile
 
@@ -220,7 +224,7 @@ class Mix:
         # Match loudness across tracks (RMS), never exceeding the peak ceiling.
         top = max(abs(s) for s in total) or 1.0
         rms = math.sqrt(sum(s * s for s in total) / self.n) or 1.0
-        scale = min(peak / top, TARGET_RMS / rms)
+        scale = min(peak / top, target_rms / rms)
         data = numpy.array(total, dtype=numpy.float32) * scale
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
@@ -427,6 +431,63 @@ def battle_theme():
 
 
 # ---------------------------------------------------------------------------
+# Title loop: the battle's palette and chords at rest, foreshadowing its hook
+# ---------------------------------------------------------------------------
+
+def title_theme():
+    bar_len = 16 * STEP
+    bars = 16
+    mix = Mix(bars * bar_len, wrap=True)
+    rng = random.Random(21)
+    kicks = []
+
+    for bar in range(bars):
+        chord_index = (bar // 2) % 4  # two bars per chord: more space
+        chord = CHORDS[chord_index]
+        t0 = bar * bar_len
+        pulse = bar >= 8  # second half: half-time beat and the hook preview
+
+        if bar % 2 == 0:
+            mix.put("pad", t0, pad_chord(chord["pad"], 2 * bar_len - 0.1,
+                                         cutoff=1100 if pulse else 750, vol=0.1))
+            mix.put("bass", t0, synth(chord["bass"], 2 * bar_len * 0.95, "saw",
+                                      detune=(-6, 6), vol=0.3, attack=0.08, decay=1.0,
+                                      sustain=0.7, release=0.3, cutoff=(420, 260, 1.0)))
+
+        # Eighth-note arp (half the battle's density) with the shared echo.
+        for s in range(0, 16, 2):
+            note = chord["arp"][ARP_ORDER[(s // 2) % 8]]
+            mix.put("arp", t0 + s * STEP, pluck(note, 1500 if pulse else 900, vol=0.09))
+        for s in (2, 6, 10, 14):
+            mix.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 13000, 0.04))
+
+        if pulse:
+            for s in (0, 8):
+                mix.put("kick", t0 + s * STEP, kick(0.5))
+                kicks.append(t0 + s * STEP)
+            mix.put("clap", t0 + 8 * STEP, noise_hit(rng, 0.18, 900, 3200, 0.18, bursts=3))
+            # The battle hook at half speed: each hook bar spans this chord's two bars.
+            if bar % 2 == 0:
+                prev = None
+                for step, length, note in HOOK[chord_index]:
+                    at = t0 + step * 2 * STEP
+                    mix.put("lead", at, lead(note, length * 2, glide_from=prev, vol=0.1))
+                    if bar >= 12:  # harmony joins for the last phrase
+                        low = third_below(note, dominant=(chord_index == 3))
+                        mix.put("lead", at, lead(low, length * 2, vol=0.06))
+                    prev = note
+
+    mix.put("fx", 7 * bar_len, riser(rng, bar_len, vol=0.08))  # swell into the beat
+
+    mix.echo("arp", STEP * 3, 0.4, 0.5)
+    mix.echo("lead", STEP * 3, 0.38, 0.4)
+    mix.duck("pad", kicks, 0.5)
+    mix.duck("arp", kicks, 0.3)
+    mix.duck("bass", kicks, 0.3)
+    return mix
+
+
+# ---------------------------------------------------------------------------
 # Jingles (same instruments and key as the battle loop)
 # ---------------------------------------------------------------------------
 
@@ -468,12 +529,13 @@ def defeat_jingle():
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    tracks = {"battle_loop.ogg": battle_theme, "victory.ogg": victory_jingle,
-              "defeat.ogg": defeat_jingle}
-    for name, render in tracks.items():
+    # The title sits a little quieter than the battle: it is a waiting room.
+    tracks = {"title_loop.ogg": (title_theme, 0.16), "battle_loop.ogg": (battle_theme, TARGET_RMS),
+              "victory.ogg": (victory_jingle, TARGET_RMS), "defeat.ogg": (defeat_jingle, TARGET_RMS)}
+    for name, (render, target_rms) in tracks.items():
         path = os.path.join(OUT_DIR, name)
         mix = render()
-        mix.write(path)
+        mix.write(path, target_rms=target_rms)
         print(f"{name}: {mix.n / RATE:.2f}s, {os.path.getsize(path) // 1024} KiB")
 
 

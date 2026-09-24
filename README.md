@@ -9,7 +9,7 @@
 
 1. このリポジトリをクローン、またはZIPでダウンロードして展開します。
 2. Godotのプロジェクトマネージャーで `project.godot` をインポートします。
-3. 素材のインポート完了後、**F5**でゲームを実行します。
+3. 素材のインポート完了後、**F5**でゲームを実行します。タイトル画面でクリックするか任意のキーを押すと、戦闘が始まります。
 
 Godotを `godot` コマンドで呼び出せる場合は、リポジトリ直下で次のコマンドも使えます。
 
@@ -49,7 +49,7 @@ godot --editor --path .
 | 上部の「履歴」 | 戦闘履歴を表示 |
 | 右クリック | 妖精・向き選択中はキャンセル。それ以外は敵の詳細表示を固定・解除 |
 | `Esc` | 武器プレビュー・履歴・妖精・向き選択・ルールを閉じる |
-| `M` | BGMのミュート・解除 |
+| `M` | BGMのミュート・解除（タイトル画面でも有効。設定は戦闘に引き継ぐ） |
 
 敵にカーソルを重ねると、右側にHP・AP・移動／攻撃範囲を表示します。攻撃範囲外の敵は左クリックでも詳細を固定できます。範囲図は基本3×3、跳躍騎兵は5×5です。
 
@@ -127,12 +127,13 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 | 場所 | 内容 |
 | --- | --- |
 | `scripts/battle_model.gd` | 盤面・HP/AP・武器・向き・手札・勝敗 |
+| `title.tscn` / `scripts/title_view.gd` | タイトル画面（起動時のメインシーン）。クリックかキー入力で `main.tscn` の戦闘へ進む |
 | `scripts/battle_view.gd` | UI・入力・ターン進行・演出の制御 |
 | `scripts/enemy_planner.gd` | 敵ターン、歩兵の包囲位置、地雷兵・跳躍騎兵の行動 |
 | `scripts/infantry_behavior.gd` / `scripts/heavy_behavior.gd` | 歩兵・重装兵それぞれの移動判断 |
 | `scripts/unit_view.gd` / `scripts/animation/sword_motion.gd` | キャラクター描画・剣の方向別アニメーション |
 | `scripts/weapon_effect.gd` | 武器別エフェクト |
-| `scripts/audio/bgm_player.gd` | BGMの再生（戦闘中はループ、結果画面で勝利・敗北ジングル） |
+| `scripts/audio/bgm_player.gd` | BGMの再生（タイトル・戦闘はループ、結果画面で勝利・敗北ジングル） |
 | `scripts/movement/` | 金・銀・桂の移動パターン |
 | `items/` / `scripts/items/` | 妖精の定義・効果・手札UI |
 | `scenes/formations/` | 2Dエディターで編集する敵配置 |
@@ -148,6 +149,7 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 
 | ファイル | 内容 |
 | --- | --- |
+| `title_loop.ogg` | タイトルBGM（132BPM・16小節、約29秒のループ）。戦闘と同じ音色とコード進行を1コード2小節でゆったり鳴らす。前半はパッドとアルペジオだけ、後半はハーフタイムのキックが入り、戦闘曲のフックを半分の速さで予告する。戦闘曲より少し小さい音量 |
 | `battle_loop.ogg` | 戦闘BGM（132BPM・36小節、約65秒のループ）。大半は控えめなグルーヴで、1周に1回だけ盛り上げ→フック→クライマックス（ツインリードとスタブ）→余韻と山を作り、キックの抜けたブレイクを経て元に戻る |
 | `victory.ogg` | 勝利ジングル（上昇アルペジオからDメジャーで解決） |
 | `defeat.ogg` | 敗北ジングル（戦闘のパッドがテープストップして沈む） |
@@ -158,7 +160,7 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 python3 tools/generate_bgm.py
 ```
 
-戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。
+タイトル・戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`title_loop.ogg.import` と `battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。
 
 ## 自動テスト
 
