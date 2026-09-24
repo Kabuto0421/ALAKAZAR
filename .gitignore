@@ -6,3 +6,7 @@ build/
 
 # macOS metadata
 .DS_Store
+
+# Python-generated files
+__pycache__/
+*.pyc
