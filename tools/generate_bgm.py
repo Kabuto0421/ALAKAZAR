@@ -241,8 +241,8 @@ def append_loop_chunk(path, frames):
 # Shared palette (used by every track so they sound like one soundtrack)
 # ---------------------------------------------------------------------------
 
-def bass_note(note, steps=1):
-    return synth(note, steps * STEP * 0.8, "saw", detune=(-6, 6), vol=0.5,
+def bass_note(note, steps=1, vol=0.5):
+    return synth(note, steps * STEP * 0.8, "saw", detune=(-6, 6), vol=vol,
                  attack=0.003, decay=0.08, sustain=0.5, release=0.02,
                  cutoff=(1400, 260, 0.05))
 
@@ -291,56 +291,79 @@ HOOK = [
 HOOK_LIFT = [(0, 2, "E5"), (2, 2, "F5"), (4, 2, "G5"), (6, 2, "A5"), (8, 6, "A5")]
 
 
+# Mostly a low-key groove that stays out of the way; once per loop it builds
+# for four bars and spikes for four bars with the hook, then settles again.
+# Per-section levels: kick, open hat, 16th ticks, clap, arp (vol, cutoff
+# start, cutoff end), pad (vol, cutoff), bass vol, lead on/off.
+SECTIONS = [
+    # name     bars kick  hat   tick  clap  arp_v arp_c0 arp_c1 pad_v pad_c bass  lead
+    ("calm",   8,   0.55, 0.12, 0.04, 0.0,  0.08, 900,   900,   0.08, 800,  0.40, False),
+    ("groove", 4,   0.65, 0.16, 0.06, 0.25, 0.10, 1100,  1400,  0.09, 900,  0.45, False),
+    ("build",  4,   0.80, 0.20, 0.08, 0.35, 0.12, 1500,  4000,  0.10, 1400, 0.50, False),
+    ("peak",   4,   0.90, 0.22, 0.08, 0.45, 0.13, 4200,  4200,  0.11, 1600, 0.50, True),
+    ("glow",   4,   0.65, 0.16, 0.06, 0.25, 0.10, 2200,  1000,  0.09, 1000, 0.45, False),
+    ("break",  4,   0.0,  0.0,  0.04, 0.0,  0.07, 800,   800,   0.10, 700,  0.30, False),
+]
+
+
 def battle_theme():
-    bars = 16
     bar_len = 16 * STEP
+    plan = []
+    for name, count, *levels in SECTIONS:
+        for i in range(count):
+            plan.append((name, i, count, levels))
+    plan += [plan[0]] * 4  # four calm bars lead back into the loop start
+    bars = len(plan)
     mix = Mix(bars * bar_len, wrap=True)
     rng = random.Random(4)
     kicks = []
+    peak_start = None
 
-    for bar in range(bars):
+    for bar, (name, idx, count, levels) in enumerate(plan):
+        k_vol, hat, tick, clap, arp_v, arp_c0, arp_c1, pad_v, pad_c, bass_v, has_lead = levels
         chord = CHORDS[bar % 4]
         t0 = bar * bar_len
-        build = bar < 8
-        # Filter opens across the build, then stays bright for the payoff.
-        arp_cut = 700 + 3300 * (bar / 7) if build else 4200
+        arp_cut = arp_c0 + (arp_c1 - arp_c0) * (idx / max(1, count - 1))
+        if name == "peak" and peak_start is None:
+            peak_start = bar
 
         for beat in range(4):
             bt = t0 + beat * 4 * STEP
-            mix.put("kick", bt, kick())
-            kicks.append(bt)
+            if k_vol:
+                mix.put("kick", bt, kick(k_vol))
+                kicks.append(bt)
             # Rolling off-16th bass; the kick owns the downbeat.
             for s in (1, 2, 3):
                 note = chord["bass"]
-                if s == 3 and beat == 3 and not build:
+                if s == 3 and beat == 3 and has_lead:
                     note = midi(note) + 12  # octave pop into the next bar
-                mix.put("bass", bt + s * STEP, bass_note(note))
-            # Off-beat open hat, quiet 16th ticks.
-            mix.put("hat", bt + 2 * STEP, noise_hit(rng, 0.09, 6000, 12000, 0.22))
+                mix.put("bass", bt + s * STEP, bass_note(note, vol=bass_v))
+            if hat:
+                mix.put("hat", bt + 2 * STEP, noise_hit(rng, 0.09, 6000, 12000, hat))
             for s in (1, 3):
-                mix.put("hat", bt + s * STEP, noise_hit(rng, 0.03, 7000, 13000, 0.08))
-            if (bar >= 4) and beat in (1, 3):
-                mix.put("clap", bt, noise_hit(rng, 0.18, 900, 3200, 0.45, bursts=3))
+                mix.put("hat", bt + s * STEP, noise_hit(rng, 0.03, 7000, 13000, tick))
+            if clap and beat in (1, 3):
+                mix.put("clap", bt, noise_hit(rng, 0.18, 900, 3200, clap, bursts=3))
 
-        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1))
+        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=pad_c, vol=pad_v))
 
         for s in range(16):
             note = chord["arp"][ARP_ORDER[s % 8]]
-            mix.put("arp", t0 + s * STEP, pluck(note, arp_cut))
+            mix.put("arp", t0 + s * STEP, pluck(note, arp_cut, vol=arp_v))
 
-        if not build:
-            phrase = HOOK_LIFT if bar == 15 else HOOK[bar % 4]
+        if has_lead:
+            phrase = HOOK_LIFT if idx == count - 1 else HOOK[bar % 4]
             prev = None
             for step, length, note in phrase:
                 mix.put("lead", t0 + step * STEP, lead(note, length, glide_from=prev))
                 prev = note
 
-    # Build-up tension into the payoff at bar 9.
-    mix.put("fx", 6 * bar_len, riser(rng, 2 * bar_len))
+    # Build-up tension into the spike.
+    mix.put("fx", (peak_start - 2) * bar_len, riser(rng, 2 * bar_len))
     for s in range(8, 16):
-        mix.put("clap", 7 * bar_len + s * STEP,
+        mix.put("clap", (peak_start - 1) * bar_len + s * STEP,
                 noise_hit(rng, 0.08, 900, 3200, 0.12 + 0.03 * (s - 8)))
-    mix.put("fx", 8 * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.18))  # crash
+    mix.put("fx", peak_start * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.18))  # crash
 
     mix.echo("arp", STEP * 3, 0.35, 0.45)
     mix.echo("lead", STEP * 3, 0.3, 0.35)
