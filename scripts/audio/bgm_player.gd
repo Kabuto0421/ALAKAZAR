@@ -1,10 +1,10 @@
 extends Node
 ## Cyber BGM: loops the battle theme and swaps to a one-shot jingle on the result screen.
-## The WAVs are rendered by tools/generate_bgm.py.
+## The OGGs are rendered by tools/generate_bgm.py.
 
-const BATTLE = preload("res://assets/audio/bgm/battle_loop.wav")
-const VICTORY = preload("res://assets/audio/bgm/victory.wav")
-const DEFEAT = preload("res://assets/audio/bgm/defeat.wav")
+const BATTLE = preload("res://assets/audio/bgm/battle_loop.ogg")
+const VICTORY = preload("res://assets/audio/bgm/victory.ogg")
+const DEFEAT = preload("res://assets/audio/bgm/defeat.ogg")
 const VOLUME_DB := -10.0
 
 var player := AudioStreamPlayer.new()
@@ -13,9 +13,6 @@ var muted := false
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
 	add_child(player)
-	# battle_loop.wav carries a smpl loop chunk; this covers imports that ignored it.
-	player.finished.connect(func():
-		if player.stream == BATTLE: player.play())
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:

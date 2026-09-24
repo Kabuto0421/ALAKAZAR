@@ -1,36 +1,39 @@
 #!/usr/bin/env python3
-"""Render ALAKAZAR's cyber BGM to WAV files (standard library only).
+"""Render ALAKAZAR's cyber BGM to Ogg Vorbis files.
 
 One shared sound palette keeps every track unified: filtered saw bass rolling
 on the off-16ths, a detuned saw pad, a pulse pluck arpeggio with a dotted-eighth
 echo, a restrained saw lead, and a four-on-the-floor kick that side-chains the
 music so the whole mix "pumps". Everything is low-passed and mixed quietly so
-it sits under the game instead of competing with it. Output is deterministic,
-so re-running the script reproduces the files byte for byte.
+it sits under the game instead of competing with it. Synthesis is standard
+library only and deterministic; encoding needs `pip install soundfile`.
 
     python3 tools/generate_bgm.py
 
-Writes into assets/audio/bgm/:
-    battle_loop.wav  D minor, 132 BPM, 16 bars. Bars 1-8 build (filter opens,
-                     riser), bars 9-16 pay off with the hook, then it drops
-                     back to the groove. Rendered circularly so echoes and pad
-                     tails wrap into the start; a `smpl` chunk marks the loop so
-                     Godot's "Detect From WAV" import loops it seamlessly.
-    victory.wav      rising arp that resolves D minor -> D major
-    defeat.wav       the battle pad powering down (tape-stop and filter close)
+Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
+    battle_loop.ogg  D minor, 132 BPM, 36 bars. Mostly a low-key groove; once
+                     per loop it builds, spikes with the hook, peaks in a
+                     twin-lead climax, settles through an after-glow and a
+                     kick-less break. Rendered circularly so echoes and pad
+                     tails wrap into the start; Vorbis keeps the exact frame
+                     count, so the loop stays seamless (`loop=true` in
+                     battle_loop.ogg.import).
+    victory.ogg      rising arp that resolves D minor -> D major
+    defeat.ogg       the battle pad powering down (tape-stop and filter close)
 """
 
 import math
 import os
 import random
-import struct
-import wave
 
 RATE = 32000
 BPM = 132
 TARGET_RMS = 0.2  # shared loudness so tracks feel like one soundtrack
 STEP = 60.0 / BPM / 4  # one sixteenth note in seconds
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "audio", "bgm")
+# libsndfile Vorbis setting: 0 = best quality, 1 = smallest. 0.5 (~74 kbps
+# mono) is the smallest setting that keeps these synth tracks transparent.
+COMPRESSION = 0.5
 
 NOTE_INDEX = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5,
               "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10,
@@ -208,33 +211,22 @@ class Mix:
         for i in range(n):
             buf[i] *= gain[i]
 
-    def write(self, path, peak=0.85, loop=False):
+    def write(self, path, peak=0.85):
+        import numpy
+        import soundfile
+
         total = [sum(b[i] for b in self.buses.values()) for i in range(self.n)]
         total = [math.tanh(s * 1.1) for s in total]  # gentle glue
         # Match loudness across tracks (RMS), never exceeding the peak ceiling.
         top = max(abs(s) for s in total) or 1.0
         rms = math.sqrt(sum(s * s for s in total) / self.n) or 1.0
         scale = min(peak / top, TARGET_RMS / rms)
-        frames = b"".join(struct.pack("<h", int(s * scale * 32767)) for s in total)
-        with wave.open(path, "wb") as w:
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(RATE)
-            w.writeframes(frames)
-        if loop:
-            append_loop_chunk(path, self.n)
-
-
-def append_loop_chunk(path, frames):
-    """Append a RIFF `smpl` chunk with one forward loop over the whole file."""
-    loop = struct.pack("<6I", 0, 0, 0, frames - 1, 0, 0)
-    body = struct.pack("<9I", 0, 0, int(1e9 / RATE), 60, 0, 0, 0, 1, 0) + loop
-    with open(path, "r+b") as f:
-        f.seek(0, os.SEEK_END)
-        f.write(b"smpl" + struct.pack("<I", len(body)) + body)
-        size = f.tell()
-        f.seek(4)
-        f.write(struct.pack("<I", size - 8))
+        data = numpy.array(total, dtype=numpy.float32) * scale
+        # Written in blocks: one large Vorbis write crashes some libsndfile builds.
+        with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
+                                 compression_level=COMPRESSION) as f:
+            for i in range(0, len(data), 4096):
+                f.write(data[i:i + 4096])
 
 
 # ---------------------------------------------------------------------------
@@ -476,14 +468,13 @@ def defeat_jingle():
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    battle_theme().write(os.path.join(OUT_DIR, "battle_loop.wav"), loop=True)
-    victory_jingle().write(os.path.join(OUT_DIR, "victory.wav"))
-    defeat_jingle().write(os.path.join(OUT_DIR, "defeat.wav"))
-    for name in sorted(os.listdir(OUT_DIR)):
+    tracks = {"battle_loop.ogg": battle_theme, "victory.ogg": victory_jingle,
+              "defeat.ogg": defeat_jingle}
+    for name, render in tracks.items():
         path = os.path.join(OUT_DIR, name)
-        if name.endswith(".wav"):
-            with wave.open(path) as w:
-                print(f"{name}: {w.getnframes() / w.getframerate():.2f}s, {os.path.getsize(path) // 1024} KiB")
+        mix = render()
+        mix.write(path)
+        print(f"{name}: {mix.n / RATE:.2f}s, {os.path.getsize(path) // 1024} KiB")
 
 
 if __name__ == "__main__":
