@@ -1,11 +1,11 @@
 extends Node
-## Chiptune BGM: loops the battle theme and swaps to a one-shot jingle on the result screen.
+## Cyber BGM: loops the battle theme and swaps to a one-shot jingle on the result screen.
 ## The WAVs are rendered by tools/generate_bgm.py.
 
 const BATTLE = preload("res://assets/audio/bgm/battle_loop.wav")
 const VICTORY = preload("res://assets/audio/bgm/victory.wav")
 const DEFEAT = preload("res://assets/audio/bgm/defeat.wav")
-const VOLUME_DB := -8.0
+const VOLUME_DB := -10.0
 
 var player := AudioStreamPlayer.new()
 var muted := false

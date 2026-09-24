@@ -1,134 +1,228 @@
 #!/usr/bin/env python3
-"""Render ALAKAZAR's chiptune BGM to WAV files (standard library only).
+"""Render ALAKAZAR's cyber BGM to WAV files (standard library only).
 
-The voices imitate a classic 8-bit sound chip: two pulse channels (lead and
-arpeggio), a 4-bit stepped triangle for the bass and an LFSR noise channel for
-drums. Output is deterministic, so re-running the script reproduces the files
-byte for byte.
+One shared sound palette keeps every track unified: filtered saw bass rolling
+on the off-16ths, a detuned saw pad, a pulse pluck arpeggio with a dotted-eighth
+echo, a restrained saw lead, and a four-on-the-floor kick that side-chains the
+music so the whole mix "pumps". Everything is low-passed and mixed quietly so
+it sits under the game instead of competing with it. Output is deterministic,
+so re-running the script reproduces the files byte for byte.
 
     python3 tools/generate_bgm.py
 
 Writes into assets/audio/bgm/:
-    battle_loop.wav  looping battle theme (a `smpl` chunk marks the loop so
-                     Godot's "Detect From WAV" import loops it seamlessly)
-    victory.wav      one-shot jingle for SECTOR CLEAR
-    defeat.wav       one-shot jingle for EXPEDITION FAILED
+    battle_loop.wav  D minor, 132 BPM, 16 bars. Bars 1-8 build (filter opens,
+                     riser), bars 9-16 pay off with the hook, then it drops
+                     back to the groove. Rendered circularly so echoes and pad
+                     tails wrap into the start; a `smpl` chunk marks the loop so
+                     Godot's "Detect From WAV" import loops it seamlessly.
+    victory.wav      rising arp that resolves D minor -> D major
+    defeat.wav       the battle pad powering down (tape-stop and filter close)
 """
 
 import math
 import os
+import random
 import struct
 import wave
 
-RATE = 22050
+RATE = 32000
+BPM = 132
+TARGET_RMS = 0.2  # shared loudness so tracks feel like one soundtrack
+STEP = 60.0 / BPM / 4  # one sixteenth note in seconds
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "audio", "bgm")
 
-NOTE_INDEX = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6,
-              "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
+NOTE_INDEX = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5,
+              "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10,
+              "Bb": 10, "B": 11}
 
 
-def freq(name):
-    """'A4' -> 440.0, 'G#3' -> 207.65."""
-    pitch, octave = name[:-1], int(name[-1])
-    midi = 12 * (octave + 1) + NOTE_INDEX[pitch]
-    return 440.0 * 2 ** ((midi - 69) / 12)
+def midi(name):
+    return 12 * (int(name[-1]) + 1) + NOTE_INDEX[name[:-1]]
 
 
-class Track:
-    """A mono mix buffer addressed in sequencer steps."""
+def hz(note):
+    """'A4' -> 440.0; also accepts a MIDI number."""
+    m = note if isinstance(note, (int, float)) else midi(note)
+    return 440.0 * 2 ** ((m - 69) / 12)
 
-    def __init__(self, bpm, steps, steps_per_beat=4):
-        self.step_len = 60.0 / bpm / steps_per_beat
-        self.length = int(round(steps * self.step_len * RATE))
-        self.buf = [0.0] * self.length
 
-    def at(self, step):
-        return int(round(step * self.step_len * RATE))
+def lp_coef(fc):
+    w = 2 * math.pi * min(fc, RATE * 0.45) / RATE
+    return w / (1 + w)
 
-    # --- voices -----------------------------------------------------------
 
-    def pulse(self, step, steps, note, duty=0.25, vol=0.5, gate=0.9,
-              decay=0.35, vibrato=True, slide_from=None):
-        """Pulse-wave note with a stepped (4-bit) volume envelope."""
-        start = self.at(step)
-        dur = max(1, int((self.at(step + steps) - start) * gate))
-        f = freq(note)
-        f0 = freq(slide_from) if slide_from else f
-        phase = 0.0
-        for i in range(dur):
-            idx = start + i
-            if idx >= self.length:
-                break
-            t = i / RATE
-            cur = f if t > 0.03 else f0 + (f - f0) * (t / 0.03)
-            # Delayed vibrato on held notes, like a hand-written chip driver.
-            if vibrato and t > 0.18:
-                cur *= 2 ** (0.18 * math.sin(2 * math.pi * 6.0 * (t - 0.18)) / 12)
-            phase = (phase + cur / RATE) % 1.0
-            level = vol * max(0.55, 1.0 - decay * t * 2.2)
-            level = round(level * 15) / 15  # 16 hardware volume steps
-            fade = min(1.0, i / 40, (dur - i) / 60)  # soften on/off clicks
-            self.buf[idx] += ((1.0 if phase < duty else 0.0) - duty) * 2 * level * fade
+# ---------------------------------------------------------------------------
+# Voices: each returns a list of samples starting at the note-on.
+# ---------------------------------------------------------------------------
 
-    def triangle(self, step, steps, note, vol=0.55, gate=0.85):
-        """4-bit stepped triangle (32 levels, fixed volume like the NES)."""
-        start = self.at(step)
-        dur = max(1, int((self.at(step + steps) - start) * gate))
-        f = freq(note)
-        phase = 0.0
-        for i in range(dur):
-            idx = start + i
-            if idx >= self.length:
-                break
-            phase = (phase + f / RATE) % 1.0
-            tri = 1.0 - 4.0 * abs(phase - 0.5)
-            tri = round(tri * 7.5) / 7.5
-            fade = min(1.0, i / 30, (dur - i) / 60)
-            self.buf[idx] += tri * vol * fade
+def synth(note, seconds, wave_="saw", detune=(0.0,), vol=0.3,
+          attack=0.004, decay=0.15, sustain=0.6, release=0.05,
+          cutoff=(3000, 1200, 0.1), pitch=None, glide_from=None, duty=0.5):
+    """Subtractive voice: oscillator(s) -> 2-pole low-pass -> ADSR.
 
-    def noise(self, step, kind, vol=0.35):
-        """LFSR noise drums: 'k' kick, 's' snare, 'h' closed hat, 'o' open hat."""
-        start = self.at(step)
-        length = {"k": 0.12, "s": 0.16, "h": 0.035, "o": 0.14}[kind]
-        rate = {"k": 3000, "s": 9000, "h": 18000, "o": 16000}[kind]
-        short = kind in "ho"
-        reg, hold, out = 0x7FFF, 0, 1.0
-        period = RATE / rate
-        n = int(length * RATE)
+    cutoff = (start_hz, sustain_hz, decay_seconds) of the filter envelope.
+    pitch  = optional callable t -> frequency multiplier (for tape-stops).
+    """
+    n = int((seconds + release) * RATE)
+    gate = seconds
+    base = hz(note)
+    start_f = hz(glide_from) if glide_from else base
+    ratios = [2 ** (c / 1200) for c in detune]
+    phases = [(i * 0.37) % 1.0 for i in range(len(ratios))]
+    f_start, f_sus, f_decay = cutoff
+    y1 = y2 = 0.0
+    out = [0.0] * n
+    norm = 1.0 / len(ratios)
+    for i in range(n):
+        t = i / RATE
+        f = base if t > 0.04 or not glide_from else start_f + (base - start_f) * t / 0.04
+        if pitch:
+            f *= pitch(t)
+        s = 0.0
+        for k, r in enumerate(ratios):
+            p = (phases[k] + f * r / RATE) % 1.0
+            phases[k] = p
+            if wave_ == "saw":
+                s += 2.0 * p - 1.0
+            elif wave_ == "pulse":
+                s += (1.0 if p < duty else 0.0) - duty
+            elif wave_ == "tri":
+                s += 1.0 - 4.0 * abs(p - 0.5)
+            else:
+                s += math.sin(2 * math.pi * p)
+        s *= norm
+        a = lp_coef(f_sus + (f_start - f_sus) * math.exp(-t / f_decay))
+        y1 += a * (s - y1)
+        y2 += a * (y1 - y2)
+        if t < attack:
+            env = t / attack
+        elif t < gate:
+            env = sustain + (1 - sustain) * math.exp(-(t - attack) / decay)
+        else:
+            held = sustain + (1 - sustain) * math.exp(-(gate - attack) / decay)
+            env = held * max(0.0, 1 - (t - gate) / release)
+        out[i] = y2 * env * vol
+    return out
+
+
+def kick(vol=0.9):
+    n = int(0.28 * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 45 + 110 * math.exp(-t * 32)
+        phase += f / RATE
+        env = math.exp(-t * 11) * min(1.0, i / 16)
+        out[i] = math.sin(2 * math.pi * phase) * env * vol
+    return out
+
+
+def noise_hit(rng, seconds, lo, hi, vol, bursts=1):
+    """Band-limited noise: (low-pass at hi) minus (low-pass at lo)."""
+    n = int(seconds * RATE)
+    a_hi, a_lo = lp_coef(hi), lp_coef(lo)
+    h = l = 0.0
+    out = [0.0] * n
+    burst_len = 0.011 * RATE
+    for i in range(n):
+        x = rng.uniform(-1, 1)
+        h += a_hi * (x - h)
+        l += a_lo * (x - l)
+        if bursts > 1 and i < burst_len * bursts:
+            env = 1 - (i % burst_len) / burst_len * 0.7
+        else:
+            env = (1 - i / n) ** 3
+        out[i] = (h - l) * env * vol * min(1.0, i / 12)
+    return out
+
+
+def riser(rng, seconds, vol=0.12):
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    y = 0.0
+    for i in range(n):
+        k = i / n
+        y += lp_coef(300 + 7000 * k * k) * (rng.uniform(-1, 1) - y)
+        out[i] = y * vol * k * k
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Mixing
+# ---------------------------------------------------------------------------
+
+class Mix:
+    """Named buses in one timeline. wrap=True renders circularly for loops."""
+
+    def __init__(self, seconds, wrap):
+        self.n = int(round(seconds * RATE))
+        self.wrap = wrap
+        self.buses = {}
+
+    def bus(self, name):
+        return self.buses.setdefault(name, [0.0] * self.n)
+
+    def put(self, name, at_seconds, samples):
+        buf, n = self.bus(name), self.n
+        start = int(round(at_seconds * RATE))
+        for i, s in enumerate(samples):
+            j = start + i
+            if j >= n:
+                if not self.wrap:
+                    break
+                j %= n
+            buf[j] += s
+
+    def echo(self, name, delay, feedback, mix):
+        """Feedback delay; a loop is run twice around so tails wrap in."""
+        buf, n = self.bus(name), self.n
+        d = int(delay * RATE)
+        passes = 2 if self.wrap else 1
+        wet = [0.0] * n
+        for _ in range(passes):
+            for i in range(n):
+                j = i - d
+                if j < 0 and not self.wrap:
+                    continue
+                j %= n
+                wet[i] = buf[j] + feedback * wet[j]
         for i in range(n):
-            idx = start + i
-            if idx >= self.length:
-                break
-            hold += 1
-            if hold >= period:
-                hold -= period
-                tap = 6 if short else 1
-                bit = (reg ^ (reg >> tap)) & 1
-                reg = (reg >> 1) | (bit << 14)
-                out = 1.0 if reg & 1 else -1.0
-            env = (1.0 - i / n) ** (2.0 if kind == "k" else 1.3) * min(1.0, i / 24)
-            sample = out * vol * env
-            if kind == "k":
-                # Pitch-dropping square thump under the noise burst.
-                t = i / RATE
-                kf = 150 * math.exp(-t * 28) + 45
-                sample = sample * 0.35 + (1.0 if math.sin(2 * math.pi * kf * t) > 0 else -1.0) * vol * 1.4 * env
-            self.buf[idx] += sample
+            buf[i] += wet[i] * mix
 
-    # --- output ------------------------------------------------------------
+    def duck(self, name, kick_times, depth, length=0.2):
+        """Side-chain pump: dip the bus right after every kick."""
+        buf, n = self.bus(name), self.n
+        gain = [1.0] * n
+        for kt in kick_times:
+            start = int(round(kt * RATE))
+            for i in range(int(length * RATE)):
+                j = start + i
+                if j >= n:
+                    if not self.wrap:
+                        break
+                    j %= n
+                g = 1 - depth * (1 - i / (length * RATE)) ** 2
+                gain[j] = min(gain[j], g)
+        for i in range(n):
+            buf[i] *= gain[i]
 
     def write(self, path, peak=0.85, loop=False):
-        top = max(abs(s) for s in self.buf) or 1.0
-        scale = peak / top
-        frames = b"".join(struct.pack("<h", int(max(-1.0, min(1.0, s * scale)) * 32767))
-                          for s in self.buf)
+        total = [sum(b[i] for b in self.buses.values()) for i in range(self.n)]
+        total = [math.tanh(s * 1.1) for s in total]  # gentle glue
+        # Match loudness across tracks (RMS), never exceeding the peak ceiling.
+        top = max(abs(s) for s in total) or 1.0
+        rms = math.sqrt(sum(s * s for s in total) / self.n) or 1.0
+        scale = min(peak / top, TARGET_RMS / rms)
+        frames = b"".join(struct.pack("<h", int(s * scale * 32767)) for s in total)
         with wave.open(path, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(RATE)
             w.writeframes(frames)
         if loop:
-            append_loop_chunk(path, self.length)
+            append_loop_chunk(path, self.n)
 
 
 def append_loop_chunk(path, frames):
@@ -143,126 +237,158 @@ def append_loop_chunk(path, frames):
         f.write(struct.pack("<I", size - 8))
 
 
-def sequence(track, notes, voice, **kw):
-    """notes: iterable of (note or None, steps); None is a rest."""
-    step = 0
-    for note, steps in notes:
-        if note:
-            voice(step, steps, note, **kw)
-        step += steps
-    return step
+# ---------------------------------------------------------------------------
+# Shared palette (used by every track so they sound like one soundtrack)
+# ---------------------------------------------------------------------------
+
+def bass_note(note, steps=1):
+    return synth(note, steps * STEP * 0.8, "saw", detune=(-6, 6), vol=0.5,
+                 attack=0.003, decay=0.08, sustain=0.5, release=0.02,
+                 cutoff=(1400, 260, 0.05))
+
+
+def pad_chord(notes, seconds, cutoff=1000, vol=0.1, pitch=None, close=None):
+    cut = (cutoff, close if close else cutoff, 1.2 if close else 1.0)
+    voices = [synth(nt, seconds, "saw", detune=(-11, 0, 9), vol=vol, attack=0.08,
+                    decay=0.6, sustain=0.8, release=0.25, cutoff=cut, pitch=pitch)
+              for nt in notes]
+    return [sum(v) for v in zip(*voices)]
+
+
+def pluck(note, cutoff, vol=0.13):
+    return synth(note, STEP * 0.6, "pulse", duty=0.3, vol=vol, attack=0.002,
+                 decay=0.07, sustain=0.15, release=0.03,
+                 cutoff=(cutoff, cutoff * 0.35, 0.05))
+
+
+def lead(note, steps, glide_from=None, vol=0.16):
+    return synth(note, steps * STEP * 0.9, "saw", detune=(-7, 7), vol=vol,
+                 attack=0.01, decay=0.25, sustain=0.7, release=0.08,
+                 cutoff=(2600, 1500, 0.2), glide_from=glide_from)
 
 
 # ---------------------------------------------------------------------------
-# Battle theme: A minor, 150 BPM, 16 bars (A section + B section), loops.
+# Battle loop
 # ---------------------------------------------------------------------------
 
-BATTLE_CHORDS = [
-    # A section: tension on the 6x6 board
-    ("A", "min"), ("A", "min"), ("F", "maj"), ("G", "maj"),
-    ("A", "min"), ("A", "min"), ("F", "maj"), ("E", "maj"),
-    # B section: push through the encirclement
-    ("D", "min"), ("D", "min"), ("A", "min"), ("A", "min"),
-    ("F", "maj"), ("G", "maj"), ("E", "maj"), ("E", "maj"),
+# One chord per bar, four-bar cycle: i - VI - iv - V (A major pulls back home).
+CHORDS = [
+    {"bass": "D2", "pad": ["D3", "F3", "A3", "D4"], "arp": ["D4", "F4", "A4", "D5"]},
+    {"bass": "A#1", "pad": ["A#2", "D3", "F3", "A#3"], "arp": ["A#3", "D4", "F4", "A#4"]},
+    {"bass": "G1", "pad": ["G2", "A#2", "D3", "G3"], "arp": ["G3", "A#3", "D4", "G4"]},
+    {"bass": "A1", "pad": ["A2", "C#3", "E3", "A3"], "arp": ["A3", "C#4", "E4", "A4"]},
 ]
+ARP_ORDER = [0, 2, 1, 3, 2, 1, 3, 2]
 
-BATTLE_MELODY = [
-    # bar 1-4
-    ("A4", 2), ("C5", 2), ("E5", 4), ("D5", 2), ("C5", 2), ("B4", 2), ("C5", 2),
-    ("A4", 4), ("E4", 2), ("A4", 2), ("B4", 4), ("C5", 4),
-    ("C5", 2), ("A4", 2), ("C5", 2), ("F5", 4), ("E5", 2), ("D5", 2), ("C5", 2),
-    ("D5", 6), ("B4", 2), ("G4", 4), (None, 2), ("B4", 2),
-    # bar 5-8
-    ("A4", 2), ("C5", 2), ("E5", 4), ("A5", 4), ("G5", 2), ("E5", 2),
-    ("F5", 2), ("E5", 2), ("D5", 2), ("C5", 2), ("D5", 4), ("E5", 4),
-    ("F5", 4), ("E5", 2), ("D5", 2), ("C5", 4), ("A4", 4),
-    ("B4", 8), ("G#4", 4), ("E4", 4),
-    # bar 9-12
-    ("D5", 4), ("F5", 4), ("A5", 6), ("G5", 2),
-    ("F5", 2), ("E5", 2), ("D5", 4), ("C5", 2), ("D5", 2), ("F5", 4),
-    ("E5", 4), ("C5", 4), ("A4", 6), ("B4", 2),
-    ("C5", 2), ("D5", 2), ("E5", 4), ("G5", 4), ("E5", 4),
-    # bar 13-16
-    ("F5", 6), ("E5", 2), ("D5", 4), ("C5", 4),
-    ("D5", 4), ("B4", 4), ("G5", 4), ("F5", 4),
-    ("E5", 8), ("D5", 2), ("C5", 2), ("B4", 4),
-    ("G#4", 4), ("B4", 4), ("E5", 4), (None, 4),
+# Hook: (step, length, note) per bar. Sparse and syncopated so it hooks
+# without shouting; the second pass lifts the ending.
+HOOK = [
+    [(0, 2, "A4"), (3, 2, "D5"), (6, 2, "F5"), (8, 4, "E5"), (12, 2, "D5"), (14, 2, "C5")],
+    [(0, 2, "D5"), (3, 2, "F5"), (6, 2, "A5"), (8, 6, "G5")],
+    [(0, 2, "G5"), (3, 2, "F5"), (6, 2, "D5"), (8, 4, "A#4"), (12, 2, "C5"), (14, 2, "D5")],
+    [(0, 3, "E5"), (3, 3, "C#5"), (6, 2, "A4"), (8, 4, "E5"), (12, 4, "C#5")],
 ]
-
-CHORD_TONES = {"min": [0, 3, 7, 12], "maj": [0, 4, 7, 12]}
-NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
-
-def transpose(root, octave, semis):
-    n = NOTE_INDEX[root] + semis
-    return NAMES[n % 12] + str(octave + n // 12)
+HOOK_LIFT = [(0, 2, "E5"), (2, 2, "F5"), (4, 2, "G5"), (6, 2, "A5"), (8, 6, "A5")]
 
 
 def battle_theme():
-    bars = len(BATTLE_CHORDS)
-    track = Track(bpm=150, steps=bars * 16)
-    assert sequence(track, BATTLE_MELODY, track.pulse, duty=0.25, vol=0.42) == bars * 16
+    bars = 16
+    bar_len = 16 * STEP
+    mix = Mix(bars * bar_len, wrap=True)
+    rng = random.Random(4)
+    kicks = []
 
-    for bar, (root, quality) in enumerate(BATTLE_CHORDS):
-        base = bar * 16
-        tones = CHORD_TONES[quality]
-        octave = 3 if NOTE_INDEX[root] >= NOTE_INDEX["F"] else 4
-        # Fast 12.5% pulse arpeggio, quieter, sits under the lead.
+    for bar in range(bars):
+        chord = CHORDS[bar % 4]
+        t0 = bar * bar_len
+        build = bar < 8
+        # Filter opens across the build, then stays bright for the payoff.
+        arp_cut = 700 + 3300 * (bar / 7) if build else 4200
+
+        for beat in range(4):
+            bt = t0 + beat * 4 * STEP
+            mix.put("kick", bt, kick())
+            kicks.append(bt)
+            # Rolling off-16th bass; the kick owns the downbeat.
+            for s in (1, 2, 3):
+                note = chord["bass"]
+                if s == 3 and beat == 3 and not build:
+                    note = midi(note) + 12  # octave pop into the next bar
+                mix.put("bass", bt + s * STEP, bass_note(note))
+            # Off-beat open hat, quiet 16th ticks.
+            mix.put("hat", bt + 2 * STEP, noise_hit(rng, 0.09, 6000, 12000, 0.22))
+            for s in (1, 3):
+                mix.put("hat", bt + s * STEP, noise_hit(rng, 0.03, 7000, 13000, 0.08))
+            if (bar >= 4) and beat in (1, 3):
+                mix.put("clap", bt, noise_hit(rng, 0.18, 900, 3200, 0.45, bursts=3))
+
+        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1))
+
         for s in range(16):
-            note = transpose(root, octave, tones[s % 4])
-            track.pulse(base + s, 1, note, duty=0.125, vol=0.16, gate=0.7, vibrato=False)
-        # Octave-bouncing triangle bass in eighths.
-        bass_oct = 2 if NOTE_INDEX[root] >= NOTE_INDEX["E"] else 3
-        for s in range(0, 16, 2):
-            jump = 12 if (s // 2) % 2 else 0
-            if bar in (7, 15) and s >= 12:
-                jump = 7 if s == 12 else 10  # walk-up into the next phrase
-            track.triangle(base + s, 2, transpose(root, bass_oct, jump))
-        # Drums: kick / snare backbeat with hats; fill on phrase ends.
-        for s in range(16):
-            if s in (0, 6, 8):
-                track.noise(base + s, "k")
-            elif s in (4, 12):
-                track.noise(base + s, "s", vol=0.3)
-            elif bar in (7, 15) and s >= 13:
-                track.noise(base + s, "s", vol=0.22)
-            elif s % 2 == 0:
-                track.noise(base + s, "h", vol=0.12)
-            elif s == 15:
-                track.noise(base + s, "o", vol=0.1)
-    return track
+            note = chord["arp"][ARP_ORDER[s % 8]]
+            mix.put("arp", t0 + s * STEP, pluck(note, arp_cut))
+
+        if not build:
+            phrase = HOOK_LIFT if bar == 15 else HOOK[bar % 4]
+            prev = None
+            for step, length, note in phrase:
+                mix.put("lead", t0 + step * STEP, lead(note, length, glide_from=prev))
+                prev = note
+
+    # Build-up tension into the payoff at bar 9.
+    mix.put("fx", 6 * bar_len, riser(rng, 2 * bar_len))
+    for s in range(8, 16):
+        mix.put("clap", 7 * bar_len + s * STEP,
+                noise_hit(rng, 0.08, 900, 3200, 0.12 + 0.03 * (s - 8)))
+    mix.put("fx", 8 * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.18))  # crash
+
+    mix.echo("arp", STEP * 3, 0.35, 0.45)
+    mix.echo("lead", STEP * 3, 0.3, 0.35)
+    mix.duck("pad", kicks, 0.7)
+    mix.duck("arp", kicks, 0.45)
+    mix.duck("bass", kicks, 0.3, length=0.12)
+    mix.duck("lead", kicks, 0.2)
+    return mix
 
 
 # ---------------------------------------------------------------------------
-# Jingles
+# Jingles (same instruments and key as the battle loop)
 # ---------------------------------------------------------------------------
 
 def victory_jingle():
-    track = Track(bpm=150, steps=36)
-    lead = [("A4", 1), ("C#5", 1), ("E5", 1), ("A5", 3),
-            ("G5", 2), ("A5", 2), ("B5", 2), ("C#6", 12), (None, 12)]
-    harm = [("E4", 1), ("A4", 1), ("C#5", 1), ("E5", 3),
-            ("D5", 2), ("E5", 2), ("F#5", 2), ("A5", 12), (None, 12)]
-    sequence(track, lead, track.pulse, duty=0.5, vol=0.4, gate=0.95)
-    sequence(track, harm, track.pulse, duty=0.25, vol=0.22, gate=0.95, vibrato=False)
-    bass = [("A2", 3), ("A2", 3), ("G2", 2), ("A2", 2), ("B2", 2), ("A2", 12), (None, 12)]
-    sequence(track, bass, track.triangle, gate=0.95)
-    for s, kind in [(0, "k"), (3, "k"), (6, "s"), (8, "s"), (10, "s"), (12, "k")]:
-        track.noise(s, kind, vol=0.3)
-    track.noise(12, "o", vol=0.18)
-    return track
+    mix = Mix(4.8, wrap=False)
+    rng = random.Random(9)
+    for i, note in enumerate(["D4", "F4", "A4", "D5", "F#5", "A5"]):
+        mix.put("arp", i * STEP, pluck(note, 2500 + 400 * i, vol=0.16))
+    hit = 6 * STEP
+    mix.put("kick", hit, kick())
+    mix.put("clap", hit, noise_hit(rng, 0.2, 900, 3200, 0.4, bursts=3))
+    mix.put("fx", hit, noise_hit(rng, 1.8, 3000, 11000, 0.16))
+    mix.put("pad", hit, pad_chord(["D3", "F#3", "A3", "D4", "F#4"], 2.2, cutoff=2200, vol=0.09))
+    mix.put("bass", hit, synth("D2", 1.6, "saw", detune=(-6, 6), vol=0.45, decay=0.3,
+                               sustain=0.5, release=0.3, cutoff=(1600, 300, 0.1)))
+    mix.put("lead", hit, lead("D6", 12, glide_from="A5", vol=0.14))
+    for i, note in enumerate(["A5", "D6", "F#6", "A6", "F#6", "D6", "A5", "D6"]):
+        mix.put("arp", hit + (4 + i) * STEP, pluck(note, 3500, vol=0.09))
+    mix.echo("arp", STEP * 3, 0.35, 0.45)
+    mix.echo("lead", STEP * 3, 0.3, 0.35)
+    return mix
 
 
 def defeat_jingle():
-    track = Track(bpm=96, steps=32)
-    lead = [("E5", 4), ("D#5", 4), ("D5", 4), ("C#5", 4), ("C5", 12), (None, 4)]
-    sequence(track, lead, track.pulse, duty=0.5, vol=0.38, gate=0.95, decay=0.25)
-    harm = [("C5", 4), ("B4", 4), ("A#4", 4), ("A4", 4), ("A4", 12), (None, 4)]
-    sequence(track, harm, track.pulse, duty=0.25, vol=0.18, gate=0.95, vibrato=False)
-    bass = [("A2", 8), ("F2", 8), ("A2", 12), (None, 4)]
-    sequence(track, bass, track.triangle, gate=0.95)
-    track.noise(16, "o", vol=0.12)
-    return track
+    mix = Mix(4.6, wrap=False)
+    rng = random.Random(13)
+    down = lambda t: max(0.25, 1.0 - 0.12 * max(0.0, t - 0.6) ** 1.6)  # tape-stop
+    mix.put("pad", 0, pad_chord(["D3", "F3", "A3", "D4"], 3.4, cutoff=1400, vol=0.11,
+                                pitch=down, close=180))
+    mix.put("bass", 0, synth("D2", 3.4, "saw", detune=(-6, 6), vol=0.4, decay=1.2,
+                             sustain=0.4, release=0.3, cutoff=(900, 150, 0.8), pitch=down))
+    for i, note in enumerate(["A4", "F4", "D4", "A3"]):
+        mix.put("arp", i * 4 * STEP, pluck(note, 1600 - 250 * i, vol=0.14))
+    mix.put("kick", 0, kick(0.7))
+    mix.put("fx", 0, noise_hit(rng, 1.4, 1500, 6000, 0.1))
+    mix.echo("arp", STEP * 3, 0.4, 0.5)
+    return mix
 
 
 def main():
