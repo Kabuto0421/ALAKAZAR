@@ -47,6 +47,7 @@ godot --editor --path .
 | 上部の「履歴」 | 戦闘履歴を表示 |
 | 右クリック | 妖精・向き選択中はキャンセル。それ以外は敵の詳細表示を固定・解除 |
 | `Esc` | 武器プレビュー・履歴・妖精・向き選択・ルールを閉じる |
+| `M` | BGMのミュート・解除 |
 
 敵にカーソルを重ねると、右側にHP・AP・移動／攻撃範囲を表示します。攻撃範囲外の敵は左クリックでも詳細を固定できます。範囲図は基本3×3、跳躍騎兵は5×5です。
 
@@ -129,14 +130,33 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 | `scripts/infantry_behavior.gd` / `scripts/heavy_behavior.gd` | 歩兵・重装兵それぞれの移動判断 |
 | `scripts/unit_view.gd` / `scripts/animation/sword_motion.gd` | キャラクター描画・剣の方向別アニメーション |
 | `scripts/weapon_effect.gd` | 武器別エフェクト |
+| `scripts/audio/bgm_player.gd` | BGMの再生（戦闘中はループ、結果画面で勝利・敗北ジングル） |
 | `scripts/movement/` | 金・銀・桂の移動パターン |
 | `items/` / `scripts/items/` | 妖精の定義・効果・手札UI |
 | `scenes/formations/` | 2Dエディターで編集する敵配置 |
-| `assets/` | キャラクター・エフェクト・UI・フォント |
+| `assets/` | キャラクター・エフェクト・UI・フォント・BGM |
 | `tests/` | Godotで実行する自動テストと描画キャプチャ |
-| `tools/` | 剣アニメーションの画像検証用スクリプト |
+| `tools/` | 剣アニメーションの画像検証用スクリプト・BGM生成スクリプト |
 
 妖精を追加する場合は `items/` に定義用 `.tres` を作り、`battle_model.gd` の `ITEMS` に登録します。効果は `apply(model, cell, direction)` を実装したスクリプトで定義します。所持数の追加には、合計7枚の上限を適用する `add_item()` を使います。
+
+### BGM
+
+`assets/audio/bgm/` のBGMは `tools/generate_bgm.py` で生成しています。全曲で同じ音色とキー（Dマイナー）を使い、サイバー風のサウンドトラックとして統一しています。音色は、フィルターを通したノコギリ波ベース、デチューンしたパッド、エコー付きのアルペジオ、控えめなリードです。キックに合わせて全体がうねる（サイドチェイン）ようにし、どの音も高域を抑えてゲームの邪魔をしない音量にしています。音の合成はPython標準ライブラリだけで行い、同じ内容なら毎回同じ音になります。書き出しは軽量なOgg Vorbis（モノラル・32kHz・約74kbps）で、戦闘BGMでも約600KBです。エンコードには `pip install soundfile` が必要です。
+
+| ファイル | 内容 |
+| --- | --- |
+| `battle_loop.ogg` | 戦闘BGM（132BPM・36小節、約65秒のループ）。大半は控えめなグルーヴで、1周に1回だけ盛り上げ→フック→クライマックス（ツインリードとスタブ）→余韻と山を作り、キックの抜けたブレイクを経て元に戻る |
+| `victory.ogg` | 勝利ジングル（上昇アルペジオからDメジャーで解決） |
+| `defeat.ogg` | 敗北ジングル（戦闘のパッドがテープストップして沈む） |
+
+曲を変更する場合は、スクリプト内の構成と各セクションの音量（`SECTIONS`）、コード進行（`CHORDS`）、フック（`HOOK`）を編集してから次のコマンドで再生成します。
+
+```sh
+python3 tools/generate_bgm.py
+```
+
+戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。
 
 ## 自動テスト
 

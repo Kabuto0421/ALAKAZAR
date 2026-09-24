@@ -7,6 +7,7 @@ const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
+const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const HP_EMPTY = preload("res://assets/sprites/editor_ui/part_capacity_unit_empty.png")
@@ -57,6 +58,7 @@ var aim := Vector2i.UP
 var direction_buttons: Array[Button] = []
 var cancel_button: Button
 var rules_button: Button
+var bgm: Node
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -64,6 +66,8 @@ func _ready() -> void:
 	model.reset()
 	weapon_effects = Node2D.new()
 	add_child(weapon_effects)
+	bgm = BgmPlayer.new()
+	add_child(bgm)
 	_make_ui()
 	_start(0)
 
@@ -450,6 +454,7 @@ func _update_controls() -> void:
 	history_text.visible = show_history and not show_rules and not inventory_ui.opened
 	history_text.text = "\n\n".join(model.logs)
 	result_button.visible = model.terminal() and not busy and not show_rules and not inventory_ui.opened
+	bgm.sync(model.terminal() and not busy,model.phase == Rules.Phase.WON)
 	result_button.text = "次の戦闘へ →" if model.phase == Rules.Phase.WON and model.level < 2 else "もう一度挑戦 →"
 	for actor in actors.values():
 		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened
@@ -532,6 +537,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if event.keycode == KEY_H or (event.keycode == KEY_ESCAPE and show_rules):
 			_toggle_rules()
+			return
+		if event.keycode == KEY_M:
+			bgm.toggle_mute()
 			return
 		if event.keycode == KEY_B:
 			inventory_ui.toggle()
