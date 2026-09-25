@@ -12,6 +12,7 @@ import numpy as np
 
 RATE = 48000
 RNG_SEED = 7
+SFX_GAIN = 0.45  # hits sit clearly under the narration
 
 
 def _ffmpeg():
@@ -278,7 +279,7 @@ def music(duration, scenes):
 
     for s in scenes:
         if s["id"] != "intro":
-            _add(sfx, _whoosh(1.6, rng), s["start"] - 0.2, 0.05)
+            _add(sfx, _whoosh(1.6, rng), s["start"] - 0.2, 0.03)
             chime = _bell(hz("A5"), 5) + 0.7 * _bell(hz("D6"), 5)
             _add(bells, chime, s["start"] + 1.1, 0.06)
 
@@ -325,7 +326,7 @@ def mix(duration, voice_clips, scenes, fx=()):
     bgm = music(duration, scenes)
     bgm /= np.max(np.abs(bgm)) + 1e-9
     duck = 1 - 0.55 * np.clip(_smooth_env(voice) / 0.08, 0, 1)
-    hits = sfx_track(duration, fx)
+    hits = sfx_track(duration, fx) * SFX_GAIN
     out = bgm * 0.32 * duck[:, None] + (voice + hits)[:, None]
     return np.tanh(out * 1.1) / np.tanh(1.1)  # gentle limiter
 

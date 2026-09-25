@@ -50,7 +50,7 @@ python3 build.py sin --remux               # 音だけ作り直して、描画�
 
 ## 台本の書き方（episodes/*.json）
 
-- `voice` … `speaker` はVOICEVOXのスタイルID（14＝冥鳴ひまり、3＝ずんだもん など）、`speed`・`intonation`。
+- `voice` … `speaker` はVOICEVOXのスタイルID（2＝四国めたん、3＝ずんだもん、14＝冥鳴ひまり など）、`speed`・`intonation`。
 - `scenes[].lines[]` … `text` は字幕（`{…}` で囲んだ語が金色で光る）、`say` は読み上げ用の文。外国語や難読字はカタカナ・ひらがなで書きます。
 - 各行で使える指定
   - `cards` … 下部に出すカード（`cards` 定義のID）。`pair`・`title`・`end` は画面中央の大きな演出になります。
