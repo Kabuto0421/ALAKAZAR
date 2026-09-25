@@ -135,6 +135,32 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--
 .kanji.formula .kg.s { font-size: 80px; }
 .formula .kg { white-space: nowrap; }
 .kanji.formula .op { font-size: 50px; }
+.kanji.formula .ftitle { position: absolute; left: 26px; top: 18px; font: 800 28px/1 var(--mincho); color: var(--gold); }
+b.hl, .kg b.hl, .script b.hl { font-weight: inherit; color: #ffd27a; text-shadow: 0 0 18px rgba(255, 200, 110, 0.8); }
+.tree b.hl { color: inherit; text-shadow: none; }
+.tree b.hl.on { color: #ffd27a; text-shadow: 0 0 22px rgba(255, 200, 110, 0.95); }
+.tree { width: 940px; height: 360px; }
+.set.hero > .panel.tree { position: absolute; left: 70px; top: 470px; }
+.wall { position: absolute; inset: 0; }
+.wword { position: absolute; text-align: center; white-space: nowrap; }
+.wword .ww { font-size: 96px; line-height: 1.05; color: #fffaf0; text-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 0 50px rgba(233, 196, 122, 0.35); }
+.wword .ww.f-cjk { font-size: 104px; }
+.wword .wl { font: 800 26px/1 var(--mincho); color: var(--gold); -webkit-text-stroke: 6px #05070d; paint-order: stroke fill; }
+.wall b.hl { color: inherit; text-shadow: inherit; }
+.wall b.hl.on { color: #ffd27a; text-shadow: 0 0 26px rgba(255, 200, 110, 1); }
+.tree svg { position: absolute; left: 0; top: 0; }
+.tree .tl { fill: none; stroke: rgba(233, 196, 122, 0.7); stroke-width: 3; }
+.tree .tl.borrowed { stroke: var(--cyan); stroke-dasharray: 3 9; }
+.tree .root { position: absolute; transform: translate(-50%, -50%); font-size: 58px; color: #fffaf0; white-space: nowrap; }
+.tree .leaf { position: absolute; text-align: center; white-space: nowrap; }
+.tree .lw { font-size: 44px; line-height: 1.1; color: #fffaf0; }
+.tree .lw.f-cjk { font-size: 40px; }
+.tree .ll { margin-top: 4px; font: 700 20px/1 var(--mincho); color: var(--muted); }
+.stable { width: 900px; padding: 20px 24px; }
+.stable .grid { display: grid; row-gap: 10px; column-gap: 8px; align-items: center; }
+.stable .th { font: 800 24px/1.2 var(--mincho); color: var(--gold); text-align: center; }
+.stable .rk { font: 800 58px/1 var(--mincho); color: #fffaf0; text-align: center; }
+.stable .td { font: 600 44px/1.1 "Noto Serif", "Shippori Mincho", "Noto Serif KR", serif; color: #fffaf0; text-align: center; white-space: nowrap; }
 
 .target { width: 860px; padding: 18px 20px 26px; }
 .target svg { display: block; margin: 0 auto; }

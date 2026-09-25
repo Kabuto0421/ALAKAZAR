@@ -33,6 +33,8 @@ function el(tag, cls, html) {
   return e;
 }
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+// "{…}" inside a word marks the sounds the episode wants the eye to follow
+const hl = (s) => esc(s).replace(/\{([^}]*)\}/g, '<b class="hl">$1</b>');
 const SVGNS = 'http://www.w3.org/2000/svg';
 function svgEl(tag, attrs = {}) {
   const e = document.createElementNS(SVGNS, tag);
@@ -346,7 +348,8 @@ function drawHeader(t, scene) {
   HEADER.h.style.opacity = op.toFixed(2);
   HEADER.h.style.transform = `translateY(${(-30 * (1 - easeOut(op))).toFixed(1)}px)`;
   const idx = TL.stops.findIndex((s) => s.scene === scene.id);
-  const outro = scene.id === 'outro';
+  // scenes after the last stop (answer, outro) show the whole itinerary as done
+  const outro = idx < 0 && TL.stops.every((st) => TL.scenes.find((q) => q.id === st.scene).start <= t);
   // traveler glides to the current stop when the scene starts
   let pos = 0;
   for (let i = 0; i < TL.stops.length; i++) {
@@ -486,8 +489,8 @@ function buildWordCard(c, size) {
   const e = el('div', `panel word ${size}${c.glow ? ' glow' : ''}`);
   e.innerHTML = `
     <div class="meta"><span class="lang">${esc(c.lang)}</span>${c.era ? `<span class="era">${esc(c.era)}</span>` : ''}</div>
-    <div class="script f-${c.font}"${c.font === 'hebrew' ? ' dir="rtl"' : ''}>${esc(c.script)}</div>
-    ${c.sub ? `<div class="sub">${esc(c.sub)}</div>` : ''}
+    <div class="script f-${c.font}"${c.font === 'hebrew' ? ' dir="rtl"' : ''}>${hl(c.script)}</div>
+    ${c.sub ? `<div class="sub">${hl(c.sub)}</div>` : ''}
     <div class="gloss">「${esc(c.gloss)}」</div>
     ${c.extra ? `<div class="extra">${esc(c.extra)}</div>` : ''}`;
   return { el: e, update: null };
@@ -634,11 +637,12 @@ function buildFormula(c) {
   const parts = c.items.map((it) => {
     const p = it.op
       ? el('span', 'op', esc(it.op))
-      : el('div', 'cell', `<span class="kg${it.s ? ' s' : ''}">${esc(it.g)}</span>${it.lab ? `<span class="lab${it.red ? ' red' : ''}">${esc(it.lab)}</span>` : ''}`);
+      : el('div', 'cell', `<span class="kg${it.s ? ' s' : ''}">${hl(it.g)}</span>${it.lab ? `<span class="lab${it.red ? ' red' : ''}">${esc(it.lab)}</span>` : ''}`);
     layer.appendChild(p);
     return p;
   });
   e.appendChild(layer);
+  if (c.title) e.appendChild(el('div', 'ftitle', esc(c.title)));
   if (c.source) e.appendChild(el('div', 'src', esc(c.source)));
   const update = (ctx) => {
     parts.forEach((p, i) => {
@@ -648,6 +652,111 @@ function buildFormula(c) {
     });
   };
   return { el: e, update };
+}
+
+function buildTree(c) {
+  // one root word fanning out into its descendants; borrowed words hang on dashed lines
+  const e = el('div', 'panel tree');
+  const W = 940, rootY = 62, rowY = [168, 290];
+  const svg = svgEl('svg', { width: W, height: 360, viewBox: `0 0 ${W} 360` });
+  e.appendChild(svg);
+  const root = el('div', 'root f-latin', hl(c.root));
+  root.style.left = `${W / 2}px`;
+  root.style.top = `${rootY}px`;
+  e.appendChild(root);
+  const perRow = Math.ceil(c.leaves.length / 2);
+  const leaves = c.leaves.map((lf, i) => {
+    const row = Math.floor(i / perRow), col = i % perRow;
+    const x = (W / perRow) * (col + 0.5), y = rowY[row];
+    const line = svgEl('path', {
+      d: `M ${W / 2} ${rootY + 34} C ${W / 2} ${y - 60}, ${x} ${rootY + 60}, ${x} ${y - 34}`,
+      class: `tl${lf.borrowed ? ' borrowed' : ''}`,
+    });
+    svg.appendChild(line);
+    const node = el('div', 'leaf', `<div class="lw ${lf.font ? `f-${lf.font}` : 'f-latin'}">${hl(lf.w)}</div><div class="ll">${esc(lf.l)}</div>`);
+    node.style.left = `${x}px`;
+    node.style.top = `${y}px`;
+    e.appendChild(node);
+    return { node, line };
+  });
+  const update = (ctx) => {
+    leaves.forEach(({ node, line }, i) => {
+      const p = prog(ctx.t, ctx.t0 + 0.25 + i * 0.14, 0.3);
+      node.style.opacity = p.toFixed(2);
+      node.style.transform = `translate(-50%, -50%) scale(${lerp(0.6, 1, back(p)).toFixed(3)})`;
+      line.style.opacity = p.toFixed(2);
+    });
+    const th = firstTime(ctx.hist, (s) => s.hl, c.lit ? ctx.t0 : Infinity);
+    const on = ctx.t >= th;
+    const pulse = on ? 1 + 0.35 * decay(ctx.t - th, 0.25) : 1;
+    e.querySelectorAll('.hl').forEach((b) => {
+      b.classList.toggle('on', on);
+      b.style.fontSize = `${(pulse * 100).toFixed(1)}%`;
+    });
+  };
+  return { el: e, update };
+}
+
+function buildTable(c) {
+  // a sound-correspondence grid, revealed row by row and column by column
+  const e = el('div', 'panel stable');
+  const grid = el('div', 'grid');
+  grid.style.gridTemplateColumns = `110px repeat(${c.cols.length}, 1fr)`;
+  const cells = [];
+  grid.appendChild(el('div', 'th corner', ''));
+  c.cols.forEach((h, j) => {
+    const d = el('div', 'th', esc(h));
+    grid.appendChild(d);
+    cells.push({ d, row: -1, col: j });
+  });
+  c.rows.forEach((r, i) => {
+    const k = el('div', 'rk', esc(r.k));
+    grid.appendChild(k);
+    cells.push({ d: k, row: i, col: -1 });
+    r.v.forEach((v, j) => {
+      const d = el('div', 'td', hl(v));
+      grid.appendChild(d);
+      cells.push({ d, row: i, col: j });
+    });
+  });
+  e.appendChild(grid);
+  const update = (ctx) => {
+    const st = stateAt(ctx.hist, ctx.t);
+    const rows = st.rows ?? c.rows.length, cols = st.cols ?? c.cols.length;
+    for (const cell of cells) {
+      const visible = (cell.row < rows) && (cell.col < cols);
+      const tv = firstTime(ctx.hist, (s) => (s.rows ?? c.rows.length) > cell.row && (s.cols ?? c.cols.length) > cell.col, ctx.t0);
+      const p = visible ? prog(ctx.t, tv + 0.05 * Math.max(0, cell.col), 0.28) : 0;
+      cell.d.style.opacity = p.toFixed(2);
+      cell.d.style.transform = `scale(${lerp(0.7, 1, back(p)).toFixed(3)})`;
+    }
+  };
+  return { el: e, update };
+}
+
+function buildWall(c) {
+  // many words for the same thing popping up all over the screen
+  const w = el('div', 'wall');
+  const r = rng(7);
+  const items = c.words.map((it, i) => {
+    const node = el('div', 'wword', `<div class="ww ${it.font ? `f-${it.font}` : 'f-latin'}">${hl(it.w)}</div><div class="wl">${esc(it.l)}</div>`);
+    const col = i % 2, row = Math.floor(i / 2);
+    node.style.left = `${(col ? 770 : 310) + (r() - 0.5) * 140}px`;
+    node.style.top = `${330 + row * 150 + (col ? 70 : 0)}px`;
+    w.appendChild(node);
+    return { node, rot: (r() - 0.5) * 10 };
+  });
+  const update = (ctx) => {
+    const span = (ctx.beats.done ?? ctx.t0 + 2.4) - ctx.t0;
+    items.forEach(({ node, rot }, i) => {
+      const p = prog(ctx.t, ctx.t0 + (span * i) / items.length, 0.22);
+      node.style.opacity = p.toFixed(2);
+      node.style.transform = `translate(-50%, -50%) rotate(${rot.toFixed(1)}deg) scale(${lerp(2.2, 1, easeOut(p)).toFixed(3)})`;
+    });
+    const th = ctx.beats.hl ?? Infinity;
+    w.querySelectorAll('.hl').forEach((b) => b.classList.toggle('on', ctx.t >= th));
+  };
+  return { el: w, update };
 }
 
 function buildTriad(c) {
@@ -738,7 +847,7 @@ function buildEnd() {
 function buildSet(i) {
   const set = EV.cardSets[i];
   const defs = set.cards.map((id) => ({ id, ...TL.cards[id] }));
-  const hero = defs.length === 1 && HERO_TYPES.has(defs[0].type);
+  const hero = defs.length === 1 && (HERO_TYPES.has(defs[0].type) || defs[0].hero || defs[0].type === 'wall');
   const box = el('div', `set${hero ? ' hero' : ''}`);
   const parts = defs.map((c) => {
     switch (c.type) {
@@ -748,6 +857,9 @@ function buildSet(i) {
       case 'shift': return buildShift(c);
       case 'kanji': return buildKanji(c);
       case 'formula': return buildFormula(c);
+      case 'tree': return buildTree(c);
+      case 'wall': return buildWall(c);
+      case 'table': return buildTable(c);
       case 'triad': return buildTriad(c);
       case 'pair': return buildPair(c, false);
       case 'title': return buildTitle(c);
