@@ -1,0 +1,931 @@
+{
+  "id": "mitsu",
+  "series": "語源の旅",
+  "number": 2,
+  "word": "médʰu",
+  "wordJa": "蜜",
+  "voice": {
+    "speaker": 2,
+    "name": "四国めたん",
+    "speed": 1.15,
+    "intonation": 1.05
+  },
+  "hook": "イギリスの蜂蜜酒 mead と、日本の「蜜」。6000年前の草原から、ユーラシアの西の端と東の端へ旅した、ひとつの言葉のお話。",
+  "cta": "次はどの言葉を旅しようかしら？ コメントで教えてね",
+  "tags": [
+    "語源",
+    "蜜",
+    "はちみつ",
+    "言語学",
+    "雑学",
+    "四国めたん",
+    "Shorts"
+  ],
+  "titles": [
+    "【鳥肌】日本の「蜜」とイギリスの蜂蜜酒は、6000年前の同じ言葉だった",
+    "「蜜」の語源をたどったら、ユーラシアを横断していた",
+    "メタノールと「蜜」が親戚だった件"
+  ],
+  "places": {
+    "steppe": {
+      "lon": 40.0,
+      "lat": 48.5,
+      "label": "印欧祖語の故郷（有力説）"
+    },
+    "canterbury": {
+      "lon": 1.08,
+      "lat": 51.28,
+      "label": "イングランド",
+      "anchor": "left"
+    },
+    "moscow": {
+      "lon": 37.62,
+      "lat": 55.75,
+      "label": "ロシア",
+      "anchor": "right"
+    },
+    "vilnius": {
+      "lon": 25.28,
+      "lat": 54.69,
+      "label": "リトアニア",
+      "anchor": "right",
+      "dy": 36
+    },
+    "athens": {
+      "lon": 23.73,
+      "lat": 37.98,
+      "label": "ギリシャ",
+      "anchor": "left"
+    },
+    "helsinki": {
+      "lon": 24.94,
+      "lat": 60.17,
+      "label": "フィンランド",
+      "anchor": "right"
+    },
+    "budapest": {
+      "lon": 19.04,
+      "lat": 47.5,
+      "label": "ハンガリー",
+      "anchor": "left"
+    },
+    "tarim": {
+      "lon": 82.96,
+      "lat": 41.72,
+      "label": "タリム盆地（トカラ語）"
+    },
+    "changan": {
+      "lon": 108.94,
+      "lat": 34.34,
+      "label": "中国",
+      "anchor": "left"
+    },
+    "seoul": {
+      "lon": 126.98,
+      "lat": 37.57,
+      "label": "朝鮮半島",
+      "anchor": "right"
+    },
+    "hanoi": {
+      "lon": 105.85,
+      "lat": 21.03,
+      "label": "ベトナム",
+      "anchor": "left"
+    },
+    "nara": {
+      "lon": 135.8,
+      "lat": 34.69,
+      "label": "日本",
+      "anchor": "right"
+    }
+  },
+  "stops": [
+    {
+      "scene": "root",
+      "icon": "根",
+      "name": "草原"
+    },
+    {
+      "scene": "west",
+      "icon": "西",
+      "name": "ヨーロッパ"
+    },
+    {
+      "scene": "north",
+      "icon": "北",
+      "name": "北の森"
+    },
+    {
+      "scene": "east",
+      "icon": "東",
+      "name": "シルクロード"
+    },
+    {
+      "scene": "kanji",
+      "icon": "？",
+      "reveal": "蜜",
+      "name": "東アジア"
+    }
+  ],
+  "cards": {
+    "pair": {
+      "type": "pair",
+      "a": "蜜",
+      "b": "mead",
+      "bond": "同じ言葉"
+    },
+    "title": {
+      "type": "title",
+      "word": "*médʰu",
+      "ja": "蜜"
+    },
+    "medhu": {
+      "type": "word",
+      "script": "*médʰu",
+      "font": "latin",
+      "lang": "印欧祖語",
+      "era": "約6000年前・再建形",
+      "gloss": "蜜・蜜のお酒",
+      "glow": true
+    },
+    "mead": {
+      "type": "word",
+      "script": "medu → mead",
+      "font": "latin",
+      "lang": "古英語 → 英語",
+      "era": "7世紀〜",
+      "gloss": "蜂蜜酒"
+    },
+    "mjod": {
+      "type": "word",
+      "script": "мёд",
+      "sub": "mjod",
+      "font": "latin",
+      "lang": "ロシア語",
+      "gloss": "蜜"
+    },
+    "medus": {
+      "type": "word",
+      "script": "medus",
+      "font": "latin",
+      "lang": "リトアニア語",
+      "gloss": "蜜"
+    },
+    "methu": {
+      "type": "word",
+      "script": "μέθυ",
+      "sub": "méthu",
+      "font": "greek",
+      "lang": "古代ギリシャ語",
+      "era": "ホメロスの時代",
+      "gloss": "ワイン"
+    },
+    "methyl": {
+      "type": "formula",
+      "items": [
+        {
+          "g": "μέθυ",
+          "lab": "ワイン",
+          "s": true
+        },
+        {
+          "op": "＋"
+        },
+        {
+          "g": "ὕλη",
+          "lab": "木",
+          "s": true
+        },
+        {
+          "op": "→"
+        },
+        {
+          "g": "methyl",
+          "lab": "メチル＝木の酒",
+          "red": true,
+          "s": true
+        }
+      ],
+      "source": "1834年 フランスの化学者が命名"
+    },
+    "mesi": {
+      "type": "word",
+      "script": "mesi",
+      "font": "latin",
+      "lang": "フィンランド語",
+      "gloss": "蜜"
+    },
+    "mez": {
+      "type": "word",
+      "script": "méz",
+      "font": "latin",
+      "lang": "ハンガリー語",
+      "gloss": "蜜"
+    },
+    "mit": {
+      "type": "word",
+      "script": "mit",
+      "font": "latin",
+      "lang": "トカラ語B",
+      "era": "シルクロードの印欧語",
+      "gloss": "蜜",
+      "glow": true
+    },
+    "mi_oc": {
+      "type": "word",
+      "script": "蜜",
+      "sub": "*mit（上古中国語）",
+      "font": "cjk",
+      "lang": "中国語",
+      "era": "有力説",
+      "gloss": "蜜",
+      "glow": true
+    },
+    "radical": {
+      "type": "formula",
+      "items": [
+        {
+          "g": "蜜"
+        },
+        {
+          "op": "＝"
+        },
+        {
+          "g": "宓",
+          "lab": "音「ミツ」",
+          "s": true
+        },
+        {
+          "op": "＋"
+        },
+        {
+          "g": "虫",
+          "lab": "ハチ",
+          "red": true,
+          "s": true
+        }
+      ]
+    },
+    "mi_zh": {
+      "type": "word",
+      "script": "蜜",
+      "sub": "mì",
+      "font": "cjk",
+      "lang": "中国語",
+      "gloss": "蜜"
+    },
+    "mil": {
+      "type": "word",
+      "script": "밀",
+      "sub": "mil",
+      "font": "kr",
+      "lang": "韓国語（漢字音）",
+      "gloss": "蜜"
+    },
+    "mat": {
+      "type": "word",
+      "script": "mật",
+      "font": "latin",
+      "lang": "ベトナム語",
+      "gloss": "蜜"
+    },
+    "mitsu": {
+      "type": "word",
+      "script": "みつ",
+      "font": "cjk",
+      "lang": "日本語",
+      "gloss": "蜜"
+    },
+    "triad": {
+      "type": "triad",
+      "items": [
+        {
+          "k": "mead",
+          "from": "西・イギリス"
+        },
+        {
+          "k": "mesi",
+          "from": "北・フィンランド"
+        },
+        {
+          "k": "蜜",
+          "from": "東・日本"
+        }
+      ]
+    },
+    "end": {
+      "type": "end"
+    }
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "camera": {
+        "lon": 60,
+        "lat": 40,
+        "zoom": 0.9,
+        "spin": 16
+      },
+      "lines": [
+        {
+          "text": "日本の{「蜜」}と、英語の{mead}。{同じ言葉}なのよ。",
+          "say": "日本の、みつと、英語のミード。同じ言葉なのよ。",
+          "cards": [
+            "pair"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "id": "a",
+              "sfx": "boom",
+              "flash": 0.9,
+              "shake": 18
+            },
+            {
+              "at": 0.3,
+              "id": "b",
+              "sfx": "boom",
+              "flash": 0.6,
+              "shake": 12
+            },
+            {
+              "at": 0.62,
+              "id": "bond",
+              "sfx": "shine",
+              "flash": 0.5,
+              "punch": 0.05
+            }
+          ],
+          "voice": {
+            "speed": 1.3
+          }
+        },
+        {
+          "text": "{六千年前}、ひとつの言葉から生まれたの。",
+          "say": "六千年前、ひとつの言葉から生まれたの。",
+          "cards": [],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "glitch",
+              "montage": [
+                "mead",
+                "мёд",
+                "μέθυ",
+                "मधु",
+                "medus",
+                "mesi",
+                "méz",
+                "mit",
+                "蜜",
+                "밀",
+                "mật",
+                "みつ"
+              ],
+              "len": 0.95
+            },
+            {
+              "at": 0.0,
+              "sfx": "ticks",
+              "counter": {
+                "from": 0,
+                "to": 6000,
+                "suffix": "年前"
+              },
+              "len": 0.4
+            },
+            {
+              "at": 0.4,
+              "sfx": "boom",
+              "shake": 10,
+              "flash": 0.35
+            }
+          ],
+          "voice": {
+            "speed": 1.3
+          }
+        },
+        {
+          "text": "さあ、{蜜}の旅へ。",
+          "say": "さあ、みつの旅へ。",
+          "cards": [
+            "title"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "boom",
+              "flash": 0.7,
+              "shake": 10
+            }
+          ],
+          "voice": {
+            "speed": 1.3
+          }
+        }
+      ]
+    },
+    {
+      "id": "root",
+      "stop": "黒海の北の草原",
+      "era": -4000,
+      "camera": {
+        "lon": 40,
+        "lat": 48.5,
+        "zoom": 4.2
+      },
+      "lines": [
+        {
+          "text": "出発は{六千年前}、黒海の北に広がる草原。",
+          "say": "出発は、六千年前。黒海の北に広がる草原。",
+          "mark": [
+            "steppe"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop",
+              "punch": 0.03
+            }
+          ]
+        },
+        {
+          "text": "印欧祖語の {*médʰu} は、蜜と、蜜から作るお酒のことよ。",
+          "say": "印欧祖語のメドゥは、蜜と、蜜から作る、お酒のことよ。",
+          "cards": [
+            "medhu"
+          ],
+          "fx": [
+            {
+              "at": 0.1,
+              "sfx": "shine",
+              "flash": 0.35
+            }
+          ]
+        },
+        {
+          "text": "甘くて、人をほろ酔いにさせるもの……まるで{恋}みたいね。",
+          "say": "甘くて、人をほろ酔いにさせるもの。まるで、恋みたいね。",
+          "fx": [
+            {
+              "at": 0.78,
+              "pop": "恋",
+              "sfx": "shine",
+              "flash": 0.25,
+              "punch": 0.03
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "west",
+      "stop": "西へ",
+      "era": 700,
+      "camera": {
+        "lon": 20,
+        "lat": 50,
+        "zoom": 1.9
+      },
+      "lines": [
+        {
+          "text": "西へ渡った言葉は、英語の {mead}。蜂蜜のお酒ね。",
+          "say": "西へ渡った言葉は、英語のミード。はちみつの、お酒ね。",
+          "cards": [
+            "mead"
+          ],
+          "routes": [
+            {
+              "id": "w-eng",
+              "path": [
+                "steppe",
+                "canterbury"
+              ],
+              "style": "branch",
+              "len": 0.5,
+              "labelEnd": "mead"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "ロシア語の {мёд}、リトアニア語の {medus} は、今も{「蜜」}のまま。",
+          "say": "ロシア語のミョード、リトアニア語のメドゥスは、今も、蜜のまま。",
+          "cards": [
+            "mjod",
+            "medus"
+          ],
+          "era": null,
+          "routes": [
+            {
+              "id": "w-rus",
+              "path": [
+                "steppe",
+                "moscow"
+              ],
+              "style": "branch",
+              "len": 0.35,
+              "labelEnd": "мёд"
+            },
+            {
+              "id": "w-lit",
+              "path": [
+                "steppe",
+                "vilnius"
+              ],
+              "style": "branch",
+              "at": 0.35,
+              "len": 0.35,
+              "labelEnd": "medus"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.35,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "ギリシャ語の {méthu} は、{「ワイン」}になったわ。",
+          "say": "ギリシャ語のメテュは、ワインになったわ。",
+          "cards": [
+            "methu"
+          ],
+          "era": -700,
+          "routes": [
+            {
+              "id": "w-gre",
+              "path": [
+                "steppe",
+                "athens"
+              ],
+              "style": "branch",
+              "len": 0.5,
+              "labelEnd": "méthu"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "実はこれ、{メタノール}の「メチル」の語源なのよ。",
+          "say": "実はこれ、メタノールの、メチルの語源なのよ。",
+          "cards": [
+            "methyl"
+          ],
+          "era": {
+            "value": 1834,
+            "len": 0.5
+          },
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "ticks",
+              "len": 0.5
+            },
+            {
+              "at": 0.62,
+              "pop": "メチル!?",
+              "sfx": "boom",
+              "shake": 12,
+              "flash": 0.35
+            }
+          ]
+        },
+        {
+          "text": "木から採れるお酒、という意味。ちょっと{意外}かしら？",
+          "say": "木から採れるお酒、という意味。ちょっと、意外かしら？",
+          "fx": [
+            {
+              "at": 0.8,
+              "sfx": "pop",
+              "punch": 0.03
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "north",
+      "stop": "北の森へ",
+      "era": null,
+      "camera": {
+        "lon": 27,
+        "lat": 54,
+        "zoom": 2.3
+      },
+      "lines": [
+        {
+          "text": "印欧語ではない、フィンランド語は {mesi}。ハンガリー語は {méz}。",
+          "say": "印欧語ではない、フィンランド語は、メシ。ハンガリー語は、メーズ。",
+          "cards": [
+            "mesi",
+            "mez"
+          ],
+          "routes": [
+            {
+              "id": "n-fin",
+              "path": [
+                "steppe",
+                "helsinki"
+              ],
+              "style": "root",
+              "len": 0.4,
+              "labelEnd": "mesi"
+            },
+            {
+              "id": "n-hun",
+              "path": [
+                "steppe",
+                "budapest"
+              ],
+              "style": "root",
+              "at": 0.5,
+              "len": 0.4,
+              "labelEnd": "méz"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.5,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "{おいしいもの}は、言葉ごと伝わっていくのね。",
+          "say": "おいしいものは、言葉ごと、伝わっていくのね。",
+          "fx": [
+            {
+              "at": 0.1,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "east",
+      "stop": "東へ ─ シルクロード",
+      "era": 600,
+      "camera": {
+        "lon": 72,
+        "lat": 43,
+        "zoom": 1.7
+      },
+      "lines": [
+        {
+          "text": "そして東へ。シルクロードのオアシスには、{トカラ語}を話す人たちがいたの。",
+          "say": "そして東へ。シルクロードのオアシスには、トカラ語を話す人たちが、いたの。",
+          "mark": [
+            "tarim"
+          ],
+          "routes": [
+            {
+              "id": "e-tarim",
+              "path": [
+                "steppe",
+                "tarim"
+              ],
+              "style": "faith",
+              "len": 0.7
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "whoosh"
+            }
+          ]
+        },
+        {
+          "text": "トカラ語っていうのは、昔いちばん東で話されていた{印欧語}のことよ。",
+          "say": "トカラごっていうのは、昔いちばん東で話されていた、印欧語のことよ。",
+          "fx": [
+            {
+              "at": 0.7,
+              "sfx": "shine",
+              "flash": 0.2
+            }
+          ]
+        },
+        {
+          "text": "そのトカラ語で、蜜は {mit}。",
+          "say": "そのトカラ語で、蜜は、ミット。",
+          "cards": [
+            "mit"
+          ],
+          "fx": [
+            {
+              "at": 0.6,
+              "sfx": "boom",
+              "flash": 0.45,
+              "shake": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kanji",
+      "stop": "東アジアへ",
+      "era": null,
+      "camera": {
+        "lon": 116,
+        "lat": 32,
+        "zoom": 2.0
+      },
+      "lines": [
+        {
+          "text": "この {mit} が中国に伝わって、漢字の{「蜜」}になったと考えられているわ。",
+          "say": "このミットが中国に伝わって、漢字の、みつになったと、考えられているわ。",
+          "cards": [
+            "mi_oc"
+          ],
+          "mark": [
+            "changan"
+          ],
+          "routes": [
+            {
+              "id": "k-chn",
+              "path": [
+                "tarim",
+                "changan"
+              ],
+              "style": "east",
+              "len": 0.5
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.55,
+              "sfx": "boom",
+              "flash": 0.5,
+              "shake": 12
+            }
+          ]
+        },
+        {
+          "text": "「蜜」に{「虫」}が入っているのは、ハチのめぐみだからね。",
+          "say": "みつに、虫が入っているのは、ハチのめぐみだからね。",
+          "cards": [
+            "radical"
+          ],
+          "fx": [
+            {
+              "at": 0.2,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.45,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "漢字の読みとして、韓国語は {mil}、ベトナム語は {mật}、そして日本語は{「みつ」}。",
+          "say": "漢字の読みとして、韓国語はミル、ベトナム語はマット、そして日本語は、みつ。",
+          "cards": [
+            "mi_zh",
+            "mil",
+            "mat",
+            "mitsu"
+          ],
+          "routes": [
+            {
+              "id": "k-kor",
+              "path": [
+                "changan",
+                "seoul"
+              ],
+              "style": "east",
+              "at": 0.2,
+              "len": 0.25,
+              "labelEnd": "밀"
+            },
+            {
+              "id": "k-vie",
+              "path": [
+                "changan",
+                "hanoi"
+              ],
+              "style": "east",
+              "at": 0.45,
+              "len": 0.25,
+              "labelEnd": "mật"
+            },
+            {
+              "id": "k-jpn",
+              "path": [
+                "changan",
+                "nara"
+              ],
+              "style": "east",
+              "at": 0.72,
+              "len": 0.25,
+              "labelEnd": "みつ"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.2,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.45,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.75,
+              "sfx": "shine",
+              "flash": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "stop": "旅の終わりに",
+      "era": 2026,
+      "camera": {
+        "lon": 68,
+        "lat": 44,
+        "zoom": 0.95,
+        "spin": -2
+      },
+      "lines": [
+        {
+          "text": "イギリスの蜂蜜酒も、フィンランドの {mesi} も、日本の「蜜」も、{たったひとつの言葉}から。",
+          "say": "イギリスの、はちみつ酒も、フィンランドのメシも、日本の、みつも、たったひとつの言葉から。",
+          "cards": [
+            "triad"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "state": {
+                "reveal": 1
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.3,
+              "state": {
+                "reveal": 2
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.52,
+              "state": {
+                "reveal": 3
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.7,
+              "sfx": "shine",
+              "glowAll": true
+            }
+          ]
+        },
+        {
+          "text": "甘いものを分け合いたい気持ちは、きっと{どこでも同じ}なのね。",
+          "say": "甘いものを分け合いたい気持ちは、きっと、どこでも同じなのね。"
+        },
+        {
+          "text": "今日の{はちみつ}、ちょっと特別に感じないかしら？",
+          "say": "今日のはちみつ、ちょっと特別に、感じないかしら？"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    "mozhi「蜜」の語源の話（note） https://note.com/mozhi_gengo/n/ne402f0edb2f3",
+    "Wiktionary「Reconstruction:Proto-Indo-European/médʰu」 https://en.wiktionary.org/wiki/Reconstruction:Proto-Indo-European/médʰu",
+    "Wiktionary「蜜」 https://en.wiktionary.org/wiki/蜜",
+    "Victor H. Mair「Of honey, bee, mead, and Old Sinitic reconstructions」Language Log https://languagelog.ldc.upenn.edu/nll/?p=40516",
+    "Zeitschrift der Deutschen Morgenländischen Gesellschaft 167 (2017)「The Word for 'Honey' in Chinese, Tocharian and Sino-Vietnamese」",
+    "Online Etymology Dictionary「mead」「methyl」 https://www.etymonline.com/word/mead"
+  ]
+}

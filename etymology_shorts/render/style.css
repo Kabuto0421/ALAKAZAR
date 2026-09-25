@@ -6,8 +6,8 @@
   --muted: #b9b2a3;
   --crimson: #d9483f;
   --cyan: #9fd8ec;
-  --mincho: "Shippori Mincho", "Noto Serif JP", serif;
-  --text: "Noto Serif", "Shippori Mincho", "Noto Serif JP", serif;
+  --mincho: "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", serif;
+  --text: "Noto Serif", "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", serif;
   --display: "Cormorant Garamond", "Noto Serif", serif;
 }
 
@@ -128,6 +128,13 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--
 .f-latin, .f-greek { font-family: "Noto Serif", serif; font-weight: 600; }
 .f-hebrew { font-family: "Noto Serif Hebrew", serif; font-weight: 600; }
 .f-deva { font-family: "Noto Serif Devanagari", serif; font-weight: 600; }
+.f-kr { font-family: "Noto Serif KR", serif; font-weight: 600; }
+.f-cjk { font-family: var(--mincho); font-weight: 800; }
+.formula { width: 880px; height: 330px; }
+.kanji.formula .layer { gap: 14px; }
+.kanji.formula .kg.s { font-size: 80px; }
+.formula .kg { white-space: nowrap; }
+.kanji.formula .op { font-size: 50px; }
 
 .target { width: 860px; padding: 18px 20px 26px; }
 .target svg { display: block; margin: 0 auto; }
@@ -201,7 +208,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--
 #subtitle .line {
   text-align: center;
   font: 800 60px/1.36 var(--text);
-  font-family: "Noto Serif", "Shippori Mincho", "Noto Serif JP", serif;
+  font-family: "Noto Serif", "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", serif;
   word-break: auto-phrase;
   -webkit-text-stroke: 12px rgba(5, 7, 13, 0.95);
   paint-order: stroke fill;

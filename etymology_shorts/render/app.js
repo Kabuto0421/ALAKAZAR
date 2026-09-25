@@ -627,6 +627,29 @@ function buildKanji(c) {
   return { el: e, update };
 }
 
+function buildFormula(c) {
+  // a glyph equation such as 蜜 ＝ 宓 ＋ 虫, popping in piece by piece
+  const e = el('div', 'panel kanji formula');
+  const layer = el('div', 'layer');
+  const parts = c.items.map((it) => {
+    const p = it.op
+      ? el('span', 'op', esc(it.op))
+      : el('div', 'cell', `<span class="kg${it.s ? ' s' : ''}">${esc(it.g)}</span>${it.lab ? `<span class="lab${it.red ? ' red' : ''}">${esc(it.lab)}</span>` : ''}`);
+    layer.appendChild(p);
+    return p;
+  });
+  e.appendChild(layer);
+  if (c.source) e.appendChild(el('div', 'src', esc(c.source)));
+  const update = (ctx) => {
+    parts.forEach((p, i) => {
+      const pp = prog(ctx.t, ctx.t0 + 0.15 + i * 0.16, 0.3);
+      p.style.opacity = pp.toFixed(2);
+      p.style.transform = `scale(${lerp(1.6, 1, back(pp)).toFixed(3)})`;
+    });
+  };
+  return { el: e, update };
+}
+
 function buildTriad(c) {
   const e = el('div', 'panel triad');
   const cols = [];
@@ -724,6 +747,7 @@ function buildSet(i) {
       case 'chain': return buildChain(c);
       case 'shift': return buildShift(c);
       case 'kanji': return buildKanji(c);
+      case 'formula': return buildFormula(c);
       case 'triad': return buildTriad(c);
       case 'pair': return buildPair(c, false);
       case 'title': return buildTitle(c);
@@ -779,9 +803,9 @@ function buildFx() {
     const item = { f, parts: [] };
     if (f.montage) {
       const r = rng(Math.round(f.t * 1000));
-      const fonts = { latin: '"Noto Serif"', hebrew: '"Noto Serif Hebrew"', deva: '"Noto Serif Devanagari"', cjk: '"Shippori Mincho"' };
+      const fonts = { latin: '"Noto Serif"', hebrew: '"Noto Serif Hebrew"', deva: '"Noto Serif Devanagari"', cjk: '"Shippori Mincho"', kr: '"Noto Serif KR"' };
       item.montage = f.montage.map((w, i) => {
-        const kind = /[֐-׿]/.test(w) ? 'hebrew' : /[ऀ-ॿ]/.test(w) ? 'deva' : /[一-鿿]/.test(w) ? 'cjk' : 'latin';
+        const kind = /[֐-׿]/.test(w) ? 'hebrew' : /[ऀ-ॿ]/.test(w) ? 'deva' : /[一-鿿]/.test(w) ? 'cjk' : /[가-힯]/.test(w) ? 'kr' : 'latin';
         const e = el('div', 'montage', esc(w));
         e.style.fontFamily = fonts[kind];
         e.style.fontSize = `${Math.round(kind === 'cjk' ? 150 : 96 + r() * 40)}px`;
@@ -936,7 +960,7 @@ window.ready = (async function init() {
   const specs = [
     '500 40px "Shippori Mincho"', '700 40px "Shippori Mincho"', '800 40px "Shippori Mincho"', '700 40px "Noto Serif JP"',
     '400 40px "Noto Serif"', 'italic 400 40px "Noto Serif"', '600 40px "Noto Serif"', 'italic 600 40px "Noto Serif"',
-    '600 40px "Noto Serif Hebrew"', '600 40px "Noto Serif Devanagari"',
+    '600 40px "Noto Serif Hebrew"', '600 40px "Noto Serif Devanagari"', '600 40px "Noto Serif KR"',
     '600 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"', '700 40px "Cormorant Garamond"',
   ];
   await Promise.all(specs.map((s) => document.fonts.load(s, text)));

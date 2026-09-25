@@ -47,7 +47,7 @@ def build_timeline(episode, engine):
         if "era" in scene:
             ev["eras"].append({"t": scene_start + 0.3, "value": scene["era"], "dur": ERA_ROLL})
         for li, line in enumerate(scene["lines"]):
-            path = tts.synthesize(line.get("say", line["text"]), voice, engine)
+            path = tts.synthesize(line.get("say", line["text"]), {**voice, **line.get("voice", {})}, engine)
             dur = tts.wav_duration(path)
             start = cursor
 
@@ -106,7 +106,7 @@ def description(episode, engine):
         "参考:",
         *[f"・{s}" for s in episode.get("sources", [])],
         "",
-        f"#語源 #{episode['word']} #{episode['wordJa']} #言語学 #雑学 #Shorts",
+        " ".join(f"#{t}" for t in episode.get("tags", ["語源", episode["word"], episode["wordJa"], "言語学", "雑学", "Shorts"])),
     ]
     return "\n".join(parts) + "\n"
 
