@@ -29,6 +29,43 @@ SCENE_LEAD = 0.45  # the camera starts moving this long before a scene's first l
 ERA_ROLL = 1.1  # seconds the era counter rolls when a scene sets a new era
 
 
+MET_API = "https://collectionapi.metmuseum.org/public/collection/v1/objects/"
+
+
+def fetch_images(episode):
+    """Download the episode's museum images (Met Open Access, public domain) into cache/images/."""
+    import urllib.request
+
+    out = {}
+    folder = os.path.join(HERE, "cache", "images")
+    os.makedirs(folder, exist_ok=True)
+    for key, spec in episode.get("images", {}).items():
+        meta_path = os.path.join(folder, f"met-{spec['met']}.json")
+        if not os.path.exists(meta_path):
+            with urllib.request.urlopen(MET_API + str(spec["met"]), timeout=60) as res:
+                meta = json.load(res)
+            if not meta.get("isPublicDomain"):
+                raise RuntimeError(f"Met object {spec['met']} is not public domain")
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False)
+        with open(meta_path, encoding="utf-8") as f:
+            meta = json.load(f)
+        img_path = os.path.join(folder, f"met-{spec['met']}.jpg")
+        if not os.path.exists(img_path):
+            with urllib.request.urlopen(meta["primaryImageSmall"], timeout=120) as res:
+                data = res.read()
+            with open(img_path, "wb") as f:
+                f.write(data)
+        out[key] = {
+            "src": f"/cache/images/met-{spec['met']}.jpg",
+            "title": meta.get("title", ""),
+            "artist": meta.get("artistDisplayName", ""),
+            "date": meta.get("objectDate", ""),
+            "url": meta.get("objectURL", ""),
+        }
+    return out
+
+
 def build_timeline(episode, engine):
     """Synthesize every line and turn relative cues into absolute seconds.
 
@@ -88,7 +125,7 @@ def build_timeline(episode, engine):
     for key in ev:
         ev[key].sort(key=lambda e: e["t"])
     timeline = {k: v for k, v in episode.items() if k != "scenes"}
-    timeline.update({"engine": engine, "duration": round(duration, 3), "scenes": scenes, "lines": lines, "events": ev})
+    timeline.update({"engine": engine, "duration": round(duration, 3), "scenes": scenes, "lines": lines, "events": ev, "images": fetch_images(episode)})
     return timeline, clips
 
 
@@ -106,6 +143,8 @@ def description(episode, engine):
         "",
         "参考:",
         *[f"・{s}" for s in episode.get("sources", [])],
+        *(["", "画像: メトロポリタン美術館 Open Access（パブリックドメイン）"] if episode.get("images") else []),
+        *[f"・{m['title']}" + (f"（{m['artist']}, {m['date']}）" if m.get("artist") else f"（{m['date']}）") for m in fetch_images(episode).values()],
         "",
         " ".join(f"#{t}" for t in episode.get("tags", ["語源", episode["word"], episode["wordJa"], "言語学", "雑学", "Shorts"])),
     ]

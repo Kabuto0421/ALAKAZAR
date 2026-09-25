@@ -460,10 +460,10 @@ function drawSubtitles(t) {
 const HERO_TYPES = new Set(['pair', 'title', 'end']);
 const SETS = [];
 
-function beatsFor(set) {
+function beatsFor(set, nextT) {
   const beats = {};
   if (set.line == null) return beats;
-  for (const f of EV.fx) if (f.id && f.line === set.line) beats[f.id] = f.t;
+  for (const f of EV.fx) if (f.id && f.t >= set.t - 0.001 && f.t < nextT && !(f.id in beats)) beats[f.id] = f.t;
   return beats;
 }
 function stateHistory(set, nextT) {
@@ -792,6 +792,62 @@ function buildFork(c) {
   return { el: e, update };
 }
 
+function buildArt(c) {
+  // an animated line illustration from art.js, with an optional caption
+  const e = el('div', 'panel art');
+  const def = ART[c.art];
+  const svg = svgEl('svg', { width: 940, height: 300, viewBox: '0 0 940 300' });
+  svg.innerHTML = def.svg;
+  e.appendChild(svg);
+  if (def.init) def.init(svg);
+  if (c.caption) e.appendChild(el('div', 'acap', hl(c.caption)));
+  const update = (ctx) => def.update(svg, ctx.t - ctx.t0);
+  return { el: e, update };
+}
+
+function buildImage(c) {
+  // museum photos in a frame, slowly drifting (Ken Burns), with captions and an optional quote
+  const w = el('div', `imgset n${c.items.length}`);
+  const figs = c.items.map((it, i) => {
+    const img = TL.images[it.img];
+    const f = el('figure', 'fig', `<div class="frame"><img src="${img.src}"></div><figcaption>${hl(it.caption || '')}</figcaption>`);
+    if (it.tag) f.appendChild(el('div', 'ftag', hl(it.tag)));
+    w.appendChild(f);
+    return f;
+  });
+  let quote = null;
+  if (c.quote) {
+    quote = el('div', 'quote', `<div class="q f-greek">${hl(c.quote.text)}</div><div class="tr">${esc(c.quote.tr)}</div>`);
+    w.appendChild(quote);
+  }
+  let badge = null;
+  if (c.badge) {
+    badge = el('div', 'ibadge', hl(c.badge));
+    w.appendChild(badge);
+  }
+  const update = (ctx) => {
+    const lt = ctx.t - ctx.t0;
+    figs.forEach((f, i) => {
+      const p = prog(ctx.t, ctx.t0 + i * 0.35, 0.45);
+      f.style.opacity = p.toFixed(2);
+      f.style.transform = `translateY(${(40 * (1 - easeOut(p))).toFixed(1)}px)`;
+      const img = f.querySelector('img');
+      img.style.transform = `scale(${(1.02 + 0.012 * lt).toFixed(4)})`;
+    });
+    if (quote) {
+      const q = prog(ctx.t, ctx.t0 + 0.9, 0.4);
+      quote.style.opacity = q.toFixed(2);
+      quote.style.transform = `translateY(${(20 * (1 - easeOut(q))).toFixed(1)}px)`;
+    }
+    if (badge) {
+      const b = prog(ctx.t, ctx.t0 + (ctx.beats.badge ? ctx.beats.badge - ctx.t0 : 0.8), 0.3);
+      badge.style.opacity = b.toFixed(2);
+      badge.style.transform = `rotate(-6deg) scale(${lerp(1.8, 1, back(b)).toFixed(3)})`;
+    }
+  };
+  return { el: w, update };
+}
+
 function buildWall(c) {
   // many words for the same thing popping up all over the screen
   const dense = c.words.length > 8;
@@ -814,6 +870,10 @@ function buildWall(c) {
   const update = (ctx) => {
     const span = (ctx.beats.done ?? ctx.t0 + 2.4) - ctx.t0;
     items.forEach(({ node, rot }, i) => {
+      // keep long words fully on screen
+      if (!node.dataset.x) node.dataset.x = parseFloat(node.style.left);
+      const half = node.offsetWidth / 2 + 24;
+      node.style.left = `${clamp(parseFloat(node.dataset.x), half, 1080 - half)}px`;
       const p = prog(ctx.t, ctx.t0 + (span * i) / items.length, 0.22);
       node.style.opacity = p.toFixed(2);
       node.style.transform = `translate(-50%, -50%) rotate(${rot.toFixed(1)}deg) scale(${lerp(2.2, 1, easeOut(p)).toFixed(3)})`;
@@ -912,7 +972,7 @@ function buildEnd() {
 function buildSet(i) {
   const set = EV.cardSets[i];
   const defs = set.cards.map((id) => ({ id, ...TL.cards[id] }));
-  const hero = defs.length === 1 && (HERO_TYPES.has(defs[0].type) || defs[0].hero || defs[0].type === 'wall');
+  const hero = defs.length === 1 && (HERO_TYPES.has(defs[0].type) || defs[0].hero || defs[0].type === 'wall' || defs[0].type === 'image');
   const box = el('div', `set${hero ? ' hero' : ''}`);
   const parts = defs.map((c) => {
     switch (c.type) {
@@ -925,6 +985,8 @@ function buildSet(i) {
       case 'tree': return buildTree(c);
       case 'wall': return buildWall(c);
       case 'fork': return buildFork(c);
+      case 'art': return buildArt(c);
+      case 'image': return buildImage(c);
       case 'table': return buildTable(c);
       case 'triad': return buildTriad(c);
       case 'pair': return buildPair(c, false);
@@ -942,7 +1004,7 @@ function buildSet(i) {
     const sc = TL.scenes.find((s) => s.id === TL.lines[set.line].scene);
     nextT = Math.min(nextT, sc.end - 0.1);
   }
-  return { set, box, parts, hero, beats: beatsFor(set), hist: stateHistory(set, nextT), nextT };
+  return { set, box, parts, hero, beats: beatsFor(set, nextT), hist: stateHistory(set, nextT), nextT };
 }
 
 function drawCards(t) {

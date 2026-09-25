@@ -165,60 +165,6 @@
       "word": "sound",
       "ja": "音"
     },
-    "phone": {
-      "type": "word",
-      "script": "φωνή",
-      "sub": "phōnē",
-      "font": "greek",
-      "lang": "古代ギリシャ語",
-      "era": "ホメロスの詩にも",
-      "gloss": "声",
-      "glow": true
-    },
-    "phonetable": {
-      "type": "table",
-      "cols": [
-        "の意味",
-        "＋ 声",
-        "＝"
-      ],
-      "rows": [
-        {
-          "k": "tele",
-          "v": [
-            "遠く",
-            "{phone}",
-            "電話"
-          ]
-        },
-        {
-          "k": "micro",
-          "v": [
-            "小さい",
-            "{phone}",
-            "マイク"
-          ]
-        },
-        {
-          "k": "smart",
-          "v": [
-            "かしこい",
-            "{phone}",
-            "スマホ"
-          ]
-        }
-      ]
-    },
-    "sonus": {
-      "type": "word",
-      "script": "{son}us",
-      "sub": "← sonare（鳴る）",
-      "font": "latin",
-      "lang": "ラテン語",
-      "era": "紀元前200年ごろ",
-      "gloss": "音",
-      "glow": true
-    },
     "sontree": {
       "type": "tree",
       "root": "{son}us",
@@ -301,51 +247,6 @@
           "g": "sound",
           "lab": "今の英語",
           "s": true
-        }
-      ]
-    },
-    "gensame": {
-      "type": "formula",
-      "title": "もとはほとんど同じ形",
-      "items": [
-        {
-          "g": "言",
-          "lab": "ことば"
-        },
-        {
-          "op": "→"
-        },
-        {
-          "g": "音",
-          "lab": "おと",
-          "red": true
-        }
-      ]
-    },
-    "kouline": {
-      "type": "formula",
-      "title": "器の中に、一本の線",
-      "items": [
-        {
-          "g": "口",
-          "lab": "祈りの器",
-          "s": true
-        },
-        {
-          "op": "＋"
-        },
-        {
-          "g": "一",
-          "lab": "神さまの応え",
-          "s": true
-        },
-        {
-          "op": "→"
-        },
-        {
-          "g": "音",
-          "lab": "おと",
-          "red": true
         }
       ]
     },
@@ -461,31 +362,6 @@
       "extra": "親戚：ドイツ語 gesund",
       "glow": true
     },
-    "yan": {
-      "type": "formula",
-      "title": "「言」のなりたち（白川静の説）",
-      "items": [
-        {
-          "g": "言"
-        },
-        {
-          "op": "＝"
-        },
-        {
-          "g": "辛",
-          "lab": "誓いの針",
-          "s": true
-        },
-        {
-          "op": "＋"
-        },
-        {
-          "g": "口",
-          "lab": "言葉を入れる器",
-          "s": true
-        }
-      ]
-    },
     "phone2": {
       "type": "word",
       "script": "φωνή",
@@ -503,22 +379,112 @@
       "lang": "ただの",
       "gloss": "物音"
     },
-    "cantata": {
-      "type": "word",
-      "script": "{cant}ata",
-      "sub": "← cantare（歌う）",
-      "font": "latin",
-      "lang": "イタリア語",
-      "gloss": "歌う曲"
+    "img_zhou": {
+      "type": "image",
+      "items": [
+        {
+          "img": "zhou",
+          "caption": "金文が刻まれた時代の、周の青銅器（紀元前11世紀）"
+        }
+      ],
+      "badge": "言 ≒ 音"
     },
-    "sonata": {
-      "type": "word",
-      "script": "{son}ata",
-      "sub": "← sonare（鳴らす）",
-      "font": "latin",
-      "lang": "イタリア語",
-      "gloss": "楽器を鳴らす曲",
-      "glow": true
+    "art_yan": {
+      "type": "art",
+      "art": "yan",
+      "caption": "「言」＝ 神さまへの誓い（白川静の説）"
+    },
+    "art_oto": {
+      "type": "art",
+      "art": "oto",
+      "caption": "「音」＝ 神さまからの返事"
+    },
+    "img_homer": {
+      "type": "image",
+      "items": [
+        {
+          "img": "homer",
+          "caption": "ホメロスの胸像に手を置くアリストテレス（レンブラント画）",
+          "tag": "左の胸像がホメロス"
+        },
+        {
+          "img": "ostrakon",
+          "caption": "『イリアス』の一節を書いた陶片",
+          "tag": "詩の断片"
+        }
+      ],
+      "quote": {
+        "text": "θαλερὴ δέ οἱ ἔσχετο {φωνή}",
+        "tr": "「あふれる声が、止まった」（『イリアス』17巻）"
+      }
+    },
+    "art_tel": {
+      "type": "art",
+      "art": "telephone",
+      "caption": "tele（遠く）＋ {phone}（声）＝ telephone"
+    },
+    "art_mic": {
+      "type": "art",
+      "art": "microphone",
+      "caption": "micro（小さい）＋ {phone}（声）＝ microphone"
+    },
+    "art_smart": {
+      "type": "art",
+      "art": "smartphone",
+      "caption": "smart（かしこい）＋ {phone}（声）＝ スマホ"
+    },
+    "img_violin": {
+      "type": "image",
+      "items": [
+        {
+          "img": "violin",
+          "caption": "ストラディバリのバイオリン（1711年）",
+          "tag": "sonare ＝ 鳴る"
+        }
+      ]
+    },
+    "img_cantata": {
+      "type": "image",
+      "items": [
+        {
+          "img": "singer",
+          "caption": "{cant}ata ＝ 歌う曲",
+          "tag": "cantare 歌う"
+        },
+        {
+          "img": "lute",
+          "caption": "{son}ata ＝ 楽器を鳴らす曲",
+          "tag": "sonare 鳴らす"
+        }
+      ]
+    },
+    "art_res": {
+      "type": "art",
+      "art": "resonance",
+      "caption": "{re}{son}ance ＝ 共鳴"
+    },
+    "kun": {
+      "type": "formula",
+      "title": "日本での読み",
+      "items": [
+        {
+          "g": "音"
+        },
+        {
+          "op": "＝"
+        },
+        {
+          "g": "おと",
+          "lab": "訓読み（大和言葉）",
+          "red": true,
+          "s": true
+        }
+      ]
+    },
+    "art_ear": {
+      "type": "art",
+      "art": "ear",
+      "caption": "次の音を、聞いてみて"
     }
   },
   "scenes": [
@@ -640,10 +606,10 @@
       },
       "lines": [
         {
-          "text": "最初は3000年前の中国。「音」という字は、もともと{「言」とほとんど同じ形}だったの。",
-          "say": "最初は、3000年前の中国。音という字は、もともと、言と、ほとんど同じ形だったの。",
+          "text": "最初は3000年前の中国。この青銅器の時代、{「音」}という字は{「言」}とほとんど同じ形だったの。",
+          "say": "最初は、3000年前の中国。この青銅器の時代、音という字は、言と、ほとんど同じ形だったの。",
           "cards": [
-            "gensame"
+            "img_zhou"
           ],
           "mark": [
             "china"
@@ -655,18 +621,19 @@
               "punch": 0.03
             },
             {
-              "at": 0.8,
+              "at": 0.7,
+              "id": "badge",
               "sfx": "boom",
-              "flash": 0.4,
-              "shake": 10
+              "flash": 0.35,
+              "shake": 8
             }
           ]
         },
         {
-          "text": "白川静という学者の説では、「言」は{神さまへの誓いの言葉}。下の口は、その言葉を入れる器なのよ。",
-          "say": "しらかわしずか、という学者の説では、言は、神さまへの誓いの言葉。下の口は、その言葉を入れる、器なのよ。",
+          "text": "白川静という学者の説では、「言」は{神さまへの誓い}。針と、祈りを入れる器を組み合わせた字なのよ。",
+          "say": "しらかわしずか、という学者の説では、言は、神さまへの誓い。針と、祈りを入れる器を、組み合わせた字なのよ。",
           "cards": [
-            "yan"
+            "art_yan"
           ],
           "fx": [
             {
@@ -674,26 +641,31 @@
               "sfx": "pop"
             },
             {
-              "at": 0.75,
+              "at": 0.6,
               "sfx": "pop"
+            },
+            {
+              "at": 0.85,
+              "sfx": "shine",
+              "flash": 0.25
             }
           ]
         },
         {
-          "text": "その器の中に、一本の線。{神さまがかすかな音で応えた}しるし、なんですって。",
-          "say": "その器の中に、一本の線。神さまが、かすかな音で応えた、しるし、なんですって。",
+          "text": "その器の中に一本の線を入れると{「音」}。神さまがかすかな音で応えたしるし、なんですって。",
+          "say": "その器の中に、一本の線を入れると、音。神さまが、かすかな音で応えた、しるし、なんですって。",
           "cards": [
-            "kouline"
+            "art_oto"
           ],
           "fx": [
             {
-              "at": 0.25,
+              "at": 0.15,
               "sfx": "pop"
             },
             {
-              "at": 0.6,
+              "at": 0.45,
               "sfx": "shine",
-              "flash": 0.35
+              "flash": 0.3
             }
           ]
         },
@@ -702,7 +674,7 @@
           "say": "音は、神さまからの、返事だったのね。",
           "fx": [
             {
-              "at": 0.55,
+              "at": 0.5,
               "pop": "神さまの返事",
               "sfx": "shine",
               "flash": 0.3,
@@ -726,7 +698,7 @@
           "text": "次はギリシャ。ホメロスの詩にも出てくる {phōnē} は、{「声」}のことよ。",
           "say": "次はギリシャ。ホメロスの詩にも出てくる、フォーネーは、声のことよ。",
           "cards": [
-            "phone"
+            "img_homer"
           ],
           "mark": [
             "athens"
@@ -737,18 +709,52 @@
               "sfx": "whoosh"
             },
             {
-              "at": 0.8,
+              "at": 0.75,
               "sfx": "shine",
               "flash": 0.3
             }
           ]
         },
         {
-          "text": "ギリシャの人は、命あるものの{「声」}と、ただの{「物音」}を、別の言葉で呼び分けたの。",
-          "say": "ギリシャの人は、命あるものの、声と、ただの、物音を、別の言葉で、呼び分けたの。",
+          "text": "哲学者アリストテレスは、命あるものの{「声」}と、ただの{「物音」}を、別の言葉で呼び分けたの。",
+          "say": "哲学者アリストテレスは、命あるものの、声と、ただの、物音を、別の言葉で、呼び分けたの。",
           "cards": [
             "phone2",
             "psophos"
+          ],
+          "fx": [
+            {
+              "at": 0.35,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.65,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "遠くへ声を届けるから {telephone}、電話。",
+          "say": "遠くへ声を届けるから、テレフォン。電話。",
+          "cards": [
+            "art_tel"
+          ],
+          "fx": [
+            {
+              "at": 0.2,
+              "sfx": "whoosh"
+            },
+            {
+              "at": 0.8,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "小さな声を拾って大きくするから {microphone}、マイク。",
+          "say": "小さな声を拾って、大きくするから、マイクロフォン。マイク。",
+          "cards": [
+            "art_mic"
           ],
           "fx": [
             {
@@ -756,30 +762,7 @@
               "sfx": "pop"
             },
             {
-              "at": 0.62,
-              "sfx": "pop"
-            }
-          ]
-        },
-        {
-          "text": "遠くへ声を届ける {telephone}、小さな声を拾う {microphone}。",
-          "say": "遠くへ声を届ける、テレフォン。小さな声を拾う、マイクロフォン。",
-          "cards": [
-            "phonetable"
-          ],
-          "cardState": {
-            "rows": 1
-          },
-          "fx": [
-            {
-              "at": 0.05,
-              "sfx": "pop"
-            },
-            {
-              "at": 0.5,
-              "state": {
-                "rows": 2
-              },
+              "at": 0.8,
               "sfx": "pop"
             }
           ]
@@ -787,12 +770,12 @@
         {
           "text": "そして、あなたの手の中の {smartphone} にも、この{「声」}が生きているのね。",
           "say": "そして、あなたの手の中の、スマートフォンにも、この声が、生きているのね。",
+          "cards": [
+            "art_smart"
+          ],
           "fx": [
             {
               "at": 0.3,
-              "state": {
-                "rows": 3
-              },
               "sfx": "boom",
               "flash": 0.35,
               "shake": 8
@@ -815,7 +798,7 @@
           "text": "一方ローマでは、音は {sonus}。{「鳴る」}という言葉 sonare の仲間よ。",
           "say": "一方ローマでは、音は、ソヌス。鳴る、という言葉、ソナーレの仲間よ。",
           "cards": [
-            "sonus"
+            "img_violin"
           ],
           "mark": [
             "rome"
@@ -844,8 +827,7 @@
           "text": "歌う曲を {cantata} と呼ぶのに対して、{楽器を鳴らす曲}は {sonata}。",
           "say": "歌う曲を、カンタータと呼ぶのに対して、楽器を鳴らす曲は、ソナタ。",
           "cards": [
-            "cantata",
-            "sonata"
+            "img_cantata"
           ],
           "fx": [
             {
@@ -853,20 +835,38 @@
               "sfx": "pop"
             },
             {
-              "at": 0.7,
+              "at": 0.65,
               "sfx": "pop"
             }
           ]
         },
         {
-          "text": "響き返す音で {resonance}、共鳴。スペイン語の {sonido} も、みんな {sonus の子どもたち}ね。",
-          "say": "響き返す音で、レゾナンス、共鳴。スペイン語の、ソニードも、みんな、ソヌスの子どもたちね。",
+          "text": "鳴らした音が響き返すから {resonance}、共鳴。",
+          "say": "鳴らした音が、響き返すから、レゾナンス。共鳴。",
+          "cards": [
+            "art_res"
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.8,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        },
+        {
+          "text": "スペイン語の {sonido} も、みんな {sonus の子どもたち}ね。",
+          "say": "スペイン語の、ソニードも、みんな、ソヌスの子どもたちね。",
           "cards": [
             "sontree"
           ],
           "fx": [
             {
-              "at": 0.8,
+              "at": 0.6,
               "state": {
                 "hl": 1
               },
@@ -914,6 +914,9 @@
               "at": 0.1,
               "sfx": "whoosh"
             }
+          ],
+          "cards": [
+            "kun"
           ]
         },
         {
@@ -938,6 +941,7 @@
           "fx": [
             {
               "at": 0.8,
+              "pop": "やって来るしるし",
               "sfx": "shine",
               "flash": 0.25
             }
@@ -1082,23 +1086,8 @@
       },
       "lines": [
         {
-          "text": "音って、当たり前にそこにあるけれど、",
-          "say": "音って、当たり前に、そこにあるけれど、",
-          "fx": [
-            {
-              "at": 0.3,
-              "sfx": "shine",
-              "glowAll": true
-            }
-          ]
-        },
-        {
-          "text": "遡ってみると、人はいろんな形で{音を言葉に}してきたのね。",
-          "say": "遡ってみると、人は、いろんな形で、音を言葉にしてきたのね。"
-        },
-        {
-          "text": "{音}、{フォン}、{ソナタ}、{訪れ}、そして2つの{sound}。",
-          "say": "音、フォン、ソナタ、訪れ、そして、2つのサウンド。",
+          "text": "私たちって、いろんな音を日常的に聞くけれど、音自体に{こんなたくさんの表現}があったのね。",
+          "say": "私たちって、いろんな音を、日常的に聞くけれど、音自体に、こんなたくさんの表現が、あったのね。",
           "cards": [
             "endwall"
           ],
@@ -1110,11 +1099,15 @@
               "shake": 10
             },
             {
-              "at": 0.2,
+              "at": 0.15,
               "sfx": "pop"
             },
             {
-              "at": 0.4,
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.45,
               "sfx": "pop"
             },
             {
@@ -1122,20 +1115,48 @@
               "sfx": "pop"
             },
             {
-              "at": 0.8,
+              "at": 0.75,
+              "id": "done",
               "sfx": "pop"
             },
             {
-              "at": 0.95,
-              "id": "done",
+              "at": 0.9,
               "sfx": "shine",
-              "flash": 0.3
+              "glowAll": true
+            }
+          ]
+        },
+        {
+          "text": "{音}、{フォン}、{ソナタ}、{訪れ}、そして2つの{sound}。",
+          "say": "音、フォン、ソナタ、訪れ、そして、2つのサウンド。",
+          "fx": [
+            {
+              "at": 0.1,
+              "id": "hl",
+              "sfx": "shine",
+              "flash": 0.35,
+              "punch": 0.04
+            },
+            {
+              "at": 0.35,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.55,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.75,
+              "sfx": "pop"
             }
           ]
         },
         {
           "text": "次に何かの音が聞こえたら、ちょっと{耳を澄ませてみてね}。",
-          "say": "次に、何かの音が聞こえたら、ちょっと、耳を澄ませてみてね。"
+          "say": "次に、何かの音が聞こえたら、ちょっと、耳を澄ませてみてね。",
+          "cards": [
+            "art_ear"
+          ]
         }
       ]
     }
@@ -1151,6 +1172,27 @@
     "LSJ「φωνή」 https://lsj.gr/wiki/φωνή",
     "Online Etymology Dictionary「sonata」 https://www.etymonline.com/word/sonata",
     "白川静『字統』（「言」「音」）",
-    "Wikipedia「サイ (漢字学)」 https://ja.wikipedia.org/wiki/サイ_(漢字学)"
-  ]
+    "Wikipedia「サイ (漢字学)」 https://ja.wikipedia.org/wiki/%E3%82%B5%E3%82%A4_(%E6%BC%A2%E5%AD%97%E5%AD%A6)",
+    "Homer, Iliad 17.696（Perseus Digital Library） https://www.perseus.tufts.edu/hopper/text?doc=Perseus:text:1999.01.0133:book%3D17"
+  ],
+  "images": {
+    "zhou": {
+      "met": 42170
+    },
+    "homer": {
+      "met": 437394
+    },
+    "ostrakon": {
+      "met": 473402
+    },
+    "violin": {
+      "met": 503008
+    },
+    "singer": {
+      "met": 436159
+    },
+    "lute": {
+      "met": 439933
+    }
+  }
 }
