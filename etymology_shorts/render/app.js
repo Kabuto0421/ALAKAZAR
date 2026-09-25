@@ -951,7 +951,39 @@ function buildTitle(c) {
   return { el: w, update };
 }
 
+function buildEndQuote(c) {
+  // closing line as the last image: a big glyph with sound rings and the sentence under it
+  const w = el('div', 'endwrap endq');
+  const glyph = el('div', 'eg', esc(c.glyph || ''));
+  const rings = el('div', 'rings', '<i></i><i></i><i></i>');
+  const quote = el('div', 'eq', hl(c.quote));
+  const credit = TL.engine === 'openjtalk' ? '仮音声：Open JTalk' : `VOICEVOX:${TL.voice.name}`;
+  const [q, rest] = (TL.cta || '').split(/(?<=？)\s*/);
+  const cta = el('div', 'cta', `<b>${esc(q || '')}</b><br>${esc(rest || '')}`);
+  const cr = el('div', 'credit', esc(credit));
+  w.append(rings, glyph, quote, cta, cr);
+  const update = (ctx) => {
+    const lt = ctx.t - ctx.t0;
+    const g = prog(ctx.t, ctx.t0, 0.5);
+    glyph.style.opacity = g.toFixed(2);
+    glyph.style.transform = `scale(${lerp(1.5, 1, back(g)).toFixed(3)})`;
+    rings.querySelectorAll('i').forEach((r, i) => {
+      const k = ((lt - 0.4 - i * 0.5) % 1.5 + 1.5) % 1.5 / 1.5;
+      r.style.opacity = lt < 0.4 + i * 0.5 ? 0 : (0.8 * (1 - k)).toFixed(2);
+      r.style.transform = `translate(-50%, -50%) scale(${(0.6 + 0.9 * k).toFixed(3)})`;
+    });
+    const qp = prog(ctx.t, ctx.t0 + 0.4, 0.6);
+    quote.style.opacity = qp.toFixed(2);
+    quote.style.transform = `translateY(${(24 * (1 - easeOut(qp))).toFixed(1)}px)`;
+    const p = prog(ctx.t, ctx.t0 + 2.2, 0.5);
+    cta.style.opacity = p.toFixed(2);
+    cr.style.opacity = prog(ctx.t, ctx.t0 + 2.5, 0.5).toFixed(2);
+  };
+  return { el: w, update };
+}
+
 function buildEnd() {
+  if (TL.cards.end && TL.cards.end.quote) return buildEndQuote(TL.cards.end);
   const w = el('div', 'endwrap');
   const pair = buildPair(TL.cards.pair, true);
   const credit = TL.engine === 'openjtalk' ? '仮音声：Open JTalk' : `VOICEVOX:${TL.voice.name}`;

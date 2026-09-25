@@ -96,7 +96,8 @@ def build_timeline(episode, engine):
             lines.append({"text": line["text"], "scene": scene["id"], "start": round(start, 3), "end": round(start + dur, 3)})
             clips.append((start, path))
             if "cards" in line:
-                ev["cardSets"].append({"t": 0.0 if index == 0 else round(start, 3), "cards": line["cards"], "line": index})
+                # a line that brings on the end card keeps it up to the very end
+                ev["cardSets"].append({"t": 0.0 if index == 0 else round(start, 3), "cards": line["cards"], "line": None if line["cards"] == ["end"] else index})
             if "cardState" in line:
                 ev["cardStates"].append({"t": round(start, 3), "state": line["cardState"]})
             if "camera" in line:
@@ -118,7 +119,8 @@ def build_timeline(episode, engine):
             cursor += dur + LINE_GAP
         scenes.append({k: v for k, v in scene.items() if k not in ("lines", "camera")} | {"start": round(scene_start, 3)})
     last_end = cursor - LINE_GAP
-    ev["cardSets"].append({"t": round(last_end + 0.5, 3), "cards": ["end"], "line": None})
+    if ev["cardSets"][-1]["cards"] != ["end"]:
+        ev["cardSets"].append({"t": round(last_end + 0.5, 3), "cards": ["end"], "line": None})
     duration = last_end + TAIL
     for i, scene in enumerate(scenes):
         scene["end"] = scenes[i + 1]["start"] if i + 1 < len(scenes) else round(duration, 3)
