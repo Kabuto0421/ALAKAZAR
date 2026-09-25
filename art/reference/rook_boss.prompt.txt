@@ -1,0 +1,10 @@
+Use case: stylized-concept
+Asset type: Godot boss sprite atlas
+Input image 1: Existing police enemy atlas (assets/sprites/enemies/police_officer_directions_28.png) as the pixel-density, palette, outline, and direction-sheet reference.
+Input image 2: Composition guide (art/reference/rook_boss_composition.png) for the silhouette, pose, and part placement in each cell. Follow its layout only, not its flat colors or line style.
+Primary request: Create one heavy "rook" boss enemy as a pixel-art sprite atlas with 4 columns (back/up, right, front/down, left) and 3 rows (idle, brace, stunned). The boss occupies 2x2 board tiles.
+Design: Bull-horned heavy trooper with a closed helmet and visor slit, huge shoulder pauldrons, a back power pack with twin thruster vents, a spiked ram shield carried on one arm, and a spiked gauntlet on the other arm.
+Idle: upright, shield at the side, horns pointing up, cyan visor.
+Brace (its next turn is a locked-in charge): crouched low, ram shield thrust forward, horns lowered forward, red visor, orange shoulder warning lights lit, thruster vents glowing cyan. It must read instantly as "about to charge".
+Stunned (after crashing into a wall): body tilted, shield dropped at the feet, visor dark gray, small yellow stars above the head.
+Constraints: Transparent background, equal square 56x56 px cells in a 224x168 px sheet (the same pixel density as the 28 px soldiers), navy armor, black outline, cyan glow, orange warning lights, columns and rows in exactly the order above, the left view may mirror the right view, feet at the bottom of each cell, no text or background.
