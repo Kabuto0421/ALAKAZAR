@@ -701,7 +701,7 @@ function buildTable(c) {
   // a sound-correspondence grid, revealed row by row and column by column
   const e = el('div', 'panel stable');
   const grid = el('div', 'grid');
-  grid.style.gridTemplateColumns = `110px repeat(${c.cols.length}, 1fr)`;
+  grid.style.gridTemplateColumns = `minmax(110px, auto) repeat(${c.cols.length}, 1fr)`;
   const cells = [];
   grid.appendChild(el('div', 'th corner', ''));
   c.cols.forEach((h, j) => {
