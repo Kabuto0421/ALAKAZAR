@@ -489,7 +489,7 @@ function buildWordCard(c, size) {
   const e = el('div', `panel word ${size}${c.glow ? ' glow' : ''}`);
   e.innerHTML = `
     <div class="meta"><span class="lang">${esc(c.lang)}</span>${c.era ? `<span class="era">${esc(c.era)}</span>` : ''}</div>
-    <div class="script f-${c.font}"${c.font === 'hebrew' ? ' dir="rtl"' : ''}>${hl(c.script)}</div>
+    <div class="script f-${c.font}"${c.font === 'hebrew' || c.font === 'arabic' ? ' dir="rtl"' : ''}>${hl(c.script)}</div>
     ${c.sub ? `<div class="sub">${hl(c.sub)}</div>` : ''}
     <div class="gloss">「${esc(c.gloss)}」</div>
     ${c.extra ? `<div class="extra">${esc(c.extra)}</div>` : ''}`;
@@ -915,9 +915,9 @@ function buildFx() {
     const item = { f, parts: [] };
     if (f.montage) {
       const r = rng(Math.round(f.t * 1000));
-      const fonts = { latin: '"Noto Serif"', hebrew: '"Noto Serif Hebrew"', deva: '"Noto Serif Devanagari"', cjk: '"Shippori Mincho"', kr: '"Noto Serif KR"' };
+      const fonts = { latin: '"Noto Serif"', hebrew: '"Noto Serif Hebrew"', deva: '"Noto Serif Devanagari"', cjk: '"Shippori Mincho"', kr: '"Noto Serif KR"', arabic: '"Noto Naskh Arabic"' };
       item.montage = f.montage.map((w, i) => {
-        const kind = /[֐-׿]/.test(w) ? 'hebrew' : /[ऀ-ॿ]/.test(w) ? 'deva' : /[一-鿿]/.test(w) ? 'cjk' : /[가-힯]/.test(w) ? 'kr' : 'latin';
+        const kind = /[֐-׿]/.test(w) ? 'hebrew' : /[ऀ-ॿ]/.test(w) ? 'deva' : /[一-鿿]/.test(w) ? 'cjk' : /[가-힯]/.test(w) ? 'kr' : /[؀-ۿ]/.test(w) ? 'arabic' : 'latin';
         const e = el('div', 'montage', esc(w));
         e.style.fontFamily = fonts[kind];
         e.style.fontSize = `${Math.round(kind === 'cjk' ? 150 : 96 + r() * 40)}px`;
@@ -1072,7 +1072,7 @@ window.ready = (async function init() {
   const specs = [
     '500 40px "Shippori Mincho"', '700 40px "Shippori Mincho"', '800 40px "Shippori Mincho"', '700 40px "Noto Serif JP"',
     '400 40px "Noto Serif"', 'italic 400 40px "Noto Serif"', '600 40px "Noto Serif"', 'italic 600 40px "Noto Serif"',
-    '600 40px "Noto Serif Hebrew"', '600 40px "Noto Serif Devanagari"', '600 40px "Noto Serif KR"',
+    '600 40px "Noto Serif Hebrew"', '600 40px "Noto Serif Devanagari"', '600 40px "Noto Serif KR"', '600 40px "Noto Naskh Arabic"',
     '600 40px "Cormorant Garamond"', 'italic 600 40px "Cormorant Garamond"', '700 40px "Cormorant Garamond"',
   ];
   await Promise.all(specs.map((s) => document.fonts.load(s, text)));

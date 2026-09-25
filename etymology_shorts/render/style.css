@@ -129,6 +129,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--
 .f-hebrew { font-family: "Noto Serif Hebrew", serif; font-weight: 600; }
 .f-deva { font-family: "Noto Serif Devanagari", serif; font-weight: 600; }
 .f-kr { font-family: "Noto Serif KR", serif; font-weight: 600; }
+.f-arabic { font-family: "Noto Naskh Arabic", serif; font-weight: 600; }
 .f-cjk { font-family: var(--mincho); font-weight: 800; }
 .formula { width: 880px; height: 330px; }
 .kanji.formula .layer { gap: 14px; }

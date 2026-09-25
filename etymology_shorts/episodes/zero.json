@@ -1,0 +1,199 @@
+{
+  "id": "zero",
+  "series": "語源の旅",
+  "number": 3,
+  "word": "zero",
+  "wordJa": "零",
+  "voice": { "speaker": 2, "name": "四国めたん", "speed": 1.15, "intonation": 1.05 },
+  "hook": "「0」と「暗号」は、同じ言葉から生まれた兄弟。インドの「からっぽ」から、アラビア、イタリアを通って、英語の zero と cipher へ。そして日本の「零」は、雨のしずくでした。",
+  "cta": "次はどの言葉を旅しようかしら？ コメントで教えてね",
+  "tags": ["語源", "ゼロ", "零", "数学", "言語学", "雑学", "四国めたん", "Shorts"],
+  "titles": [
+    "【鳥肌】「0」と「暗号」は、同じ言葉から生まれた兄弟だった",
+    "ゼロの語源は「からっぽ」。インドから日本までの1400年の旅",
+    "「零」はもともと雨のしずくだった"
+  ],
+
+  "places": {
+    "india": { "lon": 72.27, "lat": 25.0, "label": "インド" },
+    "baghdad": { "lon": 44.36, "lat": 33.31, "label": "バグダッド" },
+    "pisa": { "lon": 10.4, "lat": 43.72, "label": "ピサ（イタリア）", "anchor": "right" },
+    "paris": { "lon": 2.35, "lat": 48.86, "label": "フランス", "anchor": "left" },
+    "berlin": { "lon": 13.4, "lat": 52.52, "label": "ドイツ", "anchor": "right" },
+    "london": { "lon": -0.13, "lat": 51.5, "label": "イギリス", "anchor": "left" },
+    "china": { "lon": 108.94, "lat": 34.34, "label": "中国", "anchor": "left" },
+    "nara": { "lon": 135.8, "lat": 34.69, "label": "日本", "anchor": "right" }
+  },
+
+  "stops": [
+    { "scene": "india", "icon": "印", "name": "インド" },
+    { "scene": "arabia", "icon": "亜", "name": "アラビア" },
+    { "scene": "italy", "icon": "伊", "name": "イタリア" },
+    { "scene": "cipher", "icon": "暗", "name": "分かれ道" },
+    { "scene": "japan", "icon": "？", "reveal": "零", "name": "日本" }
+  ],
+
+  "cards": {
+    "pair": { "type": "pair", "a": "0", "b": "暗号", "bond": "同じ言葉" },
+    "title": { "type": "title", "word": "zero", "ja": "零" },
+    "shunya": { "type": "word", "script": "शून्य", "sub": "śūnya", "font": "deva", "lang": "サンスクリット語", "era": "7世紀", "gloss": "からっぽ", "glow": true },
+    "sifr": { "type": "word", "script": "صفر", "sub": "ṣifr", "font": "arabic", "lang": "アラビア語", "era": "9世紀", "gloss": "からっぽ" },
+    "algo": { "type": "word", "script": "algorithm", "sub": "← al-Khwārizmī（学者の名前）", "font": "latin", "lang": "英語", "gloss": "アルゴリズム" },
+    "chain": {
+      "type": "chain",
+      "items": [
+        { "w": "ṣifr", "note": "アラビア語" },
+        { "w": "zephirum", "note": "ラテン語（1202年）" },
+        { "w": "zefiro", "note": "イタリア語" },
+        { "w": "zero", "note": "イタリア語 → 世界へ" }
+      ]
+    },
+    "cipher": { "type": "word", "script": "cipher", "sub": "← cifra（ラテン語）", "font": "latin", "lang": "英語", "era": "14世紀〜", "gloss": "ゼロ → 数字 → 暗号", "glow": true },
+    "chiffre": { "type": "word", "script": "chiffre", "font": "latin", "lang": "フランス語", "gloss": "数字" },
+    "ziffer": { "type": "word", "script": "Ziffer", "font": "latin", "lang": "ドイツ語", "gloss": "数字" },
+    "rei": { "type": "formula", "title": "漢字の成り立ち", "items": [
+      { "g": "零" },
+      { "op": "＝" },
+      { "g": "雨", "lab": "あめ", "s": true },
+      { "op": "＋" },
+      { "g": "令", "lab": "音「レイ」", "s": true }
+    ] },
+    "drop": { "type": "formula", "title": "意味の移り変わり", "items": [
+      { "g": "しずく", "lab": "雨のしずく", "s": true },
+      { "op": "→" },
+      { "g": "わずか", "lab": "ほんの少し", "s": true },
+      { "op": "→" },
+      { "g": "0", "lab": "ゼロ", "red": true, "s": true }
+    ] },
+    "triad": {
+      "type": "triad",
+      "items": [
+        { "k": "からっぽ", "from": "インド śūnya" },
+        { "k": "暗号", "from": "英語 cipher" },
+        { "k": "しずく", "from": "日本 零" }
+      ]
+    },
+    "end": { "type": "end" }
+  },
+
+  "scenes": [
+    {
+      "id": "intro",
+      "camera": { "lon": 50, "lat": 32, "zoom": 0.9, "spin": 16 },
+      "lines": [
+        {
+          "text": "{「0」}と{「暗号」}。実は、{同じ言葉}から生まれたのよ。",
+          "say": "ゼロと、暗号。実は、同じ言葉から生まれたのよ。",
+          "voice": { "speed": 1.25 },
+          "cards": ["pair"],
+          "fx": [
+            { "at": 0.0, "id": "a", "sfx": "boom", "flash": 0.9, "shake": 18 },
+            { "at": 0.2, "id": "b", "sfx": "boom", "flash": 0.6, "shake": 12 },
+            { "at": 0.62, "id": "bond", "sfx": "shine", "flash": 0.5, "punch": 0.05 }
+          ]
+        },
+        {
+          "text": "始まりは、{「からっぽ」}という言葉だったの。",
+          "say": "始まりは、からっぽ、という言葉だったの。",
+          "voice": { "speed": 1.25 },
+          "cards": [],
+          "fx": [
+            { "at": 0.0, "sfx": "glitch", "montage": ["शून्य", "صفر", "śūnya", "ṣifr", "zephirum", "zefiro", "cipher", "chiffre", "Ziffer", "零", "zero"], "len": 0.95 },
+            { "at": 0.0, "sfx": "ticks", "counter": { "from": 1000, "to": 0, "suffix": "" }, "len": 0.5 },
+            { "at": 0.5, "sfx": "boom", "shake": 12, "flash": 0.4 }
+          ]
+        },
+        {
+          "text": "さあ、{ゼロ}の旅に出ましょう。",
+          "say": "さあ、ゼロの旅に、出ましょう。",
+          "voice": { "speed": 1.25 },
+          "cards": ["title"],
+          "fx": [{ "at": 0.0, "sfx": "boom", "flash": 0.7, "shake": 10 }]
+        }
+      ]
+    },
+    {
+      "id": "india",
+      "stop": "インド",
+      "era": 628,
+      "camera": { "lon": 74, "lat": 24, "zoom": 3.0 },
+      "lines": [
+        { "text": "出発は7世紀のインド。数学者ブラフマグプタが、{ゼロを「数」として}計算したの。", "say": "出発は、7世紀のインド。数学者ブラフマグプタが、ゼロを、数として計算したの。", "mark": ["india"], "fx": [{ "at": 0.0, "sfx": "pop", "punch": 0.03 }] },
+        { "text": "サンスクリット語で、ゼロは {śūnya}。{「からっぽ」}のことよ。", "say": "サンスクリット語で、ゼロは、シューニャ。からっぽのことよ。", "cards": ["shunya"], "fx": [{ "at": 0.6, "sfx": "shine", "flash": 0.35 }] },
+        { "text": "何もないことに、名前をつける……なんだか{詩}みたいね。", "say": "何もないことに、名前をつける。なんだか、詩みたいね。", "fx": [{ "at": 0.78, "pop": "詩", "sfx": "shine", "flash": 0.2, "punch": 0.03 }] }
+      ]
+    },
+    {
+      "id": "arabia",
+      "stop": "アラビア",
+      "era": 825,
+      "camera": { "lon": 56, "lat": 30, "zoom": 2.3 },
+      "lines": [
+        { "text": "インドの数字は、9世紀の{バグダッド}へ。", "say": "インドの数字は、9世紀のバグダッドへ。", "mark": ["baghdad"], "routes": [{ "id": "a1", "path": ["india", "baghdad"], "style": "faith", "len": 0.8 }], "fx": [{ "at": 0.1, "sfx": "whoosh" }] },
+        { "text": "アラビア語では「からっぽ」をそのまま訳して {ṣifr}。", "say": "アラビア語では、からっぽを、そのまま訳して、スィフル。", "cards": ["sifr"], "fx": [{ "at": 0.75, "sfx": "boom", "flash": 0.35, "shake": 8 }] },
+        { "text": "この数字を広めた学者アル＝フワーリズミーの名前は、{「アルゴリズム」}の語源よ。", "say": "この数字を広めた学者、アルフワーリズミーの名前は、アルゴリズムの語源よ。", "cards": ["algo"], "fx": [{ "at": 0.72, "pop": "アルゴリズム!?", "sfx": "boom", "shake": 10, "flash": 0.3 }] }
+      ]
+    },
+    {
+      "id": "italy",
+      "stop": "イタリア",
+      "era": 1202,
+      "camera": { "lon": 20, "lat": 40, "zoom": 2.4 },
+      "lines": [
+        { "text": "13世紀、イタリアの{フィボナッチ}が、この数字をヨーロッパに紹介したの。", "say": "13世紀、イタリアのフィボナッチが、この数字を、ヨーロッパに紹介したの。", "mark": ["pisa"], "routes": [{ "id": "i1", "path": ["baghdad", "pisa"], "style": "faith", "len": 0.7 }], "fx": [{ "at": 0.1, "sfx": "whoosh" }] },
+        { "text": "ṣifr はラテン語で {zephirum}。それが縮まって、イタリアで{「zero」}になったのよ。", "say": "スィフルは、ラテン語で、ゼフィルム。それが縮まって、イタリアで、ゼロになったのよ。", "cards": ["chain"], "cardState": { "reveal": 2 }, "fx": [{ "at": 0.5, "state": { "reveal": 3 }, "sfx": "pop" }, { "at": 0.75, "state": { "reveal": 4 }, "sfx": "boom", "flash": 0.4, "shake": 10 }] }
+      ]
+    },
+    {
+      "id": "cipher",
+      "stop": "もうひとつの道",
+      "era": 1520,
+      "camera": { "lon": 8, "lat": 48, "zoom": 2.6 },
+      "lines": [
+        { "text": "でも、ṣifr には{もうひとつの道}があったの。", "say": "でも、スィフルには、もうひとつの道が、あったの。", "fx": [{ "at": 0.1, "sfx": "boom", "punch": 0.05, "shake": 8 }] },
+        { "text": "ラテン語の cifra から、英語の {cipher}。最初の意味は、やっぱり{「ゼロ」}。", "say": "ラテン語のシフラから、英語のサイファー。最初の意味は、やっぱり、ゼロ。", "cards": ["cipher"], "routes": [{ "id": "c1", "path": ["pisa", "london"], "style": "branch", "len": 0.5, "labelEnd": "cipher" }], "fx": [{ "at": 0.1, "sfx": "pop" }] },
+        { "text": "数字で秘密の文を書いたことから、{「暗号」}の意味になったのね。", "say": "数字で、秘密の文を書いたことから、暗号の意味になったのね。", "fx": [{ "at": 0.62, "stamp": "暗号", "sfx": "thud", "shake": 16, "flash": 0.2 }] },
+        { "text": "フランス語の {chiffre}、ドイツ語の {Ziffer} は、今も{「数字」}のこと。", "say": "フランス語のシッフル、ドイツ語のツィッファーは、今も、数字のこと。", "cards": ["chiffre", "ziffer"], "routes": [{ "id": "c2", "path": ["pisa", "paris"], "style": "branch", "len": 0.35, "labelEnd": "chiffre" }, { "id": "c3", "path": ["pisa", "berlin"], "style": "branch", "at": 0.35, "len": 0.35, "labelEnd": "Ziffer" }], "fx": [{ "at": 0.0, "sfx": "pop" }, { "at": 0.35, "sfx": "pop" }] }
+      ]
+    },
+    {
+      "id": "japan",
+      "stop": "日本",
+      "era": null,
+      "camera": { "lon": 125, "lat": 35, "zoom": 2.2 },
+      "lines": [
+        { "text": "日本では、ゼロを{「零」}とも書くわね。", "say": "日本では、ゼロを、れいとも書くわね。", "cards": ["rei"], "mark": ["nara"], "routes": [{ "id": "j1", "path": ["china", "nara"], "style": "east", "len": 0.6, "labelEnd": "零" }], "fx": [{ "at": 0.5, "sfx": "boom", "flash": 0.4, "shake": 10 }] },
+        { "text": "この字は、{雨のしずく}がぽつりと落ちること。", "say": "この字は、雨のしずくが、ぽつりと落ちること。", "fx": [{ "at": 0.6, "sfx": "pop" }] },
+        { "text": "しずくほどの{わずかなもの}から、やがてゼロを表すようになったの。", "say": "しずくほどの、わずかなものから、やがて、ゼロを表すように、なったの。", "cards": ["drop"], "fx": [{ "at": 0.85, "sfx": "shine", "flash": 0.3 }] }
+      ]
+    },
+    {
+      "id": "outro",
+      "stop": "旅の終わりに",
+      "era": 2026,
+      "camera": { "lon": 62, "lat": 38, "zoom": 0.92, "spin": -2 },
+      "lines": [
+        {
+          "text": "{からっぽ}、{暗号}、{雨のしずく}。",
+          "say": "からっぽ、暗号、雨のしずく。",
+          "cards": ["triad"],
+          "fx": [
+            { "at": 0.0, "state": { "reveal": 1 }, "sfx": "pop" },
+            { "at": 0.33, "state": { "reveal": 2 }, "sfx": "pop" },
+            { "at": 0.62, "state": { "reveal": 3 }, "sfx": "pop" }
+          ]
+        },
+        { "text": "何もないはずのゼロが、{いちばん遠くまで}旅をしたのね。", "say": "何もないはずのゼロが、いちばん遠くまで、旅をしたのね。", "fx": [{ "at": 0.5, "sfx": "shine", "glowAll": true }] },
+        { "text": "次にゼロを書くとき、ちょっとだけ{ロマン}を感じないかしら？", "say": "次にゼロを書くとき、ちょっとだけ、ロマンを感じないかしら？" }
+      ]
+    }
+  ],
+
+  "sources": [
+    "Online Etymology Dictionary「zero」 https://www.etymonline.com/word/zero",
+    "Online Etymology Dictionary「cipher」 https://www.etymonline.com/word/cipher",
+    "Wikipedia「0」 https://en.wikipedia.org/wiki/0",
+    "漢字ペディア「零」 https://www.kanjipedia.jp/kanji/0007256600",
+    "漢字・成り立ち「零」（OK辞典） https://okjiten.jp/kanji341.html"
+  ]
+}
