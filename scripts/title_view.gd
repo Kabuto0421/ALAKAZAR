@@ -5,6 +5,7 @@ const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const BATTLE_SCENE := "res://main.tscn"
+const BOSS_SCENE := "res://boss_stage.tscn"
 const SCREEN = Vector2(1152,720)
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
@@ -30,6 +31,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_M:
 			bgm.toggle_mute()
 			return
+		if event.keycode == KEY_B:
+			set_process_unhandled_input(false)
+			get_tree().change_scene_to_file(BOSS_SCENE)
+			return
 		_start()
 	elif event is InputEventMouseButton and event.pressed:
 		_start()
@@ -53,4 +58,5 @@ func _draw() -> void:
 	_centered(350,"6x6 TACTICS",32,MUTED)
 	_centered(410,"武器と向きを切り替え、包囲を突破せよ",22,INK,FONT)
 	_centered(520,"CLICK OR PRESS ANY KEY",30,Color(INK,0.55+0.45*sin(clock*3.0)))
+	_centered(640,"B  BOSS TEST",22,Color("ff5b62"))
 	_centered(690,"M  BGM ON / OFF",20,MUTED)
