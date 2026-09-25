@@ -2,6 +2,7 @@
 //
 //   node render.mjs build/sin/timeline.json --audio build/sin/audio.wav --out build/sin/sin.mp4
 //   node render.mjs build/sin/timeline.json --stills 0,3.5,20
+//   node render.mjs build/sin/timeline.json --thumbs episodes/sin.json
 //
 // Frames are split across several pages (--workers) that each encode a segment;
 // the segments are then joined and muxed with the audio without re-encoding.
@@ -88,6 +89,22 @@ async function main() {
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch({ args: ['--force-color-profile=srgb', '--font-render-hinting=none', '--disable-lcd-text'] });
   try {
+    if (opts.thumbs) {
+      // thumbnails come straight from the episode file: --thumbs episodes/sin.json
+      const epRel = path.relative(ROOT, path.resolve(opts.thumbs)).split(path.sep).join('/');
+      const ep = JSON.parse(fs.readFileSync(path.resolve(opts.thumbs), 'utf8'));
+      for (const t of ep.thumbnails || []) {
+        const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+        page.on('pageerror', (e) => console.error('page error:', e.message));
+        await page.goto(`${base}/render/thumb.html?episode=/${epRel}&id=${t.id}`);
+        await page.evaluate(() => window.ready);
+        const file = path.join(outDir, `thumb_${t.id}.png`);
+        await page.screenshot({ path: file });
+        await page.close();
+        console.log(file);
+      }
+      return;
+    }
     if (opts.stills) {
       const { grab } = await openPage(browser, base, timelineRel);
       const dir = path.join(outDir, 'stills');

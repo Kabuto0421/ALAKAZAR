@@ -94,8 +94,9 @@ def build_timeline(episode, engine):
 def description(episode, engine):
     voice = episode["voice"]["name"] if engine in ("su-shiki", "local") else "Open JTalk（仮音声）"
     credit = f"VOICEVOX:{voice}" if engine in ("su-shiki", "local") else voice
+    titles = episode.get("titles") or [f"{episode['word']}（{episode['wordJa']}）"]
     parts = [
-        f"【{episode['series']} #{episode['number']}】{episode['word']}（{episode['wordJa']}）",
+        f"{titles[0]}【{episode['series']} #{episode['number']}】",
         "",
         episode.get("hook", ""),
         episode.get("cta", ""),
@@ -118,6 +119,7 @@ def main():
     parser.add_argument("--workers", type=int, default=max(1, min(4, (os.cpu_count() or 2))))
     parser.add_argument("--stills", help="comma-separated seconds; render PNGs only")
     parser.add_argument("--remux", action="store_true", help="re-mix audio onto the frames already rendered")
+    parser.add_argument("--thumbs", action="store_true", help="render the thumbnail variants only")
     args = parser.parse_args()
 
     with open(os.path.join(HERE, "episodes", f"{args.episode}.json"), encoding="utf-8") as f:
@@ -138,6 +140,11 @@ def main():
     print(f"duration: {timeline['duration']:.1f}s")
 
     render = ["node", os.path.join(HERE, "render.mjs"), timeline_path]
+    if args.thumbs:
+        subprocess.run(render + ["--thumbs", os.path.join(HERE, "episodes", f"{args.episode}.json")], check=True)
+        with open(os.path.join(out_dir, "description.txt"), "w", encoding="utf-8") as f:
+            f.write(description(episode, engine))
+        return
     if args.stills:
         subprocess.run(render + ["--stills", args.stills], check=True)
         return

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>語源の旅 thumbnail</title>
+<link rel="stylesheet" href="../node_modules/@fontsource/shippori-mincho/800.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/cormorant-garamond/600-italic.css">
+<link rel="stylesheet" href="style.css">
+<style>
+  #thumb { position: relative; width: 1080px; height: 1920px; overflow: hidden;
+    background: radial-gradient(120% 70% at 50% 45%, #15213a 0%, #0a0f1c 55%, #04060b 100%); }
+  #thumb svg.globe { position: absolute; inset: 0; }
+  #thumb .land { fill: #2b3a57; stroke: rgba(245, 210, 140, 0.9); stroke-width: 2; }
+  #thumb .grat { fill: none; stroke: rgba(160, 190, 230, 0.12); stroke-width: 1.5; }
+  #thumb .route { fill: none; stroke: #f5c86a; stroke-width: 9; stroke-linecap: round; }
+  #thumb .route.root { stroke: #9fd8ec; stroke-dasharray: 2 18; }
+  #thumb .route.east { stroke: #ef6a5f; }
+  #thumb .dot { fill: #fff6df; }
+  #thumb .shade { position: absolute; inset: 0;
+    background: radial-gradient(75% 55% at 50% 48%, rgba(4, 6, 11, 0.15) 0%, rgba(4, 6, 11, 0.72) 100%),
+                linear-gradient(0deg, rgba(4, 6, 11, 0.9) 0%, rgba(4, 6, 11, 0) 30%); }
+  .badge { position: absolute; left: 0; right: 0; top: 62px; text-align: center; font: 800 38px/1 var(--mincho); letter-spacing: 0.4em; color: var(--gold); }
+  .t { position: absolute; left: 0; right: 0; text-align: center; white-space: nowrap; font-family: var(--mincho); font-weight: 800;
+       -webkit-text-stroke: 18px #05070d; paint-order: stroke fill; }
+  .t em { font-style: normal; color: #ffd27a; }
+  .kicker { color: #ffd27a; font-size: 118px; }
+  .tail { color: #fffaf0; font-size: 132px; line-height: 1.12; }
+  .gA { color: #fff; font-size: 510px; line-height: 1; text-shadow: 0 0 80px rgba(230, 70, 60, 0.9), 0 0 24px rgba(230, 70, 60, 0.8); -webkit-text-stroke: 0; }
+  .gB { color: #fff; font-size: 380px; line-height: 1; text-shadow: 0 0 80px rgba(110, 180, 240, 0.95), 0 0 24px rgba(110, 180, 240, 0.8); -webkit-text-stroke: 0; }
+  .eqbars { position: absolute; left: 370px; top: 815px; width: 340px; }
+  .eqbars i { display: block; height: 42px; margin-bottom: 38px; border-radius: 21px; background: #ffd27a;
+    box-shadow: 0 0 36px rgba(255, 200, 110, 0.95), 0 0 0 10px #05070d; }
+  .glyph { color: #fff; font-size: 800px; line-height: 1; -webkit-text-stroke: 0; text-shadow: 0 0 90px rgba(230, 70, 60, 0.85), 0 0 30px rgba(0, 0, 0, 0.9); }
+  .headline { color: #fff; font-size: 170px; }
+  .big { color: #ffd27a; font-size: 330px; line-height: 1; text-shadow: 0 0 70px rgba(255, 200, 110, 0.8); }
+  .slash { position: absolute; left: 90px; top: 920px; width: 900px; height: 46px; background: #e0403a; border-radius: 23px;
+           transform: rotate(-24deg); box-shadow: 0 0 40px rgba(224, 64, 58, 0.9); opacity: 0.92; }
+  .rays { position: absolute; left: 40px; top: 300px; width: 1000px; height: 1000px; border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255, 215, 140, 0.16) 0deg 6deg, rgba(255, 215, 140, 0) 6deg 18deg);
+    -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); }
+</style>
+</head>
+<body>
+<div id="thumb">
+  <svg class="globe" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+  <div class="shade"></div>
+  <div class="rays"></div>
+  <div id="content"></div>
+  <div id="grain"></div>
+</div>
+<script src="../node_modules/d3-array/dist/d3-array.min.js"></script>
+<script src="../node_modules/d3-geo/dist/d3-geo.min.js"></script>
+<script src="../node_modules/topojson-client/dist/topojson-client.min.js"></script>
+<script src="thumb.js"></script>
+</body>
+</html>

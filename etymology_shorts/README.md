@@ -34,7 +34,8 @@ python3 build.py sin
 | ファイル | 中身 |
 | --- | --- |
 | `sin.mp4` | 完成動画 |
-| `description.txt` | 投稿文（クレジット・参考文献・ハッシュタグ入り） |
+| `description.txt` | 投稿文（タイトル・クレジット・参考文献・ハッシュタグ入り） |
+| `thumb_a.png` など | サムネイル案 |
 | `timeline.json` | 各セリフ・演出の秒数 |
 | `audio.wav` | ミックス済み音声 |
 
@@ -44,6 +45,12 @@ python3 build.py sin
 python3 build.py sin --engine local        # VOICEVOXアプリを起動した状態で
 python3 build.py sin --stills 0,12,45,90   # 指定秒の静止画だけ確認
 python3 build.py sin --remux               # 音だけ作り直して、描画済みの映像に載せ直す
+```
+
+サムネイルは `episodes/*.json` の `thumbnails`（切り口違いの案を並べる）から作り、`build/<話>/thumb_<id>.png`（1080×1920）に出力します。タイトル案は `titles` に書き、先頭が投稿文の1行目になります。
+
+```sh
+python3 build.py sin --thumbs
 ```
 
 セリフごとの音声は `cache/tts/` にキャッシュされるので、台本を直しても変わった行だけ合成し直します。
