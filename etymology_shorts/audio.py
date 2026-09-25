@@ -201,7 +201,7 @@ def sfx_track(duration, fx):
         if kind == "boom":
             _add(track, _boom(rng), cue["t"], 0.36)
         elif kind == "thud":
-            _add(track, _thud(rng), cue["t"], 0.45)
+            _add(track, _thud(rng), cue["t"], 0.22)
         elif kind == "pop":
             _add(track, _pop(), cue["t"], 0.16)
         elif kind == "shine":
@@ -318,10 +318,10 @@ def mix(duration, voice_clips, scenes, fx=()):
         _add(voice, decode(path), start)
     peak = np.max(np.abs(voice)) or 1.0
     voice *= 0.5 / peak  # headroom before the limiter
-    # Normalise the narration so it sits around -17 dBFS RMS while speaking.
+    # Normalise the narration so it sits around -18 dBFS RMS while speaking.
     speaking = np.abs(voice) > 0.01
     rms = np.sqrt(np.mean(voice[speaking] ** 2)) if speaking.any() else 1.0
-    voice *= 0.14 / rms
+    voice *= 0.12 / rms
 
     bgm = music(duration, scenes)
     bgm /= np.max(np.abs(bgm)) + 1e-9
