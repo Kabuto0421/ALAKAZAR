@@ -888,7 +888,8 @@ function drawCards(t) {
     const active = i === cur || (i === cur - 1 && exit < 1);
     S.box.style.display = active && S.parts.length ? '' : 'none';
     if (!active) return;
-    if (S.hero) heroAmt = Math.max(heroAmt, i === cur ? enter : 1 - exit);
+    // a hero card that has already left (its scene ended) must not keep the globe dimmed
+    if (S.hero) heroAmt = Math.max(heroAmt, Math.min(enter, 1 - exit));
     const ctx = { t, t0: S.set.t, beats: S.beats, hist: S.hist };
     S.parts.forEach((p, k) => {
       const pe = S.hero ? enter : prog(t, S.set.t + k * 0.1, 0.42);
