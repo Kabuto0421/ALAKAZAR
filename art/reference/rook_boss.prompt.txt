@@ -1,10 +1,10 @@
 Use case: stylized-concept
 Asset type: Godot boss sprite atlas
 Input image 1: Existing police enemy atlas (assets/sprites/enemies/police_officer_directions_28.png) as the pixel-density, palette, outline, and direction-sheet reference.
-Input image 2: Composition guide (art/reference/rook_boss_composition.png) for the silhouette, pose, and part placement in each cell. Follow its layout only, not its flat colors or line style.
+Input image 2: Composition guide (art/reference/rook_boss_composition.png) for the silhouette, pose, and part placement in each cell. Follow its layout only, not its flat colors or line style. The red dashed arcs in the brace row only explain the slash path; do not draw them.
 Primary request: Create one heavy "rook" boss enemy as a pixel-art sprite atlas with 4 columns (back/up, right, front/down, left) and 3 rows (idle, brace, stunned). The boss occupies 2x2 board tiles.
 Design: Bull-horned heavy trooper with a closed helmet and visor slit, huge shoulder pauldrons, a back power pack with twin thruster vents, and a huge great axe whose blade edge glows.
 Idle: upright, holding the great axe upright at its side in one hand, horns pointing up, cyan visor, cyan blade edge.
-Brace (its next turn is a locked-in charge): crouched low, great axe raised high overhead with both hands and wound up behind the head, horns lowered forward, red visor, red blade edge, orange shoulder warning lights lit, thruster vents glowing cyan. It must read instantly as "about to charge".
+Brace (its next turn is a locked-in charge): crouched low with the torso twisted, great axe pulled back flat to one side at waist height with both hands, wound up for a sideways sweeping slash, horns lowered forward, red visor, red blade edge, orange shoulder warning lights lit, thruster vents glowing cyan. It must read instantly as "about to charge".
 Stunned (after crashing into a wall): body tilted, great axe dropped on the floor at its feet, visor dark gray, small yellow stars above the head.
 Constraints: Transparent background, equal square 56x56 px cells in a 224x168 px sheet (the same pixel density as the 28 px soldiers), navy armor, black outline, cyan glow, orange warning lights, columns and rows in exactly the order above, the left view may mirror the right view, feet at the bottom of each cell, no text or background.
