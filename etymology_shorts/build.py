@@ -33,13 +33,32 @@ MET_API = "https://collectionapi.metmuseum.org/public/collection/v1/objects/"
 
 
 def fetch_images(episode):
-    """Download the episode's museum images (Met Open Access, public domain) into cache/images/."""
+    """Download the episode's museum images (public domain) into cache/images/.
+
+    An image is either {"met": <object id>} (Met Open Access, checked for public
+    domain) or {"file", "download", "title", "date", "url", "credit"} for another
+    museum's public-domain image, optionally cropped with "crop": [x0, y0, x1, y1].
+    """
     import urllib.request
 
     out = {}
     folder = os.path.join(HERE, "cache", "images")
     os.makedirs(folder, exist_ok=True)
     for key, spec in episode.get("images", {}).items():
+        if "met" not in spec:
+            img_path = os.path.join(folder, spec["file"])
+            if not os.path.exists(img_path):
+                req = urllib.request.Request(spec["download"], headers={"User-Agent": "etymology-shorts/1.0"})
+                with urllib.request.urlopen(req, timeout=120) as res:
+                    data = res.read()
+                with open(img_path, "wb") as f:
+                    f.write(data)
+                if "crop" in spec:
+                    from PIL import Image
+
+                    Image.open(img_path).convert("RGB").crop(tuple(spec["crop"])).save(img_path, quality=92)
+            out[key] = {"src": f"/cache/images/{spec['file']}", **{k: spec.get(k, "") for k in ("title", "artist", "date", "url", "credit")}}
+            continue
         meta_path = os.path.join(folder, f"met-{spec['met']}.json")
         if not os.path.exists(meta_path):
             with urllib.request.urlopen(MET_API + str(spec["met"]), timeout=60) as res:
@@ -62,6 +81,7 @@ def fetch_images(episode):
             "artist": meta.get("artistDisplayName", ""),
             "date": meta.get("objectDate", ""),
             "url": meta.get("objectURL", ""),
+            "credit": "メトロポリタン美術館 Open Access",
         }
     return out
 
@@ -101,7 +121,8 @@ def build_timeline(episode, engine):
             if "cardState" in line:
                 ev["cardStates"].append({"t": round(start, 3), "state": line["cardState"]})
             if "camera" in line:
-                ev["camera"].append({"t": round(start, 3), **line["camera"]})
+                cam = dict(line["camera"])
+                ev["camera"].append({"t": at(cam.pop("at", 0)), **cam})
             for place in line.get("mark", []):
                 ev["marks"].append({"t": round(start, 3), "place": place, "scene": scene["id"]})
             if "era" in line:
@@ -145,8 +166,8 @@ def description(episode, engine):
         "",
         "参考:",
         *[f"・{s}" for s in episode.get("sources", [])],
-        *(["", "画像: メトロポリタン美術館 Open Access（パブリックドメイン）"] if episode.get("images") else []),
-        *[f"・{m['title']}" + (f"（{m['artist']}, {m['date']}）" if m.get("artist") else f"（{m['date']}）") for m in fetch_images(episode).values()],
+        *(["", "画像（パブリックドメイン）:"] if episode.get("images") else []),
+        *[f"・{m['title']}" + (f"（{m['artist']}, {m['date']}）" if m.get("artist") else f"（{m['date']}）") + f" {m['credit']}" for m in fetch_images(episode).values()],
         "",
         " ".join(f"#{t}" for t in episode.get("tags", ["語源", episode["word"], episode["wordJa"], "言語学", "雑学", "Shorts"])),
     ]

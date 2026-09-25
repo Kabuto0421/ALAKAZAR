@@ -248,7 +248,7 @@ const ART = {
         <circle cx="${200 + i * 180}" cy="92" r="30" fill="none" stroke="${c}" stroke-width="7"/>
         <path d="M ${150 + i * 180} 212 Q ${152 + i * 180} 136 ${200 + i * 180} 132 Q ${248 + i * 180} 136 ${250 + i * 180} 212 Z" fill="${c}" fill-opacity="0.85" stroke="${c}" stroke-width="7" stroke-linejoin="round"/>
         <text x="${200 + i * 180}" y="252" text-anchor="middle" fill="${c}" font-size="34" font-weight="800">${k}</text></g>`).join('')}
-      <text x="470" y="296" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">服の色で分かれた「仲間」＝ factio</text>`,
+      <text x="470" y="296" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">4つのチーム（仲間）＝ factio</text>`,
     update(root, lt) {
       root.querySelectorAll('[class^="t"]').forEach((g, i) => {
         const p = prog(lt, 0.2 + i * 0.3, 0.3);

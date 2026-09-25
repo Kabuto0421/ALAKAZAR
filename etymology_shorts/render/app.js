@@ -1176,7 +1176,7 @@ function buildFx() {
     }
     if (f.pop) {
       const e = el('div', 'popword', `<span class="p">${esc(f.pop)}</span>`);
-      e.style.top = '560px';
+      e.style.top = `${f.popY ?? 560}px`;
       e.style.opacity = 0;
       layer.appendChild(e);
       item.pop = e;
