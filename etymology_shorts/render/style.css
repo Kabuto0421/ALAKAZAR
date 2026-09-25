@@ -6,7 +6,7 @@
   --muted: #b9b2a3;
   --crimson: #d9483f;
   --cyan: #9fd8ec;
-  --mincho: "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", serif;
+  --mincho: "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", "Noto Serif", "Noto Naskh Arabic", "Noto Serif Devanagari", serif;
   --text: "Noto Serif", "Shippori Mincho", "Noto Serif JP", "Noto Serif KR", serif;
   --display: "Cormorant Garamond", "Noto Serif", serif;
 }
@@ -141,11 +141,33 @@ b.hl, .kg b.hl, .script b.hl { font-weight: inherit; color: #ffd27a; text-shadow
 .tree b.hl { color: inherit; text-shadow: none; }
 .tree b.hl.on { color: #ffd27a; text-shadow: 0 0 22px rgba(255, 200, 110, 0.95); }
 .tree { width: 940px; height: 360px; }
+.fork { width: 940px; height: 380px; }
+.fork svg { position: absolute; left: 0; top: 0; }
+.fork .fl { fill: none; stroke-width: 5; stroke-linecap: round; }
+.fork .froot { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+.fork .froot .w { font: 600 52px/1 "Noto Serif", serif; color: #fffaf0; }
+.fork .froot .m { margin-top: 4px; font: 800 22px/1 var(--mincho); color: var(--muted); }
+.fork .col { position: absolute; top: 132px; width: 400px; text-align: center; }
+.fork .col.l { left: 30px; }
+.fork .col.r { right: 30px; }
+.fork .pill { display: inline-block; padding: 6px 18px; border-radius: 20px; font: 800 26px/1.2 var(--mincho); color: #1b1405; }
+.fork .col.l .pill { background: var(--gold); }
+.fork .col.r .pill { background: #e0605a; color: #fff; }
+.fork .step { margin-top: 6px; font: 600 46px/1.1 "Noto Serif", serif; color: #fffaf0; }
+.fork .dn { font: 700 22px/1 var(--text); color: var(--gold-soft); margin-top: 4px; }
+.fork .end { position: relative; height: 50px; margin-top: 6px; }
+.fork .end span { position: absolute; left: 0; right: 0; font: 800 42px/1.2 var(--mincho); }
+.fork .col.l .end span { color: var(--gold); }
+.fork .col.r .end span { color: #ff8f86; }
+.fork .col.dim { filter: saturate(0.3) brightness(0.55); }
 .set.hero > .panel.tree { position: absolute; left: 70px; top: 470px; }
 .wall { position: absolute; inset: 0; }
 .wword { position: absolute; text-align: center; white-space: nowrap; }
 .wword .ww { font-size: 96px; line-height: 1.05; color: #fffaf0; text-shadow: 0 0 30px rgba(0, 0, 0, 0.9), 0 0 50px rgba(233, 196, 122, 0.35); }
 .wword .ww.f-cjk { font-size: 104px; }
+.wall.dense .wword .ww { font-size: 76px; }
+.wall.dense .wword .ww.f-cjk { font-size: 88px; }
+.wall.dense .wword .wl { font-size: 22px; }
 .wword .wl { font: 800 26px/1 var(--mincho); color: var(--gold); -webkit-text-stroke: 6px #05070d; paint-order: stroke fill; }
 .wall b.hl { color: inherit; text-shadow: inherit; }
 .wall b.hl.on { color: #ffd27a; text-shadow: 0 0 26px rgba(255, 200, 110, 1); }

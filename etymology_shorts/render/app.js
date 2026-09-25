@@ -734,15 +734,80 @@ function buildTable(c) {
   return { el: e, update };
 }
 
+function buildFork(c) {
+  // one word splitting into two roads; state.left / state.right reveal each road step by step
+  const e = el('div', 'panel fork');
+  const svg = svgEl('svg', { width: 940, height: 370, viewBox: '0 0 940 370' });
+  const lineL = svgEl('path', { d: 'M 470 96 C 470 130, 230 100, 230 128', class: 'fl', stroke: '#e9c47a' });
+  const lineR = svgEl('path', { d: 'M 470 96 C 470 130, 710 100, 710 128', class: 'fl', stroke: '#e0605a' });
+  svg.append(lineL, lineR);
+  e.appendChild(svg);
+  e.appendChild(el('div', 'froot', `<div class="w">${hl(c.root)}</div><div class="m">${esc(c.rootNote || '')}</div>`));
+  const side = (key, def) => {
+    const col = el('div', `col ${key === 'left' ? 'l' : 'r'}`);
+    const parts = [el('div', 'pill', esc(def.title))];
+    def.steps.forEach((s, i) => {
+      if (i > 0) parts.push(el('div', 'dn', '↓'));
+      parts.push(el('div', 'step', hl(s)));
+    });
+    const end = el('div', 'end');
+    const ends = (def.ends || []).map((g) => el('span', '', `「${esc(g)}」`));
+    end.append(...ends);
+    col.append(...parts, end);
+    e.appendChild(col);
+    return { col, parts, ends, def };
+  };
+  const L = side('left', c.left), R = side('right', c.right);
+  const drawSide = (ctx, S, key, line) => {
+    const n = stateAt(ctx.hist, ctx.t)[key] || 0;
+    const tOf = (k) => firstTime(ctx.hist, (s) => (s[key] || 0) >= k, Infinity);
+    const p0 = prog(ctx.t, tOf(1), 0.4);
+    line.style.strokeDasharray = '400';
+    line.style.strokeDashoffset = (400 * (1 - ease(p0))).toFixed(1);
+    // reveal order: pill (1), then each step (2..), then the first ending; later levels swap endings
+    let level = 1;
+    S.parts.forEach((p) => {
+      if (p.className !== 'dn') level += p.className === 'pill' ? 0 : 1;
+      const need = p.className === 'pill' ? 1 : p.className === 'dn' ? level + 1 : level;
+      const pp = prog(ctx.t, tOf(need), 0.3);
+      p.style.opacity = pp.toFixed(2);
+      p.style.transform = `translateY(${(16 * (1 - easeOut(pp))).toFixed(1)}px)`;
+    });
+    const firstEnd = S.def.steps.length + 2;
+    S.ends.forEach((sp, j) => {
+      const tin = tOf(firstEnd + j), tout = j + 1 < S.ends.length ? tOf(firstEnd + j + 1) : Infinity;
+      const pin = prog(ctx.t, tin, 0.3), pout = prog(ctx.t, tout, 0.25);
+      sp.style.opacity = (pin * (1 - pout)).toFixed(2);
+      sp.style.transform = `scale(${(lerp(1.6, 1, back(pin)) - 0.3 * pout).toFixed(3)})`;
+    });
+    return n;
+  };
+  const update = (ctx) => {
+    drawSide(ctx, L, 'left', lineL);
+    drawSide(ctx, R, 'right', lineR);
+    const focus = stateAt(ctx.hist, ctx.t).focus;
+    L.col.classList.toggle('dim', focus === 'right');
+    R.col.classList.toggle('dim', focus === 'left');
+  };
+  return { el: e, update };
+}
+
 function buildWall(c) {
   // many words for the same thing popping up all over the screen
-  const w = el('div', 'wall');
+  const dense = c.words.length > 8;
+  const w = el('div', dense ? 'wall dense' : 'wall');
   const r = rng(7);
   const items = c.words.map((it, i) => {
-    const node = el('div', 'wword', `<div class="ww ${it.font ? `f-${it.font}` : 'f-latin'}">${hl(it.w)}</div><div class="wl">${esc(it.l)}</div>`);
-    const col = i % 2, row = Math.floor(i / 2);
-    node.style.left = `${(col ? 770 : 310) + (r() - 0.5) * 140}px`;
-    node.style.top = `${330 + row * 150 + (col ? 70 : 0)}px`;
+    const node = el('div', 'wword', `<div class="ww ${it.font ? `f-${it.font}` : 'f-latin'}"${it.size ? ` style="font-size:${it.size}px"` : ''}>${hl(it.w)}</div><div class="wl">${esc(it.l)}</div>`);
+    if (dense) {
+      const col = i % 3, row = Math.floor(i / 3);
+      node.style.left = `${[200, 540, 880][col] + (r() - 0.5) * 60}px`;
+      node.style.top = `${530 + row * 160 + (col === 1 ? 60 : 0)}px`;
+    } else {
+      const col = i % 2, row = Math.floor(i / 2);
+      node.style.left = `${(col ? 770 : 310) + (r() - 0.5) * 140}px`;
+      node.style.top = `${330 + row * 150 + (col ? 70 : 0)}px`;
+    }
     w.appendChild(node);
     return { node, rot: (r() - 0.5) * 10 };
   });
@@ -859,6 +924,7 @@ function buildSet(i) {
       case 'formula': return buildFormula(c);
       case 'tree': return buildTree(c);
       case 'wall': return buildWall(c);
+      case 'fork': return buildFork(c);
       case 'table': return buildTable(c);
       case 'triad': return buildTriad(c);
       case 'pair': return buildPair(c, false);
@@ -871,7 +937,8 @@ function buildSet(i) {
   (hero ? $('#hero') : $('#cards')).appendChild(box);
   box.style.display = 'none';
   let nextT = EV.cardSets[i + 1] ? EV.cardSets[i + 1].t : Infinity;
-  if (set.line != null) {
+  // cards normally leave with their scene; "persist" cards (like a fork that the next stop continues) stay
+  if (set.line != null && !defs.some((d) => d.persist)) {
     const sc = TL.scenes.find((s) => s.id === TL.lines[set.line].scene);
     nextT = Math.min(nextT, sc.end - 0.1);
   }
@@ -938,8 +1005,8 @@ function buildFx() {
     }
     if (f.stamp) {
       const e = el('div', 'stamp', esc(f.stamp));
-      e.style.left = '800px';
-      e.style.top = '1100px';
+      e.style.left = `${(f.stampPos || [800, 1100])[0]}px`;
+      e.style.top = `${(f.stampPos || [800, 1100])[1]}px`;
       e.style.opacity = 0;
       layer.appendChild(e);
       item.stamp = e;
