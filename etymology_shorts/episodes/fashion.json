@@ -1,0 +1,999 @@
+{
+  "id": "fashion",
+  "series": "語源の旅",
+  "number": 5,
+  "word": "fashion",
+  "wordJa": "流行",
+  "voice": {
+    "speaker": 2,
+    "name": "四国めたん",
+    "speed": 1.15,
+    "intonation": 1.05
+  },
+  "hook": "ファッションと「派閥」は、同じ言葉から生まれた双子。もとの意味は「作ること」でした。古代ローマからフランス、イギリス、ルイ14世の宮廷へ。そして漢字の「流行」は『孟子』の言葉。",
+  "cta": "次はどの言葉を旅しようかしら？ コメントで教えてね",
+  "tags": [
+    "語源",
+    "ファッション",
+    "流行",
+    "英語",
+    "言語学",
+    "雑学",
+    "四国めたん",
+    "Shorts"
+  ],
+  "titles": [
+    "【鳥肌】ファッションと「派閥」は、同じ言葉から生まれた双子だった",
+    "ファッションの語源は「作ること」。どうして流行になったのか",
+    "「流行」はもともと『孟子』の言葉だった"
+  ],
+  "images": {
+    "toga": {
+      "met": 250587
+    },
+    "tailor": {
+      "met": 205285
+    },
+    "louis": {
+      "met": 194972
+    },
+    "robe": {
+      "met": 79220
+    },
+    "doll": {
+      "met": 19035
+    }
+  },
+  "places": {
+    "rome": {
+      "lon": 12.5,
+      "lat": 41.9,
+      "label": "ローマ",
+      "anchor": "right"
+    },
+    "paris": {
+      "lon": 2.35,
+      "lat": 48.86,
+      "label": "フランス",
+      "anchor": "right"
+    },
+    "london": {
+      "lon": -0.13,
+      "lat": 51.5,
+      "label": "イギリス",
+      "anchor": "left"
+    },
+    "versailles": {
+      "lon": 2.12,
+      "lat": 48.8,
+      "label": "ヴェルサイユ宮殿",
+      "anchor": "right"
+    },
+    "zou": {
+      "lon": 116.97,
+      "lat": 35.4,
+      "label": "孟子のふるさと（中国）",
+      "anchor": "left"
+    },
+    "nara": {
+      "lon": 135.8,
+      "lat": 34.69,
+      "label": "日本",
+      "anchor": "right"
+    }
+  },
+  "stops": [
+    {
+      "scene": "rome",
+      "icon": "羅",
+      "name": "ローマ"
+    },
+    {
+      "scene": "france",
+      "icon": "仏",
+      "name": "フランス"
+    },
+    {
+      "scene": "england",
+      "icon": "英",
+      "name": "イギリス"
+    },
+    {
+      "scene": "versailles",
+      "icon": "宮",
+      "name": "宮廷"
+    },
+    {
+      "scene": "china",
+      "icon": "？",
+      "reveal": "漢",
+      "name": "中国"
+    }
+  ],
+  "cards": {
+    "hookfork": {
+      "type": "fork",
+      "root": "factio",
+      "rootNote": "ラテン語",
+      "left": {
+        "title": "① ファッション",
+        "steps": [
+          "{fash}ion"
+        ],
+        "ends": [
+          "流行"
+        ]
+      },
+      "right": {
+        "title": "② 派閥",
+        "steps": [
+          "{fact}ion"
+        ],
+        "ends": [
+          "派閥"
+        ]
+      }
+    },
+    "title": {
+      "type": "title",
+      "word": "fashion",
+      "ja": "流行"
+    },
+    "img_toga": {
+      "type": "image",
+      "items": [
+        {
+          "img": "toga",
+          "caption": "トーガを着たローマ人（1世紀）",
+          "tag": "facere ＝ 作る"
+        }
+      ]
+    },
+    "factree": {
+      "type": "tree",
+      "root": "{fac}ere",
+      "leaves": [
+        {
+          "w": "{fac}t",
+          "l": "事実（作られたこと）"
+        },
+        {
+          "w": "{fac}tory",
+          "l": "工場"
+        },
+        {
+          "w": "{fea}ture",
+          "l": "特徴（作り）"
+        },
+        {
+          "w": "{fac}tio",
+          "l": "作ること・仲間"
+        },
+        {
+          "w": "{fac}tion",
+          "l": "派閥"
+        },
+        {
+          "w": "{fa}shion",
+          "l": "ファッション"
+        }
+      ]
+    },
+    "splitfork": {
+      "type": "fork",
+      "root": "factio",
+      "rootNote": "ふたつの意味",
+      "left": {
+        "title": "① 作ること",
+        "steps": [
+          "{fa}çon",
+          "{fa}shion"
+        ],
+        "ends": [
+          "流行"
+        ]
+      },
+      "right": {
+        "title": "② 一緒に動く仲間",
+        "steps": [
+          "{fac}tion"
+        ],
+        "ends": [
+          "派閥"
+        ]
+      }
+    },
+    "meaning": {
+      "type": "chain",
+      "items": [
+        {
+          "w": "factio",
+          "note": "ラテン語：作ること"
+        },
+        {
+          "w": "façon",
+          "note": "フランス語：形・作り方"
+        },
+        {
+          "w": "fashion",
+          "note": "英語 1300年ごろ：形・作り"
+        },
+        {
+          "w": "fashion",
+          "note": "英語 1490年ごろ：その時代の服装＝流行"
+        }
+      ]
+    },
+    "facon": {
+      "type": "word",
+      "script": "façon",
+      "font": "latin",
+      "lang": "今のフランス語",
+      "gloss": "やり方",
+      "extra": "de cette façon ＝ このやり方で"
+    },
+    "img_tailor": {
+      "type": "image",
+      "items": [
+        {
+          "img": "tailor",
+          "caption": "仕立て屋と婦人（磁器、1744年ごろ）",
+          "tag": "服の作り方"
+        }
+      ]
+    },
+    "why": {
+      "type": "formula",
+      "title": "どうして「流行」に？",
+      "items": [
+        {
+          "g": "作り方",
+          "lab": "服の形・着方",
+          "s": true
+        },
+        {
+          "op": "＋"
+        },
+        {
+          "g": "いま",
+          "lab": "この時代・この場所",
+          "s": true
+        },
+        {
+          "op": "＝"
+        },
+        {
+          "g": "流行",
+          "red": true,
+          "s": true
+        }
+      ]
+    },
+    "img_louis": {
+      "type": "image",
+      "items": [
+        {
+          "img": "louis",
+          "caption": "ルイ14世の肖像（17世紀）",
+          "tag": "流行の発信地"
+        }
+      ]
+    },
+    "img_robe": {
+      "type": "image",
+      "items": [
+        {
+          "img": "robe",
+          "caption": "宮廷風のドレス「ローブ・ア・ラ・フランセーズ」（1760年ごろ）",
+          "tag": "みんながまねした"
+        }
+      ]
+    },
+    "img_doll": {
+      "type": "image",
+      "items": [
+        {
+          "img": "doll",
+          "caption": "ドレスを着た18世紀の人形",
+          "tag": "人形で流行を届けた"
+        }
+      ]
+    },
+    "mencius": {
+      "type": "word",
+      "script": "徳之流行",
+      "sub": "速於置郵而伝命",
+      "font": "cjk",
+      "lang": "『孟子』",
+      "era": "紀元前4世紀",
+      "gloss": "徳は早馬より速く広まる",
+      "glow": true
+    },
+    "art_flow": {
+      "type": "art",
+      "art": "flow"
+    },
+    "art_shirt": {
+      "type": "art",
+      "art": "shirt"
+    },
+    "endwall": {
+      "type": "wall",
+      "words": [
+        {
+          "w": "{fac}ere",
+          "l": "作る"
+        },
+        {
+          "w": "{fac}tio",
+          "l": "作ること"
+        },
+        {
+          "w": "{fac}t",
+          "l": "事実"
+        },
+        {
+          "w": "{fac}tory",
+          "l": "工場"
+        },
+        {
+          "w": "{fea}ture",
+          "l": "特徴"
+        },
+        {
+          "w": "{fa}çon",
+          "l": "やり方"
+        },
+        {
+          "w": "{fa}shion",
+          "l": "流行"
+        },
+        {
+          "w": "{fac}tion",
+          "l": "派閥"
+        },
+        {
+          "w": "流行",
+          "l": "流れて行く",
+          "font": "cjk"
+        },
+        {
+          "w": "徳之流行",
+          "l": "孟子",
+          "font": "cjk",
+          "size": 62
+        },
+        {
+          "w": "ファッション",
+          "l": "日本語",
+          "font": "cjk",
+          "size": 58
+        }
+      ]
+    },
+    "end": {
+      "type": "end",
+      "glyph": "作",
+      "quote": "ファッションは、{「作ること」}から始まった。"
+    }
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "camera": {
+        "lon": 30,
+        "lat": 44,
+        "zoom": 0.9,
+        "spin": 16
+      },
+      "lines": [
+        {
+          "text": "{ファッション}と{「派閥」}。実はこの2つ、同じ言葉から生まれた{双子}なのよ。",
+          "say": "ファッションと、派閥。実はこの2つ、同じ言葉から生まれた、双子なのよ。",
+          "voice": {
+            "speed": 1.25
+          },
+          "cards": [
+            "hookfork"
+          ],
+          "fx": [
+            {
+              "at": 0.02,
+              "state": {
+                "left": 3
+              },
+              "sfx": "boom",
+              "flash": 0.7,
+              "shake": 12
+            },
+            {
+              "at": 0.25,
+              "state": {
+                "right": 3
+              },
+              "sfx": "boom",
+              "flash": 0.5,
+              "shake": 10
+            },
+            {
+              "at": 0.78,
+              "pop": "双子!?",
+              "sfx": "shine",
+              "flash": 0.4,
+              "punch": 0.05
+            }
+          ]
+        },
+        {
+          "text": "しかも、もとの意味は{「作ること」}。どうして流行になったのか、旅してみましょう。",
+          "say": "しかも、もとの意味は、作ること。どうして流行になったのか、旅してみましょう。",
+          "voice": {
+            "speed": 1.25
+          },
+          "cards": [
+            "title"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "boom",
+              "flash": 0.6,
+              "shake": 10
+            },
+            {
+              "at": 0.3,
+              "pop": "作る!?",
+              "sfx": "pop"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rome",
+      "stop": "ローマ",
+      "era": -100,
+      "camera": {
+        "lon": 12,
+        "lat": 42,
+        "zoom": 3.2
+      },
+      "lines": [
+        {
+          "text": "始まりは古代ローマ。ラテン語の {facere} は{「作る」}という意味よ。",
+          "say": "始まりは、古代ローマ。ラテン語の、ファケレは、作るという意味よ。",
+          "cards": [
+            "img_toga"
+          ],
+          "mark": [
+            "rome"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop",
+              "punch": 0.03
+            },
+            {
+              "at": 0.75,
+              "sfx": "shine",
+              "flash": 0.3
+            }
+          ]
+        },
+        {
+          "text": "作られたことは {fact}、事実。作る場所は {factory}、工場。",
+          "say": "作られたことは、ファクト、事実。作る場所は、ファクトリー、工場。",
+          "cards": [
+            "factree"
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.75,
+              "state": {
+                "hl": 1
+              },
+              "sfx": "shine",
+              "flash": 0.3
+            }
+          ]
+        },
+        {
+          "text": "そして {factio} は、{「作ること」}と{「一緒に動く仲間」}、両方の意味を持っていたの。",
+          "say": "そして、ファクティオは、作ることと、一緒に動く仲間、両方の意味を持っていたの。",
+          "cards": [
+            "splitfork"
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "state": {
+                "left": 1
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.55,
+              "state": {
+                "right": 1
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.85,
+              "state": {
+                "right": 3
+              },
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "france",
+      "stop": "フランス",
+      "era": 1150,
+      "camera": {
+        "lon": 4,
+        "lat": 47,
+        "zoom": 3.0
+      },
+      "lines": [
+        {
+          "text": "フランスに渡ると、factio は {façon}。{「形」や「作り方」}のことになったわ。",
+          "say": "フランスに渡ると、ファクティオは、ファソン。形や、作り方のことになったわ。",
+          "cards": [
+            "meaning"
+          ],
+          "cardState": {
+            "reveal": 1
+          },
+          "mark": [
+            "paris"
+          ],
+          "routes": [
+            {
+              "id": "f1",
+              "path": [
+                "rome",
+                "paris"
+              ],
+              "style": "faith",
+              "len": 0.5
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.35,
+              "state": {
+                "reveal": 2
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.62,
+              "pop": "façon ＝ 形",
+              "sfx": "shine",
+              "flash": 0.25,
+              "punch": 0.03
+            }
+          ]
+        },
+        {
+          "text": "今のフランス語でも、façon は{「やり方」}。de cette façon で「このやり方で」よ。",
+          "say": "今のフランス語でも、ファソンは、やり方。ドゥ・セット・ファソンで、このやり方で、よ。",
+          "cards": [
+            "facon"
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.7,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "england",
+      "stop": "イギリス",
+      "era": 1300,
+      "camera": {
+        "lon": 0,
+        "lat": 51,
+        "zoom": 3.4
+      },
+      "lines": [
+        {
+          "text": "14世紀、英語に入って {fashion}。はじめは「形」や「作り」のことだったの。",
+          "say": "14世紀、英語に入って、ファッション。はじめは、形や、作りのことだったの。",
+          "cards": [
+            "meaning"
+          ],
+          "cardState": {
+            "reveal": 2
+          },
+          "mark": [
+            "london"
+          ],
+          "routes": [
+            {
+              "id": "e1",
+              "path": [
+                "paris",
+                "london"
+              ],
+              "style": "faith",
+              "len": 0.5
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "state": {
+                "reveal": 3
+              },
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "やがて{「服の作り方」}を指すようになって……",
+          "say": "やがて、服の作り方を、指すようになって、",
+          "cards": [
+            "img_tailor"
+          ],
+          "era": {
+            "value": 1400,
+            "len": 0.6
+          },
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "ticks",
+              "len": 0.6
+            },
+            {
+              "at": 0.6,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "15世紀の終わりには、{「その時代の服装」}、つまり流行の意味になったの。",
+          "say": "15世紀の終わりには、その時代の服装、つまり、流行の意味になったの。",
+          "cards": [
+            "meaning"
+          ],
+          "cardState": {
+            "reveal": 3
+          },
+          "era": {
+            "value": 1490,
+            "len": 0.4
+          },
+          "fx": [
+            {
+              "at": 0.45,
+              "state": {
+                "reveal": 4
+              },
+              "sfx": "boom",
+              "flash": 0.35,
+              "shake": 8
+            }
+          ]
+        },
+        {
+          "text": "服の作り方は、時代と場所でちがうでしょう？ {「いま、ここの作り方」}が、そのまま流行になったのね。",
+          "say": "服の作り方は、時代と場所で、ちがうでしょう？ いま、ここの作り方が、そのまま、流行になったのね。",
+          "cards": [
+            "why"
+          ],
+          "fx": [
+            {
+              "at": 0.2,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.5,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.8,
+              "pop": "だから流行",
+              "sfx": "shine",
+              "flash": 0.3,
+              "punch": 0.04
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "versailles",
+      "stop": "ルイ14世の宮廷",
+      "era": 1672,
+      "camera": {
+        "lon": 2,
+        "lat": 48.5,
+        "zoom": 3.6
+      },
+      "lines": [
+        {
+          "text": "そして、その流行を世界に広めたのが、{フランスの宮廷}よ。",
+          "say": "そして、その流行を、世界に広めたのが、フランスの宮廷よ。",
+          "cards": [
+            "img_louis"
+          ],
+          "mark": [
+            "versailles"
+          ],
+          "routes": [
+            {
+              "id": "v1",
+              "path": [
+                "london",
+                "versailles"
+              ],
+              "style": "faith",
+              "len": 0.5
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.7,
+              "sfx": "boom",
+              "flash": 0.35,
+              "shake": 8
+            }
+          ]
+        },
+        {
+          "text": "ルイ14世の宮廷で生まれた服を、{ヨーロッパ中}がまねしたの。",
+          "say": "ルイ14世の宮廷で生まれた服を、ヨーロッパ中が、まねしたの。",
+          "cards": [
+            "img_robe"
+          ],
+          "fx": [
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.7,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        },
+        {
+          "text": "最新の服を着せた人形が各国に送られたり、服を紹介する{雑誌}も生まれたのよ。",
+          "say": "最新の服を着せた人形が、各国に送られたり、服を紹介する、雑誌も生まれたのよ。",
+          "cards": [
+            "img_doll"
+          ],
+          "fx": [
+            {
+              "at": 0.2,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.78,
+              "pop": "雑誌も誕生!",
+              "sfx": "boom",
+              "shake": 8,
+              "flash": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "china",
+      "stop": "中国の古典",
+      "era": {
+        "value": -300,
+        "label": "紀元前4世紀"
+      },
+      "camera": {
+        "lon": 122,
+        "lat": 35,
+        "zoom": 2.4
+      },
+      "lines": [
+        {
+          "text": "一方、漢字の{「流行」}は、2300年以上前の中国の古典『孟子』に出てくる言葉。",
+          "say": "一方、漢字の、流行は、2300年以上前の、中国の古典、もうしに出てくる言葉。",
+          "cards": [
+            "mencius"
+          ],
+          "mark": [
+            "zou"
+          ],
+          "fx": [
+            {
+              "at": 0.1,
+              "sfx": "whoosh"
+            },
+            {
+              "at": 0.75,
+              "sfx": "boom",
+              "flash": 0.35,
+              "shake": 8
+            }
+          ]
+        },
+        {
+          "text": "徳が{流れて行く}……良い行いが、水のように人から人へ広がることだったのよ。",
+          "say": "徳が、流れて行く。良い行いが、水のように、人から人へ、広がることだったのよ。",
+          "cards": [
+            "art_flow"
+          ],
+          "fx": [
+            {
+              "at": 0.1,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.6,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        },
+        {
+          "text": "服も言葉も、人から人へ流れていくもの。{ぴったりの言葉}ね。",
+          "say": "服も、言葉も、人から人へ、流れていくもの。ぴったりの言葉ね。",
+          "routes": [
+            {
+              "id": "c1",
+              "path": [
+                "zou",
+                "nara"
+              ],
+              "style": "east",
+              "len": 0.5,
+              "labelEnd": "流行"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.75,
+              "pop": "流れていく",
+              "sfx": "shine",
+              "flash": 0.3,
+              "punch": 0.03
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "stop": "旅の終わりに",
+      "era": 2026,
+      "camera": {
+        "lon": 50,
+        "lat": 42,
+        "zoom": 0.95,
+        "spin": -2
+      },
+      "lines": [
+        {
+          "text": "ファッションって毎日のように使う言葉だけど、そのもとは{「作ること」}だったのね。",
+          "say": "ファッションって、毎日のように使う言葉だけど、そのもとは、作ることだったのね。",
+          "cards": [
+            "endwall"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "boom",
+              "flash": 0.5,
+              "shake": 10
+            },
+            {
+              "at": 0.15,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.45,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.6,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.75,
+              "id": "done",
+              "sfx": "pop"
+            },
+            {
+              "at": 0.9,
+              "sfx": "shine",
+              "glowAll": true
+            }
+          ]
+        },
+        {
+          "text": "{作る}、{形}、{やり方}、そして{流行}。",
+          "say": "作る、形、やり方、そして、流行。",
+          "fx": [
+            {
+              "at": 0.1,
+              "id": "hl",
+              "sfx": "shine",
+              "flash": 0.35,
+              "punch": 0.04
+            },
+            {
+              "at": 0.35,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.55,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.8,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "今日あなたが選んだ服も、{あなただけの「作り方」}なのかもしれないわね。",
+          "say": "今日あなたが選んだ服も、あなただけの、作り方なのかもしれないわね。",
+          "cards": [
+            "art_shirt"
+          ],
+          "fx": [
+            {
+              "at": 0.6,
+              "sfx": "shine",
+              "flash": 0.25
+            }
+          ]
+        },
+        {
+          "text": "ファッションは、「作ること」から始まった。",
+          "say": "ファッションは、作ることから、始まった。",
+          "cards": [
+            "end"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "shine",
+              "flash": 0.4,
+              "punch": 0.03
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    "Online Etymology Dictionary「fashion」 https://www.etymonline.com/word/fashion",
+    "Wiktionary「fashion」 https://en.wiktionary.org/wiki/fashion",
+    "Wikipedia「Fashion doll」 https://en.wikipedia.org/wiki/Fashion_doll",
+    "Wikipedia「Mercure de France」（Mercure galant, 1672） https://en.wikipedia.org/wiki/Mercure_de_France",
+    "『孟子』公孫丑上（中國哲學書電子化計劃） https://ctext.org/mengzi/gong-sun-chou-i/zh"
+  ]
+}

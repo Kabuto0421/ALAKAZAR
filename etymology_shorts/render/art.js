@@ -189,6 +189,52 @@ const ART = {
     },
   },
 
+  flow: {
+    svg: `
+      <path class="drop" d="M 150 20 Q 132 52 150 64 Q 168 52 150 20 Z" fill="${INK.cyan}"/>
+      <g class="rip">${[0, 1, 2].map((i) => `<ellipse class="r${i}" cx="150" cy="120" rx="40" ry="12" fill="none" stroke="${INK.cyan}" stroke-width="5"/>`).join('')}</g>
+      <path d="M 60 120 L 880 120" stroke="${INK.dim}" stroke-width="3" stroke-dasharray="6 12"/>
+      <g class="ppl">${[0, 1, 2, 3, 4].map((i) => `<g class="p${i}">${person(330 + i * 130, 205, INK.cream)}</g>`).join('')}</g>
+      <text x="470" y="296" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">流（ながれる）＋ 行（ゆく）＝ 広がっていく</text>`,
+    update(root, lt) {
+      const d = root.querySelector('.drop');
+      const fall = prog(lt, 0, 0.5);
+      d.setAttribute('transform', `translate(0, ${(60 * easeIn(fall)).toFixed(1)})`);
+      d.style.opacity = (1 - prog(lt, 0.5, 0.2)).toFixed(2);
+      root.querySelectorAll('.rip ellipse').forEach((e, i) => {
+        const k = ((lt - 0.5 - i * 0.45) % 1.35 + 1.35) % 1.35 / 1.35;
+        const on = lt > 0.5 + i * 0.45;
+        e.setAttribute('rx', (40 + 260 * k).toFixed(1));
+        e.setAttribute('ry', (12 + 40 * k).toFixed(1));
+        e.style.opacity = on ? (1 - k).toFixed(2) : 0;
+      });
+      root.querySelectorAll('.ppl > g').forEach((g, i) => {
+        const p = prog(lt, 0.8 + i * 0.35, 0.3);
+        g.style.opacity = (0.25 + 0.75 * p).toFixed(2);
+        g.querySelectorAll('circle, path').forEach((x) => x.setAttribute('stroke', p > 0.5 ? INK.gold : INK.cream));
+      });
+    },
+  },
+
+  shirt: {
+    svg: `
+      <path d="M 470 24 Q 470 8 486 8 Q 500 8 500 22 Q 500 34 470 46 L 330 110 L 610 110 Z" fill="none" stroke="${INK.cream}" stroke-width="6" stroke-linejoin="round"/>
+      <path class="sh" d="M 400 96 L 350 118 L 320 168 L 360 186 L 380 158 L 380 270 L 560 270 L 560 158 L 580 186 L 620 168 L 590 118 L 540 96 Q 470 132 400 96 Z"
+        fill="rgba(233,196,122,0.12)" stroke="${INK.gold}" stroke-width="6" stroke-linejoin="round"/>
+      <g class="sp">${[[250, 80], [700, 70], [230, 220], [720, 230], [470, 200]].map(([x, y], i) => `<path class="s${i}" d="M ${x} ${y - 16} L ${x + 5} ${y - 5} L ${x + 16} ${y} L ${x + 5} ${y + 5} L ${x} ${y + 16} L ${x - 5} ${y + 5} L ${x - 16} ${y} L ${x - 5} ${y - 5} Z" fill="${INK.gold}"/>`).join('')}</g>
+      <text x="470" y="296" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">あなただけの「作り方」</text>`,
+    update(root, lt) {
+      const p = prog(lt, 0.1, 0.5);
+      const sh = root.querySelector('.sh');
+      sh.style.opacity = p.toFixed(2);
+      sh.setAttribute('transform', `translate(0, ${(20 * (1 - easeOut(p))).toFixed(1)})`);
+      root.querySelectorAll('.sp path').forEach((s, i) => {
+        const k = (Math.sin(lt * 3 + i * 1.7) + 1) / 2;
+        s.style.opacity = (prog(lt, 0.5 + i * 0.15, 0.3) * (0.3 + 0.7 * k)).toFixed(2);
+      });
+    },
+  },
+
   ear: {
     svg: `
       <g class="w">${waveArcs(330, 150, 'right', 4, 20, 34, 'w')}</g>
