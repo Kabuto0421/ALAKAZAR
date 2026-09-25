@@ -1,0 +1,23 @@
+{
+  "name": "etymology-shorts",
+  "private": true,
+  "type": "module",
+  "description": "語源を旅するショート動画の制作パイプライン",
+  "scripts": {
+    "build": "python3 build.py sin",
+    "stills": "python3 build.py sin --stills 0,3,12,24,45,70,90"
+  },
+  "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/noto-serif": "^5.3.0",
+    "@fontsource/noto-serif-devanagari": "^5.3.0",
+    "@fontsource/noto-serif-hebrew": "^5.3.0",
+    "@fontsource/noto-serif-jp": "^5.3.0",
+    "@fontsource/shippori-mincho": "^5.3.0",
+    "d3-array": "^3.2.4",
+    "d3-geo": "^3.1.1",
+    "playwright": "1.56.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  }
+}

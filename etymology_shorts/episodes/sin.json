@@ -1,0 +1,920 @@
+{
+  "id": "sin",
+  "series": "語源の旅",
+  "number": 1,
+  "word": "sin",
+  "wordJa": "罪",
+  "voice": {
+    "speaker": 14,
+    "name": "冥鳴ひまり",
+    "speed": 1.25,
+    "intonation": 1.15
+  },
+  "hook": "「罪」と「真実」は、同じ言葉から生まれた兄弟だった。",
+  "cta": "次はどの言葉を旅する？ コメントで教えて",
+  "places": {
+    "canterbury": {
+      "lon": 1.08,
+      "lat": 51.28,
+      "label": "イングランド"
+    },
+    "rome": {
+      "lon": 12.5,
+      "lat": 41.9,
+      "label": "ローマ"
+    },
+    "alexandria": {
+      "lon": 29.92,
+      "lat": 31.2,
+      "label": "アレクサンドリア",
+      "anchor": "left"
+    },
+    "jerusalem": {
+      "lon": 35.21,
+      "lat": 31.77,
+      "label": "エルサレム",
+      "dy": 0,
+      "anchor": "right"
+    },
+    "jutland": {
+      "lon": 9.5,
+      "lat": 55.5,
+      "label": "北ヨーロッパ"
+    },
+    "steppe": {
+      "lon": 40.0,
+      "lat": 48.5,
+      "label": "印欧祖語の故郷（有力説）"
+    },
+    "india": {
+      "lon": 76.5,
+      "lat": 29.8,
+      "label": "北インド"
+    },
+    "sweden": {
+      "lon": 18.07,
+      "lat": 59.33,
+      "label": "スウェーデン"
+    },
+    "xianyang": {
+      "lon": 108.7,
+      "lat": 34.33,
+      "label": "咸陽（秦の都）"
+    },
+    "nara": {
+      "lon": 135.8,
+      "lat": 34.69,
+      "label": "日本"
+    }
+  },
+  "stops": [
+    {
+      "scene": "england",
+      "icon": "英",
+      "name": "古英語"
+    },
+    {
+      "scene": "concept",
+      "icon": "聖",
+      "name": "聖書"
+    },
+    {
+      "scene": "root",
+      "icon": "根",
+      "name": "祖語"
+    },
+    {
+      "scene": "siblings",
+      "icon": "兄",
+      "name": "兄弟"
+    },
+    {
+      "scene": "kanji",
+      "icon": "？",
+      "reveal": "漢",
+      "name": "漢字"
+    }
+  ],
+  "cards": {
+    "pair": {
+      "type": "pair",
+      "a": "罪",
+      "b": "真実",
+      "bond": "兄弟"
+    },
+    "title": {
+      "type": "title",
+      "word": "sin",
+      "ja": "罪"
+    },
+    "synn": {
+      "type": "word",
+      "script": "synn",
+      "font": "latin",
+      "lang": "古英語",
+      "era": "7〜11世紀",
+      "gloss": "罪・悪事・争い"
+    },
+    "peccatum": {
+      "type": "word",
+      "script": "peccātum",
+      "font": "latin",
+      "lang": "ラテン語",
+      "era": "ウルガタ聖書",
+      "gloss": "罪・過ち"
+    },
+    "hamartia": {
+      "type": "word",
+      "script": "ἁμαρτία",
+      "sub": "hamartía",
+      "font": "greek",
+      "lang": "ギリシャ語",
+      "era": "七十人訳聖書",
+      "gloss": "過ち・罪"
+    },
+    "chattat": {
+      "type": "word",
+      "script": "חַטָּאת",
+      "sub": "ḥaṭṭāʾt",
+      "font": "hebrew",
+      "lang": "ヘブライ語",
+      "era": "ヘブライ語聖書",
+      "gloss": "罪"
+    },
+    "target": {
+      "type": "target",
+      "caption": "ḥāṭāʾ ／ hamartánō",
+      "gloss": "的を外す"
+    },
+    "synn2": {
+      "type": "word",
+      "script": "synn",
+      "font": "latin",
+      "lang": "古英語",
+      "era": "キリスト教以後",
+      "gloss": "神に背く「罪」",
+      "glow": true
+    },
+    "chain": {
+      "type": "chain",
+      "items": [
+        {
+          "w": "sin",
+          "note": "英語"
+        },
+        {
+          "w": "synn",
+          "note": "古英語"
+        },
+        {
+          "w": "*sundijō",
+          "note": "ゲルマン祖語"
+        },
+        {
+          "w": "*h₁sónts",
+          "note": "印欧祖語「在るもの」"
+        }
+      ]
+    },
+    "h1es": {
+      "type": "word",
+      "script": "*h₁es-",
+      "font": "latin",
+      "lang": "印欧祖語",
+      "era": "約6000年前・再建形",
+      "gloss": "在る",
+      "extra": "英語の is も同じ根",
+      "glow": true
+    },
+    "shift": {
+      "type": "shift",
+      "steps": [
+        "在る",
+        "本当にそうだ",
+        "まさにその者だ",
+        "有罪"
+      ],
+      "note": "※ 意味の移り変わりは有力な説"
+    },
+    "sons": {
+      "type": "word",
+      "script": "sōns",
+      "font": "latin",
+      "lang": "ラテン語",
+      "gloss": "有罪の"
+    },
+    "satya": {
+      "type": "word",
+      "script": "सत्य",
+      "sub": "satya",
+      "font": "deva",
+      "lang": "サンスクリット語",
+      "gloss": "真実"
+    },
+    "sooth": {
+      "type": "word",
+      "script": "sōþ",
+      "sub": "→ sooth",
+      "font": "latin",
+      "lang": "古英語",
+      "gloss": "真実"
+    },
+    "sann": {
+      "type": "word",
+      "script": "sann · synd",
+      "font": "latin",
+      "lang": "スウェーデン語",
+      "gloss": "本当の · 罪"
+    },
+    "kanji": {
+      "type": "kanji",
+      "source": "出典：『説文解字』"
+    },
+    "triad": {
+      "type": "triad",
+      "items": [
+        {
+          "k": "的を外す",
+          "from": "ヘブライ語・ギリシャ語"
+        },
+        {
+          "k": "在る",
+          "from": "印欧祖語"
+        },
+        {
+          "k": "網",
+          "from": "漢字"
+        }
+      ]
+    },
+    "end": {
+      "type": "end"
+    }
+  },
+  "scenes": [
+    {
+      "id": "intro",
+      "camera": {
+        "lon": 30,
+        "lat": 28,
+        "zoom": 0.9,
+        "spin": 16
+      },
+      "lines": [
+        {
+          "text": "{「罪」}と{「真実」}は、{兄弟}だった。",
+          "say": "罪と真実は、兄弟だった。",
+          "cards": [
+            "pair"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "id": "a",
+              "sfx": "boom",
+              "flash": 0.9,
+              "shake": 18
+            },
+            {
+              "at": 0.27,
+              "id": "b",
+              "sfx": "boom",
+              "flash": 0.6,
+              "shake": 12
+            },
+            {
+              "at": 0.6,
+              "id": "bond",
+              "sfx": "shine",
+              "flash": 0.5,
+              "punch": 0.05
+            }
+          ]
+        },
+        {
+          "text": "{六千年前}の、ひとつの言葉から。",
+          "say": "六千年前の、ひとつの言葉から。",
+          "cards": [],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "glitch",
+              "montage": [
+                "ḥaṭṭāʾt",
+                "ἁμαρτία",
+                "peccātum",
+                "synn",
+                "*h₁es-",
+                "सत्य",
+                "sōns",
+                "sōþ",
+                "辠",
+                "罪"
+              ],
+              "len": 0.95
+            },
+            {
+              "at": 0.0,
+              "sfx": "ticks",
+              "counter": {
+                "from": 0,
+                "to": 6000,
+                "suffix": "年前"
+              },
+              "len": 0.45
+            },
+            {
+              "at": 0.45,
+              "sfx": "boom",
+              "shake": 10,
+              "flash": 0.35
+            }
+          ]
+        },
+        {
+          "text": "{sin} の語源を、旅しよう。",
+          "say": "シンの語源を、旅しよう。",
+          "cards": [
+            "title"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "boom",
+              "flash": 0.7,
+              "shake": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "england",
+      "stop": "イングランド",
+      "era": 700,
+      "camera": {
+        "lon": 0.5,
+        "lat": 51.2,
+        "zoom": 6.2
+      },
+      "lines": [
+        {
+          "text": "出発は{七世紀のイングランド}。",
+          "say": "出発は、七世紀のイングランド。",
+          "mark": [
+            "canterbury"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop",
+              "punch": 0.03
+            }
+          ]
+        },
+        {
+          "text": "古英語の {synn} は、「悪事」や「争い」も指す言葉でした。",
+          "say": "古英語のシンは、悪事や争いも指す言葉でした。",
+          "cards": [
+            "synn"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "そこへ海を越えて、{キリスト教}がやってきます。",
+          "say": "そこへ海を越えて、キリスト教がやってきます。",
+          "camera": {
+            "lon": 18,
+            "lat": 42,
+            "zoom": 2.35
+          },
+          "fx": [
+            {
+              "at": 0.55,
+              "sfx": "shine",
+              "flash": 0.3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "concept",
+      "stop": "聖書の言葉",
+      "era": 400,
+      "camera": {
+        "lon": 18,
+        "lat": 42,
+        "zoom": 2.35
+      },
+      "lines": [
+        {
+          "text": "運ばれてきたのは、ラテン語の {peccātum}。",
+          "say": "運ばれてきたのは、ラテン語のペッカートゥム。",
+          "cards": [
+            "peccatum"
+          ],
+          "mark": [
+            "rome"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "遡れば、ギリシャ語の {hamartía}、ヘブライ語の {ḥaṭṭāʾt}。",
+          "say": "さかのぼれば、ギリシャ語のハマルティア、ヘブライ語のハッタート。",
+          "cards": [
+            "hamartia",
+            "chattat"
+          ],
+          "mark": [
+            "alexandria",
+            "jerusalem"
+          ],
+          "era": -250,
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.5,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "どちらも語源は{「的を外す」}。",
+          "say": "どちらも語源は、的を外す。",
+          "cards": [
+            "target"
+          ],
+          "fx": [
+            {
+              "at": 0.45,
+              "id": "arrow",
+              "sfx": "whoosh"
+            },
+            {
+              "at": 0.72,
+              "sfx": "pop",
+              "shake": 6
+            }
+          ]
+        },
+        {
+          "text": "中東の「的外れ」という罪が、三つの言語を渡って、",
+          "say": "中東の、的外れという罪が、三つの言語を渡って、",
+          "era": {
+            "value": 700,
+            "len": 1.0
+          },
+          "routes": [
+            {
+              "id": "faith",
+              "path": [
+                "jerusalem",
+                "alexandria",
+                "rome",
+                "canterbury"
+              ],
+              "style": "faith",
+              "len": 1.0
+            }
+          ]
+        },
+        {
+          "text": "{島国の古い言葉}に宿ったんです。",
+          "say": "島国の古い言葉に、宿ったんです。",
+          "cards": [
+            "synn2"
+          ],
+          "fx": [
+            {
+              "at": 0.1,
+              "sfx": "shine",
+              "flash": 0.35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "root",
+      "stop": "言葉の根っこ",
+      "era": -500,
+      "camera": {
+        "lon": 22,
+        "lat": 51,
+        "zoom": 2.2
+      },
+      "lines": [
+        {
+          "text": "{本当の驚き}はここから。{synn} の根っこは？",
+          "say": "本当の驚きは、ここから。シンの根っこは？",
+          "cards": [
+            "chain"
+          ],
+          "cardState": {
+            "reveal": 2
+          },
+          "routes": [
+            {
+              "id": "root",
+              "path": [
+                "canterbury",
+                "jutland"
+              ],
+              "style": "root",
+              "len": 0.6
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "boom",
+              "punch": 0.05,
+              "shake": 8
+            }
+          ]
+        },
+        {
+          "text": "ゲルマン祖語を越え、{六千年前}の印欧祖語へ。",
+          "say": "ゲルマン祖語を越え、六千年前の印欧祖語へ。",
+          "cardState": {
+            "reveal": 4
+          },
+          "era": {
+            "value": -4000,
+            "len": 0.7
+          },
+          "routes": [
+            {
+              "id": "root2",
+              "path": [
+                "jutland",
+                "steppe"
+              ],
+              "style": "root",
+              "len": 0.8
+            }
+          ],
+          "mark": [
+            "steppe"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "ticks",
+              "len": 0.7
+            },
+            {
+              "at": 0.72,
+              "sfx": "boom",
+              "flash": 0.4,
+              "shake": 10,
+              "pop": "6000年前"
+            }
+          ]
+        },
+        {
+          "text": "そこにあったのは {*h₁es-}。{「在る」}という動詞でした。",
+          "say": "そこにあったのは、エス。在る、という動詞でした。",
+          "cards": [
+            "h1es"
+          ],
+          "fx": [
+            {
+              "at": 0.25,
+              "sfx": "shine",
+              "flash": 0.45
+            }
+          ]
+        },
+        {
+          "text": "「在る」から、{「本当にそうだ」}。",
+          "say": "在るから、本当にそうだ。",
+          "cards": [
+            "shift"
+          ],
+          "cardState": {
+            "reveal": 2
+          },
+          "fx": [
+            {
+              "at": 0.5,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "そして「まさにその者だ」、つまり{「有罪」}へ。",
+          "say": "そして、まさにその者だ。つまり、有罪へ。",
+          "cardState": {
+            "reveal": 3
+          },
+          "fx": [
+            {
+              "at": 0.72,
+              "state": {
+                "reveal": 4
+              },
+              "stamp": "有罪",
+              "sfx": "thud",
+              "shake": 18,
+              "flash": 0.2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "siblings",
+      "stop": "兄弟たち",
+      "era": null,
+      "camera": {
+        "lon": 42,
+        "lat": 44,
+        "zoom": 1.32
+      },
+      "lines": [
+        {
+          "text": "同じ根から、ラテン語の {sōns} は「有罪の」。",
+          "say": "同じ根から、ラテン語のソーンスは、有罪の。",
+          "cards": [
+            "sons"
+          ],
+          "mark": [
+            "steppe"
+          ],
+          "routes": [
+            {
+              "id": "b-rome",
+              "path": [
+                "steppe",
+                "rome"
+              ],
+              "style": "branch",
+              "len": 0.5,
+              "labelEnd": "sōns"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "サンスクリット語の {satya} は{「真実」}。",
+          "say": "サンスクリット語のサティヤは、真実。",
+          "cards": [
+            "satya"
+          ],
+          "routes": [
+            {
+              "id": "b-india",
+              "path": [
+                "steppe",
+                "india"
+              ],
+              "style": "branch",
+              "len": 0.5,
+              "labelEnd": "satya"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "英語の古語 {sooth} も{「真実」}。",
+          "say": "英語の古語、スースも真実。",
+          "cards": [
+            "sooth"
+          ],
+          "routes": [
+            {
+              "id": "b-eng",
+              "path": [
+                "steppe",
+                "canterbury"
+              ],
+              "style": "branch",
+              "len": 0.5,
+              "labelEnd": "sooth"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "罪と真実は、ひとつの「在る」から分かれた{兄弟}なんです。",
+          "say": "罪と真実は、ひとつの、在るから分かれた、兄弟なんです。",
+          "cards": [
+            "sons",
+            "satya",
+            "sooth",
+            "sann"
+          ],
+          "routes": [
+            {
+              "id": "b-swe",
+              "path": [
+                "steppe",
+                "sweden"
+              ],
+              "style": "branch",
+              "len": 0.4,
+              "labelEnd": "sann · synd"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.78,
+              "pop": "兄弟",
+              "sfx": "shine",
+              "flash": 0.35,
+              "punch": 0.04
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kanji",
+      "stop": "秦 ─ 漢字の「罪」",
+      "era": -221,
+      "camera": {
+        "lon": 118,
+        "lat": 36,
+        "zoom": 2.1
+      },
+      "lines": [
+        {
+          "text": "漢字の{「罪」}も、もとは{「辠」}という字でした。",
+          "say": "漢字の罪も、もとは、ざいという字でした。",
+          "cards": [
+            "kanji"
+          ],
+          "cardState": {
+            "stage": 0
+          },
+          "mark": [
+            "xianyang"
+          ],
+          "fx": [
+            {
+              "at": 0.5,
+              "state": {
+                "stage": 1
+              },
+              "sfx": "boom",
+              "flash": 0.45,
+              "shake": 10
+            }
+          ]
+        },
+        {
+          "text": "鼻を表す「自」に、つらさの「辛」。{罪人の苦しむ顔}です。",
+          "say": "鼻を表す、じ、に、つらさの、しん。罪人の苦しむ顔です。",
+          "cardState": {
+            "stage": 2
+          },
+          "fx": [
+            {
+              "at": 0.0,
+              "sfx": "pop"
+            },
+            {
+              "at": 0.3,
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "ところが{始皇帝}の時代、「皇」の字に似ているとして、",
+          "say": "ところが始皇帝の時代、こうていの、こうの字に似ているとして、",
+          "cardState": {
+            "stage": 3
+          },
+          "fx": [
+            {
+              "at": 0.05,
+              "sfx": "boom",
+              "flash": 0.55,
+              "flashColor": "#b3342c",
+              "shake": 14
+            }
+          ]
+        },
+        {
+          "text": "魚をとる{網}の字「罪」に、取り替えられました。",
+          "say": "魚をとる網の字、つみに、取り替えられました。",
+          "cardState": {
+            "stage": 4
+          },
+          "routes": [
+            {
+              "id": "east",
+              "path": [
+                "xianyang",
+                "nara"
+              ],
+              "style": "east",
+              "at": 0.35,
+              "len": 0.6,
+              "labelEnd": "罪 → 日本へ"
+            }
+          ],
+          "fx": [
+            {
+              "at": 0.55,
+              "sfx": "thud",
+              "punch": 0.05,
+              "shake": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "stop": "旅の終わりに",
+      "era": 2026,
+      "camera": {
+        "lon": 58,
+        "lat": 38,
+        "zoom": 0.98,
+        "spin": -2
+      },
+      "lines": [
+        {
+          "text": "{的を外す}こと。そこに{在った}と認めること。{網}にかかること。",
+          "say": "的を外すこと。そこに在ったと認めること。網にかかること。",
+          "cards": [
+            "triad"
+          ],
+          "fx": [
+            {
+              "at": 0.0,
+              "state": {
+                "reveal": 1
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.3,
+              "state": {
+                "reveal": 2
+              },
+              "sfx": "pop"
+            },
+            {
+              "at": 0.72,
+              "state": {
+                "reveal": 3
+              },
+              "sfx": "pop"
+            }
+          ]
+        },
+        {
+          "text": "国も時代も違う人たちが、同じ{心の痛み}に名前をつけてきたんです。",
+          "say": "国も時代も違う人たちが、同じ心の痛みに、名前をつけてきたんです。",
+          "fx": [
+            {
+              "at": 0.55,
+              "sfx": "shine",
+              "glowAll": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    "Online Etymology Dictionary「sin (n.)」 https://www.etymonline.com/word/sin",
+    "Wiktionary「sin」 https://en.wiktionary.org/wiki/sin",
+    "『説文解字』辛部「辠」・网部「罪」 https://ctext.org/shuo-wen-jie-zi/zh",
+    "士師記 20:16（ヘブライ語 ḥāṭāʾ「外さない」）",
+    "Liddell–Scott–Jones「ἁμαρτάνω」（的を外す・誤る）"
+  ]
+}

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>語源の旅 renderer</title>
+<link rel="stylesheet" href="../node_modules/@fontsource/shippori-mincho/500.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/shippori-mincho/700.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/shippori-mincho/800.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif-jp/700.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif/400.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif/400-italic.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif/600.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif/600-italic.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif-hebrew/600.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/noto-serif-devanagari/600.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/cormorant-garamond/600.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/cormorant-garamond/600-italic.css">
+<link rel="stylesheet" href="../node_modules/@fontsource/cormorant-garamond/700.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <div id="shaker">
+    <svg id="map" width="1080" height="1920" viewBox="0 0 1080 1920">
+      <defs>
+        <radialGradient id="oceanGrad" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#1b2a45"/>
+          <stop offset="0.7" stop-color="#111c31"/>
+          <stop offset="1" stop-color="#0a1222"/>
+        </radialGradient>
+        <radialGradient id="atmoGrad" gradientUnits="userSpaceOnUse">
+          <stop offset="0.9" stop-color="#6fa8dc" stop-opacity="0"/>
+          <stop offset="0.965" stop-color="#6fa8dc" stop-opacity="0.28"/>
+          <stop offset="1" stop-color="#6fa8dc" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <g id="stars"></g>
+      <g id="globe">
+        <circle id="atmo"/>
+        <circle id="ocean" fill="url(#oceanGrad)"/>
+        <path id="grat"/>
+        <path id="land"/>
+        <path id="borders"/>
+        <g id="routes" filter="url(#glow)"></g>
+        <g id="marks"></g>
+      </g>
+      <g id="speed"></g>
+    </svg>
+    <div id="labels"></div>
+    <div id="shade"></div>
+    <div id="header">
+      <div class="series"><span class="s1"></span><span class="no"></span><span class="word"></span><span class="ja"></span></div>
+      <div class="itin"></div>
+      <div class="stopline"><span class="stopname"></span><span class="era"></span></div>
+    </div>
+    <div id="hero"></div>
+    <div id="cards"></div>
+    <div id="fxlayer"></div>
+    <div id="subtitle"></div>
+  </div>
+  <div id="flash"></div>
+  <div id="grain"></div>
+  <div id="tag"></div>
+</div>
+<script src="../node_modules/d3-array/dist/d3-array.min.js"></script>
+<script src="../node_modules/d3-geo/dist/d3-geo.min.js"></script>
+<script src="../node_modules/topojson-client/dist/topojson-client.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
