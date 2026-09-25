@@ -792,6 +792,74 @@ function buildFork(c) {
   return { el: e, update };
 }
 
+const MERGE_ICONS = {
+  shirt: `<svg width="150" height="110" viewBox="0 0 300 220"><path d="M 80 20 L 30 42 L 0 92 L 40 110 L 60 82 L 60 200 L 240 200 L 240 82 L 260 110 L 300 92 L 270 42 L 220 20 Q 150 56 80 20 Z" fill="rgba(233,196,122,0.18)" stroke="#e9c47a" stroke-width="12" stroke-linejoin="round"/></svg>`,
+  people: `<svg width="330" height="110" viewBox="0 0 330 110">${[0, 1, 2, 3].map((i) => `<g class="pp"><circle cx="${45 + i * 80}" cy="30" r="17" fill="none" stroke-width="6"/><path d="M ${15 + i * 80} 100 Q ${16 + i * 80} 56 ${45 + i * 80} 54 Q ${74 + i * 80} 56 ${75 + i * 80} 100" fill="none" stroke-width="6" stroke-linecap="round"/></g>`).join('')}</svg>`,
+};
+
+function buildMerge(c) {
+  // two journeys told earlier (west and east) flowing into one meaning; state.m: 1 left, 2 right, 3 merged
+  const e = el('div', 'panel merge');
+  const svg = svgEl('svg', { width: 940, height: 800, viewBox: '0 0 940 800' });
+  const lineL = svgEl('path', { d: 'M 240 540 C 240 580, 470 560, 470 602', class: 'ml', stroke: '#e9c47a' });
+  const lineR = svgEl('path', { d: 'M 700 540 C 700 580, 470 560, 470 602', class: 'ml', stroke: '#e0605a' });
+  svg.append(lineL, lineR);
+  e.appendChild(svg);
+  const side = (key, def) => {
+    const col = el('div', `col ${key}`);
+    const parts = [el('div', 'pill', esc(def.title))];
+    def.rows.forEach(([w, note], i) => {
+      if (i > 0) parts.push(el('div', 'dn', '↓'));
+      parts.push(el('div', 'row', `<span class="w f-${def.font}">${hl(w)}</span><span class="n">${esc(note)}</span>`));
+    });
+    const icon = el('div', 'icon', MERGE_ICONS[def.icon]);
+    const keyw = el('div', 'key', `「${esc(def.key)}」`);
+    parts.push(icon);
+    col.append(...parts, keyw);
+    e.appendChild(col);
+    return { parts, icon, keyw };
+  };
+  const L = side('l', c.left), R = side('r', c.right);
+  const res = el('div', 'res', `<div class="s">${esc(c.result.sub)}</div><div class="w">${esc(c.result.w)}</div>`);
+  e.appendChild(res);
+  const big = $('.w', res);
+  const update = (ctx) => {
+    const tOf = (k) => firstTime(ctx.hist, (s) => (s.m || 0) >= k, Infinity);
+    const drawSide = (S, t0) => {
+      S.parts.forEach((p, i) => {
+        const pp = prog(ctx.t, t0 + i * 0.12, 0.3);
+        p.style.opacity = pp.toFixed(2);
+        p.style.transform = `translateY(${(18 * (1 - easeOut(pp))).toFixed(1)}px)`;
+      });
+      const tk = t0 + S.parts.length * 0.12 + 0.1;
+      const pk = prog(ctx.t, tk, 0.3);
+      S.keyw.style.opacity = pk.toFixed(2);
+      S.keyw.style.transform = `scale(${(lerp(1.8, 1, back(pk)) + 0.12 * decay(ctx.t - tk - 0.3, 0.25)).toFixed(3)})`;
+      return tk;
+    };
+    drawSide(L, tOf(1));
+    const tk = drawSide(R, tOf(2));
+    // the little people light up one after another as the flow reaches them
+    R.icon.querySelectorAll('.pp').forEach((g, i) => {
+      const q = prog(ctx.t, tk + i * 0.18, 0.2);
+      g.setAttribute('stroke', q > 0.5 ? '#ffb4ad' : 'rgba(246,239,224,0.45)');
+    });
+    const t3 = tOf(3);
+    const pl = ease(prog(ctx.t, t3, 0.45));
+    for (const ln of [lineL, lineR]) {
+      ln.style.strokeDasharray = '320';
+      ln.style.strokeDashoffset = (320 * (1 - pl)).toFixed(1);
+    }
+    const ps = prog(ctx.t, t3 + 0.2, 0.3);
+    $('.s', res).style.opacity = ps.toFixed(2);
+    const pb = prog(ctx.t, t3 + 0.4, 0.3);
+    big.style.opacity = pb.toFixed(2);
+    big.style.transform = `scale(${(lerp(2.2, 1, easeOut(pb)) + 0.1 * decay(ctx.t - t3 - 0.7, 0.3)).toFixed(3)})`;
+    e.classList.toggle('glow', ctx.t >= t3 + 0.4);
+  };
+  return { el: e, update };
+}
+
 function buildArt(c) {
   // an animated line illustration from art.js, with an optional caption
   const e = el('div', 'panel art');
@@ -1017,6 +1085,7 @@ function buildSet(i) {
       case 'tree': return buildTree(c);
       case 'wall': return buildWall(c);
       case 'fork': return buildFork(c);
+      case 'merge': return buildMerge(c);
       case 'art': return buildArt(c);
       case 'image': return buildImage(c);
       case 'table': return buildTable(c);

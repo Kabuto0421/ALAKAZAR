@@ -32,6 +32,31 @@ function person(cx, cy, color) {
     <path d="M ${cx - 46} ${cy + 50} Q ${cx - 44} ${cy - 8} ${cx} ${cy - 10} Q ${cx + 44} ${cy - 8} ${cx + 46} ${cy + 50}" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round"/></g>`;
 }
 
+function dress(kind, cx, color) {
+  // simple costume silhouettes, feet at y=238: 0 medieval gown and hennin, 1 ruff and farthingale, 2 panniers
+  const st = `fill="${color}" fill-opacity="0.18" stroke="${color}" stroke-width="5" stroke-linejoin="round"`;
+  if (kind === 0) return `<g>
+    <path d="M ${cx - 12} 46 L ${cx + 34} 6 L ${cx + 12} 50 Z" ${st}/>
+    <circle cx="${cx}" cy="58" r="16" ${st}/>
+    <path d="M ${cx - 16} 78 L ${cx + 16} 78 L ${cx + 22} 112 L ${cx + 62} 238 L ${cx - 62} 238 L ${cx - 22} 112 Z" ${st}/>
+    <path d="M ${cx - 16} 80 Q ${cx - 58} 110 ${cx - 60} 196 Q ${cx - 44} 176 ${cx - 24} 118 Z" ${st}/>
+    <path d="M ${cx + 16} 80 Q ${cx + 58} 110 ${cx + 60} 196 Q ${cx + 44} 176 ${cx + 24} 118 Z" ${st}/>
+    <path d="M ${cx - 22} 112 L ${cx + 22} 112" stroke="${color}" stroke-width="5"/></g>`;
+  if (kind === 1) return `<g>
+    <circle cx="${cx}" cy="50" r="16" ${st}/>
+    <path d="M ${cx - 16} 86 L ${cx + 16} 86 L ${cx + 6} 140 L ${cx - 6} 140 Z" ${st}/>
+    <ellipse cx="${cx - 30}" cy="102" rx="14" ry="22" ${st}/>
+    <ellipse cx="${cx + 30}" cy="102" rx="14" ry="22" ${st}/>
+    <path d="M ${cx - 14} 130 L ${cx + 14} 130 L ${cx + 68} 238 L ${cx - 68} 238 Z" ${st}/>
+    <ellipse cx="${cx}" cy="76" rx="32" ry="10" ${st}/></g>`;
+  return `<g>
+    <ellipse cx="${cx}" cy="34" rx="18" ry="24" ${st}/>
+    <circle cx="${cx}" cy="62" r="15" ${st}/>
+    <path d="M ${cx - 18} 82 L ${cx + 18} 82 L ${cx + 6} 132 L ${cx - 6} 132 Z" ${st}/>
+    <path d="M ${cx - 18} 86 L ${cx - 36} 120 M ${cx + 18} 86 L ${cx + 36} 120" stroke="${color}" stroke-width="5" stroke-linecap="round"/>
+    <path d="M ${cx - 10} 124 L ${cx + 10} 124 L ${cx + 92} 146 Q ${cx + 102} 192 ${cx + 90} 238 L ${cx - 90} 238 Q ${cx - 102} 192 ${cx - 92} 146 Z" ${st}/></g>`;
+}
+
 function pulse(el, lt, period, delay) {
   // repeating expand-and-fade for sound arcs
   const k = ((lt - delay) % period + period) % period / period;
@@ -233,21 +258,31 @@ const ART = {
     },
   },
 
-  shirt: {
+  eras: {
+    // the way clothes are made changes from era to era
     svg: `
-      <path d="M 470 24 Q 470 8 486 8 Q 500 8 500 22 Q 500 34 470 46 L 330 110 L 610 110 Z" fill="none" stroke="${INK.cream}" stroke-width="6" stroke-linejoin="round"/>
-      <path class="sh" d="M 400 96 L 350 118 L 320 168 L 360 186 L 380 158 L 380 270 L 560 270 L 560 158 L 580 186 L 620 168 L 590 118 L 540 96 Q 470 132 400 96 Z"
-        fill="rgba(233,196,122,0.12)" stroke="${INK.gold}" stroke-width="6" stroke-linejoin="round"/>
-      <g class="sp">${[[250, 80], [700, 70], [230, 220], [720, 230], [470, 200]].map(([x, y], i) => `<path class="s${i}" d="M ${x} ${y - 16} L ${x + 5} ${y - 5} L ${x + 16} ${y} L ${x + 5} ${y + 5} L ${x} ${y + 16} L ${x - 5} ${y + 5} L ${x - 16} ${y} L ${x - 5} ${y - 5} Z" fill="${INK.gold}"/>`).join('')}</g>
-      <text x="470" y="296" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">あなただけの「作り方」</text>`,
+      ${[[0, '1400年ごろ', INK.cream], [1, '1600年ごろ', INK.cyan], [2, '1760年ごろ', INK.gold]].map(([k, y, c], i) => `<g class="d${i}">${dress(k, 160 + i * 310, c)}
+        <text x="${160 + i * 310}" y="284" text-anchor="middle" fill="${c}" font-size="32" font-weight="800">${y}</text></g>`).join('')}`,
     update(root, lt) {
-      const p = prog(lt, 0.1, 0.5);
-      const sh = root.querySelector('.sh');
-      sh.style.opacity = p.toFixed(2);
-      sh.setAttribute('transform', `translate(0, ${(20 * (1 - easeOut(p))).toFixed(1)})`);
-      root.querySelectorAll('.sp path').forEach((s, i) => {
-        const k = (Math.sin(lt * 3 + i * 1.7) + 1) / 2;
-        s.style.opacity = (prog(lt, 0.5 + i * 0.15, 0.3) * (0.3 + 0.7 * k)).toFixed(2);
+      [0, 1, 2].forEach((i) => {
+        const g = root.querySelector(`.d${i}`);
+        const p = prog(lt, 0.3 + i * 0.9, 0.35);
+        g.style.opacity = p.toFixed(2);
+        g.setAttribute('transform', `translate(0, ${(30 * (1 - back(p))).toFixed(1)})`);
+      });
+    },
+  },
+
+  crowd: {
+    // everyone of one era dressing the same way: that shared way is "fashion"
+    svg: `
+      <g class="ppl">${[0, 1, 2, 3, 4].map((i) => `<g class="c${i}" transform="translate(${(170 + i * 150) * 0.28}, 22) scale(0.72)">${dress(0, 170 + i * 150, INK.cream)}</g>`).join('')}</g>
+      <text x="470" y="292" text-anchor="middle" fill="${INK.gold}" font-size="34" font-weight="800">みんながしている作り方 ＝ fashion</text>`,
+    update(root, lt) {
+      root.querySelectorAll('.ppl > g').forEach((g, i) => {
+        const q = prog(lt, 0.3 + i * 0.3, 0.25);
+        g.style.opacity = (0.3 + 0.7 * q).toFixed(2);
+        g.querySelectorAll('path, circle').forEach((x) => { x.setAttribute('stroke', q > 0.5 ? INK.gold : INK.cream); x.setAttribute('fill', q > 0.5 ? INK.gold : INK.cream); });
       });
     },
   },
