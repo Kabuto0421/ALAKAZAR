@@ -45,7 +45,8 @@ def build_timeline(episode, engine):
         scene_start = max(0.0, cursor - SCENE_LEAD) if si > 0 else 0.0
         ev["camera"].append({"t": scene_start, **scene["camera"]})
         if "era" in scene:
-            ev["eras"].append({"t": scene_start + 0.3, "value": scene["era"], "dur": ERA_ROLL})
+            era = scene["era"] if isinstance(scene["era"], dict) else {"value": scene["era"]}
+            ev["eras"].append({"t": scene_start + 0.3, "value": era["value"], "label": era.get("label"), "dur": ERA_ROLL})
         for li, line in enumerate(scene["lines"]):
             path = tts.synthesize(line.get("say", line["text"]), {**voice, **line.get("voice", {})}, engine)
             dur = tts.wav_duration(path)
@@ -67,7 +68,7 @@ def build_timeline(episode, engine):
                 ev["marks"].append({"t": round(start, 3), "place": place, "scene": scene["id"]})
             if "era" in line:
                 era = line["era"] if isinstance(line["era"], dict) else {"value": line["era"]}
-                ev["eras"].append({"t": round(start, 3), "value": era["value"], "dur": round(era.get("len", 0) * dur, 3) or ERA_ROLL})
+                ev["eras"].append({"t": round(start, 3), "value": era["value"], "label": era.get("label"), "dur": round(era.get("len", 0) * dur, 3) or ERA_ROLL})
             for r in line.get("routes", []):
                 ev["routes"].append({**r, "t": at(r.get("at", 0)), "dur": round(r.get("len", 0.8) * dur, 3), "scene": scene["id"]})
             for fx in line.get("fx", []):

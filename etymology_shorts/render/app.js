@@ -340,7 +340,7 @@ function eraAt(t) {
   let v = lerp(from, cur.value, p);
   if (p < 1 && Math.abs(cur.value - from) > 50) v = Math.round(v / 10) * 10 + (Math.floor(t * 30) % 10);
   const fadeIn = prev && prev.value !== null ? 1 : prog(t, cur.t, 0.3);
-  return { text: eraText(p >= 1 ? cur.value : v), op: fadeIn };
+  return { text: p >= 1 ? cur.label || eraText(cur.value) : eraText(v), op: fadeIn };
 }
 function drawHeader(t, scene) {
   const first = TL.scenes[1] ? TL.scenes[1].start : 0;
