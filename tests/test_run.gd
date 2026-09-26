@@ -216,7 +216,21 @@ func _new_fairies() -> void:
 	verify(m.cannon_at(Vector2i(2,2)).is_empty(),"Firework is spent")
 	verify(m.enemy_at(Vector2i(5,2)).hp == 1,"Burst sets off the neighbouring lance cannon")
 
-	# Slash spirit: a three-wide wave, each lane stops at blockers.
+	# Slash spirit: only the three tiles directly in front.
+	m = fixture()
+	m.fairy_loadout.assign(["slash_fairy"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("recruit",Vector2i(3,1),0))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(3,3),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,2),2))
+	verify(m.use_item("slash_fairy",Vector2i(2,2),Vector2i.RIGHT),"Slash spirit is placed in weapon range")
+	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Slash hits the three tiles in front")
+	verify(not m.enemy_at(Vector2i(4,2)).is_empty(),"Slash does not reach beyond the front row")
+	verify(m.directional_preview("slash_fairy",Vector2i(2,2),Vector2i.RIGHT) == [Vector2i(3,1),Vector2i(3,2),Vector2i(3,3)],"Slash preview is the front row")
+
+	# Flying slash (class-up): a three-wide wave, each lane stops at blockers.
 	m = fixture()
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("recruit",Vector2i(4,1),0))
@@ -225,7 +239,8 @@ func _new_fairies() -> void:
 	m.enemies.append(m.make_enemy("recruit",Vector2i(4,4),3))
 	m.walls[Vector2i(3,3)] = 2
 	m.slash(Vector2i(2,2),Vector2i.RIGHT)
-	verify(m.enemy_at(Vector2i(4,1)).is_empty() and m.enemy_at(Vector2i(5,2)).is_empty(),"Slash hits the centre and side lanes")
-	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops its lane")
-	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"Slash is only three lanes wide")
-	verify(m.directional_preview("slash_fairy",Vector2i(2,2),Vector2i.RIGHT).size() == 6,"Preview shows the three lanes, cut by the wall")
+	verify(m.enemy_at(Vector2i(4,1)).is_empty() and m.enemy_at(Vector2i(5,2)).is_empty(),"Flying slash hits the centre and side lanes")
+	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops a flying slash lane")
+	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"Flying slash is only three lanes wide")
+	verify(m.directional_preview("flying_slash",Vector2i(2,2),Vector2i.RIGHT).size() == 6,"Flying slash preview shows the three lanes, cut by the wall")
+	verify(not Run.new().reward_fairy_pool.has("flying_slash") and m.item_definition("flying_slash") != null,"Flying slash is listed but not yet offered as a reward")

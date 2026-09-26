@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/flying_slash.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/flying_slash.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "flying_slash"
+title = "飛刃精霊"
+description = "斬撃精霊の上位版。3マス幅の\n斬撃を向きの先まで飛ばす。\n当たった敵すべてに1。\n各列は障害物で止まる。"
+color = Color(0.55, 0.95, 0.8, 1)
+directional = true
+effect = ExtResource("2")
+icon = ExtResource("3")

@@ -4,7 +4,7 @@ extends RefCounted
 enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
-	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres")]
+	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres")]
 ## Player turns a wall spirit stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -451,8 +451,27 @@ func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 				result.append(cell)
 	return result
 
+## 斬撃精霊: the three tiles directly in front of the placed tile.
+func front_slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not CARDINALS.has(direction):
+		return result
+	var side := Vector2i(-direction.y, direction.x)
+	for k in [-1, 0, 1]:
+		var cell: Vector2i = origin + direction + side * k
+		if inside(cell):
+			result.append(cell)
+	return result
+
+func front_slash(origin: Vector2i, direction: Vector2i) -> void:
+	_slash_hit(front_slash_cells(origin, direction))
+
+## 飛刃精霊 (the slash's class-up): the three-lane wave flies to the edge.
 func slash(origin: Vector2i, direction: Vector2i) -> void:
-	for cell in slash_cells(origin, direction):
+	_slash_hit(slash_cells(origin, direction))
+
+func _slash_hit(cells: Array[Vector2i]) -> void:
+	for cell in cells:
 		events.append({"kind":"slash", "cell":cell, "id":-2})
 		var enemy := enemy_at(cell)
 		if not enemy.is_empty():
@@ -461,5 +480,7 @@ func slash(origin: Vector2i, direction: Vector2i) -> void:
 ## Cells a directional fairy will affect, for the placement preview.
 func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 	if id == "slash_fairy":
+		return front_slash_cells(origin, direction)
+	if id == "flying_slash":
 		return slash_cells(origin, direction)
 	return ray_cells(origin, direction)

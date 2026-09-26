@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "slash_fairy"
 title = "斬撃精霊"
-description = "攻撃範囲の空きマスに配置。\n縦横の向きを選び、3マス幅の\n斬撃を飛ばす。当たった敵\nすべてに1。障害物で止まる。"
+description = "攻撃範囲の空きマスに配置。\n縦横の向きを選び、その向きの\n目の前の横3マスを斬る。\n当たった敵すべてに1。"
 color = Color(0.75, 0.95, 0.55, 1)
 directional = true
 effect = ExtResource("2")
