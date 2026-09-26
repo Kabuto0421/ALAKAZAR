@@ -114,11 +114,11 @@ func turn_to(direction_index: int) -> bool:
 	player.ap -= 1
 	return true
 
+## Switching weapons is free.
 func equip(index: int) -> bool:
-	if phase != Phase.PLAYER or player.ap <= 0 or index == weapon:
+	if phase != Phase.PLAYER or index == weapon:
 		return false
 	weapon = index
-	player.ap -= 1
 	return true
 
 func end_player_turn() -> void:

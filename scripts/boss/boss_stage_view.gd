@@ -234,7 +234,7 @@ func _draw_player_panel() -> void:
 	for i in range(2):
 		draw_rect(Rect2(90 + i * 36, 200, 28, 18), GOLD if i < model.player.ap else Color("3a3420"))
 	_text(Vector2(44,256), "向き  %s    [矢印キー 1 AP]" % ARROWS[model.facing], 18)
-	_text(Vector2(44,296), "武器  [1/2/3 で持ち替え 1 AP]", 18, MUTED)
+	_text(Vector2(44,296), "武器  [1/2/3 で持ち替え 無料]", 18, MUTED)
 	var order := [1, 0, 2]
 	for i in range(3):
 		var w: int = order[i]
