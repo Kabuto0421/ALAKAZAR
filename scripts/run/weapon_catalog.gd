@@ -27,6 +27,14 @@ const DATA = [
 	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
 	{"id":"back_knight", "name":"逆桂剣", "short":"逆桂", "row":2, "color":"9d8cff", "detail":"左へ2・上下へ1に跳ぶ", "offsets":[Vector2i(-2,-1),Vector2i(-2,1)]},
 	{"id":"sky_knight", "name":"天桂剣", "short":"天桂", "row":2, "color":"4fe0a8", "detail":"上へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(1,-2)]},
+	# Odd up-and-down jumpers: variants of the vertical jump and the knights.
+	{"id":"tall_knight", "name":"立桂剣", "short":"立桂", "row":2, "color":"6fe0ff", "detail":"右へ1・上下へ2に跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(1,2)]},
+	{"id":"back_tall_knight", "name":"逆立桂剣", "short":"逆立桂", "row":2, "color":"b08cff", "detail":"左へ1・上下へ2に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(-1,2)]},
+	{"id":"twist_knight", "name":"捻桂剣", "short":"捻桂", "row":2, "color":"ff9fd0", "detail":"右上の桂馬と左下の桂馬に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(-2,1)]},
+	{"id":"back_twist_knight", "name":"逆捻桂剣", "short":"逆捻桂", "row":2, "color":"ffc27a", "detail":"左上の桂馬と右下の桂馬に跳ぶ", "offsets":[Vector2i(-2,-1),Vector2i(2,1)]},
+	{"id":"bolt", "name":"稲妻剣", "short":"稲妻", "row":2, "color":"fff06a", "detail":"右上2段と左下2段に跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(-1,2)]},
+	{"id":"back_bolt", "name":"逆稲妻剣", "short":"逆稲妻", "row":2, "color":"9ff0c0", "detail":"左上2段と右下2段に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(1,2)]},
+	{"id":"fork", "name":"燕返剣", "short":"燕返", "row":2, "color":"ff8a8a", "detail":"右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,2)]},
 	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
