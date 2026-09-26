@@ -10,6 +10,9 @@ var state: State = State.START_WEAPON
 var battle := Battle.new()
 var stage := 0
 var offers: Array[Dictionary] = []
+## Opening offers are rolled once so going back does not reroll them.
+var start_weapon_offers: Array[Dictionary] = []
+var start_fairy_offers: Array[Dictionary] = []
 var pending: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 # Expand these pools to introduce additional resource-defined fairy effects.
@@ -30,8 +33,21 @@ func start(seed_value: int = -1) -> void:
 	battle.fairy_charges.clear()
 	battle.inventory.clear()
 	offers.clear()
+	start_weapon_offers.clear()
+	start_fairy_offers.clear()
 	for index in sample(Weapons.single_pool(), Weapons.START_CHOICE_COUNT):
-		offers.append({"kind":"weapon", "value":index})
+		start_weapon_offers.append({"kind":"weapon", "value":index})
+	for id in sample(starting_fairy_pool,3):
+		start_fairy_offers.append({"kind":"fairy","value":id})
+	offers.assign(start_weapon_offers)
+
+## From the fairy pick back to the weapon pick, keeping the same offers.
+func back_to_weapon() -> void:
+	if state != State.START_FAIRY:
+		return
+	battle.owned_weapons.assign([0,1])
+	state = State.START_WEAPON
+	offers.assign(start_weapon_offers)
 
 func sample(pool: Array, count: int) -> Array:
 	var candidates := pool.duplicate()
@@ -48,9 +64,7 @@ func choose(index: int) -> bool:
 	if state == State.START_WEAPON:
 		battle.owned_weapons.append(int(offer.value))
 		state = State.START_FAIRY
-		offers.clear()
-		for id in sample(starting_fairy_pool,3):
-			offers.append({"kind":"fairy","value":id})
+		offers.assign(start_fairy_offers)
 	elif state == State.START_FAIRY:
 		battle.add_item(str(offer.value))
 		start_battle()
@@ -88,7 +102,7 @@ func finish_battle() -> bool:
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	for index in range(Weapons.DATA.size()):
-		if not battle.owned_weapons.has(index) and (Weapons.is_single(index) or not single_only):
+		if not battle.owned_weapons.has(index) and (Weapons.is_early(index) or not single_only):
 			weapons.append(index)
 	for index in sample(weapons,2):
 		offers.append({"kind":"weapon","value":index})

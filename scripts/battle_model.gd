@@ -97,6 +97,15 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
+## Deep copy used to look ahead (e.g. which enemies would hit the player).
+func clone() -> RefCounted:
+	var copy: RefCounted = get_script().new()
+	for property in get_property_list():
+		if property.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			var value: Variant = get(property.name)
+			copy.set(property.name, value.duplicate(true) if value is Array or value is Dictionary else value)
+	return copy
+
 func refill_fairies() -> void:
 	inventory.clear()
 	fairy_charges.clear()
@@ -127,7 +136,7 @@ func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 		enemy.ap -= 1
 		player.hp -= 1
 		enemy.intent = "攻撃"
-		events.append({"kind": "hit", "cell": cell, "id": -1})
+		events.append({"kind": "hit", "cell": cell, "id": -1, "by": enemy.id})
 		add_log("%sの攻撃 / HP −1" % TYPES[enemy.type].name)
 		check_outcome()
 		return true

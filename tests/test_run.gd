@@ -3,6 +3,7 @@ const Run = preload("res://scripts/run/run_model.gd")
 const Rules = preload("res://scripts/battle_model.gd")
 const Planner = preload("res://scripts/enemy_planner.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
+const ThreatPreview = preload("res://scripts/threat_preview.gd")
 var checks := 0
 var failures := 0
 
@@ -25,19 +26,26 @@ func _initialize() -> void:
 	var run := Run.new()
 	run.start(42)
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
-	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_single(o.value) and o.value > 1),"Three single-tile starting weapons")
+	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and o.value > 1),"Three early (single-tile or jump pair) starting weapons")
+	var rolled: Array = run.offers.map(func(o): return o.value)
+	run.choose(0)
+	run.back_to_weapon()
+	verify(run.state==Run.State.START_WEAPON and run.battle.owned_weapons==[0,1] and run.offers.map(func(o): return o.value)==rolled,"Going back to the weapon pick keeps the same offers")
 	var picked: int = run.offers[1].value
 	verify(not run.choose(8) and run.battle.owned_weapons.size()==2,"Invalid draft does not mutate loadout")
 	run.choose(1)
 	verify(run.state==Run.State.START_FAIRY and run.battle.owned_weapons==[0,1,picked],"Weapon is selected before fairy draft")
 	var ids: Array = run.offers.map(func(o: Dictionary): return o.value)
+	run.back_to_weapon()
+	run.choose(1)
+	verify(run.offers.map(func(o: Dictionary): return o.value)==ids and run.battle.owned_weapons==[0,1,picked],"Fairy offers also stay the same after going back")
 	verify(ids.size()==3 and ids.has("magic_bolt") and ids.has("stealth_fairy") and ids.has("acorn_fairy"),"Initial fairy pool contains exactly the three requested fairies")
 	run.choose(ids.find("acorn_fairy"))
 	verify(run.state==Run.State.BATTLE and run.battle.fairy_loadout==["acorn_fairy"],"Fairy selection starts combat")
 	verify(run.battle.board_size==4 and run.battle.player.cell.x==0 and run.battle.facing==1,"First encounter starts on left, facing right")
 	verify(run.battle.phase==Rules.Phase.PLAYER and run.battle.player.ap==2 and run.battle.round_number==1,"The player moves first")
 	var first_types: Array = run.battle.enemies.map(func(e): return e.type)
-	verify(first_types.has("infantry") and first_types.has("heavy") and first_types.has("cavalry"),"First fight mixes AP2 infantry, a heavy and a cavalry")
+	verify(first_types.has("infantry") and first_types.has("heavy") and not first_types.has("cavalry"),"First fight mixes AP2 infantry and a heavy, no cavalry yet")
 	verify(run.battle.enemies.all(func(e): return e.cell.x>=2 and e.facing==3 and Rules.TYPES[e.type].ap==e.ap),"Enemies start on the right facing left with their full AP")
 	var m := run.battle
 	m.phase=Rules.Phase.PLAYER
@@ -60,7 +68,7 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
 	verify(run.offers.size()==4 and run.offers.slice(0,2).all(func(o): return o.kind=="weapon") and run.offers.slice(2).all(func(o): return o.kind=="fairy"),"Rewards always contain two weapons and two fairies")
-	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_single(o.value)),"Early reward weapons are single-tile")
+	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_early(o.value)),"Early reward weapons are single-tile or jump pairs")
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -72,13 +80,14 @@ func _initialize() -> void:
 	run.replace(2)
 	verify(run.state==Run.State.BATTLE and m.owned_weapons.size()==3 and m.owned_weapons[2]==new_weapon,"Replacement keeps exactly three weapons and advances")
 	verify(m.board_size==5 and m.enemies.size()==5,"Second encounter uses a 5x5 board")
-	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Second encounter adds a miner and a cavalry")
+	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").is_empty(),"Second encounter adds a miner but still no cavalry")
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
 	run.choose(2)
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
 	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
+	verify(m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Cavalry first appears in the third fight")
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Rotated third-stage placements stay valid")
 	m.player.hp = 2
 	m.enemies.clear()
@@ -200,6 +209,7 @@ func _initialize() -> void:
 			verify(m.player.ap>=0 and m.facing==1,"AP and fixed facing remain valid")
 			verify(m.fairy_charges.all(func(c): return c>=0),"Skill charges never go negative")
 	_new_fairies()
+	_threats_and_weapons()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -294,3 +304,29 @@ func _new_fairies() -> void:
 	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"Flying slash is only three lanes wide")
 	verify(m.directional_preview("flying_slash",Vector2i(2,2),Vector2i.RIGHT).size() == 6,"Flying slash preview shows the three lanes, cut by the wall")
 	verify(not Run.new().reward_fairy_pool.has("flying_slash") and m.item_definition("flying_slash") != null,"Flying slash is listed but not yet offered as a reward")
+
+func _threats_and_weapons() -> void:
+	# "!" marks: only enemies that would really hit a player who stays put.
+	var m := fixture()
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
+	m.enemies.append(m.make_enemy("cavalry",Vector2i(3,3),1))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),2))
+	var before_hp: int = m.player.hp
+	var threats := ThreatPreview.attackers(m)
+	verify(threats.has(0) and not threats.has(2),"An adjacent heavy is marked, a far one is not")
+	verify(m.player.hp == before_hp and m.phase == Rules.Phase.PLAYER and m.enemies[0].cell == Vector2i(2,2),"Looking ahead never changes the real board")
+	m.walls[Vector2i(2,2)] = 1
+	m.enemies[0].cell = Vector2i(5,0)
+	verify(not ThreatPreview.attackers(m).has(0),"Enemies that cannot reach are not marked")
+
+	# Early weapons: one tile, or two tiles when both are jumps.
+	var W := Run.Weapons
+	verify(W.is_early(W.DATA.map(func(d): return d.id).find("vault")) and W.offsets(W.DATA.map(func(d): return d.id).find("vault")) == [Vector2i(0,-2),Vector2i(0,2)],"Vertical jump pair is an early weapon")
+	verify(not W.is_early(2) and not W.is_early(3),"Two-tile non-jump weapons are not early")
+	var jump_pairs := 0
+	for index in W.single_pool():
+		if W.DATA[index].offsets.size() == 2:
+			jump_pairs += 1
+			verify(W.is_jump(index),"Only jump weapons get two early tiles")
+	verify(jump_pairs == 6,"Six two-tile jump weapons are in the early pool")

@@ -21,25 +21,33 @@ const DATA = [
 	{"id":"front_down", "name":"右下剣", "short":"右下", "row":2, "color":"ff9e6a", "detail":"右下の1マス", "offsets":[Vector2i(1,1)]},
 	{"id":"back_up", "name":"左上剣", "short":"左上", "row":2, "color":"7fd8ff", "detail":"左上の1マス", "offsets":[Vector2i(-1,-1)]},
 	{"id":"back_down", "name":"左下剣", "short":"左下", "row":2, "color":"7fe6b0", "detail":"左下の1マス", "offsets":[Vector2i(-1,1)]},
-	{"id":"leap", "name":"跳躍剣", "short":"跳躍", "row":2, "color":"ffe07a", "detail":"右へ2マス跳ぶ", "offsets":[Vector2i(2,0)]},
-	{"id":"leap_back", "name":"飛退剣", "short":"飛退", "row":2, "color":"8fc4ff", "detail":"左へ2マス跳ぶ", "offsets":[Vector2i(-2,0)]},
-	{"id":"knight_up", "name":"桂上剣", "short":"桂上", "row":2, "color":"2bdcc8", "detail":"右へ2・上へ1に跳ぶ", "offsets":[Vector2i(2,-1)]},
-	{"id":"knight_down", "name":"桂下剣", "short":"桂下", "row":2, "color":"4fe0a8", "detail":"右へ2・下へ1に跳ぶ", "offsets":[Vector2i(2,1)]},
-	{"id":"back_knight_up", "name":"逆桂上剣", "short":"逆桂上", "row":2, "color":"9d8cff", "detail":"左へ2・上へ1に跳ぶ", "offsets":[Vector2i(-2,-1)]},
-	{"id":"back_knight_down", "name":"逆桂下剣", "short":"逆桂下", "row":2, "color":"c08cff", "detail":"左へ2・下へ1に跳ぶ", "offsets":[Vector2i(-2,1)]},
+	# Jump weapons skip over a square, so the early rule lets them take two tiles.
+	{"id":"leap", "name":"跳躍剣", "short":"前後跳", "row":2, "color":"ffe07a", "detail":"右・左へ2マス跳ぶ", "offsets":[Vector2i(2,0),Vector2i(-2,0)]},
+	{"id":"vault", "name":"縦跳剣", "short":"縦跳", "row":2, "color":"8fc4ff", "detail":"上・下へ2マス跳ぶ", "offsets":[Vector2i(0,-2),Vector2i(0,2)]},
+	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
+	{"id":"back_knight", "name":"逆桂剣", "short":"逆桂", "row":2, "color":"9d8cff", "detail":"左へ2・上下へ1に跳ぶ", "offsets":[Vector2i(-2,-1),Vector2i(-2,1)]},
+	{"id":"sky_knight", "name":"天桂剣", "short":"天桂", "row":2, "color":"4fe0a8", "detail":"上へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(1,-2)]},
+	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
 ]
-## Stages whose rewards (and the opening pick) only offer single-tile weapons.
+## Stages whose rewards (and the opening pick) only offer early weapons:
+## one tile, or two tiles when every tile is a jump.
 const SINGLE_TILE_STAGES := 3
 const START_CHOICE_COUNT := 3
 
 static func is_single(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].offsets.size() == 1
 
-## Single-tile weapons other than the starting forward/backward pair.
+static func is_jump(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].offsets.all(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)
+
+static func is_early(index: int) -> bool:
+	return is_single(index) or (is_jump(index) and DATA[index].offsets.size() <= 2)
+
+## Early weapons other than the starting forward/backward pair.
 static func single_pool() -> Array:
 	var result: Array = []
 	for index in range(2, DATA.size()):
-		if is_single(index):
+		if is_early(index):
 			result.append(index)
 	return result
 

@@ -61,7 +61,7 @@ func _render() -> void:
 			_label(Vector2(44,137),"2 / 2    妖精は各戦闘1回・使用1 AP",22,Color("9aafa9"))
 			_cards(run.offers)
 			_loadout()
-			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_restart)
+			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
 			_label(Vector2(44,85),"戦闘 %d クリア — 報酬を1つ選ぶ" % (run.stage+1),32,INK)
 			_label(Vector2(44,137),"妖精の使用回数が回復（HPは持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
@@ -165,6 +165,10 @@ func _battle_finished() -> void:
 
 func _restart() -> void:
 	run.start()
+	_render()
+
+func _back_to_weapon() -> void:
+	run.back_to_weapon()
 	_render()
 
 func _skip() -> void:

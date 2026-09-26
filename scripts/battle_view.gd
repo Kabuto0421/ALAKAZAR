@@ -10,6 +10,8 @@ const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
+const ThreatPreview = preload("res://scripts/threat_preview.gd")
+const CLOCKWISE_NEXT = {Vector2i.UP: Vector2i.RIGHT, Vector2i.RIGHT: Vector2i.DOWN, Vector2i.DOWN: Vector2i.LEFT, Vector2i.LEFT: Vector2i.UP}
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
@@ -371,6 +373,10 @@ func _sync_units(animate: bool) -> void:
 		move_tween.kill()
 	if animate:
 		move_tween = create_tween().set_parallel(true)
+	# "!" marks every enemy that would hit the player if they stayed put.
+	var threats: Array[int] = []
+	if model.phase == Rules.Phase.PLAYER:
+		threats = ThreatPreview.attackers(model)
 	for unit in units:
 		var id: int = unit.id
 		living.append(id)
@@ -383,7 +389,7 @@ func _sync_units(animate: bool) -> void:
 			actors[id] = actor
 		var view: Node2D = actors[id]
 		view.hp = unit.hp
-		view.charge_warning = unit.get("state", "") == "charge"
+		view.charge_warning = id >= 0 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _center(unit.cell)
 		view.facing = 1 if id < 0 else 3
@@ -605,8 +611,10 @@ func _draw_board() -> void:
 			if model.fairies.has(cell):
 				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
 			if model.walls.has(cell):
-				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,0.95)
-				_text(pos+Vector2(44,58),str(model.walls[cell]),20,INK)
+				# The wall fills its whole tile; the countdown sits in a corner badge.
+				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,1.12)
+				draw_rect(Rect2(pos+Vector2(44,42),Vector2(18,20)),Color(0.03,0.06,0.07,0.85))
+				_text(pos+Vector2(47,59),str(model.walls[cell]),20,INK)
 			var cannon: Dictionary = model.cannon_at(cell)
 			if not cannon.is_empty():
 				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy"}[cannon.kind]
@@ -615,14 +623,39 @@ func _draw_board() -> void:
 					SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
 					if cannon.dir != Vector2i.ZERO:
 						_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
+				if cannon.kind == "vane":
+					_draw_turn_hint(_center(cell),cannon.dir)
 			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
+		if selected_item == "vane_cannon":
+			_draw_turn_hint(_center(item_origin),aim)
 		var start := _center(item_origin)
 		var end := start+Vector2(aim)*28
 		draw_line(start,end,GOLD,5)
 		var side := Vector2(-aim.y,aim.x)*8
 		draw_colored_polygon(PackedVector2Array([end+Vector2(aim)*8,end-Vector2(aim)*7+side,end-Vector2(aim)*7-side]),GOLD)
+
+## Curved clockwise arrow from the vane's current aim to the aim it takes after firing.
+func _draw_turn_hint(center: Vector2, dir: Vector2i) -> void:
+	if dir == Vector2i.ZERO:
+		return
+	var from := Vector2(dir).angle()+0.45
+	var to := from+PI/2-0.75
+	var radius := 27.0
+	var color := Color("9ff5ff")
+	draw_arc(center,radius,from,to,12,Color(0,0,0,0.7),6)
+	draw_arc(center,radius,from,to,12,color,3)
+	var tip := center+Vector2.from_angle(to)*radius
+	var tangent := Vector2.from_angle(to+PI/2)
+	var side := Vector2(-tangent.y,tangent.x)*6
+	var head := PackedVector2Array([tip+tangent*8,tip-tangent*3+side,tip-tangent*3-side])
+	draw_colored_polygon(head,Color(0,0,0,0.7))
+	draw_colored_polygon(PackedVector2Array([tip+tangent*6,tip-tangent*2+side*0.7,tip-tangent*2-side*0.7]),color)
+	# A small ghost arrow shows where the next shot will point.
+	var next := Vector2(CLOCKWISE_NEXT[dir])
+	draw_circle(center+next*24,5,Color(0,0,0,0.6))
+	draw_circle(center+next*24,3,color)
 
 func _draw_arrow(tip: Vector2, dir: Vector2, color: Color) -> void:
 	var side := Vector2(-dir.y,dir.x)*6
