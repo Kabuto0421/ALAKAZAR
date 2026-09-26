@@ -35,6 +35,11 @@ const DATA = [
 	{"id":"bolt", "name":"稲妻剣", "short":"稲妻", "row":2, "color":"fff06a", "detail":"右上2段と左下2段に跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(-1,2)]},
 	{"id":"back_bolt", "name":"逆稲妻剣", "short":"逆稲妻", "row":2, "color":"9ff0c0", "detail":"左上2段と右下2段に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(1,2)]},
 	{"id":"fork", "name":"燕返剣", "short":"燕返", "row":2, "color":"ff8a8a", "detail":"右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,2)]},
+	{"id":"back_fork", "name":"返燕剣", "short":"返燕", "row":2, "color":"8ab8ff", "detail":"左上・左下へ斜めに2マス跳ぶ", "offsets":[Vector2i(-2,-2),Vector2i(-2,2)]},
+	{"id":"slant", "name":"袈裟剣", "short":"袈裟", "row":2, "color":"ffb36b", "detail":"右上と左下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(-2,2)]},
+	{"id":"back_slant", "name":"逆袈裟剣", "short":"逆袈裟", "row":2, "color":"7fe6d0", "detail":"左上と右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(-2,-2),Vector2i(2,2)]},
+	{"id":"crane", "name":"鶴翼剣", "short":"鶴翼", "row":2, "color":"e0c8ff", "detail":"右上へ斜め2・右下の桂馬に跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,1)]},
+	{"id":"heron", "name":"鷺足剣", "short":"鷺足", "row":2, "color":"c8ffe0", "detail":"右上の桂馬・右下へ斜め2に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,2)]},
 	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
