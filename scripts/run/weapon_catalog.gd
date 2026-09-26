@@ -51,11 +51,15 @@ static func is_jump(index: int) -> bool:
 static func is_early(index: int) -> bool:
 	return is_single(index) or (is_jump(index) and DATA[index].offsets.size() <= 2)
 
+## Only moves left/right: the starting forward/backward pair already covers that.
+static func horizontal_only(index: int) -> bool:
+	return DATA[index].offsets.all(func(o: Vector2i) -> bool: return o.y == 0)
+
 ## Early weapons other than the starting forward/backward pair.
 static func single_pool() -> Array:
 	var result: Array = []
 	for index in range(2, DATA.size()):
-		if is_early(index):
+		if is_early(index) and not horizontal_only(index):
 			result.append(index)
 	return result
 

@@ -332,7 +332,8 @@ func _threats_and_weapons() -> void:
 		if W.DATA[index].offsets.size() == 2:
 			jump_pairs += 1
 			verify(W.is_jump(index),"Only jump weapons get two early tiles")
-	verify(jump_pairs == 13,"Thirteen two-tile jump weapons are in the early pool")
+	verify(jump_pairs == 12,"Twelve two-tile jump weapons are in the early pool")
+	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
 	verify(W.opening_pool().size() == 10,"Ten up-and-down jumpers make the opening pick varied")
 
 func _enemy_turn(m: RefCounted) -> void:

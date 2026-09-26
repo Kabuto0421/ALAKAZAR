@@ -102,7 +102,7 @@ func finish_battle() -> bool:
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	for index in range(Weapons.DATA.size()):
-		if not battle.owned_weapons.has(index) and (Weapons.is_early(index) or not single_only):
+		if not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index) and (Weapons.is_early(index) or not single_only):
 			weapons.append(index)
 	for index in sample(weapons,2):
 		offers.append({"kind":"weapon","value":index})
