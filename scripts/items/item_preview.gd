@@ -38,6 +38,40 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			_enemy(canvas,Vector2(1000,268))
 			canvas._text(Vector2(867,230),"HP 1 / AP 1",21,item.color)
 			canvas._text(Vector2(856,306),"味方 → 敵の順に行動",18,item.color)
+		"wall_fairy":
+			for i in range(5):
+				_tile(canvas,Vector2(872+i*52,269),item.color)
+			Icon.paint(canvas,Vector2(976,267),item.icon,0.7)
+			_enemy(canvas,Vector2(1080-minf(progress/0.6,1.0)*52,265))
+			canvas._text(Vector2(868,232),"3ターン通れない",19,item.color)
+		"cannon_fairy","vane_cannon":
+			for i in range(5):
+				_tile(canvas,Vector2(872+i*52,269),item.color)
+			Icon.paint(canvas,Vector2(872,267),item.icon,0.65)
+			_enemy(canvas,Vector2(1028,265))
+			_enemy(canvas,Vector2(1080,265))
+			if progress > 0.4:
+				canvas.draw_line(Vector2(890,285),Vector2(1090,285),item.color,3)
+			canvas._text(Vector2(856,232),"このマスを攻撃 → 発射" if id == "cannon_fairy" else "撃つたびに90度回る",18,item.color)
+		"firework_fairy":
+			var center := Vector2(976,262)
+			for y in range(-1,2):
+				for x in range(-1,2):
+					_tile(canvas,center+Vector2(x,y)*30,item.color,27)
+			Icon.paint(canvas,center,item.icon,0.55)
+			_enemy(canvas,center+Vector2(30,-30))
+			_enemy(canvas,center+Vector2(-30,30))
+			if progress > 0.5:
+				canvas.draw_arc(center,20+(progress-0.5)*60,0,TAU,24,item.color,3)
+		"slash_fairy":
+			for y in range(3):
+				for x in range(5):
+					_tile(canvas,Vector2(872+x*52,241+y*28),item.color,25)
+			Icon.paint(canvas,Vector2(872,269),item.icon,0.4)
+			_enemy(canvas,Vector2(1028,241))
+			_enemy(canvas,Vector2(1080,297))
+			var front := 900+progress*190
+			canvas.draw_line(Vector2(front,226),Vector2(front,312),item.color,4)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):

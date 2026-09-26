@@ -3,7 +3,12 @@ extends RefCounted
 # Grid rules are independent of rendering and animation timing.
 enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
-const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres")]
+const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
+	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres")]
+## Player turns a wall spirit stands, counting the turn it is placed.
+const WALL_TURNS := 3
+## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
+const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精"}
 const CARDINALS = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const FormationLayout = preload("res://scripts/formation_layout.gd")
@@ -43,6 +48,10 @@ var inventory: Dictionary = {}
 var shortcuts: Array[String] = ["magic_bolt", "stealth_fairy", "warp_fairy"]
 var fairies: Array[Vector2i] = []
 var obstacles: Array[Vector2i] = []
+## Wall spirits: cell -> player turns left (including the current one).
+var walls: Dictionary = {}
+## Placed cannons: {cell, dir, kind}. They fire when the player attacks their tile.
+var cannons: Array[Dictionary] = []
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	level = clampi(next_level, 0, 2)
@@ -63,6 +72,8 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	allies.clear()
 	next_ally_id = -100
 	obstacles.clear()
+	walls.clear()
+	cannons.clear()
 	refill_fairies()
 	logs.clear()
 	events.clear()
@@ -131,7 +142,7 @@ func item_definition(id: String) -> Resource:
 	return null
 
 func blocked(cell: Vector2i) -> bool:
-	return obstacles.has(cell) or fairies.has(cell) or not ally_at(cell).is_empty()
+	return obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
 
 func item_targets(id: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -258,7 +269,17 @@ func equip(index: int) -> bool:
 	return true
 
 func player_action(cell: Vector2i) -> bool:
-	if phase != Phase.PLAYER or player.ap <= 0 or blocked(cell) or not targets().has(cell):
+	if phase != Phase.PLAYER or player.ap <= 0 or not targets().has(cell):
+		return false
+	var cannon := cannon_at(cell)
+	if not cannon.is_empty():
+		# Striking a placed cannon fires it.
+		events.clear()
+		player.ap -= 1
+		fire_cannon(cannon)
+		check_outcome()
+		return true
+	if blocked(cell):
 		return false
 	events.clear()
 	player.ap -= 1
@@ -358,3 +379,87 @@ func act_allies() -> void:
 			trigger_mine(ally)
 		ally.ap = 0
 	check_outcome()
+
+
+# --- wall, cannon and slash fairies ---------------------------------------
+
+func place_wall(cell: Vector2i) -> void:
+	walls[cell] = WALL_TURNS
+	events.append({"kind":"summon", "cell":cell, "id":-2})
+
+## Called when a new player turn begins: walls count down and crumble.
+func tick_walls() -> void:
+	for cell in walls.keys():
+		walls[cell] -= 1
+		if walls[cell] <= 0:
+			walls.erase(cell)
+			add_log("壁精霊が消えた")
+
+func cannon_at(cell: Vector2i) -> Dictionary:
+	for cannon in cannons:
+		if cannon.cell == cell:
+			return cannon
+	return {}
+
+func place_cannon(cell: Vector2i, direction: Vector2i, kind: String) -> void:
+	cannons.append({"cell":cell, "dir":direction, "kind":kind})
+	events.append({"kind":"summon", "cell":cell, "id":-2})
+
+## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
+func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
+	if fired.has(cannon.cell):
+		return
+	fired.append(cannon.cell)
+	add_log("%sが発射" % CANNON_TITLES[cannon.kind])
+	if cannon.kind == "firework":
+		cannons.erase(cannon)
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var cell: Vector2i = cannon.cell + Vector2i(dx, dy)
+				if cell == cannon.cell or not inside(cell):
+					continue
+				events.append({"kind":"blast", "cell":cell, "id":-2})
+				var enemy := enemy_at(cell)
+				if not enemy.is_empty():
+					damage_enemy(enemy, 1)
+				var other := cannon_at(cell)
+				if not other.is_empty():
+					fire_cannon(other, fired)
+		return
+	var cells := ray_cells(cannon.cell, cannon.dir)
+	for cell in cells:
+		events.append({"kind":"bolt", "cell":cell, "id":-2})
+		var enemy := enemy_at(cell)
+		if not enemy.is_empty():
+			damage_enemy(enemy, 1)
+	var end: Vector2i = (cells[-1] if not cells.is_empty() else cannon.cell) + cannon.dir
+	if cannon.kind == "vane":
+		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
+	var other := cannon_at(end)
+	if not other.is_empty():
+		fire_cannon(other, fired)
+
+## Three parallel lanes: the lane through the placed tile and its two neighbours.
+func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not CARDINALS.has(direction):
+		return result
+	var side := Vector2i(-direction.y, direction.x)
+	for k in [-1, 0, 1]:
+		for cell in ray_cells(origin + side * k, direction):
+			if not result.has(cell):
+				result.append(cell)
+	return result
+
+func slash(origin: Vector2i, direction: Vector2i) -> void:
+	for cell in slash_cells(origin, direction):
+		events.append({"kind":"slash", "cell":cell, "id":-2})
+		var enemy := enemy_at(cell)
+		if not enemy.is_empty():
+			damage_enemy(enemy, 1)
+
+## Cells a directional fairy will affect, for the placement preview.
+func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	if id == "slash_fairy":
+		return slash_cells(origin, direction)
+	return ray_cells(origin, direction)

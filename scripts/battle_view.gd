@@ -10,6 +10,7 @@ const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
+const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
@@ -563,9 +564,9 @@ func _draw_board() -> void:
 	draw_rect(Rect2(BOARD-Vector2.ONE*10,extent+Vector2.ONE*20),Color("4d5443"),false,3)
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
-		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell)) if selected_item.is_empty() else model.item_targets(selected_item)
+		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
 		if item_origin != Vector2i(-1,-1):
-			legal = model.ray_cells(item_origin,aim)
+			legal = model.directional_preview(selected_item,item_origin,aim)
 	for y in range(model.board_size):
 		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
@@ -578,7 +579,7 @@ func _draw_board() -> void:
 			if (x*3+y)%4==0:
 				draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
 			if legal.has(cell):
-				var color := GOLD if model.enemy_at(cell).is_empty() else Color("ff805a")
+				var color := GOLD if model.enemy_at(cell).is_empty() and model.cannon_at(cell).is_empty() else Color("ff805a")
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.18))
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.7),false,2)
@@ -595,14 +596,27 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),Color("263b3d"))
 			if model.fairies.has(cell):
 				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
+			if model.walls.has(cell):
+				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,0.95)
+				_text(pos+Vector2(44,58),str(model.walls[cell]),20,INK)
+			var cannon: Dictionary = model.cannon_at(cell)
+			if not cannon.is_empty():
+				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy"}[cannon.kind]
+				SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
+				if cannon.dir != Vector2i.ZERO:
+					_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
 			if cell == item_origin:
-				SpiritIcon.paint(self,_center(cell),model.item_definition("magic_bolt").icon,1.1)
+				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
 		var start := _center(item_origin)
 		var end := start+Vector2(aim)*28
 		draw_line(start,end,GOLD,5)
 		var side := Vector2(-aim.y,aim.x)*8
 		draw_colored_polygon(PackedVector2Array([end+Vector2(aim)*8,end-Vector2(aim)*7+side,end-Vector2(aim)*7-side]),GOLD)
+
+func _draw_arrow(tip: Vector2, dir: Vector2, color: Color) -> void:
+	var side := Vector2(-dir.y,dir.x)*6
+	draw_colored_polygon(PackedVector2Array([tip+dir*8,tip-dir*4+side,tip-dir*4-side]),color)
 
 func _draw_mine(pos: Vector2) -> void:
 	draw_circle(pos,12,Color("201710"))
@@ -636,10 +650,12 @@ func _draw_weapons() -> void:
 		_text(pos+Vector2(12,32),weapon.name,23,accent)
 		_text(pos+Vector2(12,66),"装備中" if model.weapon==index else "装備する",19,INK)
 		var offsets := model.weapon_offsets(index)
-		for y in range(3):
-			for x in range(3):
-				var offset := Vector2i(x-1,y-1)
-				var tile := Rect2(pos+Vector2(166+x*24,11+y*24),Vector2(21,21))
+		var count := RangeDiagram.span(offsets)
+		var cell_size := 72.0/count
+		for y in range(count):
+			for x in range(count):
+				var offset := Vector2i(x-count/2,y-count/2)
+				var tile := Rect2(pos+Vector2(166+x*cell_size,11+y*cell_size),Vector2.ONE*(cell_size-3))
 				draw_rect(tile,Color(accent,0.55) if offsets.has(offset) else Color("253a36"))
 				if offset == Vector2i.ZERO:
 					_draw_player_portrait(index,tile.get_center(),28,1)
@@ -685,9 +701,9 @@ func _draw_player_portrait(weapon_index: int, center: Vector2, side: float, faci
 func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, _forward_index: int = 0, portrait_index: int = 2, compact: bool = false) -> void:
 	var count := 3
 	var step := 52 if compact else 64
-	# Cavalry needs a larger preview for its two-tile jumps.
+	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)
-	if enemy.get("type","") == "cavalry":
+	if enemy.get("type","") == "cavalry" or RangeDiagram.span(offsets) == 5:
 		count = 5
 		step = 38
 		self_cell = Vector2i(2,2)
@@ -764,8 +780,8 @@ func _draw_flashes() -> void:
 	for effect in flashes:
 		var pos := _center(effect.cell)
 		var fade: float = effect.life/0.42
-		if effect.kind in ["bolt","warp","summon","ambush"]:
-			var tint := Color("ffbd59") if effect.kind == "bolt" else CYAN if effect.kind == "warp" else Color("aa8cff")
+		if effect.kind in ["bolt","warp","summon","ambush","blast","slash"]:
+			var tint := Color("ffbd59") if effect.kind == "bolt" else CYAN if effect.kind == "warp" else Color("ff73b3") if effect.kind == "blast" else Color("c0f28c") if effect.kind == "slash" else Color("aa8cff")
 			draw_arc(pos,12+(1-fade)*22,0,TAU,24,Color(tint,fade),4,true)
 			continue
 		var row := 1 if effect.kind == "mine" else 3 if effect.kind == "plant" else 0

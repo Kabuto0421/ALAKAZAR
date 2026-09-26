@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/vane_cannon.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/vane_cannon.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "vane_cannon"
+title = "風見砲の妖精"
+description = "槍砲精霊の亜種。設置して\nこのマスを攻撃すると撃つ。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"
+color = Color(0.55, 0.85, 1, 1)
+directional = true
+effect = ExtResource("2")
+icon = ExtResource("3")

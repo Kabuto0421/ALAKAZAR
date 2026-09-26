@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/wall_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/wall_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "wall_fairy"
+title = "壁精霊"
+description = "攻撃範囲の空きマスに配置。\n置いたターンを含め3ターン\n完全な障害物として残る。\n敵も自分も通れない。"
+color = Color(0.62, 0.66, 0.72, 1)
+effect = ExtResource("2")
+icon = ExtResource("3")

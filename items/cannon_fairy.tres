@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/cannon_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/cannon_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "cannon_fairy"
+title = "槍砲精霊"
+description = "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"
+color = Color(1, 0.55, 0.35, 1)
+directional = true
+effect = ExtResource("2")
+icon = ExtResource("3")

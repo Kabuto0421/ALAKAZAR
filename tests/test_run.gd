@@ -24,10 +24,11 @@ func _initialize() -> void:
 	var run := Run.new()
 	run.start(42)
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
-	verify(run.offers.size() == 3 and run.offers[0].value == 2,"Three starting movement patterns")
+	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_single(o.value) and o.value > 1),"Three single-tile starting weapons")
+	var picked: int = run.offers[1].value
 	verify(not run.choose(8) and run.battle.owned_weapons.size()==2,"Invalid draft does not mutate loadout")
 	run.choose(1)
-	verify(run.state==Run.State.START_FAIRY and run.battle.owned_weapons==[0,1,3],"Weapon is selected before fairy draft")
+	verify(run.state==Run.State.START_FAIRY and run.battle.owned_weapons==[0,1,picked],"Weapon is selected before fairy draft")
 	var ids: Array = run.offers.map(func(o: Dictionary): return o.value)
 	verify(ids.size()==3 and ids.has("magic_bolt") and ids.has("stealth_fairy") and ids.has("acorn_fairy"),"Initial fairy pool contains exactly the three requested fairies")
 	run.choose(ids.find("acorn_fairy"))
@@ -39,8 +40,10 @@ func _initialize() -> void:
 	m.player.cell=Vector2i(1,1)
 	verify(m.targets()==[Vector2i(2,1)],"Forward weapon reaches exactly one right tile")
 	verify(m.equip(1) and m.player.ap==2 and m.targets()==[Vector2i(0,1)],"Backward weapon switches for zero AP")
+	m.owned_weapons[2] = 3
 	m.equip(3)
 	verify(m.targets()==[Vector2i(2,0),Vector2i(2,2)],"Forward diagonals are right-up and right-down")
+	m.owned_weapons[2] = picked
 	verify(not m.turn_to(0) and m.facing==1,"Player cannot rotate")
 	m.player.ap=0
 	verify(m.equip(0) and m.player.ap==0,"Switching remains free with no AP")
@@ -53,6 +56,7 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
 	verify(run.offers.size()==4 and run.offers.slice(0,2).all(func(o): return o.kind=="weapon") and run.offers.slice(2).all(func(o): return o.kind=="fairy"),"Rewards always contain two weapons and two fairies")
+	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_single(o.value)),"Early reward weapons are single-tile")
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -160,5 +164,68 @@ func _initialize() -> void:
 				occupied.append(unit.cell)
 			verify(m.player.ap>=0 and m.facing==1,"AP and fixed facing remain valid")
 			verify(m.fairy_charges.all(func(c): return c>=0),"Skill charges never go negative")
+	_new_fairies()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
+
+
+func _new_fairies() -> void:
+	var planner := Planner.new()
+	# Wall spirit: a full obstacle for the placement turn and the next two.
+	var m := fixture()
+	m.fairy_loadout.assign(["wall_fairy","cannon_fairy","slash_fairy"])
+	m.refill_fairies()
+	m.weapon = 0
+	verify(m.use_item("wall_fairy",Vector2i(2,2)) and m.blocked(Vector2i(2,2)),"Wall spirit blocks its tile")
+	verify(not m.player_action(Vector2i(2,2)),"Player cannot walk into a wall")
+	for turn in range(3):
+		verify(m.walls.has(Vector2i(2,2)),"Wall stands on player turn %d" % (turn+1))
+		planner.begin(m)
+		planner.finish(m)
+	verify(not m.walls.has(Vector2i(2,2)),"Wall crumbles before the fourth player turn")
+
+	# Lance cannon fires along its set direction when its tile is attacked.
+	m = fixture()
+	m.fairy_loadout.assign(["cannon_fairy"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,0),0))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(2,4),1))
+	verify(m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP) and m.blocked(Vector2i(2,2)),"Lance cannon occupies its tile")
+	verify(m.player_action(Vector2i(2,2)) and m.player.ap == 0,"Attacking the cannon costs 1 AP")
+	verify(m.enemy_at(Vector2i(2,0)).hp == 1 and not m.enemy_at(Vector2i(2,4)).is_empty(),"Shot hits only its line")
+	verify(not m.cannon_at(Vector2i(2,2)).is_empty(),"Lance cannon stays after firing")
+
+	# Vane cannon rotates clockwise after each shot.
+	m = fixture()
+	m.place_cannon(Vector2i(2,2),Vector2i.UP,"vane")
+	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
+	verify(m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon turns right after firing")
+
+	# Firework bursts on all eight neighbours, vanishes, and sets off cannons it reaches.
+	m = fixture()
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("recruit",Vector2i(1,1),0))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(3,3),1))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,2),2))
+	m.place_cannon(Vector2i(2,2),Vector2i.ZERO,"firework")
+	m.place_cannon(Vector2i(3,2),Vector2i.RIGHT,"lance")
+	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
+	verify(m.enemy_at(Vector2i(1,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Firework hits every neighbour")
+	verify(m.cannon_at(Vector2i(2,2)).is_empty(),"Firework is spent")
+	verify(m.enemy_at(Vector2i(5,2)).hp == 1,"Burst sets off the neighbouring lance cannon")
+
+	# Slash spirit: a three-wide wave, each lane stops at blockers.
+	m = fixture()
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,1),0))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(5,2),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,3),2))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,4),3))
+	m.walls[Vector2i(3,3)] = 2
+	m.slash(Vector2i(2,2),Vector2i.RIGHT)
+	verify(m.enemy_at(Vector2i(4,1)).is_empty() and m.enemy_at(Vector2i(5,2)).is_empty(),"Slash hits the centre and side lanes")
+	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops its lane")
+	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"Slash is only three lanes wide")
+	verify(m.directional_preview("slash_fairy",Vector2i(2,2),Vector2i.RIGHT).size() == 6,"Preview shows the three lanes, cut by the wall")

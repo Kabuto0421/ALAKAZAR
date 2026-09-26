@@ -8,12 +8,21 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
+## 3x3 for adjacent patterns, 5x5 when a pattern reaches two tiles away.
+static func span(pattern: Array) -> int:
+	for offset in pattern:
+		if absi(offset.x) > 1 or absi(offset.y) > 1:
+			return 5
+	return 3
+
 func _draw() -> void:
-	var step := minf(size.x,size.y)/3.0
-	var origin := (size-Vector2.ONE*step*3)/2
-	for y in 3:
-		for x in 3:
-			var offset := Vector2i(x-1,y-1)
+	var count := span(offsets)
+	var half := count/2
+	var step := minf(size.x,size.y)/float(count)
+	var origin := (size-Vector2.ONE*step*count)/2
+	for y in count:
+		for x in count:
+			var offset := Vector2i(x-half,y-half)
 			var rect := Rect2(origin+Vector2(x,y)*step+Vector2.ONE*2,Vector2.ONE*(step-4))
 			var active := offsets.has(offset)
 			draw_rect(rect,Color(accent,0.25) if active else Color("172627"))

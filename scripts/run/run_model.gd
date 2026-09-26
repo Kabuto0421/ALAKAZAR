@@ -11,7 +11,7 @@ var pending: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
-var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy"]
+var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy"]
 
 func start(seed_value: int = -1) -> void:
 	if seed_value < 0:
@@ -27,7 +27,7 @@ func start(seed_value: int = -1) -> void:
 	battle.fairy_charges.clear()
 	battle.inventory.clear()
 	offers.clear()
-	for index in Weapons.START_CHOICES:
+	for index in sample(Weapons.single_pool(), Weapons.START_CHOICE_COUNT):
 		offers.append({"kind":"weapon", "value":index})
 
 func sample(pool: Array, count: int) -> Array:
@@ -78,8 +78,9 @@ func finish_battle() -> bool:
 	state = State.REWARD
 	offers.clear()
 	var weapons: Array = []
+	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	for index in range(Weapons.DATA.size()):
-		if not battle.owned_weapons.has(index):
+		if not battle.owned_weapons.has(index) and (Weapons.is_single(index) or not single_only):
 			weapons.append(index)
 	for index in sample(weapons,2):
 		offers.append({"kind":"weapon","value":index})

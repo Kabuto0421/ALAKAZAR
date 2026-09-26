@@ -96,6 +96,7 @@ func finish(model: RefCounted) -> void:
 			var request: Dictionary = infantry_behavior.finish_request(model, enemy, nearby, infantry.size())
 			for key in request:
 				enemy[key] = request[key]
+		model.tick_walls()
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = 2
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)

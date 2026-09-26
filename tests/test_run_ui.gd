@@ -75,12 +75,14 @@ func run() -> void:
 	for weapon in range(Rules.WEAPONS.size()):
 		view.model.phase=Rules.Phase.PLAYER
 		view.model.player.ap=2
-		view.model.player.cell=Vector2i(1,1)
+		# Two-tile jumps need room on the small board, so stand where the first offset lands inside.
+		var first: Vector2i = view.model.weapon_offsets(weapon)[0]
+		view.model.player.cell=Vector2i(clampi(1,-first.x,view.model.board_size-1-first.x),clampi(1,-first.y,view.model.board_size-1-first.y))
 		view.model.allies.clear()
 		view.model.enemies.clear()
 		view.model.owned_weapons.assign([weapon])
 		view.model.equip(weapon)
-		var target: Vector2i = view.model.player.cell+view.model.weapon_offsets(weapon)[0]
+		var target: Vector2i = view.model.player.cell+first
 		view.model.enemies.append(view.model.make_enemy("heavy",target,0))
 		view.model.enemies.append(view.model.make_enemy("heavy",Vector2i(3,3),1))
 		view._sync_units(false)
