@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "firework_fairy"
 title = "花火妖精"
-description = "花火の砲台を空きマスに設置。\nこのマスを攻撃すると爆発し、\n周囲8マスの敵すべてに1。\n爆発すると消える。"
+description = "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスに1ダメージ。\n敵も味方も自分も巻き込む。"
 color = Color(1, 0.45, 0.7, 1)
 effect = ExtResource("2")
 icon = ExtResource("3")

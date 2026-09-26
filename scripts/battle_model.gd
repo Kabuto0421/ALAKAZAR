@@ -334,7 +334,7 @@ func ally_at(cell: Vector2i) -> Dictionary:
 func summon_acorn(cell: Vector2i) -> void:
 	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":1, "ap":1, "facing":1})
 	next_ally_id -= 1
-	events.append({"kind":"summon", "cell":cell, "id":-2})
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
 func act_allies() -> void:
 	if terminal():
@@ -385,7 +385,7 @@ func act_allies() -> void:
 
 func place_wall(cell: Vector2i) -> void:
 	walls[cell] = WALL_TURNS
-	events.append({"kind":"summon", "cell":cell, "id":-2})
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wall"})
 
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
@@ -403,7 +403,7 @@ func cannon_at(cell: Vector2i) -> Dictionary:
 
 func place_cannon(cell: Vector2i, direction: Vector2i, kind: String) -> void:
 	cannons.append({"cell":cell, "dir":direction, "kind":kind})
-	events.append({"kind":"summon", "cell":cell, "id":-2})
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
 func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
@@ -412,23 +412,34 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	fired.append(cannon.cell)
 	add_log("%sが発射" % CANNON_TITLES[cannon.kind])
 	if cannon.kind == "firework":
+		# The burst does not pick sides: enemies, allies and the player all take 1.
 		cannons.erase(cannon)
+		events.append({"kind":"firework", "cell":cannon.cell, "id":-2})
 		for dy in range(-1, 2):
 			for dx in range(-1, 2):
 				var cell: Vector2i = cannon.cell + Vector2i(dx, dy)
 				if cell == cannon.cell or not inside(cell):
 					continue
-				events.append({"kind":"blast", "cell":cell, "id":-2})
+				events.append({"kind":"blast", "cell":cell, "id":-2, "from":cannon.cell})
 				var enemy := enemy_at(cell)
 				if not enemy.is_empty():
 					damage_enemy(enemy, 1)
+				if cell == player.cell:
+					player.hp -= 1
+					events.append({"kind":"hit", "cell":cell, "id":-1})
+					add_log("花火に巻き込まれた / HP −1")
+				var ally := ally_at(cell)
+				if not ally.is_empty():
+					ally.hp -= 1
+					events.append({"kind":"hit", "cell":cell, "id":ally.id})
 				var other := cannon_at(cell)
 				if not other.is_empty():
 					fire_cannon(other, fired)
 		return
 	var cells := ray_cells(cannon.cell, cannon.dir)
+	events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":cannon.dir})
 	for cell in cells:
-		events.append({"kind":"bolt", "cell":cell, "id":-2})
+		events.append({"kind":"shot", "cell":cell, "id":-2, "dir":cannon.dir})
 		var enemy := enemy_at(cell)
 		if not enemy.is_empty():
 			damage_enemy(enemy, 1)
@@ -464,15 +475,15 @@ func front_slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]
 	return result
 
 func front_slash(origin: Vector2i, direction: Vector2i) -> void:
-	_slash_hit(front_slash_cells(origin, direction))
+	_slash_hit(front_slash_cells(origin, direction), direction)
 
 ## 飛刃精霊 (the slash's class-up): the three-lane wave flies to the edge.
 func slash(origin: Vector2i, direction: Vector2i) -> void:
-	_slash_hit(slash_cells(origin, direction))
+	_slash_hit(slash_cells(origin, direction), direction)
 
-func _slash_hit(cells: Array[Vector2i]) -> void:
+func _slash_hit(cells: Array[Vector2i], direction: Vector2i) -> void:
 	for cell in cells:
-		events.append({"kind":"slash", "cell":cell, "id":-2})
+		events.append({"kind":"slash", "cell":cell, "id":-2, "dir":direction})
 		var enemy := enemy_at(cell)
 		if not enemy.is_empty():
 			damage_enemy(enemy, 1)

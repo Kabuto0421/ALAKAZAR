@@ -222,6 +222,15 @@ func _new_fairies() -> void:
 	verify(m.enemy_at(Vector2i(1,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Firework hits every neighbour")
 	verify(m.cannon_at(Vector2i(2,2)).is_empty(),"Firework is spent")
 	verify(m.enemy_at(Vector2i(5,2)).hp == 1,"Burst sets off the neighbouring lance cannon")
+	# The burst also hits the player and allies standing next to it.
+	m = fixture()
+	m.fairy_loadout.assign(["firework_fairy"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.summon_acorn(Vector2i(2,3))
+	verify(m.use_item("firework_fairy",Vector2i(2,2)),"Firework battery is placed in weapon range")
+	verify(m.player_action(Vector2i(2,2)) and m.player.hp == 4,"Setting it off from the next tile hurts the player")
+	verify(m.allies.is_empty(),"The burst also hits allies")
 
 	# Slash spirit: only the three tiles directly in front.
 	m = fixture()

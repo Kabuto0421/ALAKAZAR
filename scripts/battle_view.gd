@@ -400,7 +400,11 @@ func _sync_units(animate: bool) -> void:
 func _feedback(weapon_attack: bool = false) -> void:
 	for event in model.events:
 		var kind: String = "weapon_hit" if weapon_attack and event.kind == "hit" else event.kind
-		flashes.append({"cell":event.cell,"kind":kind,"life":0.42})
+		var flash: Dictionary = event.duplicate()
+		flash.kind = kind
+		flash.life = FX_LIFE.get(kind,0.42)
+		flash.max_life = flash.life
+		flashes.append(flash)
 		if actors.has(event.id) and event.kind != "plant":
 			actors[event.id].flash = 0.18
 
@@ -782,16 +786,91 @@ func _draw_heart(center: Vector2, size: float, color: Color, filled: bool) -> vo
 func _draw_flashes() -> void:
 	for effect in flashes:
 		var pos := _center(effect.cell)
-		var fade: float = effect.life/0.42
-		if effect.kind in ["bolt","warp","summon","ambush","blast","slash"]:
-			var tint := Color("ffbd59") if effect.kind == "bolt" else CYAN if effect.kind == "warp" else Color("ff73b3") if effect.kind == "blast" else Color("c0f28c") if effect.kind == "slash" else Color("aa8cff")
-			draw_arc(pos,12+(1-fade)*22,0,TAU,24,Color(tint,fade),4,true)
+		var fade: float = effect.life/effect.get("max_life",0.42)
+		if FX_LIFE.has(effect.kind):
+			_draw_fx(effect,pos,fade)
 			continue
 		var row := 1 if effect.kind == "mine" else 3 if effect.kind == "plant" else 0
 		if effect.kind != "weapon_hit":
 			draw_texture_rect_region(EFFECTS,Rect2(pos-Vector2(32,32),Vector2(64,64)),Rect2(16*24,row*24,24,24),Color(1,1,1,fade))
 		if effect.kind != "plant":
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
+
+## Fairy effects: small and quick, except the firework, which is allowed to show off.
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95}
+const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
+
+func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
+	var t := 1.0 - fade
+	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
+	match effect.kind:
+		"bolt":
+			# A warm spark streaking through each tile.
+			draw_line(pos - dir * (18 - t * 30), pos + dir * (t * 30 - 6), Color("ffbd59", fade), 4)
+			draw_circle(pos + dir * (t * 24 - 12), 5 * fade + 1, Color("fff1c4", fade))
+		"shot":
+			draw_line(pos - dir * 30, pos + dir * 30, Color("5a1e0c", fade * 0.6), 11)
+			draw_line(pos - dir * 30, pos + dir * 30, Color("ff8a4a", fade), 7)
+			draw_line(pos - dir * 30, pos + dir * 30, Color("fff1c4", fade), 2)
+		"muzzle":
+			draw_circle(pos + dir * 22, 6 + t * 12, Color("ffb24a", fade * 0.8))
+			for i in range(5):
+				var a := dir.angle() + (i - 2) * 0.45
+				draw_line(pos + dir * 22, pos + dir * 22 + Vector2.from_angle(a) * (8 + t * 16), Color("fff1c4", fade), 2)
+		"slash":
+			# A pale crescent sweeping across the tile.
+			var base := dir.angle() if dir != Vector2.ZERO else 0.0
+			var arc_center := pos - dir * 12 + dir * t * 18
+			draw_arc(arc_center, 24, base - 1.1, base + 1.1, 14, Color("123a2c", fade * 0.7), 8, true)
+			draw_arc(arc_center, 24, base - 1.1, base + 1.1, 14, Color("7fffd0", fade), 5, true)
+			draw_arc(arc_center, 24, base - 0.8, base + 0.8, 12, Color("ffffff", fade), 2, true)
+		"ambush":
+			var r := 10 + t * 8
+			draw_line(pos + Vector2(-r, -r), pos + Vector2(r, r), Color("c7a8ff", fade), 3)
+			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
+		"warp":
+			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"summon":
+			match effect.get("fx", ""):
+				"wall":
+					# Dust puffs settling at the foot of the wall.
+					for i in range(4):
+						var x := -18 + i * 12
+						draw_circle(pos + Vector2(x, 20 - t * 6), 4 + t * 6, Color("b9b39f", fade * 0.6))
+				"acorn":
+					for i in range(3):
+						var leaf := pos + Vector2(-12 + i * 12, 10 - t * 26 - i * 3)
+						draw_circle(leaf, 3, Color("9fd55f", fade))
+				"cannon":
+					for i in range(4):
+						var spark := pos + Vector2.from_angle(i * TAU / 4 + 0.6) * (14 + t * 12)
+						draw_line(spark - Vector2(4, 0), spark + Vector2(4, 0), Color("ffd98a", fade), 2)
+						draw_line(spark - Vector2(0, 4), spark + Vector2(0, 4), Color("ffd98a", fade), 2)
+				"stealth":
+					draw_arc(pos, 16 + t * 8, t * 3, t * 3 + 4.5, 18, Color("aa8cff", fade * 0.8), 3, true)
+				_:
+					draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color("aa8cff", fade), 4, true)
+		"blast":
+			# Sparks flying outward from the firework into each neighbouring tile.
+			var from: Vector2 = _center(effect.get("from", effect.cell))
+			var out := (pos - from).normalized()
+			for i in range(3):
+				var color: Color = FIREWORK_COLORS[(i + effect.cell.x + effect.cell.y) % FIREWORK_COLORS.size()]
+				var spark := from + out * (20 + t * 60) + Vector2(-out.y, out.x) * (i - 1) * 8
+				draw_circle(spark, 3.5 * fade + 1, Color(color, fade))
+			draw_arc(pos, 8 + t * 18, 0, TAU, 16, Color(FIREWORK_COLORS[(effect.cell.x * 2 + effect.cell.y) % FIREWORK_COLORS.size()], fade * 0.8), 3, true)
+		"firework":
+			# A full starburst: coloured rays, a white core and a double ring.
+			draw_circle(pos, 10 + t * 16, Color(1, 1, 0.9, fade * 0.8))
+			for i in range(16):
+				var angle := i * TAU / 16 + t * 0.4
+				var color: Color = FIREWORK_COLORS[i % FIREWORK_COLORS.size()]
+				var inner := pos + Vector2.from_angle(angle) * (8 + t * 40)
+				var outer := pos + Vector2.from_angle(angle) * (18 + t * 90)
+				draw_line(inner, outer, Color(color, fade), 3)
+				draw_circle(outer, 3 * fade + 1, Color(color, fade))
+			draw_arc(pos, 20 + t * 70, 0, TAU, 32, Color("ffd35b", fade * 0.7), 3, true)
+			draw_arc(pos, 12 + t * 45, 0, TAU, 32, Color("ff5b8a", fade * 0.7), 2, true)
 
 func _draw_result() -> void:
 	draw_rect(Rect2(352,144,448,448),Color("0a1415"))
