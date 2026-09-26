@@ -19,16 +19,26 @@ const TYPES = {
 	"miner": {"name": "地雷兵", "hp": 1, "ap": 2},
 	"heavy": {"name": "重装兵", "hp": 2, "ap": 1},
 	"cavalry": {"name": "跳躍騎兵", "hp": 1, "ap": 2},
+	"horse": {"name": "馬", "hp": 2, "ap": 2},
 }
+## Horses move and jump exactly like cavalry, with more HP.
+const JUMPERS = ["cavalry", "horse"]
+const MAX_HP := 5
 const FORMATIONS = [
 	preload("res://scenes/formations/run_01.tscn"),
 	preload("res://scenes/formations/run_02.tscn"),
 	preload("res://scenes/formations/run_03.tscn"),
+	preload("res://scenes/formations/run_boss_01.tscn"),
 ]
+const BOSS_LEVEL := 3
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]
 var fairy_charges: Array[int] = []
+## HP the player starts this fight with; the run carries it between fights.
+var start_hp := MAX_HP
+## Camp forging: weapon index -> extra damage.
+var weapon_power: Dictionary = {}
 var allies: Array[Dictionary] = []
 var next_ally_id := -100
 var phase: Phase = Phase.ENEMY
@@ -54,18 +64,21 @@ var walls: Dictionary = {}
 var cannons: Array[Dictionary] = []
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
-	level = clampi(next_level, 0, 2)
+	level = clampi(next_level, 0, FORMATIONS.size()-1)
 	var layout: Node = FORMATIONS[level].instantiate()
 	board_size = layout.board_size
-	phase = Phase.ENEMY
-	round_number = 0
+	# The player always opens the fight.
+	phase = Phase.PLAYER
+	round_number = 1
 	if not keep_inventory:
 		owned_weapons.assign([0,1,2])
 		fairy_loadout.assign(["magic_bolt"])
+		start_hp = MAX_HP
+		weapon_power.clear()
 	weapon = owned_weapons[0]
 	facing = 1
 	kills = 0
-	player = {"id": -1, "type": "player", "cell": layout.player_start, "hp": 5, "ap": 2}
+	player = {"id": -1, "type": "player", "cell": layout.player_start, "hp": start_hp, "ap": 2}
 	enemies.clear()
 	mines.clear()
 	fairies.clear()
@@ -79,10 +92,10 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
-	add_log("敵から行動。武器はタップで持ち替え・0 AP")
+	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
 func refill_fairies() -> void:
 	inventory.clear()
@@ -102,7 +115,7 @@ func cavalry_jumps(direction: int) -> Array[Vector2i]:
 	return [forward*2+side,forward*2-side]
 
 func enemy_offsets(enemy: Dictionary) -> Array:
-	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type == "cavalry" else CARDINALS
+	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
 func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
 	return false
@@ -285,7 +298,7 @@ func player_action(cell: Vector2i) -> bool:
 	player.ap -= 1
 	var enemy := enemy_at(cell)
 	if not enemy.is_empty():
-		enemy.hp -= 1
+		enemy.hp -= weapon_damage(weapon)
 		events.append({"kind": "hit", "cell": cell, "id": enemy.id})
 		add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[enemy.type].name])
 		if enemy.hp <= 0:
@@ -296,6 +309,9 @@ func player_action(cell: Vector2i) -> bool:
 		trigger_mine(player)
 	check_outcome()
 	return true
+
+func weapon_damage(index: int) -> int:
+	return 1 + int(weapon_power.get(index, 0))
 
 func trigger_mine(unit: Dictionary) -> void:
 	if unit.type == "miner" or not mines.has(unit.cell):

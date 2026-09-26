@@ -35,7 +35,10 @@ func _initialize() -> void:
 	run.choose(ids.find("acorn_fairy"))
 	verify(run.state==Run.State.BATTLE and run.battle.fairy_loadout==["acorn_fairy"],"Fairy selection starts combat")
 	verify(run.battle.board_size==4 and run.battle.player.cell.x==0 and run.battle.facing==1,"First encounter starts on left, facing right")
-	verify(run.battle.enemies.size()==4 and run.battle.enemies.all(func(e): return e.type=="recruit" and e.hp==1 and e.ap==1 and e.cell.x>=2 and e.facing==3),"Four 1HP/1AP infantry start on the right facing left")
+	verify(run.battle.phase==Rules.Phase.PLAYER and run.battle.player.ap==2 and run.battle.round_number==1,"The player moves first")
+	var first_types: Array = run.battle.enemies.map(func(e): return e.type)
+	verify(first_types.has("infantry") and first_types.has("heavy") and first_types.has("cavalry"),"First fight mixes AP2 infantry, a heavy and a cavalry")
+	verify(run.battle.enemies.all(func(e): return e.cell.x>=2 and e.facing==3 and Rules.TYPES[e.type].ap==e.ap),"Enemies start on the right facing left with their full AP")
 	var m := run.battle
 	m.phase=Rules.Phase.PLAYER
 	m.player.cell=Vector2i(1,1)
@@ -68,21 +71,52 @@ func _initialize() -> void:
 	verify(not run.replace(-1),"Invalid replacement is rejected")
 	run.replace(2)
 	verify(run.state==Run.State.BATTLE and m.owned_weapons.size()==3 and m.owned_weapons[2]==new_weapon,"Replacement keeps exactly three weapons and advances")
-	verify(m.board_size==5 and m.enemies.size()==4,"Second encounter uses a 5x5 board")
-	for e in m.enemies:
-		verify(e.type==("recruit" if (e.cell.x+e.cell.y)%2==0 else "heavy"),"Second encounter has a checkerboard formation")
+	verify(m.board_size==5 and m.enemies.size()==5,"Second encounter uses a 5x5 board")
+	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Second encounter adds a miner and a cavalry")
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
 	run.choose(2)
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
-	verify(m.enemies.size()==7 and m.enemies.filter(func(e): return e.type=="miner").size()==1,"Third encounter preserves the previous second encounter roster")
+	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Rotated third-stage placements stay valid")
+	m.player.hp = 2
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
+	verify(m.start_hp == 2,"HP carries over after a win")
 	run.skip_reward()
-	verify(run.state==Run.State.FINISHED,"Final reward leads to completion, not a fourth encounter")
+	verify(run.state==Run.State.CAMP,"The third fight's reward leads to the camp")
+	verify(run.camp_forge() and run.state==Run.State.CAMP_FORGE and run.offers.size()==3,"Forging lists the owned weapons")
+	run.camp_back()
+	verify(run.state==Run.State.CAMP,"Forging can be cancelled")
+	verify(run.camp_rest() and m.start_hp == 4,"Resting heals 2")
+	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS_LEVEL and m.board_size==7,"The boss fight follows the camp on a 7x7 board")
+	verify(m.player.hp == 4,"The boss fight starts with the carried HP")
+	verify(m.enemies.size()==3 and m.enemies.all(func(e): return e.type=="horse" and e.hp==2 and e.ap==2),"Three 2HP horses")
+	verify(m.enemy_offsets(m.enemies[0]).size()==6,"Horses jump like cavalry")
+	m.enemies.clear()
+	m.check_outcome()
+	verify(run.finish_battle() and run.state==Run.State.FINISHED,"Beating the boss completes the expedition")
+
+	# Forging adds 1 damage to the chosen weapon.
+	run = Run.new()
+	run.start(3)
+	run.choose(0)
+	run.choose(0)
+	run.stage = Run.LAST_NORMAL_STAGE
+	run.state = Run.State.CAMP
+	run.camp_forge()
+	var forged: int = run.battle.owned_weapons[0]
+	verify(run.camp_forge_weapon(0) and run.battle.weapon_power[forged]==1,"Forging raises the chosen weapon's power")
+	m = run.battle
+	m.equip(forged)
+	m.enemies.clear()
+	var target: Vector2i = m.player.cell + m.weapon_offsets(forged)[0]
+	var tough: Dictionary = m.make_enemy("heavy",target,0)
+	m.enemies.append(tough)
+	m.enemies.append(m.make_enemy("heavy",Vector2i(6,6),1))
+	verify(m.player_action(target) and tough.hp<=0,"A forged weapon deals 2 damage")
 
 	m=fixture()
 	m.fairy_loadout.assign(["acorn_fairy","magic_bolt","stealth_fairy"])

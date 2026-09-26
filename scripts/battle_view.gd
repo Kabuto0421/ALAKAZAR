@@ -20,6 +20,8 @@ const HP_FULL = preload("res://assets/sprites/editor_ui/part_capacity_unit_fille
 const GADGET = preload("res://assets/sprites/editor_ui/part_gadget_editor_icon.png")
 const EFFECTS = preload("res://assets/sprites/effects/element_connection_atlas_24.png")
 var BOARD := Vector2(384,176)
+## Largest board the grid buttons cover (the boss stage is 7x7).
+const MAX_BOARD := 7
 const TILE = 64
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
@@ -89,8 +91,8 @@ func _make_ui() -> void:
 			if slot < model.owned_weapons.size():
 				_equip(model.owned_weapons[slot]))
 		weapon_buttons.append(button)
-	for y in range(6):
-		for x in range(6):
+	for y in range(MAX_BOARD):
+		for x in range(MAX_BOARD):
 			var cell := Vector2i(x,y)
 			var tile_button := _button(ui,Rect2(BOARD+Vector2(cell)*TILE,Vector2(TILE,TILE)),"",func(): _act(cell))
 			grid_buttons.append(tile_button)
@@ -162,7 +164,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	model.reset(level,keep_inventory)
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
 	for i in range(grid_buttons.size()):
-		var cell := Vector2i(i%6,i/6)
+		var cell := Vector2i(i%MAX_BOARD,i/MAX_BOARD)
 		grid_buttons[i].position = BOARD+Vector2(cell)*TILE
 		grid_buttons[i].visible = model.inside(cell)
 	selected_item = ""
@@ -174,13 +176,14 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	show_rules = false
 	selected_enemy_id = -2
 	_sync_units(false)
-	_enemy_turn()
+	_update_controls()
+	queue_redraw()
 
 func _advance() -> void:
 	if managed_run:
 		finished.emit()
 	else:
-		_start(model.level+1 if model.level < 2 else 0,true)
+		_start(model.level+1 if model.level < Rules.BOSS_LEVEL else 0,true)
 
 func _equip(index: int) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
@@ -546,7 +549,7 @@ func _draw() -> void:
 	for y in range(0,720,24):
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
-	_text(Vector2(44,62),"戦闘 %d / 3" % (model.level+1),25,CYAN)
+	_text(Vector2(44,62),"ボス戦" if model.level == Rules.BOSS_LEVEL else "戦闘 %d / 3" % (model.level+1),25,Color("ff8b8f") if model.level == Rules.BOSS_LEVEL else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
@@ -644,8 +647,10 @@ func _draw_player_panel() -> void:
 	_text(Vector2(40,204),"右向き固定  →",22,CYAN)
 
 func _draw_weapons() -> void:
-	_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
-	_text(Vector2(555,605),"タップで装備・0 AP",20,MUTED)
+	# The 7x7 boss board reaches down to this line, so the header gives way to it.
+	if model.board_size < MAX_BOARD:
+		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
+		_text(Vector2(555,605),"タップで装備・0 AP",20,MUTED)
 	for slot in range(model.owned_weapons.size()):
 		var index: int = model.owned_weapons[slot]
 		var weapon: Dictionary = Rules.WEAPONS[index]
@@ -655,7 +660,8 @@ func _draw_weapons() -> void:
 		draw_rect(rect,Color("152d2a") if model.weapon==index else Color("0b1415"))
 		draw_rect(rect,accent if model.weapon==index else Color("324843"),false,3 if model.weapon==index else 2)
 		_text(pos+Vector2(12,32),weapon.name,23,accent)
-		_text(pos+Vector2(12,66),"装備中" if model.weapon==index else "装備する",19,INK)
+		var power_text := "  攻撃%d" % model.weapon_damage(index) if model.weapon_damage(index) > 1 else ""
+		_text(pos+Vector2(12,66),("装備中" if model.weapon==index else "装備する")+power_text,19,INK)
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
 		var cell_size := 72.0/count
@@ -710,7 +716,7 @@ func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_i
 	var step := 52 if compact else 64
 	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)
-	if enemy.get("type","") == "cavalry" or RangeDiagram.span(offsets) == 5:
+	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets) == 5:
 		count = 5
 		step = 38
 		self_cell = Vector2i(2,2)
@@ -737,7 +743,7 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 	draw_set_transform(center,0,Vector2.ONE*factor)
 	if enemy.type == "miner":
 		actor._draw_drone(Color.WHITE,self)
-	elif enemy.type == "cavalry":
+	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
 	else:
 		draw_texture_rect_region(UnitView.ENEMY_ATLAS,Rect2(-28,-28,56,56),Rect2(56,0,28,28))
@@ -757,7 +763,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		draw_rect(Rect2(1029+i*36,153,28,23),GOLD)
 	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
 	_draw_range(model.enemy_offsets(enemy),CYAN,enemy)
-	var intent := "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type == "cavalry" else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
+	var intent := "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state=="charge" else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
@@ -877,7 +883,7 @@ func _draw_result() -> void:
 	_panel(Rect2(368,226,416,282))
 	var won: bool = model.phase == Rules.Phase.WON
 	_text(Vector2(414,278),"SECTOR CLEAR" if won else "EXPEDITION FAILED",36,CYAN if won else Color("ff8968"),LATIN)
-	_text(Vector2(421,326),"全3戦クリア！" if won and model.level==2 else "包囲網を突破した" if won else "探索者、倒れる",26)
+	_text(Vector2(421,326),"ボス撃破！" if won and model.level==Rules.BOSS_LEVEL else "包囲網を突破した" if won else "探索者、倒れる",26)
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
 	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
 

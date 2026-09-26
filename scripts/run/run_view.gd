@@ -47,7 +47,9 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,24),"ALAKAZAR",32,CYAN).add_theme_font_override("font",LATIN)
-	_label(Vector2(795,35),"4 × 4  →  5 × 5  →  6 × 6",20,Color("9aafa9"))
+	_label(Vector2(560,35),"4×4 → 5×5 → 6×6 → キャンプ → ボス 7×7",20,Color("9aafa9"))
+	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
+		_label(Vector2(960,85),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	match run.state:
 		Run.State.START_WEAPON:
 			_label(Vector2(44,85),"最初の武器を選ぶ",36,INK)
@@ -62,7 +64,7 @@ func _render() -> void:
 			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_restart)
 		Run.State.REWARD:
 			_label(Vector2(44,85),"戦闘 %d クリア — 報酬を1つ選ぶ" % (run.stage+1),32,INK)
-			_label(Vector2(44,137),"妖精の使用回数が回復。武器2候補・妖精2候補。",22,Color("9aafa9"))
+			_label(Vector2(44,137),"妖精の使用回数が回復（HPは持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
 			_cards(run.offers)
 			_loadout()
 			_button(Vector2(895,670),Vector2(214,36),"今の構成で進む",_skip)
@@ -79,10 +81,25 @@ func _render() -> void:
 					owned.append({"kind":"fairy","value":id})
 			_cards(owned,true)
 			_button(Vector2(44,665),Vector2(230,40),"← 報酬へ戻る",_cancel)
+		Run.State.CAMP:
+			_label(Vector2(44,85),"キャンプ — ひとつだけ選ぶ",36,INK)
+			_label(Vector2(44,137),"この先はボス：馬3体（7×7）",22,Color("ff987f"))
+			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
+			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1",Color("ffd35b"),_forge,true)
+			_camp_option(2,"妖精のクラスアップ","準備中",Color("9aafa9"),func(): pass,false)
+			_loadout()
+		Run.State.CAMP_FORGE:
+			_label(Vector2(44,85),"鍛える武器を選ぶ",36,INK)
+			_label(Vector2(44,137),"選んだ武器の攻撃力が +1 される",22,Color("9aafa9"))
+			var owned_weapons: Array[Dictionary] = []
+			for index in run.battle.owned_weapons:
+				owned_weapons.append({"kind":"weapon","value":index})
+			_cards(owned_weapons,false,true)
+			_button(Vector2(44,665),Vector2(230,40),"← キャンプへ戻る",_camp_back)
 		Run.State.FINISHED, Run.State.LOST:
 			var won: bool = run.state == Run.State.FINISHED
-			_label(Vector2(260,170),"全3戦クリア！" if won else "探索終了",52,CYAN if won else Color("ff987f"))
-			_label(Vector2(260,249),"完成した構成で包囲網を突破した" if won else "別の武器と妖精でもう一度",25,INK)
+			_label(Vector2(260,170),"遠征達成！" if won else "探索終了",52,CYAN if won else Color("ff987f"))
+			_label(Vector2(260,249),"馬の群れを退け、遠征を踏破した" if won else "別の武器と妖精でもう一度",25,INK)
 			var owned: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned.append({"kind":"weapon","value":index})
@@ -91,7 +108,7 @@ func _render() -> void:
 				_label(Vector2(260,320+slot*42),weapon.name+"  /  "+weapon.detail,23,Color(weapon.color))
 			_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →",_restart)
 
-func _cards(offers: Array, replacing: bool = false) -> void:
+func _cards(offers: Array, replacing: bool = false, forging: bool = false) -> void:
 	var gap := 20.0
 	var width := (1064-gap*(offers.size()-1))/offers.size()
 	for index in offers.size():
@@ -100,8 +117,12 @@ func _cards(offers: Array, replacing: bool = false) -> void:
 		card.size = Vector2(width,440)
 		card.offer = offers[index]
 		card.model = run.battle
-		card.action_text = "これと交換" if replacing else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
-		if replacing:
+		card.action_text = "これと交換" if replacing else "鍛える" if forging else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
+		if forging:
+			card.pressed.connect(func():
+				if run.camp_forge_weapon(index):
+					_render())
+		elif replacing:
 			card.pressed.connect(func():
 				if run.replace(index):
 					_render())
@@ -148,6 +169,37 @@ func _restart() -> void:
 
 func _skip() -> void:
 	run.skip_reward()
+	_render()
+
+func _camp_option(index: int, title: String, detail: String, accent: Color, callback: Callable, enabled: bool) -> void:
+	var button := Button.new()
+	button.position = Vector2(44+index*362,197)
+	button.size = Vector2(340,380)
+	button.focus_mode = Control.FOCUS_NONE
+	button.disabled = not enabled
+	for state in ["normal","hover","pressed","disabled"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("172b2b") if state in ["hover","pressed"] else Color("0c181b")
+		style.border_color = accent if state != "disabled" else Color("40514f")
+		style.set_border_width_all(3 if state in ["hover","pressed"] else 1)
+		style.set_corner_radius_all(8)
+		button.add_theme_stylebox_override(state,style)
+	button.pressed.connect(callback)
+	screen.add_child(button)
+	_label(button.position+Vector2(20,24),title,30,accent if enabled else Color("5b6e6a"))
+	_label(button.position+Vector2(20,110),detail,24,INK if enabled else Color("5b6e6a"))
+	_label(button.position+Vector2(20,318),"選ぶ  →" if enabled else "—",23,accent if enabled else Color("5b6e6a"))
+
+func _rest() -> void:
+	if run.camp_rest():
+		_render()
+
+func _forge() -> void:
+	if run.camp_forge():
+		_render()
+
+func _camp_back() -> void:
+	run.camp_back()
 	_render()
 
 func _cancel() -> void:

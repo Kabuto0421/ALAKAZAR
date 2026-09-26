@@ -2,7 +2,10 @@ extends RefCounted
 
 const Battle = preload("res://scripts/battle_model.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
-enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, FINISHED, LOST }
+enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, FINISHED, LOST }
+## Normal fights before the camp; the boss follows the camp.
+const LAST_NORMAL_STAGE := 2
+const CAMP_HEAL := 2
 var state: State = State.START_WEAPON
 var battle := Battle.new()
 var stage := 0
@@ -74,7 +77,12 @@ func finish_battle() -> bool:
 	if battle.phase == Battle.Phase.LOST:
 		state = State.LOST
 		return true
+	# HP carries over to the next fight.
+	battle.start_hp = battle.player.hp
 	battle.refill_fairies()
+	if stage == Battle.BOSS_LEVEL:
+		state = State.FINISHED
+		return true
 	state = State.REWARD
 	offers.clear()
 	var weapons: Array = []
@@ -119,8 +127,44 @@ func skip_reward() -> void:
 
 func advance() -> void:
 	battle.refill_fairies()
-	if stage == 2:
-		state = State.FINISHED
+	if stage == LAST_NORMAL_STAGE:
+		state = State.CAMP
 	else:
 		stage += 1
 		start_battle()
+
+# --- camp -----------------------------------------------------------------
+
+func camp_rest() -> bool:
+	if state != State.CAMP:
+		return false
+	battle.start_hp = mini(Battle.MAX_HP, battle.start_hp + CAMP_HEAL)
+	_leave_camp()
+	return true
+
+func camp_forge() -> bool:
+	if state != State.CAMP:
+		return false
+	state = State.CAMP_FORGE
+	offers.clear()
+	for index in battle.owned_weapons:
+		offers.append({"kind":"weapon", "value":index})
+	return true
+
+func camp_forge_weapon(slot: int) -> bool:
+	if state != State.CAMP_FORGE or slot < 0 or slot >= battle.owned_weapons.size():
+		return false
+	var index: int = battle.owned_weapons[slot]
+	battle.weapon_power[index] = int(battle.weapon_power.get(index, 0)) + 1
+	_leave_camp()
+	return true
+
+func camp_back() -> void:
+	if state == State.CAMP_FORGE:
+		state = State.CAMP
+		offers.clear()
+
+func _leave_camp() -> void:
+	offers.clear()
+	stage = Battle.BOSS_LEVEL
+	start_battle()

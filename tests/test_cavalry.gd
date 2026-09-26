@@ -4,6 +4,7 @@ const Planner = preload("res://scripts/enemy_planner.gd")
 func _initialize() -> void:
 	var model = Rules.new()
 	model.reset(2)
+	model.phase = Rules.Phase.ENEMY
 	model.enemies.clear()
 	var enemy = model.make_enemy("cavalry",Vector2i(5,2),0)
 	model.enemies.append(enemy)

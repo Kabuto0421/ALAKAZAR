@@ -39,7 +39,8 @@ func _ready() -> void:
 		diagram.accent = accent
 		add_child(diagram)
 		_label(Vector2(16,263),description,19,Color("e5dfc5"))
-		_label(Vector2(16,298),"移動・攻撃 1 AP",18,Color("92b3ae"))
+		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
+		_label(Vector2(16,298),"移動・攻撃 1 AP  /  攻撃 %d" % damage,18,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

@@ -35,7 +35,7 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "移動・設置"
 		elif enemy.type == "heavy":
 			enemy.intent = "前進"
-		elif enemy.type == "cavalry":
+		elif enemy.type in Rules.JUMPERS:
 			enemy.intent = "跳躍接近"
 		elif enemy.state == Infantry.CHARGE:
 			enemy.intent = "突撃"
@@ -75,7 +75,7 @@ func beat(model: RefCounted, index: int) -> void:
 				model.enemy_step(enemy, action.cell)
 			else:
 				enemy.ap = 0
-		elif enemy.type == "cavalry":
+		elif enemy.type in Rules.JUMPERS:
 			_cavalry_action(model, enemy)
 		elif enemy.type == "heavy":
 			var action: Dictionary = heavy_behavior.decide(model,enemy)

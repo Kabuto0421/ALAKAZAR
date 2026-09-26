@@ -8,22 +8,17 @@ script = ExtResource("1")
 board_size = 4
 player_start = Vector2i(0, 2)
 
-[node name="Enemy1" type="Node2D" parent="."]
-position = Vector2(224, 32)
-script = ExtResource("2")
-enemy_kind = 4
-
-[node name="Enemy2" type="Node2D" parent="."]
+[node name="Enemy1_heavy" type="Node2D" parent="."]
 position = Vector2(160, 96)
 script = ExtResource("2")
-enemy_kind = 4
+enemy_kind = 2
 
-[node name="Enemy3" type="Node2D" parent="."]
-position = Vector2(224, 160)
+[node name="Enemy2_infantry" type="Node2D" parent="."]
+position = Vector2(224, 96)
 script = ExtResource("2")
-enemy_kind = 4
+enemy_kind = 0
 
-[node name="Enemy4" type="Node2D" parent="."]
-position = Vector2(160, 224)
+[node name="Enemy3_cavalry" type="Node2D" parent="."]
+position = Vector2(224, 224)
 script = ExtResource("2")
-enemy_kind = 4
+enemy_kind = 3

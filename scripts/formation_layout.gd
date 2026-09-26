@@ -3,7 +3,7 @@ extends Node2D
 
 const CELL := 64.0
 const SIZE := 6
-@export_range(4, 6) var board_size: int = 6:
+@export_range(4, 7) var board_size: int = 6:
 	set(value):
 		board_size = value
 		queue_redraw()

@@ -84,7 +84,7 @@ func _draw() -> void:
 		draw_texture_rect(ACORN,Rect2(-30,-35,60,60),false,tint)
 	elif kind == "miner":
 		_draw_drone(tint)
-	elif kind == "cavalry":
+	elif kind in ["cavalry","horse"]:
 		_draw_cavalry(tint)
 	else:
 		var side := 64.0 if kind == "heavy" else 56.0
@@ -97,7 +97,7 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 2 if kind == "heavy" else 1
+	var max_hp := 5 if kind == "player" else 2 if kind in ["heavy","horse"] else 1
 	var total := max_hp*11.0-1.0
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,29),11.0,Color("ff5b62"),i < hp)
