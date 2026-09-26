@@ -35,7 +35,7 @@ func start(seed_value: int = -1) -> void:
 	offers.clear()
 	start_weapon_offers.clear()
 	start_fairy_offers.clear()
-	for index in sample(Weapons.single_pool(), Weapons.START_CHOICE_COUNT):
+	for index in sample(Weapons.opening_pool(), Weapons.START_CHOICE_COUNT):
 		start_weapon_offers.append({"kind":"weapon", "value":index})
 	for id in sample(starting_fairy_pool,3):
 		start_fairy_offers.append({"kind":"fairy","value":id})

@@ -51,6 +51,15 @@ static func single_pool() -> Array:
 			result.append(index)
 	return result
 
+## Reaches both upward and downward tiles, so the player can never get stuck at an edge.
+static func goes_up_and_down(index: int) -> bool:
+	var offsets: Array = DATA[index].offsets
+	return offsets.any(func(o: Vector2i) -> bool: return o.y < 0) and offsets.any(func(o: Vector2i) -> bool: return o.y > 0)
+
+## Opening pick: early weapons that go both up and down.
+static func opening_pool() -> Array:
+	return single_pool().filter(func(index: int) -> bool: return goes_up_and_down(index))
+
 static func offsets(index: int) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if index >= 0 and index < DATA.size():

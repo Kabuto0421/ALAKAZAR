@@ -26,7 +26,7 @@ func _initialize() -> void:
 	var run := Run.new()
 	run.start(42)
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
-	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and o.value > 1),"Three early (single-tile or jump pair) starting weapons")
+	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and Run.Weapons.goes_up_and_down(o.value)),"Three early starting weapons that all go both up and down")
 	var rolled: Array = run.offers.map(func(o): return o.value)
 	run.choose(0)
 	run.back_to_weapon()
