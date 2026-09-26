@@ -37,6 +37,10 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "前進"
 		elif enemy.type in Rules.JUMPERS:
 			enemy.intent = "跳躍接近"
+		elif enemy.type == "javelin":
+			enemy.intent = "接近・投擲"
+		elif enemy.type == "archer":
+			enemy.intent = "射撃" if enemy.state == "aim" else "照準合わせ"
 		elif enemy.state == Infantry.CHARGE:
 			enemy.intent = "突撃"
 
@@ -51,6 +55,12 @@ func beat(model: RefCounted, index: int) -> void:
 		if model.terminal():
 			break
 		if enemy.hp <= 0 or enemy.ap <= 0:
+			continue
+		if enemy.type == "javelin":
+			_javelin_action(model, enemy)
+			continue
+		if enemy.type == "archer":
+			_archer_action(model, enemy)
 			continue
 		var adjacent_ally := false
 		for offset in model.enemy_offsets(enemy):
@@ -156,3 +166,41 @@ func _miner_action(model: RefCounted, enemy: Dictionary, index: int) -> void:
 
 func _miner_score(model: RefCounted, cell: Vector2i) -> float:
 	return absf(model.distance(cell,model.player.cell)-3)*3.0 + (5.0 if model.mines.has(cell) else 0.0) - cell.y*0.1
+
+## Throw if the player stands in the javelin row; otherwise walk (4 ways) to a tile that can.
+func _javelin_action(model: RefCounted, enemy: Dictionary) -> void:
+	if model.javelin_throw(enemy):
+		return
+	var spots: Array[Vector2i] = []
+	for offset in model.enemy_attack_offsets(enemy):
+		var spot: Vector2i = model.player.cell - offset
+		if model.inside(spot) and not model.blocked(spot) and spot != model.player.cell and (model.enemy_at(spot).is_empty() or model.enemy_at(spot).id == enemy.id):
+			spots.append(spot)
+	if spots.is_empty():
+		spots.append(model.player.cell)
+	var score := func(cell: Vector2i) -> int:
+		var best := 999
+		for spot in spots:
+			best = mini(best, model.distance(cell, spot))
+		return best
+	var options := _options(model, enemy).filter(func(cell: Vector2i) -> bool: return not model.mines.has(cell))
+	options.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return score.call(a) < score.call(b))
+	if not options.is_empty() and score.call(options[0]) < score.call(enemy.cell):
+		model.enemy_step(enemy, options[0])
+	else:
+		enemy.ap = 0
+
+## Aim (1 AP) when the player is on the lane, shoot with the next AP, otherwise line up vertically.
+func _archer_action(model: RefCounted, enemy: Dictionary) -> void:
+	if enemy.state == "aim":
+		model.archer_shoot(enemy)
+		return
+	if model.archer_lane(enemy).has(model.player.cell):
+		model.archer_aim(enemy)
+		return
+	var dy := signi(model.player.cell.y - enemy.cell.y)
+	var cell: Vector2i = enemy.cell + Vector2i(0, dy)
+	if dy != 0 and model.inside(cell) and not model.blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell and not model.mines.has(cell):
+		model.enemy_step(enemy, cell)
+	else:
+		enemy.ap = 0

@@ -81,6 +81,7 @@ func _initialize() -> void:
 	verify(run.state==Run.State.BATTLE and m.owned_weapons.size()==3 and m.owned_weapons[2]==new_weapon,"Replacement keeps exactly three weapons and advances")
 	verify(m.board_size==5 and m.enemies.size()==5,"Second encounter uses a 5x5 board")
 	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").is_empty(),"Second encounter adds a miner but still no cavalry")
+	verify(m.enemies.filter(func(e): return e.type=="javelin").size()==1,"Second encounter has a javelin thrower")
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
@@ -88,6 +89,7 @@ func _initialize() -> void:
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
 	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
 	verify(m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Cavalry first appears in the third fight")
+	verify(m.enemies.filter(func(e): return e.type=="archer").size()==1,"Third encounter has an archer")
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Rotated third-stage placements stay valid")
 	m.player.hp = 2
 	m.enemies.clear()
@@ -210,6 +212,7 @@ func _initialize() -> void:
 			verify(m.fairy_charges.all(func(c): return c>=0),"Skill charges never go negative")
 	_new_fairies()
 	_threats_and_weapons()
+	_ranged_soldiers()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -330,3 +333,72 @@ func _threats_and_weapons() -> void:
 			jump_pairs += 1
 			verify(W.is_jump(index),"Only jump weapons get two early tiles")
 	verify(jump_pairs == 6,"Six two-tile jump weapons are in the early pool")
+
+func _enemy_turn(m: RefCounted) -> void:
+	var planner := Planner.new()
+	planner.begin(m)
+	for beat in range(2):
+		planner.beat(m,beat)
+	planner.finish(m)
+
+func _ranged_soldiers() -> void:
+	# Javelin: hits the three tiles one square beyond its front, never melee.
+	var m := fixture()
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("javelin",Vector2i(3,1),0))
+	var row: Array = m.javelin_cells(m.enemies[0])
+	row.sort()
+	verify(row == [Vector2i(1,0),Vector2i(1,1),Vector2i(1,2)],"Javelin row is one square beyond the front, three wide")
+	verify(ThreatPreview.attackers(m).has(0),"A javelin thrower in range gets the ! mark")
+	_enemy_turn(m)
+	verify(m.player.hp == 4 and m.enemies[0].cell == Vector2i(3,1),"Javelin throws from its tile, once per turn")
+	m = fixture()
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("javelin",Vector2i(5,4),0))
+	_enemy_turn(m)
+	verify(m.enemies[0].cell == Vector2i(4,3) and m.player.hp == 5,"Javelin walks four ways toward a throwing spot")
+	m = fixture()
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("javelin",Vector2i(2,2),0))
+	_enemy_turn(m)
+	verify(m.enemies[0].cell.x == 3 and m.player.hp == 4,"An adjacent javelin backs off and throws instead of stabbing")
+
+	# Archer: up/down only, aims with 1 AP when the player is on its lane, shoots next turn.
+	m = fixture()
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("archer",Vector2i(5,0),0))
+	verify(m.enemy_offsets(m.enemies[0]) == [Vector2i.UP,Vector2i.DOWN],"Archer moves only up and down")
+	_enemy_turn(m)
+	verify(m.enemies[0].cell == Vector2i(5,1) and m.enemies[0].state != "aim","Archer steps toward the player's row")
+	_enemy_turn(m)
+	verify(m.enemies[0].cell == Vector2i(5,2) and m.enemies[0].state != "aim","One AP: moving uses the whole turn")
+	_enemy_turn(m)
+	verify(m.enemies[0].state == "aim" and m.player.hp == 5,"On the lane the archer spends its AP aiming")
+	verify(m.archer_lane(m.enemies[0]) == [Vector2i(4,2),Vector2i(3,2),Vector2i(2,2),Vector2i(1,2),Vector2i(0,2)],"The danger lane runs left like a lance")
+	verify(ThreatPreview.attackers(m).has(0),"An aimed archer marks the player with !")
+	m.enemies.append(m.make_enemy("heavy",Vector2i(3,2),1))
+	_enemy_turn(m)
+	verify(m.player.hp == 5 and m.enemies[1].hp == 1 and m.enemies[0].state != "aim","The arrow hits the first unit, even another enemy")
+	m.enemies.remove_at(1)
+	m.enemies[0].state = "aim"
+	m.walls[Vector2i(3,2)] = 3
+	verify(m.archer_lane(m.enemies[0]) == [Vector2i(4,2)],"Walls stop the arrow lane")
+	_enemy_turn(m)
+	verify(m.player.hp == 5,"A wall shields the player")
+	m.walls.clear()
+	m.enemies[0].state = "aim"
+	_enemy_turn(m)
+	verify(m.player.hp == 4,"An unobstructed arrow hits the player")
+	m.player.cell = Vector2i(1,3)
+	m.enemies[0].state = "aim"
+	m.summon_acorn(Vector2i(2,2))
+	m.allies[0].ap = 0
+	var acorns: int = m.allies.size()
+	m.phase = Rules.Phase.ENEMY
+	m.enemies[0].ap = 1
+	m.archer_shoot(m.enemies[0])
+	verify(m.allies.size() == acorns-1,"Arrows hit the player's allies too")

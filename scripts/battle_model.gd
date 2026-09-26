@@ -20,7 +20,11 @@ const TYPES = {
 	"heavy": {"name": "重装兵", "hp": 2, "ap": 1},
 	"cavalry": {"name": "跳躍騎兵", "hp": 1, "ap": 2},
 	"horse": {"name": "馬", "hp": 2, "ap": 2},
+	"javelin": {"name": "投げ槍兵", "hp": 1, "ap": 2},
+	"archer": {"name": "弓兵", "hp": 1, "ap": 1},
 }
+## Ranged soldiers never melee; they attack from their own tile.
+const RANGED = ["javelin", "archer"]
 ## Horses move and jump exactly like cavalry, with more HP.
 const JUMPERS = ["cavalry", "horse"]
 const MAX_HP := 5
@@ -92,7 +96,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -124,7 +128,96 @@ func cavalry_jumps(direction: int) -> Array[Vector2i]:
 	return [forward*2+side,forward*2-side]
 
 func enemy_offsets(enemy: Dictionary) -> Array:
+	if enemy.type == "archer":
+		return [Vector2i.UP, Vector2i.DOWN]
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
+
+## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
+func enemy_attack_offsets(enemy: Dictionary) -> Array:
+	var forward: Vector2i = CARDINALS[enemy.get("facing",3)]
+	var side := Vector2i(-forward.y,forward.x)
+	if enemy.type == "javelin":
+		return [forward*2-side, forward*2, forward*2+side]
+	if enemy.type == "archer":
+		return [forward, forward*2]
+	return []
+
+## Javelin: the row of three tiles one square beyond the tile in front.
+func javelin_cells(enemy: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in enemy_attack_offsets(enemy):
+		if inside(enemy.cell+offset):
+			result.append(enemy.cell+offset)
+	return result
+
+func arrow_stopped(cell: Vector2i) -> bool:
+	return obstacles.has(cell) or walls.has(cell) or not cannon_at(cell).is_empty()
+
+## Archer: straight line ahead (like a lance) until terrain stops it.
+func archer_lane(enemy: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var forward: Vector2i = CARDINALS[enemy.get("facing",3)]
+	var cell: Vector2i = enemy.cell + forward
+	while inside(cell) and not arrow_stopped(cell):
+		result.append(cell)
+		cell += forward
+	return result
+
+func javelin_throw(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not javelin_cells(enemy).has(player.cell):
+		return false
+	# One javelin per turn.
+	enemy.ap = 0
+	enemy.intent = "投擲"
+	events.append({"kind":"javelin", "cell":player.cell, "from":enemy.cell, "id":-2})
+	_hit_player(enemy)
+	return true
+
+func archer_aim(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
+		return false
+	enemy.ap -= 1
+	enemy.state = "aim"
+	enemy.intent = "構え"
+	add_log("弓兵が弓を構えた")
+	return true
+
+## The arrow hits the first unit on the lane: the player, an ally or another enemy.
+func archer_shoot(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or enemy.state != "aim":
+		return false
+	enemy.ap -= 1
+	enemy.state = "approach"
+	enemy.intent = "射撃"
+	var lane := archer_lane(enemy)
+	var end: Vector2i = lane[-1] if not lane.is_empty() else enemy.cell
+	for cell in lane:
+		if cell == player.cell:
+			end = cell
+			_hit_player(enemy)
+			break
+		var other := enemy_at(cell)
+		if not other.is_empty():
+			end = cell
+			damage_enemy(other,1)
+			add_log("弓兵の矢が%sに当たった" % TYPES[other.type].name)
+			break
+		var ally := ally_at(cell)
+		if not ally.is_empty():
+			end = cell
+			ally.hp -= 1
+			events.append({"kind":"hit", "cell":cell, "id":ally.id})
+			allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+			break
+	events.append({"kind":"arrow", "cell":end, "from":enemy.cell, "id":-2, "dir":CARDINALS[enemy.get("facing",3)]})
+	check_outcome()
+	return true
+
+func _hit_player(enemy: Dictionary) -> void:
+	player.hp -= 1
+	events.append({"kind": "hit", "cell": player.cell, "id": -1, "by": enemy.id})
+	add_log("%sの攻撃 / HP −1" % TYPES[enemy.type].name)
+	check_outcome()
 
 func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
 	return false
@@ -133,6 +226,8 @@ func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not enemy_offsets(enemy).has(cell-enemy.cell):
 		return false
 	if cell == player.cell:
+		if enemy.type in RANGED:
+			return false
 		enemy.ap -= 1
 		player.hp -= 1
 		enemy.intent = "攻撃"

@@ -581,6 +581,10 @@ func _draw_board() -> void:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
 		if item_origin != Vector2i(-1,-1):
 			legal = model.directional_preview(selected_item,item_origin,aim)
+	var danger: Array[Vector2i] = []
+	for enemy in model.enemies:
+		if enemy.hp > 0 and enemy.get("state","") == "aim":
+			danger.append_array(model.archer_lane(enemy))
 	for y in range(model.board_size):
 		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
@@ -592,6 +596,11 @@ func _draw_board() -> void:
 			draw_line(pos+Vector2(3,3),pos+Vector2(59,3),Color("766b54"),1)
 			if (x*3+y)%4==0:
 				draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
+			if danger.has(cell):
+				# Aimed archer: the lane its arrow will fly down next turn.
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
+				for k in range(3):
+					draw_line(pos+Vector2(6+k*20,58),pos+Vector2(20+k*20,6),Color(1,0.35,0.3,0.45),3)
 			if legal.has(cell):
 				var color := GOLD if model.enemy_at(cell).is_empty() and model.cannon_at(cell).is_empty() else Color("ff805a")
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
@@ -744,12 +753,12 @@ func _draw_player_portrait(weapon_index: int, center: Vector2, side: float, faci
 	var row: int = Rules.WEAPONS[weapon_index].row
 	draw_texture_rect_region(UnitView.PLAYER_ATLAS,Rect2(center-Vector2.ONE*side/2,Vector2.ONE*side),Rect2(facing_index*cell,row*cell,cell,cell))
 
-func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, _forward_index: int = 0, portrait_index: int = 2, compact: bool = false) -> void:
+func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, _forward_index: int = 0, portrait_index: int = 2, compact: bool = false, attack: Array = []) -> void:
 	var count := 3
 	var step := 52 if compact else 64
 	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)
-	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets) == 5:
+	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets) == 5 or RangeDiagram.span(attack) == 5:
 		count = 5
 		step = 38
 		self_cell = Vector2i(2,2)
@@ -759,13 +768,18 @@ func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_i
 			var offset := Vector2i(x,y)-self_cell
 			var rect := Rect2(origin+Vector2(x,y)*step,Vector2.ONE*(step-5))
 			var active: bool = offsets.has(offset)
-			draw_rect(rect,Color(accent,0.3) if active else Color("192828"))
-			draw_rect(rect,accent if active else Color("46625e"),false,2)
+			var hits: bool = attack.has(offset)
+			var tone: Color = Color("ff805a") if hits else accent
+			draw_rect(rect,Color(tone,0.3) if active or hits else Color("192828"))
+			draw_rect(rect,tone if active or hits else Color("46625e"),false,2)
 			if offset == Vector2i.ZERO:
 				if not enemy.is_empty():
 					_draw_enemy_portrait(enemy,rect.get_center(),0.85)
 				else:
 					_draw_player_portrait(weapon_index,rect.get_center(),step,portrait_index)
+			elif hits:
+				draw_line(rect.get_center()-Vector2(6,6),rect.get_center()+Vector2(6,6),tone,3)
+				draw_line(rect.get_center()-Vector2(6,-6),rect.get_center()+Vector2(6,-6),tone,3)
 			elif active:
 				draw_circle(rect.get_center(),6,accent)
 
@@ -783,6 +797,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		if enemy.type == "heavy":
 			draw_rect(Rect2(-22,0,18,26),Color("78968f"))
 			draw_rect(Rect2(-18,4,10,18),Color("293d42"))
+		elif enemy.type in Rules.RANGED:
+			UnitView.draw_ranged_gear(self,enemy.type)
 	draw_set_transform(Vector2.ZERO)
 
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
@@ -795,9 +811,13 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	for i in range(int(type.ap)):
 		draw_rect(Rect2(1029+i*36,153,28,23),GOLD)
 	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
-	_draw_range(model.enemy_offsets(enemy),CYAN,enemy)
-	var intent := "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
-	_text(Vector2(852,479),intent,25,GOLD if enemy.state=="charge" else CYAN)
+	_draw_range(model.enemy_offsets(enemy),CYAN,enemy,-1,0,2,false,model.enemy_attack_offsets(enemy))
+	if enemy.type == "archer":
+		_text(Vector2(852,450),"赤＝左へ一直線に射る",18,Color("ff805a"))
+	elif enemy.type == "javelin":
+		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
+	var intent := "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
+	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
 	elif enemy.state == "charge":
@@ -836,13 +856,21 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"javelin", "arrow":
+			# The projectile flies from the thrower to where it lands.
+			var from := _center(effect.from)
+			var tip := from.lerp(pos, clampf(t*2.2,0.0,1.0))
+			var back := tip + (from-pos).normalized()*(26 if effect.kind == "javelin" else 20)
+			draw_line(back,tip,Color(0,0,0,fade*0.7),6)
+			draw_line(back,tip,Color("c79a5b") if effect.kind == "javelin" else Color("f1ead2"),3)
+			draw_circle(tip,3,Color("e8eef0",fade))
 		"bolt":
 			# A warm spark streaking through each tile.
 			draw_line(pos - dir * (18 - t * 30), pos + dir * (t * 30 - 6), Color("ffbd59", fade), 4)
