@@ -15,10 +15,10 @@ func capture() -> void:
 	var only_direction: int = int(args[1]) if args.size() > 1 else -1
 	var output := ProjectSettings.globalize_path("res://../animation-review/" + label + "/")
 	DirAccess.make_dir_recursive_absolute(output)
-	scene = load("res://main.tscn").instantiate()
+	scene = load("res://scripts/battle_view.gd").new()
 	root.add_child(scene)
 	await create_timer(0.7).timeout
-	for direction in range(4):
+	for direction in [1]:
 		if only_direction >= 0 and direction != only_direction:
 			continue
 		var folder := output + str(direction) + "/"
@@ -26,9 +26,9 @@ func capture() -> void:
 		for actor in scene.actors.values():
 			actor.queue_free()
 		scene.actors.clear()
-		scene.model.reset()
+		scene.model.reset(2)
 		scene.model.phase = Rules.Phase.PLAYER
-		scene.model.weapon = 1
+		scene.model.weapon = 0
 		scene.model.facing = direction
 		scene.model.player.cell = Vector2i(2,3)
 		scene.model.enemies.clear()

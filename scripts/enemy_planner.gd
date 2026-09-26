@@ -18,8 +18,8 @@ func begin(model: RefCounted) -> void:
 		if enemy.state == Infantry.CHARGE:
 			continue
 		var slots: Array[Vector2i] = []
-		for y in range(6):
-			for x in range(6):
+		for y in range(model.board_size):
+			for x in range(model.board_size):
 				var cell := Vector2i(x,y)
 				var occupant: Dictionary = model.enemy_at(cell)
 				if model.distance(cell, model.player.cell) == 2 and not model.blocked(cell) and not reserved.has(cell) and not model.mines.has(cell) and (occupant.is_empty() or occupant.id == enemy.id):
@@ -52,7 +52,22 @@ func beat(model: RefCounted, index: int) -> void:
 			break
 		if enemy.hp <= 0 or enemy.ap <= 0:
 			continue
-		if enemy.type == "miner":
+		var adjacent_ally := false
+		for offset in model.enemy_offsets(enemy):
+			var cell: Vector2i = enemy.cell + offset
+			if not model.ally_at(cell).is_empty():
+				model.enemy_step(enemy,cell)
+				adjacent_ally = true
+				break
+		if adjacent_ally:
+			continue
+		if enemy.type == "recruit":
+			var action: Dictionary = heavy_behavior.decide(model,enemy)
+			if action.kind == "step":
+				model.enemy_step(enemy,action.cell)
+			else:
+				enemy.ap = 0
+		elif enemy.type == "miner":
 			_miner_action(model, enemy, index)
 		elif enemy.type == "infantry":
 			var action: Dictionary = infantry_behavior.decide(model, enemy, staging)
@@ -112,25 +127,6 @@ func _cavalry_action(model: RefCounted, enemy: Dictionary) -> void:
 	if not jumps.is_empty():
 		model.enemy_step(enemy,jumps[0])
 		return
-	# Reorient only when a new heading opens an approaching jump or attack.
-	if distance >= 3:
-		var best_direction: int = enemy.facing
-		var best_distance: int = distance
-		for direction in range(4):
-			if direction == enemy.facing:
-				continue
-			var offsets: Array = model.cavalry_jumps(direction)
-			if offsets.has(model.player.cell-enemy.cell):
-				best_direction = direction
-				break
-			for cell in _cavalry_options(model,enemy,offsets):
-				var remaining: int = model.distance(cell,model.player.cell)
-				if remaining < best_distance:
-					best_distance = remaining
-					best_direction = direction
-		if best_direction != enemy.facing:
-			model.turn_enemy(enemy,best_direction)
-			return
 	var options := _cavalry_options(model,enemy,DIRECTIONS)
 	options = options.filter(func(cell: Vector2i) -> bool: return model.distance(cell,model.player.cell) < distance)
 	options.sort_custom(func(a: Vector2i,b: Vector2i) -> bool: return model.distance(a,model.player.cell) < model.distance(b,model.player.cell))

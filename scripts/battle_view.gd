@@ -1,5 +1,8 @@
 extends Node2D
 
+signal finished
+var managed_run := false
+
 const Rules = preload("res://scripts/battle_model.gd")
 const Planner = preload("res://scripts/enemy_planner.gd")
 const WeaponEffect = preload("res://scripts/weapon_effect.gd")
@@ -14,24 +17,17 @@ const HP_EMPTY = preload("res://assets/sprites/editor_ui/part_capacity_unit_empt
 const HP_FULL = preload("res://assets/sprites/editor_ui/part_capacity_unit_filled.png")
 const GADGET = preload("res://assets/sprites/editor_ui/part_gadget_editor_icon.png")
 const EFFECTS = preload("res://assets/sprites/effects/element_connection_atlas_24.png")
-const BOARD = Vector2(384,176)
+var BOARD := Vector2(384,176)
 const TILE = 64
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
 const MUTED = Color("92b3ae")
 const CYAN = Color("2bdcc8")
 const GOLD = Color("f4d56f")
-const WEAPON_UI_ORDER = [1,0,2]
-const FACING_ARROWS = ["↑","→","↓","←"]
 const ITEM_ARROW_POSITIONS = [Vector2(956,449),Vector2(1010,483),Vector2(956,511),Vector2(902,483)]
-const TURN_ARROW_POSITIONS = [Vector2(956,393),Vector2(1010,431),Vector2(956,469),Vector2(902,431)]
 
 var ui_font: Font = FONT
 var selected_weapon := -1
-var facing_preview := -1
-var facing_button: Button
-var facing_confirm_button: Button
-var equip_button: Button
 var show_history := false
 var history_text: RichTextLabel
 var model := Rules.new()
@@ -53,6 +49,7 @@ var move_tween: Tween
 var selected_enemy_id := -2
 var inventory_ui: Control
 var selected_item := ""
+var selected_item_slot := -1
 var item_origin := Vector2i(-1,-1)
 var aim := Vector2i.UP
 var direction_buttons: Array[Button] = []
@@ -63,13 +60,14 @@ var bgm: Node
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	scale = Vector2.ONE * UI_SCALE
-	model.reset()
+	if not managed_run:
+		model.reset()
 	weapon_effects = Node2D.new()
 	add_child(weapon_effects)
 	bgm = BgmPlayer.new()
 	add_child(bgm)
 	_make_ui()
-	_start(0)
+	_start(model.level,true)
 
 func _make_ui() -> void:
 	var theme := Theme.new()
@@ -83,14 +81,12 @@ func _make_ui() -> void:
 	ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.theme = theme
 	canvas.add_child(ui)
-	_button(ui,Rect2(962,34,146,36),"やり直す [R]",func(): _start(model.level))
-	facing_button = _button(ui,Rect2(36,177,256,36),"↑ 向き変更",_toggle_facing)
-	facing_button.tooltip_text = "方向を確認してから1 APで確定"
+	_button(ui,Rect2(962,34,146,36),"やり直す [R]",func(): _start(model.level,true))
 	for slot in range(3):
-		var weapon_index: int = WEAPON_UI_ORDER[slot]
-		var button := _button(ui,Rect2(24,261+slot*75,280,72),"",func(): _equip(weapon_index))
+		var button := _button(ui,Rect2(352+slot*260,620,248,94),"",func():
+			if slot < model.owned_weapons.size():
+				_equip(model.owned_weapons[slot]))
 		weapon_buttons.append(button)
-	equip_button = _button(ui,Rect2(24,494,280,40),"装備中",_confirm_equip)
 	for y in range(6):
 		for x in range(6):
 			var cell := Vector2i(x,y)
@@ -99,8 +95,6 @@ func _make_ui() -> void:
 	end_button = _button(ui,Rect2(24,580,280,58),"ターン終了 [SPACE]",_enemy_turn)
 	rules_button = _button(ui,Rect2(802,34,142,36),"ルール [H]",_toggle_rules)
 	cancel_button = _button(ui,Rect2(832,552,296,42),"取消 [Esc]",_cancel_item)
-	facing_confirm_button = _button(ui,Rect2(844,513,272,37),"この向きにする 1 AP",_confirm_facing)
-	facing_confirm_button.add_theme_font_size_override("font_size",19)
 	var arrow_positions := ITEM_ARROW_POSITIONS
 	var arrows := ["↑","→","↓","←"]
 	for i in range(4):
@@ -108,7 +102,7 @@ func _make_ui() -> void:
 		var arrow := _button(ui,Rect2(arrow_positions[i],Vector2(48,30)),arrows[i],func(): _choose_direction(direction))
 		arrow.add_theme_font_size_override("font_size",24)
 		arrow.mouse_entered.connect(func():
-			if facing_preview < 0: aim = direction
+			aim = direction
 			queue_redraw())
 		direction_buttons.append(arrow)
 	_button(ui,Rect2(660,34,126,36),"履歴",func():
@@ -164,8 +158,12 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
+	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
+	for i in range(grid_buttons.size()):
+		var cell := Vector2i(i%6,i/6)
+		grid_buttons[i].position = BOARD+Vector2(cell)*TILE
+		grid_buttons[i].visible = model.inside(cell)
 	selected_item = ""
-	facing_preview = -1
 	selected_weapon = -1
 	show_history = false
 	item_origin = Vector2i(-1,-1)
@@ -177,60 +175,27 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	_enemy_turn()
 
 func _advance() -> void:
-	var next_battle: bool = model.phase == Rules.Phase.WON and model.level < 2
-	_start(model.level+1 if next_battle else 0 if model.phase == Rules.Phase.WON else model.level,next_battle)
+	if managed_run:
+		finished.emit()
+	else:
+		_start(model.level+1 if model.level < 2 else 0,true)
 
 func _equip(index: int) -> void:
-	# Cards and keyboard shortcuts only inspect; this never spends AP.
-	if busy or show_rules or inventory_ui.opened or model.phase != Rules.Phase.PLAYER:
+	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
-	if index < 0 or index >= Rules.WEAPONS.size():
-		return
-	_cancel_item()
-	selected_weapon = index
-	selected_enemy_id = -2
-	show_history = false
-	_update_controls()
-
-func _confirm_equip() -> void:
-	if busy or show_rules or inventory_ui.opened or selected_weapon < 0 or selected_weapon == model.weapon:
-		return
-	if model.equip(selected_weapon):
-		selected_weapon = -1
+	if model.equip(index):
+		_cancel_item()
+		selected_weapon = index
+		selected_enemy_id = -2
+		show_history = false
 		_sync_units(false)
 		_update_controls()
-		if model.player.ap == 0:
-			_enemy_turn()
-
-func _toggle_facing() -> void:
-	if busy or show_rules or inventory_ui.opened or model.phase != Rules.Phase.PLAYER:
-		return
-	var was_open := facing_preview >= 0
-	_cancel_item()
-	selected_weapon = -1
-	selected_enemy_id = -2
-	show_history = false
-	if not was_open:
-		facing_preview = model.facing
-	_update_controls()
 
 func _choose_direction(direction: Vector2i) -> void:
 	if busy or show_rules or inventory_ui.opened or model.phase != Rules.Phase.PLAYER:
 		return
-	if facing_preview >= 0:
-		var index := Rules.CARDINALS.find(direction)
-		if index >= 0:
-			facing_preview = index
-			_update_controls()
-	else:
-		_confirm_direction(direction)
+	_confirm_direction(direction)
 
-func _confirm_facing() -> void:
-	if busy or show_rules or inventory_ui.opened or facing_preview < 0:
-		return
-	if model.turn_to(facing_preview):
-		_cancel_item()
-		_finish_player_action(false)
 
 func _enemy_turn() -> void:
 	if busy or model.terminal() or show_rules or inventory_ui.opened:
@@ -239,6 +204,18 @@ func _enemy_turn() -> void:
 	selected_weapon = -1
 	busy = true
 	var token := generation
+	model.act_allies()
+	_sync_units(true)
+	_feedback()
+	_update_controls()
+	if not model.allies.is_empty():
+		await get_tree().create_timer(0.22).timeout
+		if token != generation:
+			return
+	if model.terminal():
+		busy = false
+		_update_controls()
+		return
 	planner.begin(model)
 	_update_controls()
 	await get_tree().create_timer(0.12).timeout
@@ -267,9 +244,6 @@ func _act(cell: Vector2i) -> void:
 		_item_act(cell)
 		return
 	if cell == model.player.cell:
-		_toggle_facing()
-		return
-	if facing_preview >= 0:
 		return
 	selected_weapon = -1
 	_update_controls()
@@ -295,7 +269,7 @@ func _act(cell: Vector2i) -> void:
 func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> void:
 	busy = true
 	var token := generation
-	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_action.weapon == 1
+	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking
 	if sword_attack:
 		# The model resolves immediately; keep the prior enemy visuals until contact.
 		var player_view = actors[-1]
@@ -319,7 +293,7 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		var action_duration := 0.13
 		if not weapon_action.is_empty():
 			var effect := WeaponEffect.new()
-			effect.weapon = weapon_action.weapon
+			effect.weapon = 1
 			effect.attacking = weapon_action.attacking
 			effect.origin = _center(weapon_action.origin)
 			effect.destination = _center(weapon_action.destination)
@@ -335,14 +309,14 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 	if not model.terminal() and model.player.ap == 0:
 		_enemy_turn()
 
-func _select_item(id: String) -> void:
+func _select_item(id: String, slot: int = -1) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
 	var item: Resource = model.item_definition(id)
 	if item == null or model.inventory.get(id,0) <= 0 or model.player.ap < item.ap_cost:
 		return
 	selected_item = id
-	facing_preview = -1
+	selected_item_slot = slot
 	selected_weapon = -1
 	show_history = false
 	selected_enemy_id = -2
@@ -351,7 +325,6 @@ func _select_item(id: String) -> void:
 	_update_controls()
 
 func _cancel_item() -> void:
-	facing_preview = -1
 	selected_item = ""
 	item_origin = Vector2i(-1,-1)
 	_update_controls()
@@ -376,7 +349,7 @@ func _confirm_direction(direction: Vector2i) -> void:
 	_commit_item(item_origin,direction)
 
 func _commit_item(cell: Vector2i, direction: Vector2i) -> void:
-	if model.use_item(selected_item,cell,direction):
+	if model.use_item(selected_item,cell,direction,selected_item_slot):
 		_cancel_item()
 		_finish_player_action(false)
 
@@ -388,7 +361,7 @@ func _toggle_rules() -> void:
 
 func _sync_units(animate: bool) -> void:
 	var living: Array[int] = [-1]
-	var units: Array = [model.player]+model.enemies
+	var units: Array = [model.player]+model.enemies+model.allies
 	if move_tween and move_tween.is_valid():
 		move_tween.kill()
 	if animate:
@@ -408,16 +381,10 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = unit.get("state", "") == "charge"
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _center(unit.cell)
-		if id == -1:
-			view.facing = model.facing
-		elif unit.type == "cavalry":
-			view.facing = unit.facing
-		else:
-			var delta: Vector2i = model.player.cell-unit.cell
-			view.facing = (1 if delta.x > 0 else 3) if absi(delta.x)>absi(delta.y) else (2 if delta.y >= 0 else 0)
+		view.facing = 1 if id < 0 else 3
 		view.hop_height = 0.0
 		if animate:
-			var jumping: bool = id == -1 and model.weapon == 2 and view.position != target
+			var jumping := false
 			move_tween.tween_property(view,"position",target,0.18 if jumping else 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			if jumping:
 				move_tween.tween_method(func(t: float): view.hop_height = sin(t*PI)*18.0,0.0,1.0,0.18)
@@ -438,24 +405,16 @@ func _feedback(weapon_attack: bool = false) -> void:
 func _update_controls() -> void:
 	weapon_effects.visible = not show_rules and not inventory_ui.opened and (not model.terminal() or busy)
 	end_button.disabled = busy or model.phase != Rules.Phase.PLAYER or show_rules or inventory_ui.opened
-	facing_button.disabled = end_button.disabled
-	facing_button.text = FACING_ARROWS[model.facing] + " 向き変更"
-	facing_button.self_modulate = CYAN if facing_preview >= 0 else Color.WHITE
-	facing_confirm_button.visible = facing_preview >= 0 and not show_rules and not inventory_ui.opened
-	facing_confirm_button.disabled = end_button.disabled or facing_preview == model.facing or model.player.ap < 1
-	facing_confirm_button.text = "現在の向き" if facing_preview == model.facing else "AP不足" if model.player.ap < 1 else "この向きにする 1 AP"
 	for button in grid_buttons:
 		button.disabled = end_button.disabled
 		button.mouse_filter = Control.MOUSE_FILTER_IGNORE if show_rules or inventory_ui.opened else Control.MOUSE_FILTER_STOP
 	for button in weapon_buttons:
 		button.disabled = end_button.disabled
-	equip_button.disabled = end_button.disabled or selected_weapon < 0 or selected_weapon == model.weapon or model.player.ap < 1
-	equip_button.text = "装備中" if selected_weapon < 0 or selected_weapon == model.weapon else "装備する 1 AP" if model.player.ap > 0 else "AP不足"
 	history_text.visible = show_history and not show_rules and not inventory_ui.opened
 	history_text.text = "\n\n".join(model.logs)
 	result_button.visible = model.terminal() and not busy and not show_rules and not inventory_ui.opened
 	bgm.sync(model.terminal() and not busy,model.phase == Rules.Phase.WON)
-	result_button.text = "次の戦闘へ →" if model.phase == Rules.Phase.WON and model.level < 2 else "もう一度挑戦 →"
+	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "ビルド選択へ →"
 	for actor in actors.values():
 		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened
 	inventory_ui.model = model
@@ -463,11 +422,11 @@ func _update_controls() -> void:
 	inventory_ui.refresh(not busy and model.phase == Rules.Phase.PLAYER and not show_rules,selected_item)
 	for index in range(direction_buttons.size()):
 		var button := direction_buttons[index]
-		button.visible = (facing_preview >= 0 or (not selected_item.is_empty() and item_origin != Vector2i(-1,-1))) and not show_rules and not inventory_ui.opened and not show_history
-		button.position = TURN_ARROW_POSITIONS[index] if facing_preview >= 0 else ITEM_ARROW_POSITIONS[index]
+		button.visible = (not selected_item.is_empty() and item_origin != Vector2i(-1,-1)) and not show_rules and not inventory_ui.opened and not show_history
+		button.position = ITEM_ARROW_POSITIONS[index]
 		button.disabled = end_button.disabled
-		button.self_modulate = CYAN if facing_preview == index else GOLD if facing_preview >= 0 and model.facing == index else Color.WHITE
-	cancel_button.visible = (facing_preview >= 0 or not selected_item.is_empty()) and not show_rules and not show_history
+		button.self_modulate = Color.WHITE
+	cancel_button.visible = not selected_item.is_empty() and not show_rules and not show_history
 	rules_button.visible = true
 	queue_redraw()
 
@@ -505,7 +464,7 @@ func _process(delta: float) -> void:
 		var offset := hover_cell-item_origin
 		if offset != Vector2i.ZERO and (offset.x == 0 or offset.y == 0):
 			aim = Vector2i(signi(offset.x),signi(offset.y))
-	var attack_cells: Array = model.targets() if not busy and facing_preview < 0 and selected_item.is_empty() and model.phase == Rules.Phase.PLAYER else []
+	var attack_cells: Array = model.targets() if not busy and selected_item.is_empty() and model.phase == Rules.Phase.PLAYER else []
 	for id in actors:
 		var actor = actors[id]
 		actor.attack_target = id >= 0 and attack_cells.has(Vector2i((actor.position-BOARD)/TILE))
@@ -513,7 +472,7 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		if facing_preview >= 0 or not selected_item.is_empty() or inventory_ui.opened:
+		if not selected_item.is_empty() or inventory_ui.opened:
 			inventory_ui.set_open(false)
 			_cancel_item()
 		elif not show_rules and not busy:
@@ -531,7 +490,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			show_history = false
 			_update_controls()
 			return
-		if event.keycode == KEY_ESCAPE and (facing_preview >= 0 or inventory_ui.opened or not selected_item.is_empty()):
+		if event.keycode == KEY_ESCAPE and (inventory_ui.opened or not selected_item.is_empty()):
 			inventory_ui.set_open(false)
 			_cancel_item()
 			return
@@ -544,26 +503,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_B:
 			inventory_ui.toggle()
 			return
-		if event.keycode in [KEY_4,KEY_5,KEY_6,KEY_7,KEY_8,KEY_9,KEY_0]:
-			inventory_ui.activate_slot(6 if event.keycode == KEY_0 else event.keycode-KEY_4)
+		if event.keycode in [KEY_4,KEY_5,KEY_6]:
+			inventory_ui.activate_slot(event.keycode-KEY_4)
 			return
-		if facing_preview >= 0 or item_origin != Vector2i(-1,-1):
+		if item_origin != Vector2i(-1,-1):
 			var directions := {KEY_UP:Vector2i.UP,KEY_RIGHT:Vector2i.RIGHT,KEY_DOWN:Vector2i.DOWN,KEY_LEFT:Vector2i.LEFT}
 			if directions.has(event.keycode):
 				_choose_direction(directions[event.keycode])
 				return
 		if event.keycode == KEY_R:
-			_start(model.level)
-		elif event.keycode == KEY_1:
-			_equip(1)
-		elif event.keycode == KEY_2:
-			_equip(0)
-		elif event.keycode == KEY_3:
-			_equip(2)
-		elif event.keycode == KEY_Q:
-			_equip(posmod((selected_weapon if selected_weapon >= 0 else model.weapon)-1,3))
-		elif event.keycode == KEY_E or event.keycode == KEY_TAB:
-			_equip(posmod((selected_weapon if selected_weapon >= 0 else model.weapon)+1,3))
+			_start(model.level,true)
+		elif event.keycode in [KEY_1,KEY_2,KEY_3]:
+			var slot: int = event.keycode-KEY_1
+			if slot < model.owned_weapons.size():
+				_equip(model.owned_weapons[slot])
 		elif event.keycode == KEY_SPACE:
 			_enemy_turn()
 
@@ -589,7 +542,7 @@ func _draw() -> void:
 	_panel(Rect2(24,24,1104,58))
 	_text(Vector2(44,62),"戦闘 %d / 3" % (model.level+1),25,CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
-	_text(Vector2(480,62),"敵 残り %d" % maxi(actors.size()-1,0),23)
+	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
 	_draw_player_panel()
 	_draw_weapons()
@@ -597,7 +550,7 @@ func _draw() -> void:
 	_draw_flashes()
 	_text(Vector2(352,126),"敵のターン" if busy and model.phase==Rules.Phase.ENEMY else "あなたのターン",27,CYAN if not busy else GOLD)
 
-	if model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and facing_preview < 0 and not busy:
+	if model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
 	if model.terminal() and not busy:
 		_draw_result()
@@ -605,27 +558,16 @@ func _draw() -> void:
 		_draw_rules()
 
 func _draw_board() -> void:
-	# Stone floor and wall palette come from the original main.gd.
-	for y in range(-1,7):
-		for x in range(-1,7):
-			var pos := BOARD+Vector2(x,y)*TILE
-			if x < 0 or x > 5 or y < 0 or y > 5:
-				var rect := Rect2(pos+Vector2(2,2),Vector2(60,60))
-				if x == -1: rect = Rect2(352,pos.y+2,28,60)
-				if x == 6: rect = Rect2(772,pos.y+2,28,60)
-				if y == -1: rect = Rect2(rect.position.x,144,rect.size.x,28)
-				if y == 6: rect = Rect2(rect.position.x,564,rect.size.x,28)
-				draw_rect(rect,Color("252820"))
-				draw_rect(rect.grow(-5),Color("34352b"),false,2)
+	var extent := Vector2.ONE*model.board_size*TILE
+	draw_rect(Rect2(BOARD-Vector2.ONE*10,extent+Vector2.ONE*20),Color("252820"))
+	draw_rect(Rect2(BOARD-Vector2.ONE*10,extent+Vector2.ONE*20),Color("4d5443"),false,3)
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell)) if selected_item.is_empty() else model.item_targets(selected_item)
-		if facing_preview >= 0:
-			legal = model.targets_for_facing(facing_preview).filter(func(cell: Vector2i) -> bool: return not model.blocked(cell))
 		if item_origin != Vector2i(-1,-1):
 			legal = model.ray_cells(item_origin,aim)
-	for y in range(6):
-		for x in range(6):
+	for y in range(model.board_size):
+		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
 			var pos := BOARD+Vector2(cell)*TILE
 			var base := Color("665b48")
@@ -638,7 +580,6 @@ func _draw_board() -> void:
 			if legal.has(cell):
 				var color := GOLD if model.enemy_at(cell).is_empty() else Color("ff805a")
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
-				if facing_preview >= 0: color = CYAN
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.18))
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.7),false,2)
 			if cell == hover_cell and model.inside(cell) and not show_rules:
@@ -679,36 +620,29 @@ func _draw_player_panel() -> void:
 	_text(Vector2(40,162),"AP",24,GOLD)
 	for i in range(2):
 		draw_rect(Rect2(94+i*96,137,84,29),GOLD if i<model.player.ap else Color("293d36"))
-	_text(Vector2(24,250),"武器",23,INK)
-	_text(Vector2(153,250),"選択は無料",18,MUTED)
+	_text(Vector2(40,204),"右向き固定  →",22,CYAN)
 
 func _draw_weapons() -> void:
-	for slot in range(3):
-		var index: int = WEAPON_UI_ORDER[slot]
+	_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
+	_text(Vector2(555,605),"タップで装備・0 AP",20,MUTED)
+	for slot in range(model.owned_weapons.size()):
+		var index: int = model.owned_weapons[slot]
 		var weapon: Dictionary = Rules.WEAPONS[index]
-		var pos := Vector2(24,261+slot*75)
-		var rect := Rect2(pos,Vector2(280,72))
+		var pos := Vector2(352+slot*260,620)
+		var rect := Rect2(pos,Vector2(248,94))
 		var accent := Color(weapon.color)
-		draw_rect(rect,Color("152324") if model.weapon==index else Color("0b1415"))
+		draw_rect(rect,Color("152d2a") if model.weapon==index else Color("0b1415"))
 		draw_rect(rect,accent if model.weapon==index else Color("324843"),false,3 if model.weapon==index else 2)
-		if selected_weapon == index:
-			draw_rect(rect.grow(-5),INK,false,1)
-		draw_texture_rect_region(UnitView.PLAYER_ATLAS,Rect2(pos+Vector2(5,6),Vector2(60,60)),Rect2(2*UnitView.PLAYER_ATLAS_CELL,weapon.row*UnitView.PLAYER_ATLAS_CELL,UnitView.PLAYER_ATLAS_CELL,UnitView.PLAYER_ATLAS_CELL))
-		_text(pos+Vector2(70,29),weapon.name,21,accent)
-		_text(pos+Vector2(70,60),"装備中" if model.weapon==index else "確認中" if selected_weapon==index else "[%d]" % [2,1,3][index],18,INK if model.weapon==index else MUTED)
-		var count := 3
-		var step := 15
-		var self_cell: Vector2i = Vector2i(1,1)-Rules.CARDINALS[model.facing] if index == 2 else Vector2i(1,1)
-		var offsets := model.weapon_offsets(index,model.facing)
-		for y in range(count):
-			for x in range(count):
-				var offset := Vector2i(x,y)-self_cell
-				var active: bool = offsets.has(offset)
-				var color := accent if active else INK if offset == Vector2i.ZERO else Color("30433d")
-				var tile := Rect2(pos+Vector2(225+x*step,26+y*step),Vector2(step-3,step-3))
-				draw_rect(tile,color if offset != Vector2i.ZERO else Color("192828"))
+		_text(pos+Vector2(12,32),weapon.name,23,accent)
+		_text(pos+Vector2(12,66),"装備中" if model.weapon==index else "装備する",19,INK)
+		var offsets := model.weapon_offsets(index)
+		for y in range(3):
+			for x in range(3):
+				var offset := Vector2i(x-1,y-1)
+				var tile := Rect2(pos+Vector2(166+x*24,11+y*24),Vector2(21,21))
+				draw_rect(tile,Color(accent,0.55) if offsets.has(offset) else Color("253a36"))
 				if offset == Vector2i.ZERO:
-					_draw_player_portrait(index,tile.get_center(),20)
+					_draw_player_portrait(index,tile.get_center(),28,1)
 
 func _draw_intel() -> void:
 	_panel(Rect2(832,94,296,508))
@@ -727,25 +661,16 @@ func _draw_intel() -> void:
 			_text(Vector2(850,335+i*25),lines[i],18,INK)
 		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "配置先を選択",23,item.color)
 		return
-	if facing_preview >= 0:
-		_text(Vector2(852,133),"向き変更",26,CYAN)
-		_text(Vector2(852,177),"現在 %s   選択 %s" % [FACING_ARROWS[model.facing],FACING_ARROWS[facing_preview]],21,INK)
-		_draw_range(model.weapon_offsets(model.weapon,facing_preview),CYAN,{},model.weapon,facing_preview,facing_preview,true)
-		_text(Vector2(852,376),"移動・攻撃範囲",21,INK)
-		return
 	var enemy := _preview_enemy()
 	if not enemy.is_empty():
 		_draw_enemy_inspector(enemy)
 	elif selected_weapon >= 0:
 		var weapon: Dictionary = Rules.WEAPONS[selected_weapon]
 		_text(Vector2(852,133),weapon.name,25,Color(weapon.color))
-		_text(Vector2(852,177),"装備中" if selected_weapon == model.weapon else "確認中・未装備",21,MUTED)
+		_text(Vector2(852,177),"装備中",21,MUTED)
 		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing)
 		_text(Vector2(852,495),"移動・攻撃範囲",23,INK)
-		if selected_weapon == 2:
-			_text(Vector2(852,535),"前へ2マス・左右へ1マス",20,MUTED)
-		else:
-			_text(Vector2(852,535),"持ち替えは左のボタン",20,MUTED)
+		_text(Vector2(852,535),Rules.WEAPONS[selected_weapon].detail,20,MUTED)
 	else:
 		_text(Vector2(852,133),"敵の情報",26,CYAN)
 		_text(Vector2(852,295),"敵にカーソルを",23,INK)
@@ -757,11 +682,11 @@ func _draw_player_portrait(weapon_index: int, center: Vector2, side: float, faci
 	var row: int = Rules.WEAPONS[weapon_index].row
 	draw_texture_rect_region(UnitView.PLAYER_ATLAS,Rect2(center-Vector2.ONE*side/2,Vector2.ONE*side),Rect2(facing_index*cell,row*cell,cell,cell))
 
-func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, forward_index: int = 0, portrait_index: int = 2, compact: bool = false) -> void:
+func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, _forward_index: int = 0, portrait_index: int = 2, compact: bool = false) -> void:
 	var count := 3
 	var step := 52 if compact else 64
-	# Place the knight opposite its forward direction to retain a true 3x3 range.
-	var self_cell: Vector2i = Vector2i(1,1)-Rules.CARDINALS[forward_index] if weapon_index == 2 else Vector2i(1,1)
+	# Cavalry needs a larger preview for its two-tile jumps.
+	var self_cell: Vector2i = Vector2i(1,1)
 	if enemy.get("type","") == "cavalry":
 		count = 5
 		step = 38
@@ -856,14 +781,14 @@ func _draw_result() -> void:
 	_text(Vector2(414,278),"SECTOR CLEAR" if won else "EXPEDITION FAILED",36,CYAN if won else Color("ff8968"),LATIN)
 	_text(Vector2(421,326),"全3戦クリア！" if won and model.level==2 else "包囲網を突破した" if won else "探索者、倒れる",26)
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
-	_text(Vector2(423,396),"次の戦闘はHP5から開始" if won else "武器と間合いを変えて再挑戦",16,MUTED)
+	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
 
 func _draw_rules() -> void:
 	draw_rect(Rect2(320,116,500,501),Color("060e10"))
 	_panel(Rect2(328,124,484,485))
 	_text(Vector2(352,163),"FIELD MANUAL",28,CYAN,LATIN)
-	var lines := ["ENEMY  →  YOU", "MOVE / ATTACK / ITEM = 1 AP", "1–3 PREVIEW  /  EQUIP BUTTON = 1 AP", "TURN PREVIEW / CONFIRM = 1 AP", "SPACE  END TURN    R  RESET"]
+	var lines := ["移動・攻撃・妖精使用：1 AP", "武器をタップ：持ち替え 0 AP", "向きは固定。武器と妖精は各3枠", "終了後：どんぐり妖精 → 敵", "妖精は各戦闘で使用回数が回復"]
 	for i in range(lines.size()):
-		_text(Vector2(350,212+i*55),lines[i],20,INK if i%2==0 else MUTED,LATIN)
+		_text(Vector2(350,212+i*55),lines[i],20,INK if i%2==0 else MUTED)
 	_text(Vector2(350,503),"! 次の敵ターンに突撃",20,GOLD)
-	_text(Vector2(350,554),"4–9 / 0 CARDS   ESC CANCEL",20,INK,LATIN)
+	_text(Vector2(350,554),"1–3 武器 / 4–6 妖精 / Esc 取消",20,INK,LATIN)

@@ -4,7 +4,8 @@ const Planner = preload("res://scripts/enemy_planner.gd")
 
 func _initialize() -> void:
 	var model = Rules.new()
-	model.reset()
+	model.reset(2)
+	model.weapon = 2
 	model.enemies.clear()
 	model.player.cell = Vector2i(2,4)
 	var heavy: Dictionary = model.make_enemy("heavy",Vector2i(2,2),0)

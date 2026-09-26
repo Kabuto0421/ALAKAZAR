@@ -1,5 +1,6 @@
 extends Node2D
 
+const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
 const PLAYER_ATLAS = preload("res://assets/sprites/adventurer_weapon_directions_64.png")
 const SWORD_ATTACK_ATLAS = preload("res://assets/sprites/attacks/sword-attack-directions.png")
 const SwordMotion = preload("res://scripts/animation/sword_motion.gd")
@@ -79,6 +80,8 @@ func _draw() -> void:
 		else:
 			var source := Rect2(facing*PLAYER_ATLAS_CELL,weapon_row*PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL)
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)
+	elif kind == "acorn":
+		draw_texture_rect(ACORN,Rect2(-30,-35,60,60),false,tint)
 	elif kind == "miner":
 		_draw_drone(tint)
 	elif kind == "cavalry":

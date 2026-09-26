@@ -31,6 +31,13 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 				canvas.draw_line(center,Vector2(968,268),item.color,4)
 				canvas.draw_arc(Vector2(968,268),14,0,TAU,16,item.color,3)
 				canvas._text(Vector2(979,263),"−1",20,item.color)
+		"acorn_fairy":
+			for i in range(4):
+				_tile(canvas,Vector2(884+i*58,270),item.color)
+			Icon.paint(canvas,Vector2(884+minf(progress*2,1.0)*58,268),item.icon,0.8)
+			_enemy(canvas,Vector2(1000,268))
+			canvas._text(Vector2(867,230),"HP 1 / AP 1",21,item.color)
+			canvas._text(Vector2(856,306),"味方 → 敵の順に行動",18,item.color)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):

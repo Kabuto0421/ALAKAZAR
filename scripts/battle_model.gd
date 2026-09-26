@@ -3,74 +3,87 @@ extends RefCounted
 # Grid rules are independent of rendering and animation timing.
 enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
-const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres")]
+const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres")]
 const CARDINALS = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
-const Gold = preload("res://scripts/movement/shogi_gold_move.gd")
-const Silver = preload("res://scripts/movement/shogi_silver_move.gd")
-const Knight = preload("res://scripts/movement/shogi_knight_move.gd")
+const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const FormationLayout = preload("res://scripts/formation_layout.gd")
-const WEAPONS = [
-	{"name": "金 / ハンマー", "short": "金", "row": 0, "color": "ffbd59", "detail": "前3方向・左右・後ろ"},
-	{"name": "銀 / ソード", "short": "銀", "row": 2, "color": "bda0ff", "detail": "前3方向・後ろ斜め"},
-	{"name": "桂 / アックス", "short": "桂", "row": 1, "color": "2bdcc8", "detail": "前2マス＋左右1マス"},
-]
+const WEAPONS = Catalog.DATA
 const TYPES = {
+	"recruit": {"name": "歩兵", "hp": 1, "ap": 1},
 	"infantry": {"name": "歩兵", "hp": 1, "ap": 2},
 	"miner": {"name": "地雷兵", "hp": 1, "ap": 2},
 	"heavy": {"name": "重装兵", "hp": 2, "ap": 1},
 	"cavalry": {"name": "跳躍騎兵", "hp": 1, "ap": 2},
 }
 const FORMATIONS = [
-	preload("res://scenes/formations/encounter_01.tscn"),
-	preload("res://scenes/formations/encounter_02.tscn"),
-	preload("res://scenes/formations/encounter_03.tscn"),
+	preload("res://scenes/formations/run_01.tscn"),
+	preload("res://scenes/formations/run_02.tscn"),
+	preload("res://scenes/formations/run_03.tscn"),
 ]
-var patterns: Array = [Gold.new(), Silver.new(), Knight.new()]
+var board_size := 4
+var owned_weapons: Array[int] = [0,1,2]
+var fairy_loadout: Array[String] = ["magic_bolt"]
+var fairy_charges: Array[int] = []
+var allies: Array[Dictionary] = []
+var next_ally_id := -100
 var phase: Phase = Phase.ENEMY
 var level := 0
 var round_number := 0
-var weapon := 1
-var facing := 0
+var weapon := 0
+var facing := 1
 var player: Dictionary = {}
 var enemies: Array[Dictionary] = []
 var mines: Array[Vector2i] = []
 var logs: Array[String] = []
 var events: Array[Dictionary] = []
 var kills := 0
-const HAND_LIMIT := 7
+const HAND_LIMIT := 3
+const WEAPON_LIMIT := 3
 var inventory: Dictionary = {}
 var shortcuts: Array[String] = ["magic_bolt", "stealth_fairy", "warp_fairy"]
 var fairies: Array[Vector2i] = []
 var obstacles: Array[Vector2i] = []
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
-	level = posmod(next_level, FORMATIONS.size())
+	level = clampi(next_level, 0, 2)
+	var layout: Node = FORMATIONS[level].instantiate()
+	board_size = layout.board_size
 	phase = Phase.ENEMY
 	round_number = 0
-	weapon = 1
-	facing = 0
+	if not keep_inventory:
+		owned_weapons.assign([0,1,2])
+		fairy_loadout.assign(["magic_bolt"])
+	weapon = owned_weapons[0]
+	facing = 1
 	kills = 0
-	player = {"id": -1, "type": "player", "cell": Vector2i(2,5), "hp": 5, "ap": 2}
+	player = {"id": -1, "type": "player", "cell": layout.player_start, "hp": 5, "ap": 2}
 	enemies.clear()
 	mines.clear()
 	fairies.clear()
+	allies.clear()
+	next_ally_id = -100
 	obstacles.clear()
-	if not keep_inventory:
-		inventory.clear()
-		for item in ITEMS:
-			add_item(item.id,item.initial_count)
+	refill_fairies()
 	logs.clear()
 	events.clear()
-	var layout: Node = FORMATIONS[level].instantiate()
 	for placement in layout.get_children():
-		var cell := FormationLayout.cell_at(placement.position)
-		var kind: String = ["infantry","miner","heavy","cavalry"][placement.enemy_kind]
+		var cell := FormationLayout.cell_at(placement.position,board_size)
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
-	add_log("敵部隊が接近。敵から行動します。")
+	add_log("敵から行動。武器はタップで持ち替え・0 AP")
+
+func refill_fairies() -> void:
+	inventory.clear()
+	fairy_charges.clear()
+	for id in fairy_loadout:
+		var count: int = item_definition(id).initial_count
+		fairy_charges.append(count)
+		inventory[id] = inventory.get(id,0)+count
+
 
 func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
-	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 2, "wait": 0, "intent": "接近", "state": "approach", "charge_round": -1}
+	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": "approach", "charge_round": -1}
 
 func cavalry_jumps(direction: int) -> Array[Vector2i]:
 	var forward: Vector2i = CARDINALS[direction]
@@ -80,14 +93,8 @@ func cavalry_jumps(direction: int) -> Array[Vector2i]:
 func enemy_offsets(enemy: Dictionary) -> Array:
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type == "cavalry" else CARDINALS
 
-func turn_enemy(enemy: Dictionary, direction: int) -> bool:
-	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or direction < 0 or direction >= 4 or enemy.get("facing",2) == direction:
-		return false
-	enemy.facing = direction
-	enemy.ap -= 1
-	enemy.intent = "旋回"
-	add_log("%sが%sへ旋回" % [TYPES[enemy.type].name,["↑","→","↓","←"][direction]])
-	return true
+func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
+	return false
 
 func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not enemy_offsets(enemy).has(cell-enemy.cell):
@@ -99,6 +106,13 @@ func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 		events.append({"kind": "hit", "cell": cell, "id": -1})
 		add_log("%sの攻撃 / HP −1" % TYPES[enemy.type].name)
 		check_outcome()
+		return true
+	var ally := ally_at(cell)
+	if not ally.is_empty():
+		enemy.ap -= 1
+		ally.hp -= 1
+		events.append({"kind":"hit", "cell":cell, "id":ally.id})
+		allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 		return true
 	if blocked(cell) or not enemy_at(cell).is_empty():
 		return false
@@ -117,7 +131,7 @@ func item_definition(id: String) -> Resource:
 	return null
 
 func blocked(cell: Vector2i) -> bool:
-	return obstacles.has(cell) or fairies.has(cell)
+	return obstacles.has(cell) or fairies.has(cell) or not ally_at(cell).is_empty()
 
 func item_targets(id: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -125,8 +139,8 @@ func item_targets(id: String) -> Array[Vector2i]:
 	if item == null:
 		return result
 	var weapon_cells := targets()
-	for y in range(6):
-		for x in range(6):
+	for y in range(board_size):
+		for x in range(board_size):
 			var cell := Vector2i(x,y)
 			if cell == player.cell or blocked(cell) or not enemy_at(cell).is_empty():
 				continue
@@ -144,32 +158,39 @@ func ray_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 		cell += direction
 	return result
 
-func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO) -> bool:
+func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, slot: int = -1) -> bool:
 	var item := item_definition(id)
 	if item == null or phase != Phase.PLAYER or player.ap < item.ap_cost or inventory.get(id,0) <= 0:
+		return false
+	if slot < 0:
+		for i in fairy_loadout.size():
+			if fairy_loadout[i] == id and fairy_charges[i] > 0:
+				slot = i
+				break
+	if slot < 0 or slot >= fairy_loadout.size() or fairy_loadout[slot] != id or fairy_charges[slot] <= 0:
 		return false
 	if not item_targets(id).has(cell) or (item.directional and not CARDINALS.has(direction)):
 		return false
 	events.clear()
 	player.ap -= item.ap_cost
 	inventory[id] -= 1
+	fairy_charges[slot] -= 1
 	item.effect.new().apply(self, cell, direction)
 	add_log("%sを使用" % item.title)
 	check_outcome()
 	return true
 
 func hand_size() -> int:
-	var total := 0
-	for count in inventory.values():
-		total += int(count)
-	return total
+	return fairy_loadout.size()
 
 func add_item(id: String, count: int = 1) -> int:
-	if item_definition(id) == null or count <= 0:
+	if item_definition(id) == null or count <= 0 or fairy_loadout.size() >= HAND_LIMIT:
 		return 0
-	var accepted := mini(count,maxi(0,HAND_LIMIT-hand_size()))
-	inventory[id] = inventory.get(id,0)+accepted
-	return accepted
+	fairy_loadout.append(id)
+	var count_per_battle: int = item_definition(id).initial_count
+	fairy_charges.append(count_per_battle)
+	inventory[id] = inventory.get(id,0)+count_per_battle
+	return 1
 
 func assign_shortcut(slot: int, id: String) -> bool:
 	if slot < 0 or slot >= shortcuts.size() or item_definition(id) == null:
@@ -202,7 +223,7 @@ func trigger_fairies() -> void:
 	check_outcome()
 
 func inside(cell: Vector2i) -> bool:
-	return cell.x >= 0 and cell.x < 6 and cell.y >= 0 and cell.y < 6
+	return cell.x >= 0 and cell.x < board_size and cell.y >= 0 and cell.y < board_size
 
 func distance(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
@@ -214,37 +235,26 @@ func enemy_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 func targets() -> Array[Vector2i]:
-	return targets_for_facing(facing)
-
-func targets_for_facing(direction_index: int) -> Array[Vector2i]:
-	if direction_index < 0 or direction_index >= CARDINALS.size():
-		return []
-	return patterns[weapon].get_destinations(player.cell, inside, CARDINALS[direction_index])
-
-func weapon_offsets(index: int, direction_index: int) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for offset in patterns[index].step_offsets:
-		result.append(patterns[index]._to_world_offset(offset,CARDINALS[direction_index]))
+	for offset in Catalog.offsets(weapon):
+		var cell: Vector2i = player.cell + offset
+		if inside(cell):
+			result.append(cell)
 	return result
 
-func turn_to(direction_index: int) -> bool:
-	if phase != Phase.PLAYER or player.ap <= 0 or direction_index < 0 or direction_index >= CARDINALS.size() or direction_index == facing:
-		return false
-	events.clear()
-	facing = direction_index
-	player.ap -= 1
-	add_log("向き変更：" + ["↑","→","↓","←"][facing])
-	return true
+func targets_for_facing(_direction_index: int) -> Array[Vector2i]:
+	return targets()
+
+func weapon_offsets(index: int, _direction_index: int = 1) -> Array[Vector2i]:
+	return Catalog.offsets(index)
+
+func turn_to(_direction_index: int) -> bool:
+	return false
 
 func equip(index: int) -> bool:
-	if phase != Phase.PLAYER or index < 0 or index >= WEAPONS.size():
-		return false
-	if index == weapon:
-		return true
-	if player.ap <= 0:
+	if phase != Phase.PLAYER or not owned_weapons.has(index):
 		return false
 	weapon = index
-	player.ap -= 1
 	return true
 
 func player_action(cell: Vector2i) -> bool:
@@ -272,13 +282,14 @@ func trigger_mine(unit: Dictionary) -> void:
 	mines.erase(unit.cell)
 	unit.hp -= 1
 	events.append({"kind": "mine", "cell": unit.cell, "id": unit.id})
-	var label: String = "探索者" if unit.type == "player" else TYPES[unit.type].name
+	var label: String = "探索者" if unit.type == "player" else "どんぐり妖精" if unit.type == "acorn" else TYPES[unit.type].name
 	add_log("地雷が爆発！ %sに1ダメージ" % label)
-	if unit.type != "player" and unit.hp <= 0:
+	if unit.type not in ["player","acorn"] and unit.hp <= 0:
 		kills += 1
 	check_outcome()
 
 func check_outcome() -> void:
+	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
 	if player.hp <= 0:
 		phase = Phase.LOST
@@ -292,3 +303,58 @@ func add_log(message: String) -> void:
 	logs.push_front(message)
 	if logs.size() > 8:
 		logs.resize(8)
+
+func ally_at(cell: Vector2i) -> Dictionary:
+	for ally in allies:
+		if ally.hp > 0 and ally.cell == cell:
+			return ally
+	return {}
+
+func summon_acorn(cell: Vector2i) -> void:
+	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":1, "ap":1, "facing":1})
+	next_ally_id -= 1
+	events.append({"kind":"summon", "cell":cell, "id":-2})
+
+func act_allies() -> void:
+	if terminal():
+		return
+	events.clear()
+	for ally in allies.duplicate():
+		if ally.hp <= 0 or terminal():
+			continue
+		ally.ap = 1
+		var adjacent: Array[Dictionary] = []
+		for enemy in enemies:
+			if enemy.hp > 0 and distance(ally.cell,enemy.cell) == 1:
+				adjacent.append(enemy)
+		adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
+			return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
+		if not adjacent.is_empty():
+			damage_enemy(adjacent[0],1)
+			ally.ap = 0
+			add_log("どんぐり妖精が攻撃")
+			check_outcome()
+			continue
+		# Breadth-first search finds the nearest reachable enemy without crossing allies.
+		var start: Vector2i = ally.cell
+		var queue: Array[Vector2i] = [start]
+		var first: Dictionary = {start:start}
+		var destination := start
+		var head := 0
+		while head < queue.size() and destination == start:
+			var current := queue[head]
+			head += 1
+			for direction in CARDINALS:
+				var next: Vector2i = current + direction
+				if first.has(next) or not inside(next) or blocked(next) or next == player.cell or mines.has(next):
+					continue
+				first[next] = next if current == start else first[current]
+				if not enemy_at(next).is_empty():
+					destination = first[next]
+					break
+				queue.append(next)
+		if destination != start and enemy_at(destination).is_empty():
+			ally.cell = destination
+			trigger_mine(ally)
+		ally.ap = 0
+	check_outcome()

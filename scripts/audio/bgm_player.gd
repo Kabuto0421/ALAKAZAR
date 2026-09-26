@@ -29,3 +29,6 @@ func toggle_mute() -> void:
 		player.stop()
 	else:
 		player.play()
+
+func _exit_tree() -> void:
+	player.stop()

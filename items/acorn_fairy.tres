@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/acorn_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/acorn_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "acorn_fairy"
+title = "どんぐり妖精"
+description = "攻撃範囲の空きマスに召喚。\nHP1・AP1、縦横1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"
+color = Color(0.69, 0.84, 0.39, 1)
+effect = ExtResource("2")
+icon = ExtResource("3")

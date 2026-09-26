@@ -1,0 +1,44 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/formation_layout.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemy_placement.gd" id="2"]
+
+[node name="RunFormation3" type="Node2D"]
+script = ExtResource("1")
+board_size = 6
+player_start = Vector2i(0, 3)
+
+[node name="Enemy1" type="Node2D" parent="."]
+position = Vector2(288, 32)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy2" type="Node2D" parent="."]
+position = Vector2(288, 160)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy3" type="Node2D" parent="."]
+position = Vector2(288, 352)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy4" type="Node2D" parent="."]
+position = Vector2(288, 224)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy5" type="Node2D" parent="."]
+position = Vector2(224, 96)
+script = ExtResource("2")
+enemy_kind = 2
+
+[node name="Enemy6" type="Node2D" parent="."]
+position = Vector2(224, 288)
+script = ExtResource("2")
+enemy_kind = 2
+
+[node name="Enemy7" type="Node2D" parent="."]
+position = Vector2(32, 352)
+script = ExtResource("2")
+enemy_kind = 1
