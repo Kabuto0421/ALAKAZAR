@@ -11,6 +11,7 @@ const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
+const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
@@ -602,10 +603,12 @@ func _draw_board() -> void:
 			var cannon: Dictionary = model.cannon_at(cell)
 			if not cannon.is_empty():
 				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy"}[cannon.kind]
-				SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
-				if cannon.dir != Vector2i.ZERO:
-					_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
-			if cell == item_origin:
+				# Directional art shows the facing itself; the plain icon gets an arrow.
+				if not DirectionSheet.paint(self,_center(cell),cannon_id,cannon.dir,0.95):
+					SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
+					if cannon.dir != Vector2i.ZERO:
+						_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
+			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
 		var start := _center(item_origin)

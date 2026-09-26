@@ -2,6 +2,7 @@ extends SceneTree
 const Run = preload("res://scripts/run/run_model.gd")
 const Rules = preload("res://scripts/battle_model.gd")
 const Planner = preload("res://scripts/enemy_planner.gd")
+const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 var checks := 0
 var failures := 0
 
@@ -202,6 +203,12 @@ func _new_fairies() -> void:
 	m.place_cannon(Vector2i(2,2),Vector2i.UP,"vane")
 	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
 	verify(m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon turns right after firing")
+
+	# Direction sheets: 2x2 square, top-left up, top-right right, bottom-left down, bottom-right left.
+	var sheet := ImageTexture.create_from_image(Image.create(64,64,false,Image.FORMAT_RGBA8))
+	verify(DirectionSheet.region(sheet,Vector2i.UP) == Rect2(0,0,32,32) and DirectionSheet.region(sheet,Vector2i.RIGHT) == Rect2(32,0,32,32),"Top row holds up and right frames")
+	verify(DirectionSheet.region(sheet,Vector2i.DOWN) == Rect2(0,32,32,32) and DirectionSheet.region(sheet,Vector2i.LEFT) == Rect2(32,32,32,32),"Bottom row holds down and left frames")
+	verify(DirectionSheet.path_for("cannon_fairy") == "res://assets/sprites/spirits/cannon_fairy_directions.png","Sheet path follows the fairy id")
 
 	# Firework bursts on all eight neighbours, vanishes, and sets off cannons it reaches.
 	m = fixture()
