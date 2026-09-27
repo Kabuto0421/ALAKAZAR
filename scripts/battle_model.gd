@@ -272,7 +272,8 @@ func item_targets(id: String) -> Array[Vector2i]:
 	var item := item_definition(id)
 	if item == null:
 		return result
-	var weapon_cells := targets()
+	# The bow cannot move, but fairies may be placed anywhere along its diagonal lines.
+	var weapon_cells: Array[Vector2i] = bow_lines() if WEAPONS[weapon].get("ranged","") == "bishop" else targets()
 	for y in range(board_size):
 		for x in range(board_size):
 			var cell := Vector2i(x,y)

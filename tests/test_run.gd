@@ -464,3 +464,8 @@ func _mid_weapons() -> void:
 	verify(not m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(1,2),"Bow cannot move")
 	verify(m.player_action(Vector2i(3,4)) and m.enemy_at(Vector2i(3,4)).is_empty() and m.player.cell == Vector2i(1,2),"Bow shoots from where the player stands")
 	verify(m.targets().has(Vector2i(4,5)),"With the front enemy gone, the line reaches further")
+	m.fairy_loadout.assign(["wall_fairy"])
+	m.refill_fairies()
+	var spots: Array = m.item_targets("wall_fairy")
+	verify(spots.has(Vector2i(3,4)) and spots.has(Vector2i(0,3)) and not spots.has(Vector2i(2,2)),"With the bow, fairies go on the empty tiles of its diagonal lines")
+	verify(not spots.has(Vector2i(4,5)) and not spots.has(Vector2i(5,6)),"Lines stop at the first enemy for placement too")
