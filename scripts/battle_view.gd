@@ -57,8 +57,6 @@ var buttons: Array[Button] = []
 var end_button: Button
 var result_button: Button
 var weapon_buttons: Array[Button] = []
-## Weapon under the cursor in the weapon bar: its reach is previewed on the board.
-var peek_weapon := -1
 ## Magic circle: enemies it kills stay on screen until the burst of light.
 var hold_dead_until := 0.0
 var last_circle: Dictionary = {}
@@ -112,12 +110,6 @@ func _make_ui() -> void:
 		var button := _button(ui,Rect2(352+slot*260,620,248,94),"",func():
 			if slot < model.owned_weapons.size():
 				_equip(model.owned_weapons[slot]))
-		button.mouse_entered.connect(func():
-			peek_weapon = model.owned_weapons[slot] if slot < model.owned_weapons.size() else -1
-			queue_redraw())
-		button.mouse_exited.connect(func():
-			peek_weapon = -1
-			queue_redraw())
 		weapon_buttons.append(button)
 	for y in range(MAX_BOARD):
 		for x in range(MAX_BOARD):
@@ -739,13 +731,6 @@ func _draw_board() -> void:
 	var circle_zone: Array[Vector2i] = []
 	if model.is_circle(model.weapon) and model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty() and model.targets().has(hover_cell) and model.enemy_at(hover_cell).is_empty() and not model.blocked(hover_cell):
 		circle_zone = model.circle_preview(hover_cell)
-	var peek_zone: Array[Vector2i] = []
-	var peek_color := Color.WHITE
-	if peek_weapon >= 0 and peek_weapon != model.weapon and model.phase == Rules.Phase.PLAYER and selected_item.is_empty():
-		peek_color = Color(Rules.WEAPONS[peek_weapon].color)
-		for offset in model.weapon_offsets(peek_weapon):
-			if model.inside(model.player.cell+offset):
-				peek_zone.append(model.player.cell+offset)
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -798,9 +783,6 @@ func _draw_board() -> void:
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.18))
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.7),false,2)
-			if peek_zone.has(cell):
-				_dashed_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),peek_color,3)
-				draw_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),Color(peek_color,0.14))
 			if cell == hover_cell and model.inside(cell) and not show_rules:
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("fff0bd"),false,2)
 			if cell == model.player.cell:
@@ -931,7 +913,7 @@ func _draw_weapons() -> void:
 		var accent := Color(weapon.color)
 		var equipped: bool = model.weapon == index
 		draw_rect(rect,Color("1b3431") if equipped else Color("0b1415"))
-		draw_rect(rect,accent if equipped or peek_weapon == index else Color("324843"),false,4 if equipped else 2)
+		draw_rect(rect,accent if equipped else Color("324843"),false,4 if equipped else 2)
 		_text(pos+Vector2(10,22),str(slot+1),15,MUTED)
 		var label: String = ("▶ " if equipped else "")+weapon.name
 		_text(pos+Vector2(28,38),label,22,accent)
