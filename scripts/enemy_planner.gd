@@ -10,6 +10,8 @@ var staging: Dictionary = {}
 
 func begin(model: RefCounted) -> void:
 	model.phase = Rules.Phase.ENEMY
+	# Rotorick's weapon verdict only binds the player's turn that just ended.
+	model.locked_slot = -1
 	model.round_number += 1
 	staging.clear()
 	var infantry: Array = model.enemies.filter(func(e: Dictionary) -> bool: return e.type == "infantry")
@@ -37,7 +39,7 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "前進"
 		elif enemy.type in Rules.JUMPERS:
 			enemy.intent = "跳躍接近"
-		elif enemy.type == "rook":
+		elif enemy.type in ["rook", "slot"]:
 			enemy.intent = "突進" if enemy.state == "brace" else "構える"
 		elif enemy.type == "prison":
 			enemy.intent = "接近"
@@ -59,6 +61,16 @@ func beat(model: RefCounted, index: int) -> void:
 		if model.terminal():
 			break
 		if enemy.hp <= 0 or enemy.ap <= 0:
+			continue
+		if enemy.type == "shadow":
+			continue
+		if enemy.type == "slot":
+			if enemy.state == "idle":
+				model.rook_brace(enemy)
+				model.slot_spin(enemy)
+				enemy.ap = 0
+			else:
+				model.slot_turn(enemy)
 			continue
 		if enemy.type == "rook":
 			if enemy.state == "brace":
@@ -121,6 +133,7 @@ func finish(model: RefCounted) -> void:
 			var request: Dictionary = infantry_behavior.finish_request(model, enemy, nearby, infantry.size())
 			for key in request:
 				enemy[key] = request[key]
+		model.shadow_strike()
 		model.tick_walls()
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = 2

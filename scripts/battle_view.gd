@@ -180,7 +180,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	_sync_units(false)
 	_update_controls()
 	queue_redraw()
-	if model.enemies.any(func(e: Dictionary) -> bool: return e.type == "rook" and e.state == "idle"):
+	if model.enemies.any(func(e: Dictionary) -> bool: return e.type in Rules.CHARGERS and e.state == "idle"):
 		_boss_intro()
 
 ## The rook enters blue, pauses, then snaps into its red stance before the player moves.
@@ -195,7 +195,7 @@ func _boss_intro() -> void:
 	_sync_units(false)
 	_feedback()
 	for actor in actors.values():
-		if actor.kind == "rook":
+		if actor.kind in Rules.CHARGERS:
 			actor.flash = 0.25
 	queue_redraw()
 	await get_tree().create_timer(0.5).timeout
@@ -421,6 +421,7 @@ func _sync_units(animate: bool) -> void:
 		var target := _unit_center(unit)
 		view.facing = 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
+		view.reel = int(unit.get("reel",0))
 		view.set_meta("cells", model.footprint(unit) if id >= 0 else [unit.cell])
 		view.hop_height = 0.0
 		if animate:
@@ -589,8 +590,8 @@ func _draw() -> void:
 	for y in range(0,720,24):
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
-	var stage_title := "ボス戦" if model.level == Rules.BOSS_LEVEL else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
-	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if model.level == Rules.BOSS_LEVEL else CYAN)
+	var stage_title := "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
+	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if Rules.BOSS_LEVELS.has(model.level) else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
@@ -628,7 +629,7 @@ func _draw_board() -> void:
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
 			danger.append_array(model.archer_lane(enemy))
-		elif enemy.hp > 0 and enemy.type == "rook" and enemy.get("state","") == "brace":
+		elif enemy.hp > 0 and enemy.type in Rules.CHARGERS and enemy.get("state","") == "brace":
 			danger.append_array(model.rook_lane(enemy))
 	for y in range(model.board_size):
 		for x in range(model.board_size):
@@ -646,6 +647,12 @@ func _draw_board() -> void:
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
+			if model.floor_cells.has(cell):
+				# Reel 4: a red-and-black checker marks the execution floor.
+				for q in range(4):
+					var sub := Rect2(pos+Vector2(4+(q%2)*28,4+(q/2)*28),Vector2(28,28))
+					draw_rect(sub,Color(0.85,0.1,0.1,0.55) if (q%2)==(q/2) else Color(0.05,0.02,0.02,0.6))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff3b3b"),false,2)
 			if danger.has(cell):
 				# Aimed archer: the lane its arrow will fly down next turn.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
@@ -764,6 +771,13 @@ func _draw_weapons() -> void:
 				draw_rect(tile,Color(accent,0.55) if offsets.has(offset) else Color("253a36"))
 				if offset == Vector2i.ZERO:
 					_draw_player_portrait(index,tile.get_center(),28,1)
+		if model.locked_slot >= 0:
+			if slot == model.locked_slot:
+				draw_rect(rect,Color("ffd35b"),false,4)
+				_text(pos+Vector2(118,32),"判決",18,Color("ffd35b"))
+			else:
+				draw_rect(rect,Color(0,0,0,0.62))
+				_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
 
 func _draw_intel() -> void:
 	_panel(Rect2(832,94,296,508))
@@ -843,7 +857,7 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
 	elif enemy.type in UnitView.BOSS_KINDS:
-		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9)
+		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:
 		draw_texture_rect_region(UnitView.ENEMY_ATLAS,Rect2(-28,-28,56,56),Rect2(56,0,28,28))
 		if enemy.type == "heavy":
@@ -853,15 +867,74 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 			UnitView.draw_ranged_gear(self,enemy.type)
 	draw_set_transform(Vector2.ZERO)
 
+const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
+## Rotorick speaks as a polite executioner; the second line is the plain rule.
+const REEL_LINES = {
+	0: ["運命の車輪が回っております。", "抽選中"],
+	1: ["判決、一。貴方の刃は第一の武器に限ります。狭い檻の中で、存分に足掻きなさい。", "このターン、武器は1枠目しか使えない"],
+	2: ["判決、二。第二の武器以外は没収いたしました。不自由こそ、罪人にふさわしい。", "このターン、武器は2枠目しか使えない"],
+	3: ["判決、三。第三の武器のみ、所持を許可いたします。その一振りで抗ってご覧なさい。", "このターン、武器は3枠目しか使えない"],
+	4: ["判決、四。この床は刑場となります。印の上に立つ者は、敵味方の区別なく焼かれるでしょう。", "赤黒のマスに、次の敵ターン開始時にいると1ダメージ（敵・味方も）"],
+	5: ["ERROR 05 ─ 抽選機構に致命的な例外が発生しました。執行プロセスを強制停止します。再起動まで：1ターン", "次の敵ターンは突進しない（攻撃のチャンス）"],
+	6: ["判決、六。隠密妖精を放っております。影は私の姿をしておりますが、近づく罪人を斬るための刃に過ぎません。", "今いる場所に影を残して突進。影は隣に来た者を1回斬って消える"],
+	7: ["刑を執行する。", "AP+1（合計2）：次の敵ターンは2回突進。1回目は避けても回り込んで必ず当たる（壁精霊などでは防げる）"],
+}
+
+## Draws text wrapped every `per_line` characters; returns the y after the last line.
+func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int) -> float:
+	var y := at.y
+	var line := ""
+	for character in text:
+		line += character
+		if line.length() >= per_line:
+			_text(Vector2(at.x,y),line,size,color)
+			y += size+6
+			line = ""
+	if not line.is_empty():
+		_text(Vector2(at.x,y),line,size,color)
+		y += size+6
+	return y
+
+func _draw_rotorick_inspector(enemy: Dictionary) -> void:
+	var reel: int = int(enemy.get("reel",0))
+	var lines: Array = REEL_LINES[reel]
+	var y := 214.0
+	_text(Vector2(852,y),"移動：飛車（向きの先へ端まで突進）",16,CYAN)
+	y += 30
+	if reel == 7:
+		y = _wrapped(Vector2(852,y),lines[0],20,Color("f1e9d8"),13)
+		y = _wrapped(Vector2(852,y+6),"この刃から、",30,Color("ff3b3b"),9)
+		y = _wrapped(Vector2(852,y),"逃れる術は無い。",30,Color("ff3b3b"),9)
+	elif reel == 5:
+		y = _wrapped(Vector2(852,y),lines[0],17,Color("ffd35b"),16)
+	else:
+		y = _wrapped(Vector2(852,y),"「%s」" % lines[0],17,Color("f1e9d8"),16)
+	draw_line(Vector2(852,y+2),Vector2(1108,y+2),Color("4d5443"),2)
+	_wrapped(Vector2(852,y+26),"効果：" + lines[1],17,Color("ff5b62") if reel == 7 else Color("ffd35b"),16)
+
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	var type: Dictionary = Rules.TYPES[enemy.type]
 	_text(Vector2(852,133),type.name,28,INK)
 	_text(Vector2(852,175),"HP",20)
 	for i in range(int(type.hp)):
 		_draw_heart(Vector2(909+i*30,167),25,Color("ff5b62"),i<int(enemy.hp))
-	_text(Vector2(984,175),"AP",20,GOLD)
-	for i in range(int(type.ap)):
-		draw_rect(Rect2(1029+i*36,153,28,23),GOLD)
+	# Three hearts reach further right, so AP moves over for them.
+	var ap_x := 1004.0 if int(type.hp) >= 3 else 984.0
+	_text(Vector2(ap_x,175),"AP",20,GOLD)
+	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
+	for i in range(ap_boxes):
+		draw_rect(Rect2(ap_x+45+i*32,153,26,23),Color("ff5b62") if i >= int(type.ap) else GOLD)
+	if enemy.type == "slot":
+		_draw_rotorick_inspector(enemy)
+		return
+	if enemy.type == "rook":
+		_text(Vector2(852,217),"移動・攻撃範囲：飛車",21,INK)
+		_draw_range(ROOK_RANGE,CYAN,enemy)
+		_text(Vector2(852,450),"構えた向きへ、端までまっすぐ突進",18,Color("ff805a"))
+		var rook_intent := "赤：構えた向きへ突進" if enemy.get("state","") == "brace" else "すぐに構える"
+		_text(Vector2(852,489),rook_intent,23,GOLD)
+		_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+		return
 	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
 	_draw_range(model.enemy_offsets(enemy),CYAN,enemy,-1,0,2,false,model.enemy_attack_offsets(enemy))
 	if enemy.type == "archer":
@@ -908,13 +981,16 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"burn":
+			draw_rect(Rect2(pos - Vector2.ONE * 28, Vector2.ONE * 56), Color(1, 0.25, 0.1, fade * 0.6))
+			draw_arc(pos, 8 + t * 20, 0, TAU, 16, Color("ffb35b", fade), 3, true)
 		"roar":
 			# The boss's stance: a red shockwave from the middle of its footprint.
 			var at := pos - Vector2.ONE * TILE / 2
@@ -1020,7 +1096,7 @@ func _draw_result() -> void:
 	_panel(Rect2(368,226,416,282))
 	var won: bool = model.phase == Rules.Phase.WON
 	_text(Vector2(414,278),"SECTOR CLEAR" if won else "EXPEDITION FAILED",36,CYAN if won else Color("ff8968"),LATIN)
-	_text(Vector2(421,326),"ボス撃破！" if won and model.level==Rules.BOSS_LEVEL else "中盤を突破した" if won and model.level==Rules.LAST_LEVEL else "包囲網を突破した" if won else "探索者、倒れる",26)
+	_text(Vector2(421,326),"ボス撃破！" if won and Rules.BOSS_LEVELS.has(model.level) else "包囲網を突破した" if won else "探索者、倒れる",26)
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
 	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
 

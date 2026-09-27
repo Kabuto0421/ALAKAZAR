@@ -160,6 +160,9 @@ func advance() -> void:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
+	elif stage == Battle.MID_LEVELS[-1]:
+		# Mid-game camp before Rotorick.
+		state = State.CAMP
 	else:
 		stage += 1
 		start_battle()
@@ -197,5 +200,5 @@ func camp_back() -> void:
 
 func _leave_camp() -> void:
 	offers.clear()
-	stage = Battle.BOSS_LEVEL
+	stage = Battle.BOSS_LEVEL if stage == LAST_NORMAL_STAGE else Battle.BOSS2_LEVEL
 	start_battle()

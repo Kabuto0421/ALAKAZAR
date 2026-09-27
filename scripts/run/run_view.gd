@@ -47,7 +47,7 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,24),"ALAKAZAR",32,CYAN).add_theme_font_override("font",LATIN)
-	_label(Vector2(560,35),"序盤3戦 → キャンプ → ボス → 中盤3戦",20,Color("9aafa9"))
+	_label(Vector2(560,35),"序盤3戦 → キャンプ → ボス → 中盤3戦 → キャンプ → ロトリック",20,Color("9aafa9"))
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
 		_label(Vector2(960,85),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	match run.state:
@@ -63,7 +63,7 @@ func _render() -> void:
 			_loadout()
 			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
-			var cleared := "ボス撃破" if run.stage == run.battle.BOSS_LEVEL else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
+			var cleared := "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
 			_label(Vector2(44,85),"%s — 報酬を1つ選ぶ" % cleared,32,INK)
 			_label(Vector2(44,137),"妖精の使用回数が回復（HPは持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
 			_cards(run.offers)
@@ -84,7 +84,7 @@ func _render() -> void:
 			_button(Vector2(44,665),Vector2(230,40),"← 報酬へ戻る",_cancel)
 		Run.State.CAMP:
 			_label(Vector2(44,85),"キャンプ — ひとつだけ選ぶ",36,INK)
-			_label(Vector2(44,137),"この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",22,Color("ff987f"))
+			_label(Vector2(44,137),"この先はボス：ロトリック（6×6）" if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",22,Color("ff987f"))
 			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
 			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1",Color("ffd35b"),_forge,true)
 			_camp_option(2,"妖精のクラスアップ","準備中",Color("9aafa9"),func(): pass,false)
@@ -100,7 +100,7 @@ func _render() -> void:
 		Run.State.FINISHED, Run.State.LOST:
 			var won: bool = run.state == Run.State.FINISHED
 			_label(Vector2(260,170),"遠征達成！" if won else "探索終了",52,CYAN if won else Color("ff987f"))
-			_label(Vector2(260,249),"中盤を突破した（この先は未実装）" if won else "別の武器と妖精でもう一度",25,INK)
+			_label(Vector2(260,249),"ロトリックを倒し、遠征を踏破した" if won else "別の武器と妖精でもう一度",25,INK)
 			var owned: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned.append({"kind":"weapon","value":index})

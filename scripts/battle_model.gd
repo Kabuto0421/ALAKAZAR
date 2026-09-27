@@ -25,9 +25,13 @@ const TYPES = {
 	"rook": {"name": "突進くん", "hp": 3, "ap": 1, "size": 2},
 	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
+	"slot": {"name": "ロトリック", "hp": 3, "ap": 1, "size": 2},
+	"shadow": {"name": "ロトリックの影", "hp": 1, "ap": 0, "size": 2},
 }
 ## Two-by-two bosses: their cell is the top-left of the footprint.
-const BIG = ["rook", "prison"]
+const BIG = ["rook", "prison", "slot", "shadow"]
+## Chargers that move like a rook (飛車) with a braced direction.
+const CHARGERS = ["rook", "slot"]
 ## Ranged soldiers never melee; they attack from their own tile.
 const RANGED = ["javelin", "archer"]
 ## Horses move and jump exactly like cavalry, with more HP.
@@ -41,17 +45,28 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_mid_01.tscn"),
 	preload("res://scenes/formations/run_mid_02.tscn"),
 	preload("res://scenes/formations/run_mid_03.tscn"),
+	preload("res://scenes/formations/run_boss_03.tscn"),
 ]
 const BOSS_LEVEL := 3
+## The second boss (Rotorick) after the mid-game camp.
+const BOSS2_LEVEL := 7
+const BOSS_LEVELS = [3, 7]
 ## The first boss is drawn from these rooms: three horses, or the rook and the moving prison.
 const BOSS_FORMATIONS = [
 	preload("res://scenes/formations/run_boss_01.tscn"),
 	preload("res://scenes/formations/run_boss_02.tscn"),
 ]
 var boss_variant := 0
-## Mid-game fights after the first boss; the last one currently ends the expedition.
+## Rotorick's reel: results are drawn from this seed so look-ahead copies never disturb them.
+var slot_seed := 0
+var slot_rolls := 0
+## Reel 1-3: the only weapon slot the player may use this turn (-1 = free).
+var locked_slot := -1
+## Reel 4: tiles that burn at the start of the next enemy turn.
+var floor_cells: Array[Vector2i] = []
+## Mid-game fights after the first boss, then a camp and the second boss.
 const MID_LEVELS = [4, 5, 6]
-const LAST_LEVEL := 6
+const LAST_LEVEL := 7
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]
@@ -109,12 +124,16 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	obstacles.clear()
 	walls.clear()
 	cannons.clear()
+	locked_slot = -1
+	floor_cells.clear()
+	slot_rolls = 0
+	slot_seed = randi()
 	refill_fairies()
 	logs.clear()
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -138,8 +157,8 @@ func refill_fairies() -> void:
 
 
 func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
-	var state := "idle" if kind == "rook" else "approach"
-	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1))}
+	var state := "idle" if kind in CHARGERS else "approach"
+	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0}
 
 ## Every tile a unit covers (four for the two-by-two bosses).
 func footprint(enemy: Dictionary) -> Array[Vector2i]:
@@ -451,6 +470,8 @@ func turn_to(_direction_index: int) -> bool:
 func equip(index: int) -> bool:
 	if phase != Phase.PLAYER or not owned_weapons.has(index):
 		return false
+	if locked_slot >= 0 and locked_slot < owned_weapons.size() and owned_weapons[locked_slot] != index:
+		return false
 	weapon = index
 	return true
 
@@ -495,6 +516,7 @@ func player_action(cell: Vector2i) -> bool:
 	else:
 		player.cell = cell
 		trigger_mine(player)
+		shadow_strike()
 	check_outcome()
 	return true
 
@@ -517,9 +539,14 @@ func check_outcome() -> void:
 	_release_prisoners()
 	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
+	if not enemies.any(func(e: Dictionary) -> bool: return e.type == "slot"):
+		locked_slot = -1
+		floor_cells.clear()
 	if player.hp <= 0:
 		phase = Phase.LOST
-	elif enemies.is_empty():
+	elif enemies.all(func(e: Dictionary) -> bool: return e.type == "shadow"):
+		# Shadows are traps, not foes: the fight ends with the boss.
+		enemies.clear()
 		phase = Phase.WON
 
 func terminal() -> bool:
@@ -750,12 +777,14 @@ func boss_intro() -> bool:
 	var any := false
 	events.clear()
 	for enemy in enemies:
-		if enemy.type == "rook" and enemy.state == "idle":
+		if enemy.type in CHARGERS and enemy.state == "idle":
 			rook_brace(enemy)
+			if enemy.type == "slot":
+				slot_spin(enemy)
 			events.append({"kind":"roar", "cell":enemy.cell + Vector2i.ONE, "id":-2})
 			any = true
 	if any:
-		add_log("突進くんが構えた！")
+		add_log("ボスが構えた！")
 	return any
 
 ## Rook: face the player. Aligned with its two rows/columns it aims straight at them.
@@ -844,7 +873,7 @@ func rook_charge(enemy: Dictionary) -> bool:
 			break
 	if pushed and not terminal():
 		trigger_mine(player)
-	add_log("突進くんの突進" + ("！ 壁まで押し込まれた" if hit else ""))
+	add_log("%sの突進" % TYPES[enemy.type].name + ("！ 壁まで押し込まれた" if hit else ""))
 	check_outcome()
 	if not terminal() and enemy.hp > 0:
 		rook_brace(enemy)
@@ -881,3 +910,134 @@ func footprint_distance(enemy: Dictionary, target: Vector2i) -> int:
 	for cell in footprint(enemy):
 		best = mini(best, distance(cell, target))
 	return best
+
+
+# --- Rotorick: the slot boss --------------------------------------------------
+
+const REEL_WEIGHTS = {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 1}
+
+## Draws the next reel (never the same number twice in a row; 7 is rarer).
+func slot_roll(enemy: Dictionary) -> int:
+	var pool: Array = []
+	for reel in REEL_WEIGHTS:
+		if reel != int(enemy.get("last_reel", 0)):
+			for i in REEL_WEIGHTS[reel]:
+				pool.append(reel)
+	var pick: int = absi(hash([slot_seed, slot_rolls])) % pool.size()
+	slot_rolls += 1
+	return pool[pick]
+
+## Spin after acting (0 AP): the result is shown for the whole player turn.
+func slot_spin(enemy: Dictionary) -> void:
+	var reel := slot_roll(enemy)
+	enemy.reel = reel
+	enemy.last_reel = reel
+	match reel:
+		1, 2, 3:
+			if reel - 1 < owned_weapons.size():
+				locked_slot = reel - 1
+				weapon = owned_weapons[locked_slot]
+		4:
+			floor_cells.clear()
+			var parity: int = (enemy.cell.x + enemy.cell.y) % 2
+			for y in range(board_size):
+				for x in range(board_size):
+					if (x + y) % 2 == parity:
+						floor_cells.append(Vector2i(x, y))
+		5:
+			enemy.state = "stun"
+	enemy.intent = "出目 %d" % reel
+	add_log("ロトリックの出目：%d" % reel)
+
+## Enemy turn: resolve the shown reel, charge, then spin again.
+func slot_turn(enemy: Dictionary) -> void:
+	if phase != Phase.ENEMY or enemy.hp <= 0:
+		return
+	_burn_floor(enemy)
+	if terminal():
+		return
+	match int(enemy.reel):
+		5:
+			# The reel jammed: no charge this turn, no damage to itself.
+			enemy.ap = 0
+			add_log("ロトリック：再起動中")
+			rook_brace(enemy)
+		6:
+			_leave_shadow(enemy)
+			rook_charge(enemy)
+		7:
+			enemy.ap = 2
+			_sure_charge(enemy)
+			if enemy.ap > 0 and not terminal() and enemy.hp > 0:
+				rook_charge(enemy)
+		_:
+			rook_charge(enemy)
+	shadow_strike()
+	if not terminal() and enemy.hp > 0:
+		if enemy.state != "brace":
+			rook_brace(enemy)
+		slot_spin(enemy)
+
+func _burn_floor(enemy: Dictionary) -> void:
+	if floor_cells.is_empty():
+		return
+	for cell in floor_cells:
+		events.append({"kind":"burn", "cell":cell, "id":-2})
+		if player.cell == cell:
+			_hit_player(enemy)
+		var other := enemy_at(cell)
+		if not other.is_empty() and other.type not in ["slot", "shadow"]:
+			damage_enemy(other, 1)
+		var ally := ally_at(cell)
+		if not ally.is_empty():
+			ally.hp -= 1
+			events.append({"kind":"hit", "cell":cell, "id":ally.id})
+	add_log("刑場の床が焼けた")
+	floor_cells.clear()
+	check_outcome()
+
+## Reel 7: the first charge always reaches the player (walls and blockers still stop it).
+func _sure_charge(enemy: Dictionary) -> void:
+	var before: int = player.hp
+	rook_charge(enemy)
+	for attempt in 3:
+		if player.hp < before or terminal() or enemy.hp <= 0:
+			return
+		# The homing follow-up is part of the same sure strike, so it costs no extra AP.
+		var from: Vector2i = enemy.cell
+		enemy.ap += 1
+		rook_charge(enemy)
+		if enemy.cell == from:
+			return
+
+## Reel 6: a stealth fairy leaves a shadow of Rotorick where it stood.
+func _leave_shadow(enemy: Dictionary) -> void:
+	for old in enemies:
+		if old.type == "shadow":
+			old.hp = 0
+	var next_id := 0
+	for other in enemies:
+		next_id = maxi(next_id, int(other.id) + 1)
+	var shadow := make_enemy("shadow", enemy.cell, next_id)
+	shadow.ap = 0
+	shadow.state = "lurk"
+	enemies.append(shadow)
+	events.append({"kind":"summon", "cell":enemy.cell + Vector2i.ONE, "id":-2, "fx":"stealth"})
+	add_log("隠密妖精がロトリックの影を残した")
+
+## A shadow cuts a player who stands next to it, once, then fades.
+func shadow_strike() -> void:
+	for shadow in enemies:
+		if shadow.type != "shadow" or shadow.hp <= 0:
+			continue
+		var cells := footprint(shadow)
+		for cell in cells:
+			for direction in CARDINALS:
+				if cell + direction == player.cell and not cells.has(player.cell):
+					shadow.hp = 0
+					events.append({"kind":"slash", "cell":player.cell, "id":-2, "dir":direction})
+					_hit_player(shadow)
+					break
+			if shadow.hp <= 0:
+				break
+	check_outcome()

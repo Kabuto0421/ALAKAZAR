@@ -9,7 +9,10 @@ const CAVALRY_ATLAS = preload("res://assets/sprites/enemies/cavalry_hover_direct
 const ROOK_ATLAS = preload("res://assets/sprites/enemies/rook_boss_directions_56.png")
 const PRISON_ATLAS = preload("res://assets/sprites/enemies/prison_directions.png")
 const EXECUTIONER_ATLAS = preload("res://assets/sprites/enemies/executioner_directions.png")
-const BOSS_KINDS = ["rook", "prison", "executioner"]
+const ROTORICK_ATLAS = preload("res://assets/sprites/enemies/rotorick_reel_112.png")
+const ROTORICK_PANEL = preload("res://assets/sprites/enemies/rotorick_charge_panel_112.png")
+const ROTORICK_SHADOW = preload("res://assets/sprites/enemies/rotorick_shadow_112.png")
+const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
 const PLAYER_ATLAS_CELL := 362.0
 const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
@@ -28,8 +31,10 @@ var hit_direction := Vector2.ZERO
 var status_layer: Node2D
 ## Tiles per side (2 for the rook and the moving prison).
 var span := 1
-## Rook: red braced sprite row.
+## Rook: red braced sprite row. Rotorick: red charge panel.
 var braced := false
+## Rotorick's reel (0 = spinning).
+var reel := 0
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -98,7 +103,7 @@ func _draw() -> void:
 	elif kind in ["cavalry","horse"]:
 		_draw_cavalry(tint)
 	elif kind in BOSS_KINDS:
-		draw_boss(self, kind, facing, braced, tint)
+		draw_boss(self, kind, facing, braced, tint, 1.0, reel)
 	else:
 		var side := 64.0 if kind == "heavy" else 56.0
 		draw_texture_rect_region(ENEMY_ATLAS,Rect2(-side/2,-side/2-4,side,side),Rect2(facing*28,0,28,28),tint)
@@ -112,8 +117,14 @@ func _draw() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 ## Sheets use the game facing order: up, right, down, left.
-static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
+static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: bool, tint: Color = Color.WHITE, factor: float = 1.0, reel_value: int = 0) -> void:
 	match boss:
+		"slot":
+			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
+			var frame: int = 7 if reel_value <= 0 else reel_value - 1
+			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-86,-116)*factor, Vector2.ONE*172*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
+		"shadow":
+			canvas.draw_texture_rect_region(ROTORICK_SHADOW, Rect2(Vector2(-86,-116)*factor, Vector2.ONE*172*factor), Rect2(224, 0, 112, 112), Color(tint, 0.9))
 		"rook":
 			canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-62,-68)*factor, Vector2.ONE*124*factor), Rect2(direction*56, (56 if red else 0), 56, 56), tint)
 		"prison":
@@ -135,11 +146,16 @@ static func draw_ranged_gear(canvas: CanvasItem, gear: String) -> void:
 		canvas.draw_line(Vector2(-8,0)+Vector2.from_angle(PI*0.55)*20,Vector2(-8,0)+Vector2.from_angle(PI*1.45)*20,Color("f1ead2"),1)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
+	var max_hp := 5 if kind == "player" else 3 if kind in ["rook","slot"] else 2 if kind in ["heavy","horse","executioner"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
+	# Rotorick's hearts sit above its head so the charge panel owns its feet.
+	var heart_y := -122.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
-		_draw_heart(Vector2(-total/2+i*11+5,29+grow),11.0,Color("ff5b62"),i < hp)
+		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
+	if kind == "slot":
+		# Charge panel at the feet, drawn above the body so its arrow is never hidden.
+		status_layer.draw_texture_rect_region(ROTORICK_PANEL, Rect2(-40,22,80,80), Rect2(facing*112, (112 if braced else 0), 112, 112))
 	if attack_target:
 		for corner in [Vector2(-28-grow,-27-grow),Vector2(28+grow,-27-grow),Vector2(-28-grow,24+grow),Vector2(28+grow,24+grow)]:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))

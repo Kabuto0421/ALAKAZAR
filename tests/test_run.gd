@@ -128,7 +128,14 @@ func _initialize() -> void:
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Mid-game placements are valid")
 	m.enemies.clear()
 	m.check_outcome()
-	verify(run.finish_battle() and run.state==Run.State.FINISHED,"The last mid-game fight ends the expedition for now")
+	verify(run.finish_battle() and run.state==Run.State.REWARD,"The last mid-game fight gives a reward")
+	run.skip_reward()
+	verify(run.state==Run.State.CAMP,"A mid-game camp follows")
+	run.camp_rest()
+	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS2_LEVEL and m.board_size==6 and m.enemies.size()==1 and m.enemies[0].type=="slot","Rotorick waits after the mid-game camp")
+	m.enemies.clear()
+	m.check_outcome()
+	verify(run.finish_battle() and run.state==Run.State.FINISHED,"Beating Rotorick completes the expedition")
 
 	# Forging adds 1 damage to the chosen weapon.
 	run = Run.new()
@@ -236,6 +243,7 @@ func _initialize() -> void:
 	_mid_weapons()
 	_place_on_enemies()
 	_rook_and_prison()
+	_rotorick()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -599,3 +607,117 @@ func _rook_and_prison() -> void:
 		run.advance()
 		seen[run.battle.boss_variant] = true
 	verify(seen.has(0) and seen.has(1),"The first boss is drawn between the horses and the rook room")
+
+func _slot_room() -> RefCounted:
+	var m := Rules.new()
+	m.reset(Rules.BOSS2_LEVEL)
+	m.owned_weapons.assign([0,1,3])
+	return m
+
+func _slot_ready(m: RefCounted, reel: int) -> Dictionary:
+	var boss: Dictionary = m.enemies[0]
+	m.rook_brace(boss)
+	boss.reel = reel
+	boss.last_reel = reel
+	return boss
+
+func _rotorick() -> void:
+	var m := _slot_room()
+	var boss: Dictionary = m.enemies[0]
+	verify(boss.hp == 3 and boss.ap == 1 and m.footprint(boss).size() == 4,"Rotorick: HP3, AP1, two by two")
+	verify(boss.state == "idle" and int(boss.reel) == 0,"Rotorick enters idle with the reel spinning")
+	m.player.cell = Vector2i(0,2)
+	verify(m.boss_intro() and boss.state == "brace" and int(boss.reel) >= 1 and int(boss.reel) <= 7,"Before the first turn it aims and shows a reel")
+	# The reel is drawn from the model's seed, never twice in a row, 7 rarer.
+	var counts := {}
+	var last := 0
+	var repeats := 0
+	for i in 700:
+		var r: int = m.slot_roll(boss)
+		boss.last_reel = r
+		counts[r] = counts.get(r,0)+1
+		if r == last:
+			repeats += 1
+		last = r
+	verify(repeats == 0 and counts.size() == 7,"All seven results appear and none repeats back to back")
+	verify(counts[7] < counts[1] and counts[7] < counts[4],"7 comes up less often")
+	var copy: RefCounted = m.clone()
+	verify(copy.slot_roll(boss) == m.slot_roll(boss),"Look-ahead copies roll the same results without disturbing them")
+	# 1-3: weapon lock for the player's turn.
+	m = _slot_room()
+	boss = _slot_ready(m, 0)
+	boss.last_reel = 0
+	m.slot_rolls = 0
+	for i in 50:
+		m.floor_cells.clear()
+		m.locked_slot = -1
+		m.slot_spin(boss)
+		if int(boss.reel) <= 3:
+			break
+	m.phase = Rules.Phase.PLAYER
+	var slot: int = int(boss.reel) - 1
+	verify(m.locked_slot == slot and m.weapon == m.owned_weapons[slot],"Reels 1-3 force the matching weapon slot")
+	var other: int = m.owned_weapons[(slot+1)%3]
+	verify(not m.equip(other) and m.equip(m.owned_weapons[slot]),"Other weapons cannot be equipped that turn")
+	Planner.new().begin(m)
+	verify(m.locked_slot == -1,"The lock ends when the enemy turn begins")
+	# 4: the checker floor burns at the start of the enemy turn, allies and foes alike.
+	m = _slot_room()
+	boss = _slot_ready(m, 4)
+	m.floor_cells.clear()
+	var parity: int = (boss.cell.x + boss.cell.y) % 2
+	for y in 6:
+		for x in 6:
+			if (x+y)%2 == parity:
+				m.floor_cells.append(Vector2i(x,y))
+	m.player.cell = Vector2i(0,0) if parity == 0 else Vector2i(1,0)
+	m.summon_acorn(Vector2i(0,4) if parity == 0 else Vector2i(1,4))
+	_enemy_turn(m)
+	verify(m.player.hp <= 4 and m.allies.is_empty(),"Reel 4 burns everyone on the checker, player and allies")
+	verify(boss.hp == 3,"Rotorick is not hurt by its own floor")
+	# 5: jammed, no charge, no self damage.
+	m = _slot_room()
+	boss = _slot_ready(m, 5)
+	boss.state = "stun"
+	m.player.cell = Vector2i(0,2)
+	var start: Vector2i = boss.cell
+	_enemy_turn(m)
+	verify(boss.cell == start and m.player.hp == 5 and boss.hp == 3,"Reel 5: it does not charge and loses no HP")
+	verify(boss.state == "brace" and int(boss.reel) != 5,"...then it aims and spins again")
+	# 6: leaves a shadow where it stood, then charges.
+	m = _slot_room()
+	boss = _slot_ready(m, 6)
+	m.player.cell = Vector2i(0,0)
+	start = boss.cell
+	_enemy_turn(m)
+	var shadows: Array = m.enemies.filter(func(e): return e.type == "shadow")
+	verify(shadows.size() == 1 and shadows[0].cell == start and boss.cell != start,"Reel 6: a shadow stays behind and Rotorick charges")
+	m.phase = Rules.Phase.PLAYER
+	m.player.ap = 2
+	m.player.cell = start + Vector2i(-2,0)
+	m.weapon = 0
+	var hp_before: int = m.player.hp
+	m.player_action(start + Vector2i(-1,0))
+	verify(m.player.hp == hp_before - 1 and m.enemies.filter(func(e): return e.type == "shadow").is_empty(),"Stepping next to the shadow gets you cut once, then it fades")
+	# 7: AP+1 and a charge that always lands.
+	m = _slot_room()
+	boss = _slot_ready(m, 7)
+	boss.facing = 3
+	m.player.cell = Vector2i(1,5)
+	_enemy_turn(m)
+	verify(m.player.hp <= 4,"Reel 7: even a dodged line is chased down and hit")
+	m = _slot_room()
+	boss = _slot_ready(m, 7)
+	boss.facing = 3
+	m.player.cell = Vector2i(0,2)
+	m.walls[Vector2i(3,2)] = 3
+	m.walls[Vector2i(3,3)] = 3
+	_enemy_turn(m)
+	verify(m.player.hp == 5,"Reel 7 is still stopped by wall spirits")
+	# Winning ignores leftover shadows.
+	m = _slot_room()
+	boss = m.enemies[0]
+	m._leave_shadow(boss)
+	boss.hp = 0
+	m.check_outcome()
+	verify(m.phase == Rules.Phase.WON,"Defeating Rotorick wins even with a shadow left")
