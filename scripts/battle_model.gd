@@ -745,6 +745,19 @@ func _release_prisoners() -> void:
 			next_id += 1
 		add_log("移動監獄が壊れ、執行兵が現れた")
 
+## Boss entrance: every blue rook turns red and aims before the player's first turn.
+func boss_intro() -> bool:
+	var any := false
+	events.clear()
+	for enemy in enemies:
+		if enemy.type == "rook" and enemy.state == "idle":
+			rook_brace(enemy)
+			events.append({"kind":"roar", "cell":enemy.cell + Vector2i.ONE, "id":-2})
+			any = true
+	if any:
+		add_log("突進くんが構えた！")
+	return any
+
 ## Rook: face the player. Aligned with its two rows/columns it aims straight at them.
 func rook_brace(enemy: Dictionary) -> void:
 	var rows := [enemy.cell.y, enemy.cell.y + 1]

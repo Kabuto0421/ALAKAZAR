@@ -180,6 +180,30 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	_sync_units(false)
 	_update_controls()
 	queue_redraw()
+	if model.enemies.any(func(e: Dictionary) -> bool: return e.type == "rook" and e.state == "idle"):
+		_boss_intro()
+
+## The rook enters blue, pauses, then snaps into its red stance before the player moves.
+func _boss_intro() -> void:
+	busy = true
+	var token := generation
+	_update_controls()
+	await get_tree().create_timer(0.9).timeout
+	if token != generation:
+		return
+	model.boss_intro()
+	_sync_units(false)
+	_feedback()
+	for actor in actors.values():
+		if actor.kind == "rook":
+			actor.flash = 0.25
+	queue_redraw()
+	await get_tree().create_timer(0.5).timeout
+	if token != generation:
+		return
+	busy = false
+	_sync_units(false)
+	_update_controls()
 
 func _advance() -> void:
 	if managed_run:
@@ -884,13 +908,18 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"roar":
+			# The boss's stance: a red shockwave from the middle of its footprint.
+			var at := pos - Vector2.ONE * TILE / 2
+			draw_arc(at, 20 + t * 70, 0, TAU, 32, Color(1, 0.3, 0.25, fade), 6, true)
+			draw_arc(at, 10 + t * 45, 0, TAU, 32, Color(1, 0.75, 0.5, fade * 0.7), 3, true)
 		"dash":
 			# Dust kicked up behind the charging rook's two-tile footprint.
 			var back := -dir

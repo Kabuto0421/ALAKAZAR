@@ -506,6 +506,11 @@ func _rook_and_prison() -> void:
 	verify(rook.hp == 3 and rook.ap == 1 and prison.hp == 1 and prison.ap == 1,"Rook HP3/AP1, prison HP1/AP1")
 	verify(m.footprint(rook).size() == 4 and m.enemy_at(rook.cell + Vector2i(1,1)) == rook,"Both are two by two")
 	verify(rook.state == "idle" and rook.facing == 3,"The rook starts blue, facing left")
+	var intro := _boss_room()
+	intro.player.cell = Vector2i(0,1)
+	var intro_rook: Dictionary = intro.enemies.filter(func(e): return e.type == "rook")[0]
+	verify(intro.boss_intro() and intro_rook.state == "brace" and intro.phase == Rules.Phase.PLAYER and intro.player.ap == 2,"Boss intro: it turns red and aims before the player's first turn")
+	verify(not intro.boss_intro(),"The intro only plays once")
 	# Opening enemy turn: it only braces toward the player.
 	m.player.cell = Vector2i(0,1)
 	_enemy_turn(m)
