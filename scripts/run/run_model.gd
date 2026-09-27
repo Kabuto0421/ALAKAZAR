@@ -104,13 +104,13 @@ func finish_battle() -> bool:
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	var mid := stage >= Battle.BOSS_LEVEL
-	# The last fight before a boss pays better: only big (3+ tile) weapons.
+	# The last fight before a boss pays better: only three-tile weapons.
 	var before_boss := is_before_boss()
 	for index in range(Weapons.DATA.size()):
 		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid):
 			continue
 		if before_boss:
-			if Weapons.offsets(index).size() < 3:
+			if Weapons.offsets(index).size() != 3:
 				continue
 		elif single_only and not Weapons.early_reward_pool().has(index):
 			continue

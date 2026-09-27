@@ -744,4 +744,4 @@ func _expiring_and_rewards() -> void:
 	run.battle.enemies.clear()
 	run.battle.check_outcome()
 	run.finish_battle()
-	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() >= 3),"The reward before the boss offers 3+ tile weapons")
+	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
