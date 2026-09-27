@@ -68,7 +68,7 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
 	verify(run.offers.size()==4 and run.offers.slice(0,2).all(func(o): return o.kind=="weapon") and run.offers.slice(2).all(func(o): return o.kind=="fairy"),"Rewards always contain two weapons and two fairies")
-	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_early(o.value)),"Early reward weapons are single-tile or jump pairs")
+	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_quirky(o.value) and Run.Weapons.offsets(o.value).size() < 4),"Early reward weapons are odd two-tile weapons, weaker than a cross")
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -331,10 +331,11 @@ func _threats_and_weapons() -> void:
 	for index in W.single_pool():
 		if W.DATA[index].offsets.size() == 2:
 			jump_pairs += 1
-			verify(W.is_jump(index),"Only jump weapons get two early tiles")
-	verify(jump_pairs == 17,"Seventeen two-tile jump weapons are in the early pool")
+			verify(W.is_quirky(index),"Only weapons with a jump get two early tiles")
+	verify(jump_pairs == 23,"Twenty-three odd two-tile weapons are in the early pool")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
-	verify(W.opening_pool().size() == 15,"Fifteen up-and-down jumpers make the opening pick varied")
+	verify(W.opening_pool().size() == 21,"Twenty-one up-and-down weapons make the opening pick varied")
+	verify(W.early_reward_pool().size() == 23 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2),"Early rewards are all two-tile")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()

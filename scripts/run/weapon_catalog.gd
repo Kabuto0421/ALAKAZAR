@@ -40,6 +40,13 @@ const DATA = [
 	{"id":"back_slant", "name":"逆袈裟剣", "short":"逆袈裟", "row":2, "color":"7fe6d0", "detail":"左上と右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(-2,-2),Vector2i(2,2)]},
 	{"id":"crane", "name":"鶴翼剣", "short":"鶴翼", "row":2, "color":"e0c8ff", "detail":"右上へ斜め2・右下の桂馬に跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,1)]},
 	{"id":"heron", "name":"鷺足剣", "short":"鷺足", "row":2, "color":"c8ffe0", "detail":"右上の桂馬・右下へ斜め2に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,2)]},
+	# Mixed: one neighbouring tile plus one jump.
+	{"id":"goose", "name":"雁行剣", "short":"雁行", "row":2, "color":"ffd9a0", "detail":"上の1マスと右下の桂馬", "offsets":[Vector2i(0,-1),Vector2i(2,1)]},
+	{"id":"back_goose", "name":"逆雁剣", "short":"逆雁", "row":2, "color":"a0d9ff", "detail":"下の1マスと右上の桂馬", "offsets":[Vector2i(0,1),Vector2i(2,-1)]},
+	{"id":"flick_up", "name":"跳上剣", "short":"跳上", "row":2, "color":"ffe6a0", "detail":"右上の1マスと下へ2マス", "offsets":[Vector2i(1,-1),Vector2i(0,2)]},
+	{"id":"flick_down", "name":"跳下剣", "short":"跳下", "row":2, "color":"a0ffe6", "detail":"右下の1マスと上へ2マス", "offsets":[Vector2i(1,1),Vector2i(0,-2)]},
+	{"id":"snake", "name":"蛇行剣", "short":"蛇行", "row":2, "color":"d0ff9a", "detail":"左上の1マスと右下の桂馬", "offsets":[Vector2i(-1,-1),Vector2i(2,1)]},
+	{"id":"shoulder", "name":"背負剣", "short":"背負", "row":2, "color":"ff9ad0", "detail":"左下の1マスと右上の桂馬", "offsets":[Vector2i(-1,1),Vector2i(2,-1)]},
 	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
@@ -53,8 +60,16 @@ static func is_single(index: int) -> bool:
 static func is_jump(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].offsets.all(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)
 
+## Two tiles with at least one jump: odd movement, but always weaker than a 4-tile cross.
+static func is_quirky(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].offsets.size() == 2 and DATA[index].offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)
+
 static func is_early(index: int) -> bool:
-	return is_single(index) or (is_jump(index) and DATA[index].offsets.size() <= 2)
+	return is_single(index) or is_quirky(index)
+
+## Rewards of the first fights: only the odd two-tile weapons.
+static func early_reward_pool() -> Array:
+	return single_pool().filter(func(index: int) -> bool: return is_quirky(index))
 
 ## Only moves left/right: the starting forward/backward pair already covers that.
 static func horizontal_only(index: int) -> bool:
