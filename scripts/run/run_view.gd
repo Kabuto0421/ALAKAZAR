@@ -68,7 +68,7 @@ func _render() -> void:
 			if run.is_before_boss():
 				_label(Vector2(44,137),"ボス前の特別報酬：武器は3マスの強い武器から。",22,Color("ffd35b"))
 			else:
-				_label(Vector2(44,137),"妖精の使用回数が回復（HPは持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
+				_label(Vector2(44,137),"妖精の使用回数が回復・勝利でHP+1（持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
 			_cards(run.offers)
 			_loadout()
 			_button(Vector2(895,670),Vector2(214,36),"今の構成で進む",_skip)
