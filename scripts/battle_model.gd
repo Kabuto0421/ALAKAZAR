@@ -28,7 +28,7 @@ const TYPES = {
 	"rook": {"name": "突進くん", "hp": 3, "ap": 1, "size": 2},
 	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
-	"slot": {"name": "ロトリック", "hp": 3, "ap": 1, "size": 2},
+	"slot": {"name": "ロトリック", "hp": 7, "ap": 1, "size": 2},
 	"shadow": {"name": "ロトリックの影", "hp": 1, "ap": 0, "size": 2},
 }
 ## Two-by-two bosses: their cell is the top-left of the footprint.

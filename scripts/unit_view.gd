@@ -146,7 +146,7 @@ static func draw_ranged_gear(canvas: CanvasItem, gear: String) -> void:
 		canvas.draw_line(Vector2(-8,0)+Vector2.from_angle(PI*0.55)*20,Vector2(-8,0)+Vector2.from_angle(PI*1.45)*20,Color("f1ead2"),1)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 3 if kind in ["rook","slot"] else 2 if kind in ["heavy","horse","executioner"] else 1
+	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	# Rotorick's hearts sit above its head so the charge panel owns its feet.

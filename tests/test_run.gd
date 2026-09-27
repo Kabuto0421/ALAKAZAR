@@ -248,6 +248,7 @@ func _initialize() -> void:
 	_capacitor()
 	_resonance()
 	_knockback()
+	_difficulty()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -629,7 +630,7 @@ func _slot_ready(m: RefCounted, reel: int) -> Dictionary:
 func _rotorick() -> void:
 	var m := _slot_room()
 	var boss: Dictionary = m.enemies[0]
-	verify(boss.hp == 3 and boss.ap == 1 and m.footprint(boss).size() == 4,"Rotorick: HP3, AP1, two by two")
+	verify(boss.hp == 7 and boss.ap == 1 and m.footprint(boss).size() == 4,"Rotorick: HP7, AP1, two by two")
 	verify(boss.state == "idle" and int(boss.reel) == 0,"Rotorick enters idle with the reel spinning")
 	m.player.cell = Vector2i(0,2)
 	verify(m.boss_intro() and boss.state == ("stun" if int(boss.reel) == 5 else "brace") and int(boss.reel) >= 1 and int(boss.reel) <= 7,"Before the first turn it aims and shows a reel")
@@ -679,7 +680,7 @@ func _rotorick() -> void:
 	m.summon_acorn(Vector2i(0,4) if parity == 0 else Vector2i(1,4))
 	_enemy_turn(m)
 	verify(m.player.hp <= 4 and m.allies.is_empty(),"Reel 4 burns everyone on the checker, player and allies")
-	verify(boss.hp == 3,"Rotorick is not hurt by its own floor")
+	verify(boss.hp == 7,"Rotorick is not hurt by its own floor")
 	# 5: jammed, no charge, no self damage.
 	m = _slot_room()
 	boss = _slot_ready(m, 5)
@@ -687,7 +688,7 @@ func _rotorick() -> void:
 	m.player.cell = Vector2i(0,2)
 	var start: Vector2i = boss.cell
 	_enemy_turn(m)
-	verify(boss.cell == start and m.player.hp == 5 and boss.hp == 3,"Reel 5: it does not charge and loses no HP")
+	verify(boss.cell == start and m.player.hp == 5 and boss.hp == 7,"Reel 5: it does not charge and loses no HP")
 	verify(boss.state == "brace" and int(boss.reel) != 5,"...then it aims and spins again")
 	# 6: leaves a shadow where it stood, then charges.
 	m = _slot_room()
@@ -842,3 +843,17 @@ func _knockback() -> void:
 	m.player_action(Vector2i(2,1))
 	verify(m.enemies[0].cell == Vector2i(3,0),"Gale shoves diagonally outward")
 	verify(W.offsets(gale).size() == 3,"Gale is a three-tile pre-boss weapon")
+
+func _difficulty() -> void:
+	var run := Run.new()
+	run.start(5)
+	run.choose(0)
+	run.choose(0)
+	verify(run.win_heal() == 1,"Normal difficulty heals 1 per win")
+	run.difficulty = 1
+	verify(run.win_heal() == 0,"Higher difficulty drops the win heal")
+	run.battle.player.hp = 3
+	run.battle.enemies.clear()
+	run.battle.check_outcome()
+	run.finish_battle()
+	verify(run.battle.start_hp == 3,"...so HP carries over unchanged")

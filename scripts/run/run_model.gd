@@ -6,8 +6,12 @@ enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORG
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
-## Every win heals a little so a long expedition stays survivable.
-const WIN_HEAL := 1
+## Difficulty: 0 = normal. Raise it to strip the helpers below.
+var difficulty := 0
+
+## HP healed after each win: 1 on normal, none on higher difficulties.
+func win_heal() -> int:
+	return 1 if difficulty <= 0 else 0
 var state: State = State.START_WEAPON
 var battle := Battle.new()
 var stage := 0
@@ -96,7 +100,7 @@ func finish_battle() -> bool:
 		state = State.LOST
 		return true
 	# HP carries over to the next fight, plus a small heal for the win.
-	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + WIN_HEAL)
+	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + win_heal())
 	battle.refill_fairies()
 	if stage == Battle.LAST_LEVEL:
 		state = State.FINISHED

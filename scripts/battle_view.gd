@@ -948,14 +948,16 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	var type: Dictionary = Rules.TYPES[enemy.type]
 	_text(Vector2(852,133),type.name,28,INK)
 	_text(Vector2(852,175),"HP",20)
+	# Big HP pools (Rotorick's 7) use smaller hearts so AP still fits on the line.
+	var many: bool = int(type.hp) > 3
 	for i in range(int(type.hp)):
-		_draw_heart(Vector2(909+i*30,167),25,Color("ff5b62"),i<int(enemy.hp))
+		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),i<int(enemy.hp))
 	# Three hearts reach further right, so AP moves over for them.
-	var ap_x := 1004.0 if int(type.hp) >= 3 else 984.0
+	var ap_x := 1030.0 if many else 1004.0 if int(type.hp) >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
 	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 	for i in range(ap_boxes):
-		draw_rect(Rect2(ap_x+45+i*32,153,26,23),Color("ff5b62") if i >= int(type.ap) else GOLD)
+		draw_rect(Rect2(ap_x+45+i*26,153,22,23),Color("ff5b62") if i >= int(type.ap) else GOLD)
 	if enemy.type == "slot":
 		_draw_rotorick_inspector(enemy)
 		return
