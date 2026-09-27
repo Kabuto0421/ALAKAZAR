@@ -22,9 +22,8 @@ const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
 const HelpPanel = preload("res://scripts/ui/help_panel.gd")
-## The manual opens by itself on a player's first battle (remembered across sessions).
+## The manual opens by itself on the first battle after the game starts (not saved).
 static var help_seen := false
-const SETTINGS_PATH := "user://settings.cfg"
 var help: Control
 const CIRCLE_VIOLET = Color("9b6bff")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
@@ -428,17 +427,11 @@ func _toggle_rules() -> void:
 		help._show()
 	_update_controls()
 
-## First battle ever: open the manual once, and remember that it was shown.
+## First battle of this session: open the manual once.
 func _maybe_first_help() -> void:
 	if help_seen or not managed_run:
 		return
-	var settings := ConfigFile.new()
-	if settings.load(SETTINGS_PATH) == OK and settings.get_value("help", "seen", false):
-		help_seen = true
-		return
 	help_seen = true
-	settings.set_value("help", "seen", true)
-	settings.save(SETTINGS_PATH)
 	_toggle_rules()
 
 func _sync_units(animate: bool) -> void:
