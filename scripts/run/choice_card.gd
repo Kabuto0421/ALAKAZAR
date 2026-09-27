@@ -23,6 +23,7 @@ func _ready() -> void:
 	var title := ""
 	var description := ""
 	var plus := false
+	var circle := false
 	var fairy_id := ""
 	if offer.kind == "weapon":
 		var weapon: Dictionary = Weapons.DATA[int(offer.value)]
@@ -30,6 +31,7 @@ func _ready() -> void:
 		title = weapon.name
 		description = weapon.detail
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
+		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)
 		# The slash spirit's class-up is an evolution: preview the new fairy itself.
@@ -68,9 +70,23 @@ func _ready() -> void:
 		_wrap_label(_label(Vector2(14,72+side),description,15,Color("e5dfc5")),size.x-28)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
 		var stats := "1 AP / 攻撃 %d" % damage
+		if circle:
+			# The enchantment replaces the attack: say so plainly.
+			stats = "魔法陣：攻撃不可。歩いた跡で囲むと99"
+			var ring := Panel.new()
+			ring.position = Vector2(4,4)
+			ring.size = size-Vector2(8,8)
+			ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var style := StyleBoxFlat.new()
+			style.draw_center = false
+			style.border_color = Color("9b6bff")
+			style.set_border_width_all(2)
+			style.set_corner_radius_all(6)
+			ring.add_theme_stylebox_override("panel",style)
+			add_child(ring)
 		if Weapons.knockback(int(offer.value)) > 0:
 			stats += " / 押し出し"
-		_label(Vector2(14,y),stats,15,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(14,y),stats,15,Color("c9b3ff") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

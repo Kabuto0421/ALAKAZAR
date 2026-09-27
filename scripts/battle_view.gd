@@ -20,6 +20,8 @@ const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
 const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
+const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
+const CIRCLE_VIOLET = Color("9b6bff")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
@@ -52,6 +54,9 @@ var result_button: Button
 var weapon_buttons: Array[Button] = []
 ## Weapon under the cursor in the weapon bar: its reach is previewed on the board.
 var peek_weapon := -1
+## Magic circle: enemies it kills stay on screen until the burst of light.
+var hold_dead_until := 0.0
+var last_circle: Dictionary = {}
 var grid_buttons: Array[Button] = []
 var busy := false
 var generation := 0
@@ -351,6 +356,9 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			weapon_effects.add_child(effect)
 			action_duration = effect.duration()
 		_feedback(not weapon_action.is_empty() and weapon_action.attacking)
+		# Let the magic circle play out before the turn moves on.
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle"):
+			action_duration = maxf(action_duration, MagicCircleFx.BURST + 0.4)
 		_update_controls()
 		await get_tree().create_timer(action_duration).timeout
 	if token != generation:
@@ -411,6 +419,11 @@ func _toggle_rules() -> void:
 	_update_controls()
 
 func _sync_units(animate: bool) -> void:
+	for event in model.events:
+		if event.kind == "circle" and not is_same(event, last_circle):
+			last_circle = event
+			hold_dead_until = clock + MagicCircleFx.BURST
+			get_tree().create_timer(MagicCircleFx.BURST + 0.05).timeout.connect(func(): _sync_units(false))
 	var living: Array[int] = [-1]
 	var units: Array = [model.player]+model.enemies+model.allies
 	if move_tween and move_tween.is_valid():
@@ -455,19 +468,40 @@ func _sync_units(animate: bool) -> void:
 			view.position = target
 	for id in actors.keys():
 		if not living.has(id):
+			if clock < hold_dead_until:
+				continue
 			actors[id].queue_free()
 			actors.erase(id)
 
 func _feedback(weapon_attack: bool = false) -> void:
+	# A magic circle shows its own "99"s: no ordinary hit popups under it.
+	var casting := model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle")
 	for event in model.events:
+		if casting and event.kind == "hit" and event.id >= 0:
+			continue
 		var kind: String = "weapon_hit" if weapon_attack and event.kind == "hit" else event.kind
 		var flash: Dictionary = event.duplicate()
 		flash.kind = kind
 		flash.life = FX_LIFE.get(kind,0.42)
 		flash.max_life = flash.life
 		flashes.append(flash)
+		if event.kind == "circle":
+			_cast_circle_fx(event)
 		if actors.has(event.id) and event.kind != "plant":
 			actors[event.id].flash = 0.18
+
+func _cast_circle_fx(event: Dictionary) -> void:
+	var fx := MagicCircleFx.new()
+	fx.tile = TILE
+	for cell in event.cells:
+		fx.area.append(_center(cell))
+	for cell in event.line:
+		fx.line.append(_center(cell))
+	for unit in event.targets:
+		fx.targets.append(_unit_center(unit))
+	fx.damage = Rules.CIRCLE_DAMAGE
+	fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
+	add_child(fx)
 
 func _update_controls() -> void:
 	weapon_effects.visible = not show_rules and not inventory_ui.opened and (not model.terminal() or busy)
@@ -537,7 +571,7 @@ func _process(delta: float) -> void:
 		var offset := hover_cell-item_origin
 		if offset != Vector2i.ZERO and (offset.x == 0 or offset.y == 0):
 			aim = Vector2i(signi(offset.x),signi(offset.y))
-	var attack_cells: Array = model.targets() if not busy and selected_item.is_empty() and model.phase == Rules.Phase.PLAYER else []
+	var attack_cells: Array = model.targets() if not busy and selected_item.is_empty() and model.phase == Rules.Phase.PLAYER and not model.is_circle(model.weapon) else []
 	for id in actors:
 		var actor = actors[id]
 		var cells: Array = actor.get_meta("cells", [Vector2i((actor.position-BOARD)/TILE)])
@@ -653,6 +687,9 @@ func _draw_board() -> void:
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
+		if selected_item.is_empty() and model.is_circle(model.weapon):
+			# A circle weapon only moves: enemies and cannons are not targets.
+			legal = legal.filter(func(cell: Vector2i) -> bool: return model.enemy_at(cell).is_empty() and model.cannon_at(cell).is_empty())
 		if item_origin != Vector2i(-1,-1):
 			legal = model.directional_preview(selected_item,item_origin,aim)
 	# Hammer: hovering a target shows the whole area it will shake. Bow: its diagonal lines.
@@ -669,6 +706,10 @@ func _draw_board() -> void:
 		slash_zone = model.side_slash_cells(hover_cell)
 		if not model.enemy_at(hover_cell).is_empty():
 			slash_zone.append(hover_cell)
+	# Magic circle: hovering a move shows the area it would close.
+	var circle_zone: Array[Vector2i] = []
+	if model.is_circle(model.weapon) and model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty() and model.targets().has(hover_cell) and model.enemy_at(hover_cell).is_empty() and not model.blocked(hover_cell):
+		circle_zone = model.circle_preview(hover_cell)
 	var peek_zone: Array[Vector2i] = []
 	var peek_color := Color.WHITE
 	if peek_weapon >= 0 and peek_weapon != model.weapon and model.phase == Rules.Phase.PLAYER and selected_item.is_empty():
@@ -701,6 +742,17 @@ func _draw_board() -> void:
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
+			if model.circle_tiles.has(cell):
+				# Magic circle chalk: white tiles that stay all fight (a burning floor is drawn over them).
+				var glow := 0.55 + 0.08 * sin(clock * 3.0 + x + y)
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(0.94,0.95,1.0,glow))
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("b9a4ff"),false,2)
+				draw_arc(pos+Vector2(32,32),10,clock,clock+TAU*0.8,16,Color(CIRCLE_VIOLET,0.6),2,true)
+			if circle_zone.has(cell):
+				# Preview: what closing the circle here would catch.
+				var pulse := 0.5 + 0.5 * sin(clock * 8.0)
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CIRCLE_VIOLET,0.2+0.15*pulse))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("d9c9ff"),false,2)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -857,12 +909,17 @@ func _draw_weapons() -> void:
 		var forged: bool = model.weapon_power.has(index)
 		if forged:
 			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
-		var extras: Array[String] = ["攻撃%d" % model.weapon_damage(index)]
+		var circle: bool = model.is_circle(index)
+		var extras: Array[String] = []
+		extras.assign(["魔法陣","攻撃不可"] if circle else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
 		if Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2):
 			extras.append("跳ぶ")
-		_text(pos+Vector2(28,72),"・".join(extras),16,GOLD if model.weapon_damage(index) > 1 else MUTED)
+		_text(pos+Vector2(28,72),"・".join(extras),16,Color("c9b3ff") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
+		if circle:
+			# A violet inner frame marks the enchantment.
+			draw_rect(rect.grow(-3),Color(CIRCLE_VIOLET,0.5),false,1)
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
@@ -1223,7 +1280,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1260,6 +1317,13 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				var chunk := Vector2.from_angle(k * TAU / 7 + 0.3) * (6 + t * 26)
 				draw_rect(Rect2(pos + chunk - Vector2(3, 3), Vector2(6, 6)), Color("c9b79a", fade))
 			draw_arc(pos, 8 + t * 18, 0, TAU, 16, Color("ffd35b", fade * 0.8), 3, true)
+		"chalk":
+			# A tile turning white: a bright ring and a few rising sparkles.
+			draw_arc(pos, 8 + t * 22, 0, TAU, 24, Color(1, 1, 1, fade), 3, true)
+			for k in range(4):
+				draw_circle(pos + Vector2(-15 + k * 10, 12 - t * 28 - (k % 2) * 6), 2.5, Color(CIRCLE_VIOLET.lightened(0.4), fade))
+		"circle":
+			pass
 		"axe":
 			# The wind axe sweeps from where it appeared to where it stops, then fades.
 			var half := Vector2.ONE * TILE / 2

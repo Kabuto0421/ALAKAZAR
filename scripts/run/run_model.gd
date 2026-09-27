@@ -28,6 +28,9 @@ var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fa
 ## Rare 2x2 fairies: one of the two fairy offers after the first boss may be one.
 const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
 const RARE_CHANCE := 0.3
+## Magic circle weapons: a rare early reward, commoner after the first boss.
+const CIRCLE_CHANCE_EARLY := 0.1
+const CIRCLE_CHANCE_LATE := 0.3
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy"]
 
 func start(seed_value: int = -1) -> void:
@@ -87,6 +90,7 @@ func choose(index: int) -> bool:
 		else:
 			if offer.kind == "weapon":
 				battle.owned_weapons.append(int(offer.value))
+				_enchant(int(offer.value), offer)
 			else:
 				battle.add_item(str(offer.value))
 			advance()
@@ -135,6 +139,13 @@ func finish_battle() -> bool:
 	else:
 		for index in sample(weapons,2):
 			offers.append({"kind":"weapon","value":index})
+	# Now and then one weapon offer comes with a magic circle (never the bow, which cannot move).
+	var circle_chance := CIRCLE_CHANCE_LATE if mid else CIRCLE_CHANCE_EARLY
+	var movable: Array = offers.filter(func(o: Dictionary) -> bool: return Weapons.DATA[int(o.value)].get("ranged", "") == "")
+	if not movable.is_empty() and rng.randf() < circle_chance:
+		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
+		pick.enchant = "circle"
+		pick.rare = true
 	var fairy_candidates: Array = reward_fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:
@@ -147,6 +158,10 @@ func finish_battle() -> bool:
 		offers[offers.size()-1] = {"kind":"fairy","value":sample(rares,1)[0], "rare":true}
 	return true
 
+func _enchant(index: int, offer: Dictionary) -> void:
+	if offer.get("enchant", "") != "":
+		battle.enchants[index] = offer.enchant
+
 ## True on the reward right before a camp and its boss.
 func is_before_boss() -> bool:
 	return stage == LAST_NORMAL_STAGE or stage == Battle.MID_LEVELS[-1]
@@ -157,7 +172,9 @@ func replace(slot: int) -> bool:
 	if pending.kind == "weapon":
 		if slot < 0 or slot >= battle.owned_weapons.size():
 			return false
+		battle.enchants.erase(battle.owned_weapons[slot])
 		battle.owned_weapons[slot] = int(pending.value)
+		_enchant(int(pending.value), pending)
 	else:
 		if slot < 0 or slot >= battle.fairy_loadout.size():
 			return false

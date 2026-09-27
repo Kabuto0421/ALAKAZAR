@@ -248,6 +248,7 @@ func _initialize() -> void:
 	_capacitor()
 	_class_ups()
 	_rare_fairies()
+	_magic_circle()
 	_resonance()
 	_knockback()
 	_difficulty()
@@ -932,6 +933,58 @@ func _rare_fairies() -> void:
 			early_rare += 1
 	verify(rare_runs > 0 and rare_runs < 40,"After the first boss a rare fairy sometimes drops (%d/40)" % rare_runs)
 	verify(early_rare == 0,"Rare fairies never drop before the first boss")
+
+func _magic_circle() -> void:
+	var m := fixture()
+	# Enclosure: a diamond of four (touching diagonally) captures its centre; the edge is no wall.
+	var diamond: Array = [Vector2i(3,1),Vector2i(2,2),Vector2i(4,2),Vector2i(3,3)]
+	var found: Dictionary = m.circle_enclosure(diamond)
+	verify(found.inside == [Vector2i(3,2)] and found.line.size() == 4,"A diagonal diamond encloses its centre")
+	verify(m.circle_enclosure([Vector2i(0,2),Vector2i(1,2),Vector2i(2,2),Vector2i(3,2),Vector2i(4,2),Vector2i(5,2)]).inside.is_empty() or m.board_size > 6,"A line across the board encloses nothing (the edge is not a wall)")
+	# A circle weapon: moves paint white tiles, cannot attack, and closing a shape deals 99.
+	var down_right: int = Run.Weapons.DATA.map(func(w): return w.id).find("front_down")
+	m.owned_weapons.assign([0,1,down_right])
+	m.enchants[down_right] = "circle"
+	m.weapon = down_right
+	m.player.cell = Vector2i(2,2)
+	m.enemies.clear()
+	var boss: Dictionary = m.make_enemy("heavy",Vector2i(3,2),0)
+	boss.hp = 50
+	m.enemies.append(boss)
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),1))
+	m.circle_tiles.assign([Vector2i(3,1),Vector2i(4,2)])
+	verify(m.circle_preview(Vector2i(3,3)).has(Vector2i(3,2)),"Hovering the closing move previews the captured area")
+	var blocker: Dictionary = m.make_enemy("heavy",Vector2i(3,3),2)
+	m.enemies.append(blocker)
+	verify(not m.player_action(Vector2i(3,3)) and blocker.hp == 2,"A circle weapon cannot attack")
+	m.enemies.erase(blocker)
+	verify(m.player_action(Vector2i(3,3)) and boss.hp <= 0,"Closing the circle deals 99 to what it encloses")
+	verify(m.events.any(func(e): return e.kind == "circle") and not m.circle_tiles.has(Vector2i(3,1)) and not m.circle_tiles.has(Vector2i(2,2)),"The white line that closed it is used up")
+	# Plain moves just paint.
+	m.phase = Rules.Phase.PLAYER
+	m.player.ap = 2
+	m.player.cell = Vector2i(0,0)
+	m.circle_tiles.clear()
+	m.player_action(Vector2i(1,1))
+	verify(m.circle_tiles.has(Vector2i(0,0)) and m.circle_tiles.has(Vector2i(1,1)),"A move paints where it started and where it landed")
+	# Rewards: circle weapons show up now and then, and choosing one keeps the enchantment.
+	var seen := 0
+	for seed_value in 60:
+		var run := Run.new()
+		run.start(seed_value)
+		run.choose(0)
+		run.choose(0)
+		run.battle.enemies.clear()
+		run.battle.check_outcome()
+		run.finish_battle()
+		var slot: int = run.offers.find_custom(func(o): return o.get("enchant","") == "circle")
+		if slot >= 0:
+			seen += 1
+			run.choose(slot)
+			if run.state == Run.State.REPLACE:
+				run.replace(2)
+			verify(run.battle.enchants.values().has("circle"),"A chosen circle weapon keeps its enchantment")
+	verify(seen > 0 and seen < 30,"Circle weapons are a rare early reward (%d/60)" % seen)
 
 func _capacitor() -> void:
 	var m := fixture()

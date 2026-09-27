@@ -195,8 +195,12 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
 		card.note = "新しく届く +%dマス" % added if added > 0 else "届く範囲は増えない"
 		card.note_color = GOOD if added > 0 else Color("92b3ae")
+		if offer.get("enchant", "") == "circle":
+			card.tag = "魔法陣の武器"
+			card.note = "レア：攻撃の代わりに魔法陣"
+			card.note_color = Color("c9b3ff")
 		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
-			card.tag = "武器 ・ 満杯なので交換"
+			card.tag = ("魔法陣の武器" if offer.get("enchant", "") == "circle" else "武器") + " ・ 満杯なので交換"
 	else:
 		var id := str(offer.value)
 		if offer.get("rare", false):
@@ -281,7 +285,10 @@ func _loadout() -> void:
 		if run.battle.weapon_power.has(index):
 			_badge(diagram.position+Vector2(104,-6),20)
 		var damage: int = run.battle.weapon_damage(index)
-		_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		if run.battle.is_circle(index):
+			_label(at+Vector2(10,130),"魔法陣・攻撃不可",14,Color("c9b3ff"))
+		else:
+			_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(544+slot*184,top+30)
 		if slot >= fairies.size():

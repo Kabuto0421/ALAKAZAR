@@ -84,6 +84,11 @@ var fairy_charges: Array[int] = []
 var start_hp := MAX_HP
 ## Camp forging: weapon index -> extra damage (each weapon can be forged once).
 var weapon_power: Dictionary = {}
+## Weapon enchantments: weapon index -> "circle" (the magic circle).
+var enchants: Dictionary = {}
+## Magic circle: tiles the player has walked over with a circle weapon (they stay all fight).
+var circle_tiles: Array[Vector2i] = []
+const CIRCLE_DAMAGE := 99
 ## Camp class-ups: fairy id -> true. Upgraded fairies show a yellow "+".
 var fairy_plus: Dictionary = {}
 ## What each class-up does: [one-line summary, full description].
@@ -140,6 +145,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		start_hp = MAX_HP
 		weapon_power.clear()
 		fairy_plus.clear()
+		enchants.clear()
 	weapon = owned_weapons[0]
 	facing = 1
 	kills = 0
@@ -155,6 +161,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	cannons.clear()
 	locked_slot = -1
 	floor_cells.clear()
+	circle_tiles.clear()
 	slot_rolls = 0
 	slot_seed = randi()
 	refill_fairies()
@@ -568,7 +575,7 @@ func player_action(cell: Vector2i) -> bool:
 	if phase != Phase.PLAYER or player.ap <= 0 or not targets().has(cell):
 		return false
 	var cannon := cannon_at(cell)
-	if not cannon.is_empty():
+	if not cannon.is_empty() and not is_circle(weapon):
 		# Striking a placed cannon fires it.
 		events.clear()
 		player.ap -= 1
@@ -578,6 +585,9 @@ func player_action(cell: Vector2i) -> bool:
 		strike_guard = false
 		check_outcome()
 		return true
+	# A magic circle weapon cannot attack: it only moves (and draws).
+	if is_circle(weapon) and (not cannon_at(cell).is_empty() or not enemy_at(cell).is_empty()):
+		return false
 	if blocked(cell):
 		return false
 	events.clear()
@@ -617,11 +627,96 @@ func player_action(cell: Vector2i) -> bool:
 	elif WEAPONS[weapon].get("ranged","") == "bishop":
 		return false
 	else:
+		var from: Vector2i = player.cell
 		player.cell = cell
+		if is_circle(weapon):
+			_draw_circle_path(from, cell)
 		trigger_mine(player)
 		shadow_strike()
+		if is_circle(weapon) and not terminal():
+			_cast_circle()
 	check_outcome()
 	return true
+
+# --- magic circle ------------------------------------------------------------
+
+func is_circle(index: int) -> bool:
+	return enchants.get(index, "") == "circle"
+
+## Tiles a circle move paints: where the player stood and where they land.
+func circle_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+	return [from, to]
+
+func _draw_circle_path(from: Vector2i, to: Vector2i) -> void:
+	for tile in circle_path(from, to):
+		if inside(tile) and not circle_tiles.has(tile):
+			circle_tiles.append(tile)
+			events.append({"kind":"chalk", "cell":tile, "id":-2})
+
+## Go-style capture: tiles the outside cannot reach (4-way) past the white
+## tiles are enclosed; white tiles touch each other diagonally too, so a
+## diamond of four encloses its centre. The board edge is not a wall.
+## Returns {"inside": enclosed tiles, "line": the white tiles around them}.
+func circle_enclosure(tiles: Array) -> Dictionary:
+	var reached := {}
+	var queue: Array[Vector2i] = [Vector2i(-1, -1)]
+	reached[Vector2i(-1, -1)] = true
+	while not queue.is_empty():
+		var current: Vector2i = queue.pop_back()
+		for direction in CARDINALS:
+			var next: Vector2i = current + direction
+			if next.x < -1 or next.y < -1 or next.x > board_size or next.y > board_size:
+				continue
+			if reached.has(next) or tiles.has(next):
+				continue
+			reached[next] = true
+			queue.append(next)
+	var inside_tiles: Array[Vector2i] = []
+	for y in board_size:
+		for x in board_size:
+			var tile := Vector2i(x, y)
+			if not reached.has(tile) and not tiles.has(tile):
+				inside_tiles.append(tile)
+	var line: Array[Vector2i] = []
+	for tile in tiles:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				if inside_tiles.has(tile + Vector2i(dx, dy)) and not line.has(tile):
+					line.append(tile)
+	return {"inside": inside_tiles, "line": line}
+
+## The area a move to `cell` would set off (empty when it closes nothing).
+func circle_preview(cell: Vector2i) -> Array[Vector2i]:
+	var tiles: Array = circle_tiles.duplicate()
+	for tile in circle_path(player.cell, cell):
+		if not tiles.has(tile):
+			tiles.append(tile)
+	var found := circle_enclosure(tiles)
+	var area: Array[Vector2i] = []
+	area.append_array(found.inside)
+	area.append_array(found.line)
+	return area
+
+## Closing a circle: everything enclosed, and on its white line, takes 99.
+## The white tiles that formed it are used up.
+func _cast_circle() -> void:
+	var found := circle_enclosure(circle_tiles)
+	if found.inside.is_empty():
+		return
+	var area: Array[Vector2i] = []
+	area.append_array(found.inside)
+	area.append_array(found.line)
+	var struck: Array[Dictionary] = []
+	for enemy in enemies:
+		if enemy.hp > 0 and footprint(enemy).any(func(tile: Vector2i) -> bool: return area.has(tile)):
+			struck.append(enemy)
+	var hit_units: Array = struck.map(func(enemy: Dictionary) -> Dictionary: return {"cell": enemy.cell, "size": enemy.get("size", 1)})
+	events.append({"kind":"circle", "cell":player.cell, "id":-2, "cells":area, "line":found.line, "targets":hit_units})
+	for enemy in struck:
+		damage_enemy(enemy, CIRCLE_DAMAGE)
+	for tile in found.line:
+		circle_tiles.erase(tile)
+	add_log("魔法陣が発動！ %d体に%dダメージ" % [struck.size(), CIRCLE_DAMAGE])
 
 ## Shove an enemy `tiles` squares. Blocked by the edge, terrain, a cannon, the
 ## player or another enemy, it slams into it: 1 damage (and 1 to an enemy it hits).
