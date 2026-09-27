@@ -94,18 +94,31 @@ func finish_battle() -> bool:
 	# HP carries over to the next fight.
 	battle.start_hp = battle.player.hp
 	battle.refill_fairies()
-	if stage == Battle.BOSS_LEVEL:
+	if stage == Battle.LAST_LEVEL:
 		state = State.FINISHED
 		return true
 	state = State.REWARD
 	offers.clear()
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
+	var mid := stage >= Battle.BOSS_LEVEL
 	for index in range(Weapons.DATA.size()):
-		if not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index) and (Weapons.early_reward_pool().has(index) if single_only else true):
-			weapons.append(index)
-	for index in sample(weapons,2):
-		offers.append({"kind":"weapon","value":index})
+		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid):
+			continue
+		if single_only and not Weapons.early_reward_pool().has(index):
+			continue
+		weapons.append(index)
+	# After the first boss, one weapon slot is a mid-game drop (hammer, bow) when one is left.
+	var drops: Array = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	if mid and not drops.is_empty():
+		var drop: int = sample(drops,1)[0]
+		offers.append({"kind":"weapon","value":drop})
+		weapons.erase(drop)
+		for index in sample(weapons,1):
+			offers.append({"kind":"weapon","value":index})
+	else:
+		for index in sample(weapons,2):
+			offers.append({"kind":"weapon","value":index})
 	var fairy_candidates: Array = reward_fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:

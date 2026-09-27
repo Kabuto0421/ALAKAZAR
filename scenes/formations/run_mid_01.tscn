@@ -3,37 +3,32 @@
 [ext_resource type="Script" path="res://scripts/formation_layout.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/enemy_placement.gd" id="2"]
 
-[node name="RunFormation3" type="Node2D"]
+[node name="MidFormation1" type="Node2D"]
 script = ExtResource("1")
 board_size = 6
 player_start = Vector2i(0, 3)
 
 [node name="Enemy1_heavy" type="Node2D" parent="."]
-position = Vector2(224, 96)
+position = Vector2(224, 160)
 script = ExtResource("2")
 enemy_kind = 2
 
 [node name="Enemy2_infantry" type="Node2D" parent="."]
-position = Vector2(288, 96)
+position = Vector2(288, 160)
 script = ExtResource("2")
 enemy_kind = 0
 
-[node name="Enemy3_heavy" type="Node2D" parent="."]
-position = Vector2(224, 288)
+[node name="Enemy3_javelin" type="Node2D" parent="."]
+position = Vector2(352, 32)
 script = ExtResource("2")
-enemy_kind = 2
+enemy_kind = 6
 
-[node name="Enemy4_infantry" type="Node2D" parent="."]
-position = Vector2(288, 288)
+[node name="Enemy4_javelin" type="Node2D" parent="."]
+position = Vector2(288, 352)
 script = ExtResource("2")
-enemy_kind = 0
+enemy_kind = 6
 
 [node name="Enemy5_cavalry" type="Node2D" parent="."]
 position = Vector2(352, 224)
 script = ExtResource("2")
 enemy_kind = 3
-
-[node name="Enemy6_miner" type="Node2D" parent="."]
-position = Vector2(352, 32)
-script = ExtResource("2")
-enemy_kind = 1

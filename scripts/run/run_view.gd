@@ -47,7 +47,7 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,24),"ALAKAZAR",32,CYAN).add_theme_font_override("font",LATIN)
-	_label(Vector2(560,35),"4×4 → 5×5 → 6×6 → キャンプ → ボス 7×7",20,Color("9aafa9"))
+	_label(Vector2(560,35),"序盤3戦 → キャンプ → ボス → 中盤3戦",20,Color("9aafa9"))
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
 		_label(Vector2(960,85),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	match run.state:
@@ -55,7 +55,7 @@ func _render() -> void:
 			_label(Vector2(44,85),"最初の武器を選ぶ",36,INK)
 			_label(Vector2(44,137),"1 / 2    前進剣 → と 後退剣 ← に、3本目を追加",22,Color("9aafa9"))
 			_cards(run.offers)
-			_label(Vector2(44,665),"明るいマスが移動・攻撃範囲。全武器1ダメージ、持ち替え0 AP。",20,INK)
+			_label(Vector2(44,665),"明るいマスが移動・攻撃範囲。武器は1ダメージ、持ち替え0 AP。",20,INK)
 		Run.State.START_FAIRY:
 			_label(Vector2(44,85),"最初の妖精を選ぶ",36,INK)
 			_label(Vector2(44,137),"2 / 2    妖精は各戦闘1回・使用1 AP",22,Color("9aafa9"))
@@ -63,7 +63,8 @@ func _render() -> void:
 			_loadout()
 			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
-			_label(Vector2(44,85),"戦闘 %d クリア — 報酬を1つ選ぶ" % (run.stage+1),32,INK)
+			var cleared := "ボス撃破" if run.stage == run.battle.BOSS_LEVEL else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
+			_label(Vector2(44,85),"%s — 報酬を1つ選ぶ" % cleared,32,INK)
 			_label(Vector2(44,137),"妖精の使用回数が回復（HPは持ち越し）。武器2候補・妖精2候補。",22,Color("9aafa9"))
 			_cards(run.offers)
 			_loadout()
@@ -99,7 +100,7 @@ func _render() -> void:
 		Run.State.FINISHED, Run.State.LOST:
 			var won: bool = run.state == Run.State.FINISHED
 			_label(Vector2(260,170),"遠征達成！" if won else "探索終了",52,CYAN if won else Color("ff987f"))
-			_label(Vector2(260,249),"馬の群れを退け、遠征を踏破した" if won else "別の武器と妖精でもう一度",25,INK)
+			_label(Vector2(260,249),"中盤を突破した（この先は未実装）" if won else "別の武器と妖精でもう一度",25,INK)
 			var owned: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned.append({"kind":"weapon","value":index})

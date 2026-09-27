@@ -185,7 +185,7 @@ func _advance() -> void:
 	if managed_run:
 		finished.emit()
 	else:
-		_start(model.level+1 if model.level < Rules.BOSS_LEVEL else 0,true)
+		_start(model.level+1 if model.level < Rules.LAST_LEVEL else 0,true)
 
 func _equip(index: int) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
@@ -276,7 +276,9 @@ func _act(cell: Vector2i) -> void:
 func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> void:
 	busy = true
 	var token := generation
-	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking
+	var weapon_kind: String = Rules.WEAPONS[weapon_action.weapon].id if not weapon_action.is_empty() else ""
+	# Swords swing; the hammer uses its own sheet; the bow just looses an arrow.
+	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_kind not in ["hammer","bow"]
 	if sword_attack:
 		# The model resolves immediately; keep the prior enemy visuals until contact.
 		var player_view = actors[-1]
@@ -298,9 +300,9 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 	else:
 		_sync_units(animate)
 		var action_duration := 0.13
-		if not weapon_action.is_empty():
+		if not weapon_action.is_empty() and weapon_kind != "bow":
 			var effect := WeaponEffect.new()
-			effect.weapon = 1
+			effect.weapon = 0 if weapon_kind == "hammer" else 1
 			effect.attacking = weapon_action.attacking
 			effect.origin = _center(weapon_action.origin)
 			effect.destination = _center(weapon_action.destination)
@@ -555,7 +557,8 @@ func _draw() -> void:
 	for y in range(0,720,24):
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
-	_text(Vector2(44,62),"ボス戦" if model.level == Rules.BOSS_LEVEL else "戦闘 %d / 3" % (model.level+1),25,Color("ff8b8f") if model.level == Rules.BOSS_LEVEL else CYAN)
+	var stage_title := "ボス戦" if model.level == Rules.BOSS_LEVEL else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
+	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if model.level == Rules.BOSS_LEVEL else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
@@ -581,6 +584,14 @@ func _draw_board() -> void:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
 		if item_origin != Vector2i(-1,-1):
 			legal = model.directional_preview(selected_item,item_origin,aim)
+	# Hammer: hovering a target shows the whole area it will shake. Bow: its diagonal lines.
+	var hammer_zone: Array[Vector2i] = []
+	var bow_zone: Array[Vector2i] = []
+	if model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty():
+		if Rules.WEAPONS[model.weapon].id == "hammer" and model.targets().has(hover_cell) and not model.enemy_at(hover_cell).is_empty():
+			hammer_zone = model.hammer_area(hover_cell)
+		elif Rules.WEAPONS[model.weapon].id == "bow":
+			bow_zone = model.bow_lines()
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -596,6 +607,11 @@ func _draw_board() -> void:
 			draw_line(pos+Vector2(3,3),pos+Vector2(59,3),Color("766b54"),1)
 			if (x*3+y)%4==0:
 				draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
+			if bow_zone.has(cell):
+				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
+			if hammer_zone.has(cell):
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
 			if danger.has(cell):
 				# Aimed archer: the lane its arrow will fly down next turn.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
@@ -856,13 +872,21 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"quake":
+			# Shock rings and cracks across every tile the hammer shakes.
+			for area_cell in effect.cells:
+				var c := _center(area_cell)
+				draw_arc(c,10+t*24,0,TAU,20,Color("ffd08a",fade),4)
+				draw_line(c+Vector2(-14,-4),c+Vector2(0,4),Color("3a2412",fade),3)
+				draw_line(c+Vector2(0,4),c+Vector2(12,-6),Color("3a2412",fade),3)
+			draw_circle(pos,8+t*30,Color(1,0.8,0.5,fade*0.35))
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)
@@ -944,7 +968,7 @@ func _draw_result() -> void:
 	_panel(Rect2(368,226,416,282))
 	var won: bool = model.phase == Rules.Phase.WON
 	_text(Vector2(414,278),"SECTOR CLEAR" if won else "EXPEDITION FAILED",36,CYAN if won else Color("ff8968"),LATIN)
-	_text(Vector2(421,326),"ボス撃破！" if won and model.level==Rules.BOSS_LEVEL else "包囲網を突破した" if won else "探索者、倒れる",26)
+	_text(Vector2(421,326),"ボス撃破！" if won and model.level==Rules.BOSS_LEVEL else "中盤を突破した" if won and model.level==Rules.LAST_LEVEL else "包囲網を突破した" if won else "探索者、倒れる",26)
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
 	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
 

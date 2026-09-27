@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/formation_layout.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemy_placement.gd" id="2"]
+
+[node name="MidFormation2" type="Node2D"]
+script = ExtResource("1")
+board_size = 6
+player_start = Vector2i(0, 2)
+
+[node name="Enemy1_archer" type="Node2D" parent="."]
+position = Vector2(352, 32)
+script = ExtResource("2")
+enemy_kind = 7
+
+[node name="Enemy2_heavy" type="Node2D" parent="."]
+position = Vector2(224, 224)
+script = ExtResource("2")
+enemy_kind = 2
+
+[node name="Enemy3_infantry" type="Node2D" parent="."]
+position = Vector2(288, 224)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy4_javelin" type="Node2D" parent="."]
+position = Vector2(352, 352)
+script = ExtResource("2")
+enemy_kind = 6
+
+[node name="Enemy5_miner" type="Node2D" parent="."]
+position = Vector2(288, 96)
+script = ExtResource("2")
+enemy_kind = 1
+
+[node name="Enemy6_cavalry" type="Node2D" parent="."]
+position = Vector2(352, 160)
+script = ExtResource("2")
+enemy_kind = 3

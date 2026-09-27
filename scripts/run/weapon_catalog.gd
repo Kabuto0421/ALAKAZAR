@@ -48,11 +48,23 @@ const DATA = [
 	{"id":"snake", "name":"蛇行剣", "short":"蛇行", "row":2, "color":"d0ff9a", "detail":"左上の1マスと右下の桂馬", "offsets":[Vector2i(-1,-1),Vector2i(2,1)]},
 	{"id":"shoulder", "name":"背負剣", "short":"背負", "row":2, "color":"ff9ad0", "detail":"左下の1マスと右上の桂馬", "offsets":[Vector2i(-1,1),Vector2i(2,-1)]},
 	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
+	# Mid-game weapons, dropped after the first boss.
+	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
+	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
 const SINGLE_TILE_STAGES := 3
 const START_CHOICE_COUNT := 3
+
+static func is_mid(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "mid"
+
+static func mid_pool() -> Array:
+	return range(DATA.size()).filter(func(index: int) -> bool: return is_mid(index))
+
+static func base_damage(index: int) -> int:
+	return int(DATA[index].get("damage",1)) if index >= 0 and index < DATA.size() else 1
 
 static func is_single(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].offsets.size() == 1
@@ -79,7 +91,7 @@ static func horizontal_only(index: int) -> bool:
 static func single_pool() -> Array:
 	var result: Array = []
 	for index in range(2, DATA.size()):
-		if is_early(index) and not horizontal_only(index):
+		if is_early(index) and not horizontal_only(index) and not is_mid(index):
 			result.append(index)
 	return result
 

@@ -73,6 +73,8 @@ func run() -> void:
 	verify(view.model.phase==Rules.Phase.PLAYER and view.model.player.ap==2,"Turn returns to player after allies and enemies")
 	# Every movement pattern shares the existing sword animation, including backward attacks.
 	for weapon in range(Rules.WEAPONS.size()):
+		if Rules.WEAPONS[weapon].get("tier","") == "mid":
+			continue
 		view.model.phase=Rules.Phase.PLAYER
 		view.model.player.ap=2
 		# Two-tile jumps need room on the small board, so stand where the first offset lands inside.

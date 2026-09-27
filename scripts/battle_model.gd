@@ -33,8 +33,14 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_02.tscn"),
 	preload("res://scenes/formations/run_03.tscn"),
 	preload("res://scenes/formations/run_boss_01.tscn"),
+	preload("res://scenes/formations/run_mid_01.tscn"),
+	preload("res://scenes/formations/run_mid_02.tscn"),
+	preload("res://scenes/formations/run_mid_03.tscn"),
 ]
 const BOSS_LEVEL := 3
+## Mid-game fights after the first boss; the last one currently ends the expedition.
+const MID_LEVELS = [4, 5, 6]
+const LAST_LEVEL := 6
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]
@@ -362,8 +368,35 @@ func enemy_at(cell: Vector2i) -> Dictionary:
 			return enemy
 	return {}
 
+const DIAGONALS = [Vector2i(-1,-1), Vector2i(1,-1), Vector2i(1,1), Vector2i(-1,1)]
+
+## Bow: diagonal lines like a bishop; only the first enemy (or cannon) on each line.
+func bow_lines() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for direction in DIAGONALS:
+		var cell: Vector2i = player.cell + direction
+		while inside(cell):
+			result.append(cell)
+			if not enemy_at(cell).is_empty() or blocked(cell):
+				break
+			cell += direction
+	return result
+
+## Hammer: the struck tile, its two side tiles, and the three tiles beyond.
+func hammer_area(target: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1)]:
+		if inside(target + offset):
+			result.append(target + offset)
+	return result
+
 func targets() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
+	if WEAPONS[weapon].get("ranged","") == "bishop":
+		for cell in bow_lines():
+			if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
+				result.append(cell)
+		return result
 	for offset in Catalog.offsets(weapon):
 		var cell: Vector2i = player.cell + offset
 		if inside(cell):
@@ -402,12 +435,24 @@ func player_action(cell: Vector2i) -> bool:
 	player.ap -= 1
 	var enemy := enemy_at(cell)
 	if not enemy.is_empty():
-		enemy.hp -= weapon_damage(weapon)
-		events.append({"kind": "hit", "cell": cell, "id": enemy.id})
-		add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[enemy.type].name])
-		if enemy.hp <= 0:
-			kills += 1
-			add_log("%sを撃破" % TYPES[enemy.type].name)
+		var struck: Array = [enemy]
+		if WEAPONS[weapon].id == "hammer":
+			events.append({"kind":"quake", "cell":cell, "id":-2, "cells":hammer_area(cell)})
+			for area_cell in hammer_area(cell):
+				var other := enemy_at(area_cell)
+				if not other.is_empty() and not struck.has(other):
+					struck.append(other)
+		elif WEAPONS[weapon].get("ranged","") == "bishop":
+			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
+		for target in struck:
+			target.hp -= weapon_damage(weapon)
+			events.append({"kind": "hit", "cell": target.cell, "id": target.id})
+			add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[target.type].name])
+			if target.hp <= 0:
+				kills += 1
+				add_log("%sを撃破" % TYPES[target.type].name)
+	elif WEAPONS[weapon].get("ranged","") == "bishop":
+		return false
 	else:
 		player.cell = cell
 		trigger_mine(player)
@@ -415,7 +460,7 @@ func player_action(cell: Vector2i) -> bool:
 	return true
 
 func weapon_damage(index: int) -> int:
-	return 1 + int(weapon_power.get(index, 0))
+	return Catalog.base_damage(index) + int(weapon_power.get(index, 0))
 
 func trigger_mine(unit: Dictionary) -> void:
 	if unit.type == "miner" or not mines.has(unit.cell):
