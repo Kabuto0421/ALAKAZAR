@@ -1031,7 +1031,7 @@ func _draw_reel_diagram(reel: int, box: Rect2) -> void:
 ## eight tiles around it marked (moves for the prison, cuts for the afterimage).
 func _draw_big_range(enemy: Dictionary) -> void:
 	var shadow: bool = enemy.type == "shadow"
-	_text(Vector2(852,217),"攻撃範囲（動かない）" if shadow else "移動・攻撃範囲",21,INK)
+	_text(Vector2(852,217),"攻撃範囲" if shadow else "移動・攻撃範囲",21,INK)
 	var step := 46.0
 	var origin := Vector2(980-step*2,236)
 	var tone := Color("ff805a") if shadow else CYAN
@@ -1049,9 +1049,13 @@ func _draw_big_range(enemy: Dictionary) -> void:
 				else:
 					draw_circle(rect.get_center(),6,tone)
 	_draw_enemy_portrait(enemy,origin+Vector2.ONE*step*2-Vector2.ONE*2.5,0.9)
-	var note := "隣に来た者を1回斬って消える" if shadow else "2×2で縦横に1マスずつ動く"
-	_text(Vector2(852,450),note,18,tone)
-	_text(Vector2(852,489),"動かない罠" if shadow else "壊すと執行兵2体",23,CYAN)
+	if shadow:
+		# Same wording as the stealth fairy, from the enemy's side.
+		var y := _wrapped(Vector2(852,436),"ロトリックの残像。隠密中は通行をふさぐ。",17,INK,15)
+		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
+	else:
+		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
+		_text(Vector2(852,489),"壊すと執行兵2体",23,CYAN)
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
