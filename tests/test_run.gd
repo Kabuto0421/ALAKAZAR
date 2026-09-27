@@ -30,22 +30,18 @@ func _initialize() -> void:
 	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and Run.Weapons.goes_up_and_down(o.value)),"Three early starting weapons that all go both up and down")
 	var rolled: Array = run.offers.map(func(o): return o.value)
 	run.choose(0)
-	_go(run)
 	run.back_to_weapon()
 	verify(run.state==Run.State.START_WEAPON and run.battle.owned_weapons==[0,1] and run.offers.map(func(o): return o.value)==rolled,"Going back to the weapon pick keeps the same offers")
 	var picked: int = run.offers[1].value
 	verify(not run.choose(8) and run.battle.owned_weapons.size()==2,"Invalid draft does not mutate loadout")
 	run.choose(1)
-	_go(run)
 	verify(run.state==Run.State.START_FAIRY and run.battle.owned_weapons==[0,1,picked],"Weapon is selected before fairy draft")
 	var ids: Array = run.offers.map(func(o: Dictionary): return o.value)
 	run.back_to_weapon()
 	run.choose(1)
-	_go(run)
 	verify(run.offers.map(func(o: Dictionary): return o.value)==ids and run.battle.owned_weapons==[0,1,picked],"Fairy offers also stay the same after going back")
 	verify(ids.size()==3 and ids.has("magic_bolt") and ids.has("stealth_fairy") and ids.has("acorn_fairy"),"Initial fairy pool contains exactly the three requested fairies")
 	run.choose(ids.find("acorn_fairy"))
-	_go(run)
 	verify(run.state==Run.State.BATTLE and run.battle.fairy_loadout==["acorn_fairy"],"Fairy selection starts combat")
 	verify(run.battle.board_size==4 and run.battle.player.cell.x==0 and run.battle.facing==1,"First encounter starts on left, facing right")
 	verify(run.battle.phase==Rules.Phase.PLAYER and run.battle.player.ap==2 and run.battle.round_number==1,"The player moves first")
@@ -77,15 +73,12 @@ func _initialize() -> void:
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
-	_go(run)
 	verify(run.state==Run.State.REPLACE and m.owned_weapons==old_weapons,"Full weapon loadout waits for replacement without mutating")
 	run.cancel_replace()
 	verify(run.state==Run.State.REWARD and run.offers[0].value==new_weapon,"Cancel preserves the rolled offers")
 	run.choose(0)
-	_go(run)
 	verify(not run.replace(-1),"Invalid replacement is rejected")
 	run.replace(2)
-	_go(run)
 	verify(run.state==Run.State.BATTLE and m.owned_weapons.size()==3 and m.owned_weapons[2]==new_weapon,"Replacement keeps exactly three weapons and advances")
 	verify(m.board_size==5 and m.enemies.size()==5,"Second encounter uses a 5x5 board")
 	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").is_empty(),"Second encounter adds a miner but still no cavalry")
@@ -94,7 +87,6 @@ func _initialize() -> void:
 	m.check_outcome()
 	run.finish_battle()
 	run.choose(3)
-	_go(run)
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
 	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
 	verify(m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Cavalry first appears in the third fight")
@@ -106,7 +98,6 @@ func _initialize() -> void:
 	run.finish_battle()
 	verify(m.start_hp == 3,"HP carries over after a win, plus 1 for winning")
 	run.skip_reward()
-	_go(run)
 	verify(run.state==Run.State.CAMP,"The third fight's reward leads to the camp")
 	verify(run.camp_forge() and run.state==Run.State.CAMP_FORGE and run.offers.size()==3,"Forging lists the owned weapons")
 	run.camp_back()
@@ -121,7 +112,6 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating the boss opens a reward")
 	verify(run.offers.slice(0,3).any(func(o): return Run.Weapons.is_mid(o.value)),"After the boss a hammer or bow is offered")
 	run.skip_reward()
-	_go(run)
 	verify(run.state==Run.State.BATTLE and m.level==4 and m.board_size==6,"Mid-game fight 1 follows the boss")
 	var mid_types: Array = m.enemies.map(func(e): return e.type)
 	verify(mid_types.has("javelin"),"Javelin throwers appear in the mid game")
@@ -129,20 +119,17 @@ func _initialize() -> void:
 	m.check_outcome()
 	run.finish_battle()
 	run.skip_reward()
-	_go(run)
 	verify(m.level==5 and m.enemies.any(func(e): return e.type=="archer"),"Archers appear in mid-game fight 2")
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
 	run.skip_reward()
-	_go(run)
 	verify(m.level==6 and m.board_size==7 and m.enemies.filter(func(e): return e.type=="archer").size()==2,"Mid-game fight 3 is 7x7 with two archers")
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Mid-game placements are valid")
 	m.enemies.clear()
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"The last mid-game fight gives a reward")
 	run.skip_reward()
-	_go(run)
 	verify(run.state==Run.State.CAMP,"A mid-game camp follows")
 	run.camp_rest()
 	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS2_LEVEL and m.board_size==8 and m.enemies.size()==1 and m.enemies[0].type=="slot","Rotorick waits after the mid-game camp")
@@ -154,9 +141,7 @@ func _initialize() -> void:
 	run = Run.new()
 	run.start(3)
 	run.choose(0)
-	_go(run)
 	run.choose(0)
-	_go(run)
 	run.stage = Run.LAST_NORMAL_STAGE
 	run.state = Run.State.CAMP
 	run.camp_forge()
@@ -209,9 +194,7 @@ func _initialize() -> void:
 	run=Run.new()
 	run.start(8)
 	run.choose(0)
-	_go(run)
 	run.choose(0)
-	_go(run)
 	run.battle.add_item("acorn_fairy")
 	run.battle.add_item("warp_fairy")
 	run.battle.enemies.clear()
@@ -219,10 +202,8 @@ func _initialize() -> void:
 	run.finish_battle()
 	var incoming: String = run.offers[3].value
 	run.choose(3)
-	_go(run)
 	verify(run.state==Run.State.REPLACE,"Full fairy loadout requires replacement")
 	run.replace(0)
-	_go(run)
 	verify(run.battle.fairy_loadout.size()==3 and run.battle.fairy_loadout[0]==incoming,"Fairy replacement persists and preserves cap")
 	# Seeded random battles exercise collisions and bounded turns across all board sizes.
 	var rng := RandomNumberGenerator.new()
@@ -268,7 +249,6 @@ func _initialize() -> void:
 	_class_ups()
 	_rare_fairies()
 	_magic_circle()
-	_map_and_granny()
 	_resonance()
 	_knockback()
 	_difficulty()
@@ -780,9 +760,7 @@ func _expiring_and_rewards() -> void:
 	var run := Run.new()
 	run.start(11)
 	run.choose(0)
-	_go(run)
 	run.choose(0)
-	_go(run)
 	run.stage = 2
 	run.start_battle()
 	run.battle.enemies.clear()
@@ -861,9 +839,7 @@ func _class_ups() -> void:
 	var run := Run.new()
 	run.start(3)
 	run.choose(0)
-	_go(run)
 	run.choose(0)
-	_go(run)
 	run.stage = Run.LAST_NORMAL_STAGE
 	run.state = Run.State.CAMP
 	var first: int = run.battle.owned_weapons[0]
@@ -881,7 +857,6 @@ func _class_ups() -> void:
 	run.state = Run.State.REPLACE
 	run.pending = {"kind":"fairy","value":"wall_fairy"}
 	run.replace(0)
-	_go(run)
 	verify(not run.battle.is_plus("magic_bolt"),"Swapping out an upgraded fairy loses its class-up")
 
 func _rare_fairies() -> void:
@@ -939,9 +914,7 @@ func _rare_fairies() -> void:
 		var run := Run.new()
 		run.start(seed_value)
 		run.choose(0)
-		_go(run)
 		run.choose(0)
-		_go(run)
 		run.stage = Rules.BOSS_LEVEL
 		run.start_battle()
 		run.battle.enemies.clear()
@@ -952,9 +925,7 @@ func _rare_fairies() -> void:
 		var early := Run.new()
 		early.start(seed_value)
 		early.choose(0)
-		_go(early)
 		early.choose(0)
-		_go(early)
 		early.battle.enemies.clear()
 		early.battle.check_outcome()
 		early.finish_battle()
@@ -1002,9 +973,7 @@ func _magic_circle() -> void:
 		var run := Run.new()
 		run.start(seed_value)
 		run.choose(0)
-		_go(run)
 		run.choose(0)
-		_go(run)
 		run.battle.enemies.clear()
 		run.battle.check_outcome()
 		run.finish_battle()
@@ -1012,54 +981,10 @@ func _magic_circle() -> void:
 		if slot >= 0:
 			seen += 1
 			run.choose(slot)
-			_go(run)
 			if run.state == Run.State.REPLACE:
 				run.replace(2)
-				_go(run)
 			verify(run.battle.enchants.values().has("circle"),"A chosen circle weapon keeps its enchantment")
 	verify(seen > 0 and seen < 30,"Circle weapons are a rare early reward (%d/60)" % seen)
-
-func _map_and_granny() -> void:
-	var run := Run.new()
-	run.start(5)
-	run.choose(0)
-	run.choose(0)
-	verify(run.state == Run.State.MAP and run.stage == 0,"After the opening picks the map comes up")
-	var kinds: Array = run.map_rows.map(func(row): return row.map(func(n): return n.kind))
-	verify(kinds[0] == ["battle"] and kinds[2] == ["battle"] and kinds[3] == ["boss"] and kinds[7] == ["boss"],"Fixed floors: fights and the two bosses")
-	verify(kinds[1].has("event") and kinds[1].has("battle") and kinds[5].has("event") and kinds[5].has("battle"),"The middle floor of each act forks into a fight or ?")
-	verify(run.map_choose(0) and run.state == Run.State.BATTLE and run.map_path[0] == 0,"Taking the first fight starts it")
-	run.battle.enemies.clear()
-	run.battle.check_outcome()
-	run.finish_battle()
-	run.skip_reward()
-	verify(run.state == Run.State.MAP and run.stage == 1,"After the reward the map shows the fork")
-	var event_index: int = 1 - run.map_battle_index()
-	verify(run.map_choose(event_index) and run.state == Run.State.EVENT and run.event_step == "intro","The ? node meets the granny")
-	# The bow cannot take a circle (it cannot move).
-	var bow: int = Run.Weapons.DATA.map(func(w): return w.id).find("bow")
-	run.battle.owned_weapons[1] = bow
-	verify(run.event_accept() and run.event_step == "pick","Accepting asks for a weapon")
-	verify(not run.event_enchant(1),"The bow cannot be enchanted")
-	var target: int = run.battle.owned_weapons[2]
-	verify(run.event_enchant(2) and run.battle.is_circle(target) and run.event_step == "done","Any other weapon gets the magic circle")
-	verify(not run.can_enchant(2),"...and cannot be enchanted twice")
-	run.event_leave()
-	verify(run.state == Run.State.MAP and run.stage == 2,"Leaving the event moves on without a fight")
-	# Refusing just walks on.
-	var other := Run.new()
-	other.start(6)
-	other.choose(0)
-	other.choose(0)
-	other.map_choose(0)
-	other.battle.enemies.clear()
-	other.battle.check_outcome()
-	other.finish_battle()
-	other.skip_reward()
-	other.map_choose(1 - other.map_battle_index())
-	other.event_step = "refused"
-	other.event_leave()
-	verify(other.state == Run.State.MAP and other.stage == 2 and other.battle.enchants.is_empty(),"Refusing the granny leaves the weapons alone")
 
 func _capacitor() -> void:
 	var m := fixture()
@@ -1157,9 +1082,7 @@ func _difficulty() -> void:
 	var run := Run.new()
 	run.start(5)
 	run.choose(0)
-	_go(run)
 	run.choose(0)
-	_go(run)
 	verify(run.win_heal() == 1,"Normal difficulty heals 1 per win")
 	run.difficulty = 1
 	verify(run.win_heal() == 0,"Higher difficulty drops the win heal")
@@ -1231,9 +1154,3 @@ func _analyst() -> void:
 		m = Rules.new()
 		m.reset(level)
 		verify(m.enemies.any(func(e): return e.type == "analyst"),"Mid-game fight %d has an analyst" % level)
-
-
-## Walk the map straight into the next fight when the run is waiting on it.
-func _go(run: RefCounted) -> void:
-	if run.state == Run.State.MAP:
-		run.map_choose(run.map_battle_index())
