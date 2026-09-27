@@ -33,6 +33,12 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      arpeggios); a darker "verdict" with a tolling bell keeps
                      the drive, then a jackpot climax.
 
+    draft_loop.ogg   before setting out (weapon/fairy picks, rewards): an E Dorian
+                     6/8 jig on a tin-whistle voice over a drone and bodhran,
+                     with a cyber arp and, in the second passes, a soft kick.
+    camp_loop.ogg    the camp: a D Mixolydian slow air in 3/4, harp arpeggios,
+                     drone, a campfire crackle and a faint digital rain.
+
     python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
 """
 
@@ -807,6 +813,227 @@ def roto_theme(variant="normal"):
     return mix
 
 
+# ---------------------------------------------------------------------------
+# Celtic x cyber: the draft (before setting out) and the camp
+# ---------------------------------------------------------------------------
+
+def whistle(note, seconds, vol=0.13, cut=None, vib=True):
+    """Tin-whistle-like voice: soft sine with a little second harmonic, breath
+    noise, delayed vibrato and an optional grace-note cut above."""
+    m = midi(note) if isinstance(note, str) else note
+    n = int((seconds + 0.08) * RATE)
+    base = hz(m)
+    grace = hz(cut if cut is not None else m + 2) if cut is not False else base
+    rng = random.Random(m * 7 + int(seconds * 100))
+    out = [0.0] * n
+    phase = 0.0
+    breath = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = grace if (cut is not False and t < 0.035) else base
+        if vib and t > 0.25:
+            f *= 1 + 0.006 * math.sin(2 * math.pi * 5.5 * (t - 0.25)) * min(1.0, (t - 0.25) * 3)
+        phase = (phase + f / RATE) % 1.0
+        tone = math.sin(2 * math.pi * phase) + 0.18 * math.sin(4 * math.pi * phase)
+        breath += 0.2 * (rng.uniform(-1, 1) - breath)
+        if t < 0.03:
+            env = t / 0.03
+        elif t < seconds:
+            env = 0.85 + 0.15 * math.exp(-(t - 0.03) / 0.2)
+        else:
+            env = 0.85 * max(0.0, 1 - (t - seconds) / 0.08)
+        out[i] = (tone + breath * 0.12) * env * vol
+    return out
+
+
+def bodhran(vol=0.5, accent=False):
+    """Frame drum: a pitch-dropping low thump plus a skin slap."""
+    n = int(0.3 * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    rng = random.Random(3)
+    y = 0.0
+    for i in range(n):
+        t = i / RATE
+        f = 70 + (90 if accent else 60) * math.exp(-t * 25)
+        phase += f / RATE
+        y += lp_coef(1800) * (rng.uniform(-1, 1) - y)
+        out[i] = (math.sin(2 * math.pi * phase) * math.exp(-t * 9) + y * math.exp(-t * 60) * 0.6) * vol
+    return out
+
+
+def drone(notes, seconds, vol=0.06):
+    """Bagpipe-like drone: buzzy saws low-passed, breathing slowly."""
+    voices = [synth(nt, seconds, "saw", detune=(-4, 4), vol=vol, attack=0.4, decay=1.0,
+                    sustain=1.0, release=0.4, cutoff=(700, 700, 1.0)) for nt in notes]
+    return [sum(v) for v in zip(*voices)]
+
+
+def harp(note, vol=0.1):
+    return synth(note, 1.6, "tri", vol=vol, attack=0.003, decay=0.5, sustain=0.08,
+                 release=0.8, cutoff=(4000, 1400, 0.3))
+
+
+def crackle(rng, seconds, vol=0.05):
+    """Campfire: a low hiss bed with sparse pops."""
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    y = 0.0
+    for i in range(n):
+        y += lp_coef(900) * (rng.uniform(-1, 1) - y)
+        out[i] = y * vol * 0.25
+    for _ in range(int(seconds * 7)):
+        at = rng.randrange(n)
+        pop = rng.uniform(0.3, 1.0) * vol
+        for k in range(int(0.006 * RATE)):
+            if at + k < n:
+                out[at + k] += rng.uniform(-1, 1) * pop * (1 - k / (0.006 * RATE))
+    return out
+
+
+# E Dorian jig in 6/8: six eighth-note ticks per bar.
+DRAFT_CHORDS = {
+    "Em": {"bass": "E2", "arp": ["E4", "G4", "B4"], "pad": ["E3", "B3", "G4"]},
+    "D": {"bass": "D2", "arp": ["D4", "F#4", "A4"], "pad": ["D3", "A3", "F#4"]},
+    "A": {"bass": "A1", "arp": ["A3", "C#4", "E4"], "pad": ["A2", "E3", "C#4"]},
+}
+JIG_A = [
+    [(0, 1, "B4"), (1, 1, "E5"), (2, 1, "E5"), (3, 1, "G5"), (4, 1, "E5"), (5, 1, "E5")],
+    [(0, 1, "D5"), (1, 1, "F#5"), (2, 1, "A5"), (3, 1, "F#5"), (4, 1, "E5"), (5, 1, "D5")],
+    [(0, 1, "B4"), (1, 1, "E5"), (2, 1, "E5"), (3, 1, "G5"), (4, 1, "E5"), (5, 1, "G5")],
+    [(0, 1, "A5"), (1, 1, "F#5"), (2, 1, "D5"), (3, 3, "E5")],
+    [(0, 1, "B4"), (1, 1, "E5"), (2, 1, "E5"), (3, 1, "G5"), (4, 1, "E5"), (5, 1, "E5")],
+    [(0, 1, "D5"), (1, 1, "F#5"), (2, 1, "A5"), (3, 1, "B5"), (4, 1, "A5"), (5, 1, "F#5")],
+    [(0, 1, "E5"), (1, 1, "C#5"), (2, 1, "E5"), (3, 1, "A5"), (4, 1, "G5"), (5, 1, "F#5")],
+    [(0, 2, "E5"), (2, 1, "B4"), (3, 3, "E5")],
+]
+JIG_B = [
+    [(0, 1, "E6"), (1, 1, "D6"), (2, 1, "B5"), (3, 1, "A5"), (4, 1, "B5"), (5, 1, "D6")],
+    [(0, 1, "E6"), (1, 1, "B5"), (2, 1, "G5"), (3, 3, "A5")],
+    [(0, 1, "D6"), (1, 1, "B5"), (2, 1, "A5"), (3, 1, "F#5"), (4, 1, "A5"), (5, 1, "D6")],
+    [(0, 1, "F#6"), (1, 1, "E6"), (2, 1, "D6"), (3, 3, "E6")],
+    [(0, 1, "E6"), (1, 1, "D6"), (2, 1, "B5"), (3, 1, "A5"), (4, 1, "B5"), (5, 1, "D6")],
+    [(0, 1, "E6"), (1, 1, "B5"), (2, 1, "G5"), (3, 3, "A5")],
+    [(0, 1, "G5"), (1, 1, "A5"), (2, 1, "B5"), (3, 1, "C#6"), (4, 1, "D6"), (5, 1, "B5")],
+    [(0, 3, "E6"), (3, 3, "B5")],
+]
+JIG_A_CHORDS = ["Em", "D", "Em", "D", "Em", "D", "A", "Em"]
+JIG_B_CHORDS = ["Em", "Em", "D", "D", "Em", "Em", "A", "Em"]
+
+
+def draft_theme(bpm=100):
+    """Before setting out: whistle jig over drone and bodhran, cyber arp and kick."""
+    beat = 60.0 / bpm           # dotted quarter
+    tick = beat / 3             # eighth note
+    bar = beat * 2
+    plan = [("intro", i, "Em" if i % 2 == 0 else "D", None) for i in range(4)]
+    plan += [("A", i, JIG_A_CHORDS[i], JIG_A[i]) for i in range(8)]
+    plan += [("A2", i, JIG_A_CHORDS[i], JIG_A[i]) for i in range(8)]
+    plan += [("B", i, JIG_B_CHORDS[i], JIG_B[i]) for i in range(8)]
+    plan += [("B2", i, JIG_B_CHORDS[i], JIG_B[i]) for i in range(8)]
+    mix = Mix(len(plan) * bar, wrap=True)
+    rng = random.Random(31)
+    kicks = []
+    for b, (name, idx, key, phrase) in enumerate(plan):
+        chord = DRAFT_CHORDS[key]
+        t0 = b * bar
+        full = name in ("A2", "B2")
+        mix.put("drone", t0, drone(["E2", "B2"], bar, vol=0.05))
+        # Bodhran: the jig's lilt, accent on each dotted beat.
+        for k, hit in enumerate([1, 0, 1, 1, 0, 1]):
+            if hit and (name != "intro" or k in (0, 3)):
+                mix.put("drum", t0 + k * tick, bodhran(0.45 if k in (0, 3) else 0.25, accent=k in (0, 3)))
+        if full:
+            for k in (0, 3):
+                mix.put("kick", t0 + k * tick, kick(0.6))
+                kicks.append(t0 + k * tick)
+            mix.put("hat", t0 + 2 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.08))
+            mix.put("hat", t0 + 5 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.08))
+        # Bass on the beats.
+        for k in (0, 3):
+            mix.put("bass", t0 + k * tick, synth(chord["bass"], tick * 2.4, "saw", detune=(-6, 6), vol=0.35,
+                                                 attack=0.005, decay=0.15, sustain=0.5, release=0.05,
+                                                 cutoff=(1200, 300, 0.08)))
+        # Cyber arp: triplet plucks through the chord, brighter in the full parts.
+        for k in range(6):
+            nt = chord["arp"][[0, 1, 2, 1, 2, 1][k]]
+            mix.put("arp", t0 + k * tick, pluck(midi(nt) + 12, 2800 if full else 1600, vol=0.07 if full else 0.05))
+        mix.put("pad", t0, pad_chord(chord["pad"], bar - 0.05, cutoff=900, vol=0.05))
+        if phrase:
+            for tk, length, note in phrase:
+                cut = (tk % 3 == 0) and length == 1
+                mix.put("lead", t0 + tk * tick, whistle(note, length * tick * 0.92, vol=0.14, cut=None if cut else False))
+                if full:
+                    # A quiet digital double an octave below.
+                    mix.put("lead", t0 + tk * tick, pluck(midi(note) - 12, 2200, vol=0.05))
+    mix.put("fx", 4 * bar, noise_hit(rng, 1.2, 3000, 10000, 0.1))
+    mix.put("fx", 20 * bar, noise_hit(rng, 1.4, 3000, 10000, 0.13))
+    mix.echo("arp", tick * 3, 0.3, 0.35)
+    mix.echo("lead", tick * 3, 0.25, 0.25)
+    mix.duck("arp", kicks, 0.3)
+    mix.duck("pad", kicks, 0.4)
+    return mix
+
+
+# D Mixolydian slow air in 3/4.
+CAMP_CHORDS = {
+    "D": {"bass": "D2", "harp": ["D3", "A3", "D4", "F#4", "A4", "D5"], "pad": ["D3", "A3", "F#4"]},
+    "C": {"bass": "C2", "harp": ["C3", "G3", "C4", "E4", "G4", "C5"], "pad": ["C3", "G3", "E4"]},
+    "G": {"bass": "G1", "harp": ["G2", "D3", "G3", "B3", "D4", "G4"], "pad": ["G2", "D3", "B3"]},
+}
+CAMP_AIR = [
+    [(0, 2, "F#5"), (2, 1, "A5")],
+    [(0, 2, "G5"), (2, 1, "E5")],
+    [(0, 1, "D5"), (1, 1, "E5"), (2, 1, "G5")],
+    [(0, 3, "F#5")],
+    [(0, 2, "A5"), (2, 1, "B5")],
+    [(0, 2, "C6"), (2, 1, "B5")],
+    [(0, 1, "A5"), (1, 1, "G5"), (2, 1, "E5")],
+    [(0, 3, "D5")],
+    [(0, 2, "B5"), (2, 1, "A5")],
+    [(0, 2, "F#5"), (2, 1, "E5")],
+    [(0, 1, "E5"), (1, 1, "G5"), (2, 1, "C6")],
+    [(0, 3, "A5")],
+]
+CAMP_PLAN = ["D", "C", "G", "D"] + ["D", "C", "G", "D", "D", "C", "G", "D", "G", "D", "C", "D"]
+
+
+def camp_theme(bpm=76):
+    """Rest by the fire: harp arpeggios, a slow whistle air, drone, crackle, a
+    faint digital rain."""
+    beat = 60.0 / bpm
+    bar = beat * 3
+    mix = Mix(len(CAMP_PLAN) * bar, wrap=True)
+    rng = random.Random(57)
+    mix.put("fire", 0, crackle(rng, len(CAMP_PLAN) * bar, vol=0.09))
+    for b, key in enumerate(CAMP_PLAN):
+        chord = CAMP_CHORDS[key]
+        t0 = b * bar
+        mix.put("drone", t0, drone(["D2", "A2"], bar, vol=0.035))
+        mix.put("pad", t0, pad_chord(chord["pad"], bar - 0.05, cutoff=700, vol=0.045))
+        mix.put("bass", t0, synth(chord["bass"], bar * 0.9, "sine", vol=0.25, attack=0.05, decay=0.8,
+                                  sustain=0.5, release=0.4, cutoff=(600, 400, 0.5)))
+        # Harp: rolling up the chord in eighths.
+        for k, nt in enumerate(chord["harp"]):
+            mix.put("harp", t0 + k * beat / 2, harp(nt, vol=0.09))
+        # Digital rain: a few high glassy blips every other bar.
+        if b % 2 == 1:
+            for k in range(3):
+                nt = midi(chord["harp"][-1 - k]) + 12
+                mix.put("rain", t0 + (1.5 + k * 0.5) * beat, synth(nt, 0.08, "pulse", duty=0.2, vol=0.035,
+                                                                 attack=0.001, decay=0.05, sustain=0.1,
+                                                                 release=0.05, cutoff=(5000, 2500, 0.05)))
+        if b >= 4:
+            for tk, length, note in CAMP_AIR[b - 4]:
+                mix.put("lead", t0 + tk * beat, whistle(note, length * beat * 0.95, vol=0.12,
+                                                        cut=None if length > 1 else False))
+    mix.echo("harp", beat / 2 * 3, 0.3, 0.35)
+    mix.echo("lead", beat, 0.3, 0.35)
+    mix.echo("rain", beat * 0.75, 0.45, 0.6)
+    mix.loudness = 0.75
+    return mix
+
+
 def main():
     import sys
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -815,7 +1042,9 @@ def main():
               "boss_loop.ogg": lambda: with_tempo(140, boss_theme),
               "rotorick_loop.ogg": lambda: with_tempo(152, roto_theme),
               "rotorick_error.ogg": lambda: with_tempo(152, lambda: roto_theme("error")),
-              "rotorick_jackpot.ogg": lambda: with_tempo(152, lambda: roto_theme("jackpot"))}
+              "rotorick_jackpot.ogg": lambda: with_tempo(152, lambda: roto_theme("jackpot")),
+              "draft_loop.ogg": lambda: with_tempo(100, draft_theme),
+              "camp_loop.ogg": lambda: with_tempo(76, camp_theme)}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:

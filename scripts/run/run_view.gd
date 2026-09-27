@@ -7,11 +7,16 @@ const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
 const CYAN = Color("2bdcc8")
+const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 var run := Run.new()
 var screen: Control
 var battle_view: Node2D
+## Music for the screens between fights (the battle view brings its own).
+var bgm: Node
 
 func _ready() -> void:
+	bgm = BgmPlayer.new()
+	add_child(bgm)
 	run.start()
 	_render()
 
@@ -25,12 +30,17 @@ func _render() -> void:
 		battle_view.queue_free()
 		battle_view = null
 	if run.state == Run.State.BATTLE:
+		bgm.player.stop()
+		bgm.player.stream = null
 		battle_view = BattleView.new()
 		battle_view.managed_run = true
 		battle_view.model = run.battle
 		battle_view.finished.connect(_battle_finished)
 		add_child(battle_view)
 		return
+	# Camp tune at the camp; the draft tune for picks, rewards and the end screens.
+	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE] else "draft"
+	bgm.sync(false, false)
 	screen = Control.new()
 	screen.name = "DraftScreen"
 	screen.size = Vector2(1152,720)

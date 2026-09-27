@@ -202,6 +202,8 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 | ファイル | 内容 |
 | --- | --- |
 | `battle_loop.ogg` | 戦闘BGM（132BPM・36小節、約65秒のループ）。大半は控えめなグルーヴで、1周に1回だけ盛り上げ→フック→クライマックス（ツインリードとスタブ）→余韻と山を作り、キックの抜けたブレイクを経て元に戻る |
+| `draft_loop.ogg` | 出発前（武器・妖精の選択、報酬、結果画面）のBGM。ケルト×サイバー：Eドリアンの6/8ジグをティンホイッスル風の笛で、バグパイプ風のドローンとボウロン風の太鼓に乗せ、サイバーのアルペジオと後半の軽いキックを重ねる（約43秒のループ） |
+| `camp_loop.ogg` | キャンプのBGM。Dミクソリディアン・3拍子のスローエア。ハープ風のアルペジオ、笛、ドローン、焚き火のパチパチ音、かすかなデータの雨（約38秒のループ） |
 | `boss_loop.ogg` | 最初のボス戦のBGM（Eマイナー・140BPM・32小節、約55秒のループ）。重い行進曲調で、Eの上にFを当てた不穏な進行、オクターブで跳ねるベース、行進のフック、ツインリードのクライマックス、キックの抜けたブレイク |
 | `rotorick_loop.ogg` | ロトリック戦のBGM（Aハーモニックマイナー・152BPMの3連符、約44秒のループ）。1小節目からメロディ全開で、ループ中ずっと賑やかな狂ったサイバーサーカス調（ブンチャッチャのベース、半音で転がるリード、リールが回るような速いアルペジオ）。途中の「執行」パートも勢いを保ったまま鐘と低い旋律で不穏にし、大当たりの鐘の上昇音からクライマックスへ |
 | `rotorick_error.ogg` / `rotorick_jackpot.ogg` | ロトリック曲の出目5版（こもった音・ピッチの揺れ・ビットクラッシュ・途切れる、故障した機械の音。キックとメロディが抜ける）と出目7版（毎拍の金の鐘、1オクターブ上のメロディ、重いキックと低音）。通常版と1サンプル単位で同じ長さ・同じ拍で、ゲームでは3つを同時に再生し、表示中の出目に合わせて0.5秒で音量を切り替える（`AudioStreamSynchronized`）ので、曲の途中でも同じ拍のまま継ぎ目なく変わる |
@@ -212,7 +214,7 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 
 ```sh
 python3 tools/generate_bgm.py
-python3 tools/generate_bgm.py rotorick_loop.ogg rotorick_error.ogg rotorick_jackpot.ogg  # 指定した曲だけ
+python3 tools/generate_bgm.py draft_loop.ogg camp_loop.ogg  # 指定した曲だけ
 ```
 
 戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。

@@ -4,6 +4,9 @@ extends Node
 
 const BATTLE = preload("res://assets/audio/bgm/battle_loop.ogg")
 const BOSS = preload("res://assets/audio/bgm/boss_loop.ogg")
+## Between fights: the draft (picks and rewards) and the camp.
+const DRAFT = preload("res://assets/audio/bgm/draft_loop.ogg")
+const CAMP = preload("res://assets/audio/bgm/camp_loop.ogg")
 ## Rotorick's loop in three sample-aligned versions, played together and cross-faded
 ## by the reel: normal, 5 (broken machine) and 7 (jackpot).
 const ROTORICK_LAYERS = {
@@ -36,7 +39,7 @@ func _ready() -> void:
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:
-	var fight: AudioStream = BOSS if theme == "boss" else rotorick if theme == "rotorick" else BATTLE
+	var fight: AudioStream = BOSS if theme == "boss" else rotorick if theme == "rotorick" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
 	var track: AudioStream = (VICTORY if won else DEFEAT) if result_shown else fight
 	if player.stream == track:
 		return
