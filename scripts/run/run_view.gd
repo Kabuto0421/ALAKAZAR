@@ -236,7 +236,7 @@ func _replace_cards() -> void:
 				_render())
 		screen.add_child(card)
 
-## The owned weapons and fairies, with the combined reach, along the bottom.
+## The owned weapons and fairies along the bottom.
 func _loadout() -> void:
 	var top := 504.0
 	var panel := Panel.new()
@@ -248,8 +248,7 @@ func _loadout() -> void:
 	var weapons: Array = run.battle.owned_weapons
 	var fairies: Array = run.battle.fairy_loadout
 	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Color("9aafa9"))
-	_label(Vector2(548,top+6),"合計の届く範囲",15,Color("9aafa9"))
-	_label(Vector2(712,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Color("9aafa9"))
+	_label(Vector2(546,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Color("9aafa9"))
 	for slot in run.battle.WEAPON_LIMIT:
 		var at := Vector2(56+slot*160,top+30)
 		if slot >= weapons.size():
@@ -273,21 +272,15 @@ func _loadout() -> void:
 		_label(at+Vector2(10,104),data.name,17,Color("eee7d2"))
 		var damage: int = run.battle.weapon_damage(index)
 		_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
-	var union := Diagram.new()
-	union.position = Vector2(548,top+44)
-	union.size = Vector2(140,140)
-	union.offsets = _coverage()
-	union.accent = CYAN
-	screen.add_child(union)
 	for slot in run.battle.HAND_LIMIT:
-		var at := Vector2(710+slot*132,top+30)
+		var at := Vector2(544+slot*184,top+30)
 		if slot >= fairies.size():
-			_empty_slot(at,Vector2(124,160))
+			_empty_slot(at,Vector2(174,160))
 			continue
 		var item: Resource = run.battle.item_definition(str(fairies[slot]))
 		var box := Panel.new()
 		box.position = at
-		box.size = Vector2(124,160)
+		box.size = Vector2(174,160)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(item.color,0.6)))
 		screen.add_child(box)
@@ -295,14 +288,12 @@ func _loadout() -> void:
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.texture = item.icon
-		icon.position = at+Vector2(22,8)
-		icon.size = Vector2(80,80)
+		icon.position = at+Vector2(42,6)
+		icon.size = Vector2(90,90)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(icon)
-		var name_label := _label(at+Vector2(8,100),item.title,15,Color("eee7d2"))
-		name_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-		name_label.custom_minimum_size = Vector2(108,0)
-		name_label.size = Vector2(108,0)
+		_label(at+Vector2(10,104),item.title,17,Color("eee7d2"))
+		_label(at+Vector2(10,130),"1 AP / 毎戦闘 1回",14,Color(item.color))
 
 func _empty_slot(at: Vector2, extent: Vector2) -> void:
 	var box := Panel.new()
