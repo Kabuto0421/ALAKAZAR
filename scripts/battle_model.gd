@@ -22,7 +22,12 @@ const TYPES = {
 	"horse": {"name": "馬", "hp": 2, "ap": 2},
 	"javelin": {"name": "投げ槍兵", "hp": 1, "ap": 2},
 	"archer": {"name": "弓兵", "hp": 1, "ap": 1},
+	"rook": {"name": "突進くん", "hp": 3, "ap": 1, "size": 2},
+	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
+	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
 }
+## Two-by-two bosses: their cell is the top-left of the footprint.
+const BIG = ["rook", "prison"]
 ## Ranged soldiers never melee; they attack from their own tile.
 const RANGED = ["javelin", "archer"]
 ## Horses move and jump exactly like cavalry, with more HP.
@@ -38,6 +43,12 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_mid_03.tscn"),
 ]
 const BOSS_LEVEL := 3
+## The first boss is drawn from these rooms: three horses, or the rook and the moving prison.
+const BOSS_FORMATIONS = [
+	preload("res://scenes/formations/run_boss_01.tscn"),
+	preload("res://scenes/formations/run_boss_02.tscn"),
+]
+var boss_variant := 0
 ## Mid-game fights after the first boss; the last one currently ends the expedition.
 const MID_LEVELS = [4, 5, 6]
 const LAST_LEVEL := 6
@@ -75,7 +86,8 @@ var cannons: Array[Dictionary] = []
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
-	var layout: Node = FORMATIONS[level].instantiate()
+	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else FORMATIONS[level]
+	var layout: Node = scene.instantiate()
 	board_size = layout.board_size
 	# The player always opens the fight.
 	phase = Phase.PLAYER
@@ -102,7 +114,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -126,7 +138,17 @@ func refill_fairies() -> void:
 
 
 func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
-	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": "approach", "charge_round": -1}
+	var state := "idle" if kind == "rook" else "approach"
+	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1))}
+
+## Every tile a unit covers (four for the two-by-two bosses).
+func footprint(enemy: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var size: int = enemy.get("size", 1)
+	for y in range(size):
+		for x in range(size):
+			result.append(enemy.cell + Vector2i(x, y))
+	return result
 
 func cavalry_jumps(direction: int) -> Array[Vector2i]:
 	var forward: Vector2i = CARDINALS[direction]
@@ -312,7 +334,10 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	player.ap -= item.ap_cost
 	inventory[id] -= 1
 	fairy_charges[slot] -= 1
+	strike_guard = true
+	struck_ids.clear()
 	item.effect.new().apply(self, cell, direction)
+	strike_guard = false
 	add_log("%sを使用" % item.title)
 	check_outcome()
 	return true
@@ -338,9 +363,17 @@ func assign_shortcut(slot: int, id: String) -> bool:
 	shortcuts[slot] = id
 	return true
 
+## While a fairy or cannon resolves, a big enemy covering several struck tiles is hit once.
+var strike_guard := false
+var struck_ids: Array = []
+
 func damage_enemy(enemy: Dictionary, amount: int) -> void:
 	if enemy.hp <= 0:
 		return
+	if strike_guard:
+		if struck_ids.has(enemy.id):
+			return
+		struck_ids.append(enemy.id)
 	enemy.hp -= amount
 	events.append({"kind": "hit", "cell": enemy.cell, "id": enemy.id})
 	if enemy.hp <= 0:
@@ -367,7 +400,7 @@ func distance(a: Vector2i, b: Vector2i) -> int:
 
 func enemy_at(cell: Vector2i) -> Dictionary:
 	for enemy in enemies:
-		if enemy.cell == cell and enemy.hp > 0:
+		if enemy.hp > 0 and (enemy.cell == cell or (enemy.get("size", 1) > 1 and footprint(enemy).has(cell))):
 			return enemy
 	return {}
 
@@ -429,7 +462,10 @@ func player_action(cell: Vector2i) -> bool:
 		# Striking a placed cannon fires it.
 		events.clear()
 		player.ap -= 1
+		strike_guard = true
+		struck_ids.clear()
 		fire_cannon(cannon)
+		strike_guard = false
 		check_outcome()
 		return true
 	if blocked(cell):
@@ -478,6 +514,7 @@ func trigger_mine(unit: Dictionary) -> void:
 	check_outcome()
 
 func check_outcome() -> void:
+	_release_prisoners()
 	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
 	if player.hp <= 0:
@@ -676,3 +713,158 @@ func strike_under(cell: Vector2i, kind: String, direction: Vector2i) -> void:
 	if not enemy.is_empty():
 		events.append({"kind":kind, "cell":cell, "id":-2, "dir":direction})
 		damage_enemy(enemy, 1)
+
+
+# --- two-by-two bosses -------------------------------------------------------
+
+## A broken moving prison lets out two executioners on a diagonal of its footprint.
+func _release_prisoners() -> void:
+	for prison in enemies.duplicate():
+		if prison.type != "prison" or prison.hp > 0 or prison.get("released", false):
+			continue
+		prison.released = true
+		var pairs := [[Vector2i(0,0), Vector2i(1,1)], [Vector2i(1,0), Vector2i(0,1)]]
+		var spots: Array[Vector2i] = []
+		for pair in pairs:
+			spots.clear()
+			for offset in pair:
+				var cell: Vector2i = prison.cell + offset
+				if cell != player.cell and not blocked(cell) and enemy_at(cell).is_empty():
+					spots.append(cell)
+			if spots.size() == 2:
+				break
+		var next_id := 0
+		for enemy in enemies:
+			next_id = maxi(next_id, int(enemy.id) + 1)
+		for cell in spots:
+			var guard := make_enemy("executioner", cell, next_id)
+			guard.facing = prison.facing
+			guard.ap = 0
+			enemies.append(guard)
+			events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"prison"})
+			next_id += 1
+		add_log("移動監獄が壊れ、執行兵が現れた")
+
+## Rook: face the player. Aligned with its two rows/columns it aims straight at them.
+func rook_brace(enemy: Dictionary) -> void:
+	var rows := [enemy.cell.y, enemy.cell.y + 1]
+	var cols := [enemy.cell.x, enemy.cell.x + 1]
+	var direction: Vector2i
+	if rows.has(player.cell.y):
+		direction = Vector2i.RIGHT if player.cell.x > enemy.cell.x else Vector2i.LEFT
+	elif cols.has(player.cell.x):
+		direction = Vector2i.DOWN if player.cell.y > enemy.cell.y else Vector2i.UP
+	else:
+		var dx: float = player.cell.x - (enemy.cell.x + 0.5)
+		var dy: float = player.cell.y - (enemy.cell.y + 0.5)
+		if absf(dx) >= absf(dy):
+			direction = Vector2i.RIGHT if dx > 0 else Vector2i.LEFT
+		else:
+			direction = Vector2i.DOWN if dy > 0 else Vector2i.UP
+	enemy.facing = CARDINALS.find(direction)
+	enemy.state = "brace"
+	enemy.intent = "突進構え"
+
+## Tiles a braced rook will sweep, lane by lane, until the edge or terrain.
+func rook_lane(enemy: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var forward: Vector2i = CARDINALS[enemy.facing]
+	var cells := footprint(enemy)
+	for start in cells:
+		if cells.has(start + forward):
+			continue
+		var cell: Vector2i = start + forward
+		while inside(cell) and not arrow_stopped(cell):
+			result.append(cell)
+			cell += forward
+	return result
+
+func _front_cells(enemy: Dictionary, forward: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var cells := footprint(enemy)
+	for cell in cells:
+		if not cells.has(cell + forward):
+			result.append(cell + forward)
+	return result
+
+## Charge like a rook. A player in the lane is hit once and shoved to the wall with it.
+## A player who dodged is chased along the lane until they share an axis, then it re-aims.
+func rook_charge(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or enemy.state != "brace":
+		return false
+	enemy.ap -= 1
+	var forward: Vector2i = CARDINALS[enemy.facing]
+	var side := Vector2i(absi(forward.y), absi(forward.x))
+	var in_lane := func() -> bool:
+		var across: int = player.cell.x if side.x == 1 else player.cell.y
+		var base: int = enemy.cell.x if side.x == 1 else enemy.cell.y
+		return across == base or across == base + 1
+	var ramming: bool = in_lane.call()
+	var hit := false
+	var pushed := false
+	var steps := 0
+	while steps < board_size * 2:
+		steps += 1
+		var front := _front_cells(enemy, forward)
+		var stop := false
+		for cell in front:
+			if not inside(cell) or arrow_stopped(cell) or not ally_at(cell).is_empty() or fairies.has(cell):
+				stop = true
+			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
+				stop = true
+		if stop:
+			break
+		if front.has(player.cell):
+			if not hit:
+				hit = true
+				_hit_player(enemy)
+				if terminal():
+					break
+			var shove: Vector2i = player.cell + forward
+			if not inside(shove) or blocked(shove) or not enemy_at(shove).is_empty():
+				break
+			player.cell = shove
+			pushed = true
+		events.append({"kind":"dash", "cell":enemy.cell, "id":-2, "dir":forward})
+		enemy.cell += forward
+		if not ramming and in_lane_perpendicular(enemy, forward):
+			break
+	if pushed and not terminal():
+		trigger_mine(player)
+	add_log("突進くんの突進" + ("！ 壁まで押し込まれた" if hit else ""))
+	check_outcome()
+	if not terminal() and enemy.hp > 0:
+		rook_brace(enemy)
+	return true
+
+## True once the player shares the rook's other axis (it can turn and aim at them).
+func in_lane_perpendicular(enemy: Dictionary, forward: Vector2i) -> bool:
+	if forward.x != 0:
+		return player.cell.x == enemy.cell.x or player.cell.x == enemy.cell.x + 1
+	return player.cell.y == enemy.cell.y or player.cell.y == enemy.cell.y + 1
+
+## Moving prison: slides its whole footprint one tile; stepping into the player attacks.
+func big_step(enemy: Dictionary, forward: Vector2i) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
+		return false
+	var front := _front_cells(enemy, forward)
+	if front.has(player.cell):
+		enemy.ap -= 1
+		enemy.facing = CARDINALS.find(forward)
+		_hit_player(enemy)
+		return true
+	for cell in front:
+		if not inside(cell) or blocked(cell) or mines.has(cell) or not enemy_at(cell).is_empty():
+			return false
+	enemy.ap -= 1
+	enemy.facing = CARDINALS.find(forward)
+	enemy.cell += forward
+	trigger_fairies()
+	check_outcome()
+	return true
+
+func footprint_distance(enemy: Dictionary, target: Vector2i) -> int:
+	var best := 999
+	for cell in footprint(enemy):
+		best = mini(best, distance(cell, target))
+	return best

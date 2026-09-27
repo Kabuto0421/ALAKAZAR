@@ -25,6 +25,7 @@ func fixture() -> RefCounted:
 func _initialize() -> void:
 	var run := Run.new()
 	run.start(42)
+	run.boss_choice = 0
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
 	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and Run.Weapons.goes_up_and_down(o.value)),"Three early starting weapons that all go both up and down")
 	var rolled: Array = run.offers.map(func(o): return o.value)
@@ -234,6 +235,7 @@ func _initialize() -> void:
 	_ranged_soldiers()
 	_mid_weapons()
 	_place_on_enemies()
+	_rook_and_prison()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -488,3 +490,107 @@ func _place_on_enemies() -> void:
 	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 1,"It hits the enemy underneath and slashes the row in front")
 	verify(m.directional_preview("magic_bolt",Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,2)),"The preview includes the enemy underneath")
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT) and m.enemy_at(Vector2i(2,2)).is_empty() and m.enemy_at(Vector2i(4,2)).is_empty(),"A bolt on an enemy hits it and flies on past it")
+
+func _boss_room() -> RefCounted:
+	var m := Rules.new()
+	m.boss_variant = 1
+	m.reset(Rules.BOSS_LEVEL)
+	return m
+
+func _rook_and_prison() -> void:
+	# The alternative first boss room: rook + moving prison on 6x6.
+	var m := _boss_room()
+	verify(m.board_size == 6 and m.enemies.size() == 2,"The rook room is 6x6 with two bosses")
+	var rook: Dictionary = m.enemies.filter(func(e): return e.type == "rook")[0]
+	var prison: Dictionary = m.enemies.filter(func(e): return e.type == "prison")[0]
+	verify(rook.hp == 3 and rook.ap == 1 and prison.hp == 1 and prison.ap == 1,"Rook HP3/AP1, prison HP1/AP1")
+	verify(m.footprint(rook).size() == 4 and m.enemy_at(rook.cell + Vector2i(1,1)) == rook,"Both are two by two")
+	verify(rook.state == "idle" and rook.facing == 3,"The rook starts blue, facing left")
+	# Opening enemy turn: it only braces toward the player.
+	m.player.cell = Vector2i(0,1)
+	_enemy_turn(m)
+	verify(rook.state == "brace" and rook.facing == 3 and m.player.hp == 5,"First turn: it turns red and aims, no charge yet")
+	verify(m.rook_lane(rook).has(Vector2i(0,1)) and m.rook_lane(rook).has(Vector2i(3,2)),"The two-wide charge lane is shown ahead")
+	verify(ThreatPreview.attackers(m).has(rook.id),"A braced rook aimed at the player gets the ! mark")
+	# Getting hit: 1 damage and shoved to the wall together.
+	m = _boss_room()
+	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
+	m.enemies = m.enemies.filter(func(e): return e.type == "rook")
+	rook.cell = Vector2i(3,0)
+	rook.state = "brace"
+	rook.facing = 3
+	m.player.cell = Vector2i(2,1)
+	_enemy_turn(m)
+	verify(m.player.hp == 4 and m.player.cell == Vector2i(0,1) and rook.cell == Vector2i(1,0),"A hit deals 1 and pushes the player to the wall with the rook")
+	verify(rook.state == "brace","It aims again right after charging")
+	# Dodging: it runs along its lane until it shares the player's axis, then aims at them.
+	m = _boss_room()
+	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
+	m.enemies = m.enemies.filter(func(e): return e.type == "rook")
+	rook.cell = Vector2i(4,0)
+	rook.state = "brace"
+	rook.facing = 3
+	m.player.cell = Vector2i(2,4)
+	_enemy_turn(m)
+	verify(m.player.hp == 5 and rook.cell == Vector2i(2,0),"A dodged charge stops on the player's column")
+	verify(rook.facing == 2,"...and re-aims down at the player")
+	_enemy_turn(m)
+	verify(m.player.hp == 4 and m.player.cell == Vector2i(2,5) and rook.cell == Vector2i(2,3),"The next charge down pins the player against the bottom wall")
+	# A wall spirit stops the charge.
+	m = _boss_room()
+	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
+	m.enemies = m.enemies.filter(func(e): return e.type == "rook")
+	rook.cell = Vector2i(4,0)
+	rook.state = "brace"
+	rook.facing = 3
+	m.player.cell = Vector2i(0,0)
+	m.walls[Vector2i(2,0)] = 3
+	_enemy_turn(m)
+	verify(m.player.hp == 5 and rook.cell == Vector2i(3,0),"A wall spirit blocks the charge")
+	# Multi-tile effects hit a big enemy once.
+	m = _boss_room()
+	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
+	m.phase = Rules.Phase.PLAYER
+	m.weapon = 0
+	m.player.cell = rook.cell + Vector2i(-1,0)
+	m.fairy_loadout.assign(["magic_bolt"])
+	m.refill_fairies()
+	m.player.cell = Vector2i(1,1)
+	rook.cell = Vector2i(3,1)
+	verify(m.use_item("magic_bolt",Vector2i(2,1),Vector2i.RIGHT) and rook.hp == 2,"A bolt through both of the rook's tiles hits it once")
+	verify(m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(2,1),"The player steps up to it")
+	m.player.ap = 2
+	verify(m.player_action(Vector2i(3,1)) and rook.hp == 1,"Striking any of its tiles damages it")
+	# Moving prison: slides as a block, breaks into two executioners.
+	m = _boss_room()
+	prison = m.enemies.filter(func(e): return e.type == "prison")[0]
+	m.enemies = m.enemies.filter(func(e): return e.type == "prison")
+	prison.cell = Vector2i(3,3)
+	m.player.cell = Vector2i(0,4)
+	_enemy_turn(m)
+	verify(prison.cell == Vector2i(2,3) and m.player.hp == 5,"The prison slides one tile toward the player")
+	_enemy_turn(m)
+	verify(prison.cell == Vector2i(1,3) and m.player.hp == 5,"...and again")
+	_enemy_turn(m)
+	verify(m.player.hp == 4 and prison.cell == Vector2i(1,3),"Touching the player it attacks instead of moving")
+	m.phase = Rules.Phase.PLAYER
+	m.player.ap = 2
+	m.weapon = 0
+	verify(m.player_action(Vector2i(1,4)),"The player strikes the prison")
+	var guards: Array = m.enemies.filter(func(e): return e.type == "executioner")
+	verify(guards.size() == 2 and m.phase == Rules.Phase.PLAYER,"Breaking it releases two executioners and the fight goes on")
+	var spots: Array = guards.map(func(e): return e.cell)
+	spots.sort()
+	verify(spots == [Vector2i(1,3),Vector2i(2,4)],"They appear on a diagonal of its footprint")
+	verify(guards.all(func(e): return e.hp == 2 and Rules.TYPES[e.type].ap == 2),"Executioners are HP2/AP2")
+	_enemy_turn(m)
+	verify(m.player.hp < 4,"Executioners attack like infantry")
+	# The run draws the boss room.
+	var run := Run.new()
+	run.start(7)
+	var seen := {}
+	for i in 40:
+		run.stage = 2
+		run.advance()
+		seen[run.battle.boss_variant] = true
+	verify(seen.has(0) and seen.has(1),"The first boss is drawn between the horses and the rook room")

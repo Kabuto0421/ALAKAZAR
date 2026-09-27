@@ -385,7 +385,8 @@ func _sync_units(animate: bool) -> void:
 		if not actors.has(id):
 			var actor := UnitView.new()
 			actor.kind = unit.type
-			actor.position = _center(unit.cell)
+			actor.span = int(unit.get("size",1))
+			actor.position = _unit_center(unit)
 			actor.z_index = 2
 			add_child(actor)
 			actors[id] = actor
@@ -393,8 +394,10 @@ func _sync_units(animate: bool) -> void:
 		view.hp = unit.hp
 		view.charge_warning = id >= 0 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
-		var target := _center(unit.cell)
-		view.facing = 1 if id < 0 else 3
+		var target := _unit_center(unit)
+		view.facing = 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
+		view.braced = unit.get("state","") == "brace"
+		view.set_meta("cells", model.footprint(unit) if id >= 0 else [unit.cell])
 		view.hop_height = 0.0
 		if animate:
 			var jumping := false
@@ -484,7 +487,8 @@ func _process(delta: float) -> void:
 	var attack_cells: Array = model.targets() if not busy and selected_item.is_empty() and model.phase == Rules.Phase.PLAYER else []
 	for id in actors:
 		var actor = actors[id]
-		actor.attack_target = id >= 0 and attack_cells.has(Vector2i((actor.position-BOARD)/TILE))
+		var cells: Array = actor.get_meta("cells", [Vector2i((actor.position-BOARD)/TILE)])
+		actor.attack_target = id >= 0 and cells.any(func(c: Vector2i) -> bool: return attack_cells.has(c))
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
@@ -539,6 +543,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _center(cell: Vector2i) -> Vector2:
 	return BOARD+Vector2(cell)*TILE+Vector2.ONE*TILE/2
+
+## Units bigger than one tile sit in the middle of their footprint.
+func _unit_center(unit: Dictionary) -> Vector2:
+	return _center(unit.cell)+Vector2.ONE*TILE/2*(int(unit.get("size",1))-1)
 
 func _text(at: Vector2,text: String,size: int=20,color: Color=INK,font: Font=null) -> void:
 	draw_string(ui_font if font == null else font,at,text,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
@@ -596,6 +604,8 @@ func _draw_board() -> void:
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
 			danger.append_array(model.archer_lane(enemy))
+		elif enemy.hp > 0 and enemy.type == "rook" and enemy.get("state","") == "brace":
+			danger.append_array(model.rook_lane(enemy))
 	for y in range(model.board_size):
 		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
@@ -808,6 +818,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		actor._draw_drone(Color.WHITE,self)
 	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
+	elif enemy.type in UnitView.BOSS_KINDS:
+		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9)
 	else:
 		draw_texture_rect_region(UnitView.ENEMY_ATLAS,Rect2(-28,-28,56,56),Rect2(56,0,28,28))
 		if enemy.type == "heavy":
@@ -832,8 +844,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝左へ一直線に射る",18,Color("ff805a"))
 	elif enemy.type == "javelin":
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
-	var intent := "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
-	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim"] else CYAN)
+	var intent := "赤：構えた向きへ突進" if enemy.type == "rook" and enemy.get("state","") == "brace" else "すぐに構える" if enemy.type == "rook" else "壊すと執行兵2体" if enemy.type == "prison" else "執行" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
+	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
 	elif enemy.state == "charge":
@@ -872,13 +884,19 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"dash":
+			# Dust kicked up behind the charging rook's two-tile footprint.
+			var back := -dir
+			for k in range(2):
+				var lane := Vector2(absf(dir.y), absf(dir.x)) * TILE * k
+				draw_circle(pos + lane + back * (10 + t * 16), 7 + t * 8, Color("c9b79a", fade * 0.5))
 		"quake":
 			# Shock rings and cracks across every tile the hammer shakes.
 			for area_cell in effect.cells:
@@ -939,6 +957,11 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 						draw_line(spark - Vector2(0, 4), spark + Vector2(0, 4), Color("ffd98a", fade), 2)
 				"stealth":
 					draw_arc(pos, 16 + t * 8, t * 3, t * 3 + 4.5, 18, Color("aa8cff", fade * 0.8), 3, true)
+				"prison":
+					# The prison doors burst open: cyan shards around the new executioner.
+					for i in range(6):
+						var shard := pos + Vector2.from_angle(i * TAU / 6) * (10 + t * 26)
+						draw_line(shard, shard + Vector2.from_angle(i * TAU / 6) * 7, Color("6fe8ff", fade), 3)
 				_:
 					draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color("aa8cff", fade), 4, true)
 		"blast":

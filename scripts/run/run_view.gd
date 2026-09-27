@@ -84,7 +84,7 @@ func _render() -> void:
 			_button(Vector2(44,665),Vector2(230,40),"← 報酬へ戻る",_cancel)
 		Run.State.CAMP:
 			_label(Vector2(44,85),"キャンプ — ひとつだけ選ぶ",36,INK)
-			_label(Vector2(44,137),"この先はボス：馬3体（7×7）",22,Color("ff987f"))
+			_label(Vector2(44,137),"この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",22,Color("ff987f"))
 			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
 			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1",Color("ffd35b"),_forge,true)
 			_camp_option(2,"妖精のクラスアップ","準備中",Color("9aafa9"),func(): pass,false)

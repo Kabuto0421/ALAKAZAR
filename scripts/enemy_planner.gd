@@ -37,6 +37,10 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "前進"
 		elif enemy.type in Rules.JUMPERS:
 			enemy.intent = "跳躍接近"
+		elif enemy.type == "rook":
+			enemy.intent = "突進" if enemy.state == "brace" else "構える"
+		elif enemy.type == "prison":
+			enemy.intent = "接近"
 		elif enemy.type == "javelin":
 			enemy.intent = "接近・投擲"
 		elif enemy.type == "archer":
@@ -55,6 +59,17 @@ func beat(model: RefCounted, index: int) -> void:
 		if model.terminal():
 			break
 		if enemy.hp <= 0 or enemy.ap <= 0:
+			continue
+		if enemy.type == "rook":
+			if enemy.state == "brace":
+				model.rook_charge(enemy)
+			else:
+				# Opening turn: it only turns red and aims (0 AP), so the first charge can be dodged.
+				model.rook_brace(enemy)
+				enemy.ap = 0
+			continue
+		if enemy.type == "prison":
+			_prison_action(model, enemy)
 			continue
 		if enemy.type == "javelin":
 			_javelin_action(model, enemy)
@@ -87,7 +102,7 @@ func beat(model: RefCounted, index: int) -> void:
 				enemy.ap = 0
 		elif enemy.type in Rules.JUMPERS:
 			_cavalry_action(model, enemy)
-		elif enemy.type == "heavy":
+		elif enemy.type in ["heavy", "executioner"]:
 			var action: Dictionary = heavy_behavior.decide(model,enemy)
 			if action.kind == "step":
 				model.enemy_step(enemy,action.cell)
@@ -204,3 +219,27 @@ func _archer_action(model: RefCounted, enemy: Dictionary) -> void:
 		model.enemy_step(enemy, cell)
 	else:
 		enemy.ap = 0
+
+## Moving prison: attack when the player touches a side, otherwise slide closer.
+func _prison_action(model: RefCounted, enemy: Dictionary) -> void:
+	for direction in DIRECTIONS:
+		if model._front_cells(enemy, direction).has(model.player.cell):
+			model.big_step(enemy, direction)
+			return
+	var best: Vector2i = Vector2i.ZERO
+	var best_score: int = model.footprint_distance(enemy, model.player.cell)
+	for direction in DIRECTIONS:
+		var probe: Dictionary = enemy.duplicate()
+		probe.cell = enemy.cell + direction
+		var score: int = model.footprint_distance(probe, model.player.cell)
+		if score < best_score and _big_free(model, enemy, direction):
+			best = direction
+			best_score = score
+	if best == Vector2i.ZERO or not model.big_step(enemy, best):
+		enemy.ap = 0
+
+func _big_free(model: RefCounted, enemy: Dictionary, direction: Vector2i) -> bool:
+	for cell in model._front_cells(enemy, direction):
+		if not model.inside(cell) or model.blocked(cell) or model.mines.has(cell) or not model.enemy_at(cell).is_empty():
+			return false
+	return true

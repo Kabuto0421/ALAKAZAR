@@ -15,6 +15,8 @@ var start_weapon_offers: Array[Dictionary] = []
 var start_fairy_offers: Array[Dictionary] = []
 var pending: Dictionary = {}
 var rng := RandomNumberGenerator.new()
+## Forces the first boss room (0: horses, 1: rook + moving prison); -1 draws it at random.
+var boss_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy"]
@@ -155,6 +157,8 @@ func skip_reward() -> void:
 func advance() -> void:
 	battle.refill_fairies()
 	if stage == LAST_NORMAL_STAGE:
+		# The boss room is drawn on arriving at the camp, so the camp can name it.
+		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
 	else:
 		stage += 1
