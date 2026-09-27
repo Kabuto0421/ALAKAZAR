@@ -24,9 +24,10 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      Phrygian F against E, octave-bouncing bass, a marching
                      hook, a twin-lead climax and a kick-less break.
     rotorick_loop.ogg  Rotorick: A harmonic minor, 152 BPM in a triplet 12/8
-                     swing. A mad cyber-circus (oom-pah bass, chromatic lead),
-                     reel-spin arpeggios, a half-time "execution" section with a
-                     tolling bell, then a jackpot climax.
+                     swing. A mad cyber-circus that grabs from the first bar
+                     and never lets up (oom-pah bass, chromatic lead, reel-spin
+                     arpeggios); a darker "verdict" with a tolling bell keeps
+                     the drive, then a jackpot climax.
 
     python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
 """
@@ -635,12 +636,13 @@ ROTO_VERDICT = [
     [(0, 6, "F3"), (6, 6, "D3")],
     [(0, 9, "E3"), (9, 3, "G#3")],
 ]
+# Busy from the first bar to the last: the hook opens the loop and the reel,
+# oom-pah and kick never drop out; the verdict darkens without going quiet.
 # name, bars, kick pattern, clap, oom-pah vol, reel vol, pad vol, lead
 ROTO_SECTIONS = [
-    ("spin",    4, "none",  0.0,  0.0,  0.10, 0.09, None),
-    ("circus",  8, "waltz", 0.0,  0.10, 0.05, 0.07, "tune"),
-    ("frenzy",  8, "four",  0.35, 0.11, 0.06, 0.08, "tune2"),
-    ("verdict", 4, "half",  0.0,  0.0,  0.0,  0.12, "verdict"),
+    ("circus",  8, "four",  0.30, 0.11, 0.06, 0.07, "tune"),
+    ("frenzy",  8, "four",  0.40, 0.11, 0.07, 0.08, "tune2"),
+    ("verdict", 4, "four",  0.40, 0.09, 0.06, 0.11, "verdict"),
     ("jackpot", 8, "four",  0.45, 0.12, 0.08, 0.10, "twin"),
 ]
 
@@ -663,7 +665,7 @@ def roto_theme():
 
     for bar, (name, idx, count, levels) in enumerate(plan):
         kick_mode, clap, oompah, reel, pad_v, part = levels
-        key = "Am" if name == "spin" else ROTO_PROG[idx % 8] if name != "verdict" else ["Am", "E", "Dm", "E"][idx % 4]
+        key = ROTO_PROG[idx % 8] if name != "verdict" else ["Am", "E", "Dm", "E"][idx % 4]
         chord = ROTO_CHORDS[key]
         t0 = bar * bar_len
         starts.setdefault(name, bar)
@@ -671,7 +673,7 @@ def roto_theme():
             bt = t0 + beat * beat_len
             hit = (kick_mode == "four") or (kick_mode == "waltz" and beat in (0, 2)) or (kick_mode == "half" and beat == 0)
             if hit:
-                mix.put("kick", bt, kick(0.95 if kick_mode == "half" else 0.8))
+                mix.put("kick", bt, kick(0.95 if name == "verdict" and beat == 0 else 0.8))
                 kicks.append(bt)
             if clap and beat in (1, 3):
                 mix.put("clap", bt, noise_hit(rng, 0.16, 900, 3200, clap, bursts=3))
@@ -693,15 +695,6 @@ def roto_theme():
                     idx_note = (beat * 3 + k + bar) % 4
                     m = midi(tones[idx_note]) + 12
                     mix.put("arp", bt + k * tick, pluck(m, 2600, vol=reel))
-        if name == "spin":
-            # The wheel winds up: ticks speeding up from quarter notes to triplets.
-            density = [4, 6, 12, 12][idx]
-            for k in range(density):
-                m = midi(["A4", "C5", "E5", "G#5"][k % 4]) + (12 if idx == 3 else 0)
-                mix.put("arp", t0 + k * bar_len / density, pluck(m, 1500 + 600 * idx, vol=0.1))
-            bass = synth("A1", bar_len * 0.95, "saw", detune=(-6, 6), vol=0.3, attack=0.05,
-                         decay=0.6, sustain=0.6, release=0.2, cutoff=(700, 300, 0.4))
-            mix.put("bass", t0, bass)
         mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=900, vol=pad_v))
         if part in ("tune", "tune2", "twin"):
             phrase = ROTO_TUNE[idx % 8]
@@ -732,7 +725,8 @@ def roto_theme():
     for k, note in enumerate(["A5", "C6", "E6", "A6", "C7", "E7"]):
         mix.put("bell", jp - (6 - k) * tick, bell(note, 0.8, vol=0.07))
     mix.put("fx", jp, noise_hit(rng, 2.2, 2500, 11000, 0.22))
-    mix.put("fx", starts["circus"] * bar_len - 2 * beat_len, riser(rng, 2 * beat_len, vol=0.12))
+    # The loop opens on a crash so every lap lands with a bang.
+    mix.put("fx", 0, noise_hit(rng, 1.6, 3000, 11000, 0.18))
     mix.put("fx", starts["frenzy"] * bar_len, noise_hit(rng, 1.4, 3000, 11000, 0.15))
     mix.put("fx", starts["verdict"] * bar_len, noise_hit(rng, 2.5, 1200, 6000, 0.14))
     mix.put("fx", jp - 2 * beat_len, riser(rng, 2 * beat_len, vol=0.16))
