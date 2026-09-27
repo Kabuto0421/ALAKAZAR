@@ -246,6 +246,7 @@ func _initialize() -> void:
 	_rotorick()
 	_expiring_and_rewards()
 	_capacitor()
+	_class_ups()
 	_resonance()
 	_knockback()
 	_difficulty()
@@ -766,6 +767,95 @@ func _expiring_and_rewards() -> void:
 	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
 	verify(threes.size() == 13,"Thirteen three-tile weapons feed the pre-boss reward")
+
+## Fixture with one upgraded fairy in hand and heavies (HP 3) placed as asked.
+func _plus_room(id: String, foes: Array) -> RefCounted:
+	var m := fixture()
+	m.fairy_loadout.assign([id])
+	m.fairy_plus[id] = true
+	m.refill_fairies()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	for k in foes.size():
+		m.enemies.append(m.make_enemy("heavy",foes[k],k))
+	return m
+
+func _hurt(m: RefCounted, cell: Vector2i) -> bool:
+	var enemy: Dictionary = m.enemy_at(cell)
+	return not enemy.is_empty() and enemy.hp < m.TYPES.heavy.hp
+
+func _class_ups() -> void:
+	# Magic bolt+: fires both ways along the chosen line.
+	var m := _plus_room("magic_bolt",[Vector2i(2,0),Vector2i(2,5)])
+	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.UP) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Magic bolt+ hits both ways along its line")
+	# Stealth+: strikes every adjacent enemy.
+	m = _plus_room("stealth_fairy",[Vector2i(2,1),Vector2i(2,3)])
+	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and _hurt(m,Vector2i(2,1)) and _hurt(m,Vector2i(2,3)) and m.fairies.is_empty(),"Stealth fairy+ strikes every adjacent enemy, then fades")
+	# Acorn+: HP 2 and diagonal attacks.
+	m = _plus_room("acorn_fairy",[Vector2i(3,3)])
+	m.use_item("acorn_fairy",Vector2i(2,2))
+	verify(m.allies.size() == 1 and m.allies[0].hp == 2,"Acorn+ has 2 HP")
+	m.act_allies()
+	verify(_hurt(m,Vector2i(3,3)),"Acorn+ attacks a diagonal neighbour")
+	# Warp+: costs no AP.
+	m = _plus_room("warp_fairy",[Vector2i(5,5)])
+	m.player.ap = 0
+	verify(m.fairy_ap_cost("warp_fairy") == 0 and m.use_item("warp_fairy",Vector2i(0,0)) and m.player.cell == Vector2i(0,0),"Warp+ works with 0 AP")
+	# Wall+: two tiles in the chosen direction.
+	m = _plus_room("wall_fairy",[Vector2i(5,5)])
+	verify(m.is_directional("wall_fairy") and not m.use_item("wall_fairy",Vector2i(2,2)),"Wall+ asks for a direction")
+	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)),"Wall+ builds two tiles")
+	# Lance cannon+: fires both ways.
+	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
+	m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP)
+	verify(m.player_action(Vector2i(2,2)) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Lance cannon+ fires both ways")
+	# Vane cannon+: both ways, then turns.
+	m = _plus_room("vane_cannon",[Vector2i(2,0),Vector2i(2,5)])
+	m.use_item("vane_cannon",Vector2i(2,2),Vector2i.UP)
+	verify(m.player_action(Vector2i(2,2)) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)) and m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon+ fires both ways and turns")
+	# Firework+: spares the player.
+	m = _plus_room("firework_fairy",[Vector2i(3,3)])
+	m.use_item("firework_fairy",Vector2i(2,2))
+	var hp: int = m.player.hp
+	verify(m.player_action(Vector2i(2,2)) and m.player.hp == hp and _hurt(m,Vector2i(3,3)),"Firework+ spares the player but hits enemies")
+	# Capacitor+: starts with one charge, so two strikes discharge.
+	m = _plus_room("capacitor_fairy",[Vector2i(2,5)])
+	m.use_item("capacitor_fairy",Vector2i(2,2))
+	verify(m.cannon_at(Vector2i(2,2)).charge == 1,"Capacitor+ starts with a charge")
+	m.player.ap = 2
+	m.player_action(Vector2i(2,2))
+	m.player_action(Vector2i(2,2))
+	verify(_hurt(m,Vector2i(2,5)),"Capacitor+ discharges after two strikes")
+	# Class-up bookkeeping.
+	m = fixture()
+	m.fairy_loadout.assign(["slash_fairy","magic_bolt"])
+	m.refill_fairies()
+	verify(m.class_up(0) and m.fairy_loadout[0] == "flying_slash" and not m.can_class_up("flying_slash"),"The slash spirit evolves into the flying slash")
+	verify(m.class_up(1) and m.is_plus("magic_bolt") and m.fairy_title("magic_bolt") == "魔弾精霊+" and not m.class_up(1),"A fairy takes one class-up only")
+	# Camp: forging is once per weapon; class-up picks a fairy; swapping it out loses the "+".
+	var run := Run.new()
+	run.start(3)
+	run.choose(0)
+	run.choose(0)
+	run.stage = Run.LAST_NORMAL_STAGE
+	run.state = Run.State.CAMP
+	var first: int = run.battle.owned_weapons[0]
+	run.camp_forge()
+	run.camp_forge_weapon(0)
+	run.state = Run.State.CAMP
+	run.camp_forge()
+	verify(not run.camp_forge_weapon(0) and run.battle.weapon_power[first] == 1,"A weapon can be forged only once")
+	run.camp_back()
+	var fairy: String = run.battle.fairy_loadout[0]
+	verify(run.camp_class_up() and run.state == Run.State.CAMP_FAIRY and run.camp_class_up_fairy(0) and run.state == Run.State.BATTLE,"The camp class-up upgrades a fairy and moves on")
+	verify(run.battle.is_plus(fairy) or run.battle.fairy_loadout[0] != fairy,"...and the fairy is upgraded")
+	run.battle.fairy_plus["magic_bolt"] = true
+	run.battle.fairy_loadout.assign(["magic_bolt"])
+	run.state = Run.State.REPLACE
+	run.pending = {"kind":"fairy","value":"wall_fairy"}
+	run.replace(0)
+	verify(not run.battle.is_plus("magic_bolt"),"Swapping out an upgraded fairy loses its class-up")
 
 func _capacitor() -> void:
 	var m := fixture()

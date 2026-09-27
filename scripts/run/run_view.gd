@@ -5,6 +5,7 @@ const BattleView = preload("res://scripts/battle_view.gd")
 const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
+const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
@@ -41,7 +42,7 @@ func _render() -> void:
 		add_child(battle_view)
 		return
 	# Camp tune at the camp; the draft tune for picks, rewards and the end screens.
-	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE] else "draft"
+	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE, Run.State.CAMP_FAIRY] else "draft"
 	bgm.sync(false, false)
 	screen = Control.new()
 	screen.name = "DraftScreen"
@@ -94,16 +95,22 @@ func _render() -> void:
 			_label(Vector2(44,48),"キャンプ — ひとつだけ選ぶ",30,INK)
 			_label(Vector2(44,94),"この先はボス：ロトリック（6×6）" if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",17,Color("ff987f"))
 			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
-			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1",Color("ffd35b"),_forge,true)
-			_camp_option(2,"妖精のクラスアップ","準備中",Color("9aafa9"),func(): pass,false)
+			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1\n（1本につき1回）",Color("ffd35b"),_forge,run.can_forge())
+			_camp_option(2,"妖精のクラスアップ","妖精を1体選び\n効果を強化\n（1体につき1回）",Color("7fe0c8"),_class_up,run.can_class_up())
 			_loadout()
 		Run.State.CAMP_FORGE:
 			_label(Vector2(44,48),"鍛える武器を選ぶ",30,INK)
-			_label(Vector2(44,94),"選んだ武器の攻撃力が +1 される",17,sub)
+			_label(Vector2(44,94),"選んだ武器の攻撃力が +1 される。鍛えられるのは1本につき1回。",17,sub)
 			var owned_weapons: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned_weapons.append({"kind":"weapon","value":index})
 			_cards(owned_weapons,false,true)
+			_loadout()
+			_button(Vector2(894,92),Vector2(214,34),"← キャンプへ戻る",_camp_back)
+		Run.State.CAMP_FAIRY:
+			_label(Vector2(44,48),"クラスアップする妖精を選ぶ",30,INK)
+			_label(Vector2(44,94),"カードは強化後の姿。強化できるのは1体につき1回。",17,sub)
+			_cards(run.offers,false,false,true)
 			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"← キャンプへ戻る",_camp_back)
 		Run.State.FINISHED, Run.State.LOST:
@@ -131,7 +138,7 @@ func _coverage() -> Array[Vector2i]:
 				tiles.append(offset)
 	return tiles
 
-func _cards(offers: Array, replacing: bool = false, forging: bool = false) -> void:
+func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgrading: bool = false) -> void:
 	var gap := 20.0
 	var width := (1064-gap*(offers.size()-1))/offers.size()
 	var coverage := _coverage()
@@ -141,9 +148,26 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false) -> vo
 		card.size = Vector2(width,CARD_HEIGHT)
 		card.offer = offers[index]
 		card.model = run.battle
-		card.action_text = "これと交換" if replacing else "鍛える" if forging else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
-		_compare(card, coverage, forging)
-		if forging:
+		card.action_text = "これと交換" if replacing else "鍛える" if forging else "強化する" if upgrading else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
+		if not upgrading:
+			_compare(card, coverage, forging)
+		if forging or upgrading:
+			# Camp: the card shows the result; items already improved cannot be picked again.
+			var done: bool = run.battle.weapon_power.has(int(card.offer.value)) if forging else not run.battle.can_class_up(str(card.offer.value))
+			card.preview_plus = not done
+			card.disabled = done
+			if done:
+				card.tag = "強化済み"
+				card.modulate = Color(1,1,1,0.45)
+				card.note = ""
+				card.action_text = ""
+			elif upgrading:
+				card.tag = "進化" if run.battle.EVOLUTIONS.has(str(card.offer.value)) else "クラスアップ後"
+		if upgrading:
+			card.pressed.connect(func():
+				if run.camp_class_up_fairy(index):
+					_render())
+		elif forging:
 			card.pressed.connect(func():
 				if run.camp_forge_weapon(index):
 					_render())
@@ -249,7 +273,9 @@ func _loadout() -> void:
 		diagram.offsets = Weapons.offsets(index)
 		diagram.accent = accent
 		screen.add_child(diagram)
-		_label(at+Vector2(10,104),data.name,17,Color("eee7d2"))
+		_title(at+Vector2(10,104),data.name,17,run.battle.weapon_power.has(index))
+		if run.battle.weapon_power.has(index):
+			_badge(diagram.position+Vector2(104,-6),20)
 		var damage: int = run.battle.weapon_damage(index)
 		_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	for slot in run.battle.HAND_LIMIT:
@@ -272,8 +298,24 @@ func _loadout() -> void:
 		icon.size = Vector2(90,90)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(icon)
-		_label(at+Vector2(10,104),item.title,17,Color("eee7d2"))
-		_label(at+Vector2(10,130),"1 AP / 毎戦闘 1回",14,Color(item.color))
+		var plus: bool = run.battle.is_plus(str(fairies[slot]))
+		if plus:
+			_badge(icon.position+Vector2(94,-2),20)
+		_title(at+Vector2(10,104),item.title,17,plus)
+		_label(at+Vector2(10,130),run.battle.fairy_summary(str(fairies[slot])),14,Color(item.color))
+
+## A name with a yellow "+" after it when the item is upgraded.
+func _title(at: Vector2, text: String, font_size: int, plus: bool) -> void:
+	var label := _label(at,text,font_size,Color("eee7d2"))
+	if plus:
+		var width: float = label.get_theme_font("font").get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x
+		_label(at+Vector2(width+2,0),"+",font_size,Color("ffd35b"))
+
+func _badge(corner: Vector2, side: float) -> void:
+	var badge := PlusBadge.new()
+	badge.position = corner-Vector2(side,0)
+	badge.size = Vector2.ONE*side
+	screen.add_child(badge)
 
 func _empty_slot(at: Vector2, extent: Vector2) -> void:
 	var box := Panel.new()
@@ -350,6 +392,10 @@ func _camp_option(index: int, title: String, detail: String, accent: Color, call
 
 func _rest() -> void:
 	if run.camp_rest():
+		_render()
+
+func _class_up() -> void:
+	if run.camp_class_up():
 		_render()
 
 func _forge() -> void:

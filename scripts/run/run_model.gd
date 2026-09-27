@@ -2,7 +2,7 @@ extends RefCounted
 
 const Battle = preload("res://scripts/battle_model.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
-enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, FINISHED, LOST }
+enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST }
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
@@ -155,7 +155,11 @@ func replace(slot: int) -> bool:
 		if slot < 0 or slot >= battle.fairy_loadout.size():
 			return false
 		var id := str(pending.value)
+		var old: String = battle.fairy_loadout[slot]
 		battle.fairy_loadout[slot] = id
+		# A class-up belongs to the fairy that was upgraded; giving it up loses it.
+		if not battle.fairy_loadout.has(old):
+			battle.fairy_plus.erase(old)
 	pending.clear()
 	advance()
 	return true
@@ -191,8 +195,15 @@ func camp_rest() -> bool:
 	_leave_camp()
 	return true
 
+## Each weapon can be forged once.
+func can_forge() -> bool:
+	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index))
+
+func can_class_up() -> bool:
+	return battle.fairy_loadout.any(func(id: String) -> bool: return battle.can_class_up(id))
+
 func camp_forge() -> bool:
-	if state != State.CAMP:
+	if state != State.CAMP or not can_forge():
 		return false
 	state = State.CAMP_FORGE
 	offers.clear()
@@ -204,12 +215,29 @@ func camp_forge_weapon(slot: int) -> bool:
 	if state != State.CAMP_FORGE or slot < 0 or slot >= battle.owned_weapons.size():
 		return false
 	var index: int = battle.owned_weapons[slot]
-	battle.weapon_power[index] = int(battle.weapon_power.get(index, 0)) + 1
+	if battle.weapon_power.has(index):
+		return false
+	battle.weapon_power[index] = 1
+	_leave_camp()
+	return true
+
+func camp_class_up() -> bool:
+	if state != State.CAMP or not can_class_up():
+		return false
+	state = State.CAMP_FAIRY
+	offers.clear()
+	for id in battle.fairy_loadout:
+		offers.append({"kind":"fairy", "value":id})
+	return true
+
+func camp_class_up_fairy(slot: int) -> bool:
+	if state != State.CAMP_FAIRY or not battle.class_up(slot):
+		return false
 	_leave_camp()
 	return true
 
 func camp_back() -> void:
-	if state == State.CAMP_FORGE:
+	if state in [State.CAMP_FORGE, State.CAMP_FAIRY]:
 		state = State.CAMP
 		offers.clear()
 

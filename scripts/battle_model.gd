@@ -78,8 +78,24 @@ var fairy_loadout: Array[String] = ["magic_bolt"]
 var fairy_charges: Array[int] = []
 ## HP the player starts this fight with; the run carries it between fights.
 var start_hp := MAX_HP
-## Camp forging: weapon index -> extra damage.
+## Camp forging: weapon index -> extra damage (each weapon can be forged once).
 var weapon_power: Dictionary = {}
+## Camp class-ups: fairy id -> true. Upgraded fairies show a yellow "+".
+var fairy_plus: Dictionary = {}
+## What each class-up does: [one-line summary, full description].
+const PLUS_TEXT := {
+	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
+	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
+	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"],
+	"warp_fairy": ["0 APで空きマスへ瞬間移動", "0 APで使える。敵や障害物の\nないマスへ瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
+	"wall_fairy": ["3ターン残る2マスの壁", "攻撃範囲の空きマスと、選んだ\n向きの隣のマスに壁を置く。\n置いたターンを含め3ターン\n完全な障害物として残る。"],
+	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
+	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
+	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
+	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
+}
+## The slash spirit's class-up is an evolution into the flying slash.
+const EVOLUTIONS := {"slash_fairy": "flying_slash"}
 var allies: Array[Dictionary] = []
 var next_ally_id := -100
 var phase: Phase = Phase.ENEMY
@@ -119,6 +135,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		fairy_loadout.assign(["magic_bolt"])
 		start_hp = MAX_HP
 		weapon_power.clear()
+		fairy_plus.clear()
 	weapon = owned_weapons[0]
 	facing = 1
 	kills = 0
@@ -314,6 +331,42 @@ func item_definition(id: String) -> Resource:
 			return item
 	return null
 
+func is_plus(id: String) -> bool:
+	return fairy_plus.has(id)
+
+## Fairies that can still take a class-up (or evolve).
+func can_class_up(id: String) -> bool:
+	return not is_plus(id) and (PLUS_TEXT.has(id) or EVOLUTIONS.has(id))
+
+## Upgrade the fairy in a loadout slot: a "+" for most, an evolution for the slash.
+func class_up(slot: int) -> bool:
+	if slot < 0 or slot >= fairy_loadout.size() or not can_class_up(fairy_loadout[slot]):
+		return false
+	var id: String = fairy_loadout[slot]
+	if EVOLUTIONS.has(id):
+		fairy_loadout[slot] = EVOLUTIONS[id]
+	else:
+		fairy_plus[id] = true
+	refill_fairies()
+	return true
+
+func fairy_title(id: String) -> String:
+	var item := item_definition(id)
+	return "" if item == null else item.title + ("+" if is_plus(id) else "")
+
+func fairy_summary(id: String) -> String:
+	return PLUS_TEXT[id][0] if is_plus(id) else item_definition(id).summary
+
+func fairy_description(id: String) -> String:
+	return PLUS_TEXT[id][1] if is_plus(id) else item_definition(id).description
+
+func fairy_ap_cost(id: String) -> int:
+	return 0 if id == "warp_fairy" and is_plus(id) else item_definition(id).ap_cost
+
+## Directional fairies ask for a direction after the tile (the upgraded wall does too).
+func is_directional(id: String) -> bool:
+	return item_definition(id).directional or (id == "wall_fairy" and is_plus(id))
+
 func blocked(cell: Vector2i) -> bool:
 	return obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
 
@@ -347,7 +400,7 @@ func ray_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 
 func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, slot: int = -1) -> bool:
 	var item := item_definition(id)
-	if item == null or phase != Phase.PLAYER or player.ap < item.ap_cost or inventory.get(id,0) <= 0:
+	if item == null or phase != Phase.PLAYER or player.ap < fairy_ap_cost(id) or inventory.get(id,0) <= 0:
 		return false
 	if slot < 0:
 		for i in fairy_loadout.size():
@@ -356,17 +409,17 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 				break
 	if slot < 0 or slot >= fairy_loadout.size() or fairy_loadout[slot] != id or fairy_charges[slot] <= 0:
 		return false
-	if not item_targets(id).has(cell) or (item.directional and not CARDINALS.has(direction)):
+	if not item_targets(id).has(cell) or (is_directional(id) and not CARDINALS.has(direction)):
 		return false
 	events.clear()
-	player.ap -= item.ap_cost
+	player.ap -= fairy_ap_cost(id)
 	inventory[id] -= 1
 	fairy_charges[slot] -= 1
 	strike_guard = true
 	struck_ids.clear()
 	item.effect.new().apply(self, cell, direction)
 	strike_guard = false
-	add_log("%sを使用" % item.title)
+	add_log("%sを使用" % fairy_title(id))
 	check_outcome()
 	return true
 
@@ -425,14 +478,20 @@ func trigger_fairies() -> void:
 	# Placement order, then enemy ID, resolves simultaneous opportunities.
 	var ordered := enemies.duplicate()
 	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.id < b.id)
+	# The upgraded fairy strikes every adjacent enemy at once instead of just one.
+	var all_sides := is_plus("stealth_fairy")
 	for cell in fairies.duplicate():
+		var struck := false
 		for enemy in ordered:
 			if enemy.hp > 0 and distance(cell, enemy.cell) == 1:
-				fairies.erase(cell)
-				fairy_turns.erase(cell)
-				events.append({"kind": "ambush", "cell": cell, "id": -2})
+				if not struck:
+					fairies.erase(cell)
+					fairy_turns.erase(cell)
+					events.append({"kind": "ambush", "cell": cell, "id": -2})
+					struck = true
 				damage_enemy(enemy, 1)
-				break
+				if not all_sides:
+					break
 	check_outcome()
 
 func inside(cell: Vector2i) -> bool:
@@ -633,7 +692,8 @@ func ally_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 func summon_acorn(cell: Vector2i) -> void:
-	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":1, "ap":1, "facing":1})
+	var plus := is_plus("acorn_fairy")
+	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":2 if plus else 1, "ap":1, "facing":1, "plus":plus})
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
@@ -647,7 +707,9 @@ func act_allies() -> void:
 		ally.ap = 1
 		var adjacent: Array[Dictionary] = []
 		for enemy in enemies:
-			if enemy.hp > 0 and distance(ally.cell,enemy.cell) == 1:
+			var gap: Vector2i = (enemy.cell - ally.cell).abs()
+			# The upgraded acorn also reaches the diagonal neighbours.
+			if enemy.hp > 0 and (distance(ally.cell,enemy.cell) == 1 or (ally.get("plus", false) and gap == Vector2i.ONE)):
 				adjacent.append(enemy)
 		adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
 			return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
@@ -688,6 +750,13 @@ func place_wall(cell: Vector2i) -> void:
 	walls[cell] = WALL_TURNS
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wall"})
 
+## The upgraded wall's second tile, next to the first in the chosen direction.
+func wall_extension(cell: Vector2i, direction: Vector2i) -> Vector2i:
+	var next := cell + direction
+	if not CARDINALS.has(direction) or not inside(next) or blocked(next) or next == player.cell or not enemy_at(next).is_empty():
+		return Vector2i(-1, -1)
+	return next
+
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
 	for cell in walls.keys():
@@ -717,8 +786,9 @@ func cannon_at(cell: Vector2i) -> Dictionary:
 			return cannon
 	return {}
 
-func place_cannon(cell: Vector2i, direction: Vector2i, kind: String) -> void:
-	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":0})
+func place_cannon(cell: Vector2i, direction: Vector2i, kind: String, plus: bool = false) -> void:
+	# An upgraded capacitor arrives already holding one charge.
+	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":1 if plus and kind == "capacitor" else 0, "plus":plus})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
@@ -743,27 +813,30 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 				var enemy := enemy_at(cell)
 				if not enemy.is_empty():
 					damage_enemy(enemy, 1)
-				if cell == player.cell:
+				var spared: bool = cannon.get("plus", false)
+				if cell == player.cell and not spared:
 					player.hp -= 1
 					events.append({"kind":"hit", "cell":cell, "id":-1})
 					add_log("花火に巻き込まれた / HP −1")
 				var ally := ally_at(cell)
-				if not ally.is_empty():
+				if not ally.is_empty() and not spared:
 					ally.hp -= 1
 					events.append({"kind":"hit", "cell":cell, "id":ally.id})
 				var other := cannon_at(cell)
 				if not other.is_empty():
 					fire_cannon(other, fired)
 		return
-	var shot_dir: Vector2i = cannon.dir
 	var passed: Array = []
-	var cells := cannon_line(cannon.cell, shot_dir, passed)
-	events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
-	for cell in cells:
-		events.append({"kind":"shot", "cell":cell, "id":-2, "dir":shot_dir})
-		var enemy := enemy_at(cell)
-		if not enemy.is_empty():
-			damage_enemy(enemy, 1, shot_dir)
+	# Upgraded lance and vane cannons fire both ways along their line.
+	var shots: Array = [cannon.dir, -cannon.dir] if cannon.get("plus", false) else [cannon.dir]
+	for shot_dir: Vector2i in shots:
+		var cells := cannon_line(cannon.cell, shot_dir, passed)
+		events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
+		for cell in cells:
+			events.append({"kind":"shot", "cell":cell, "id":-2, "dir":shot_dir})
+			var enemy := enemy_at(cell)
+			if not enemy.is_empty():
+				damage_enemy(enemy, 1, shot_dir)
 	if cannon.kind == "vane":
 		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
 	_resonate(passed, fired)
@@ -867,14 +940,23 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 	# A spirit placed on an enemy also strikes the enemy under it.
 	if not enemy_at(origin).is_empty():
 		result.append(origin)
-	if id == "slash_fairy":
+	if id == "wall_fairy":
+		result.append(origin)
+		var extra := wall_extension(origin, direction)
+		if extra != Vector2i(-1, -1):
+			result.append(extra)
+	elif id == "slash_fairy":
 		result.append_array(front_slash_cells(origin, direction))
 	elif id == "flying_slash":
 		result.append_array(slash_cells(origin, direction))
 	elif id in ["cannon_fairy", "vane_cannon"]:
 		result.append_array(cannon_line(origin, direction, []))
+		if is_plus(id):
+			result.append_array(cannon_line(origin, -direction, []))
 	else:
 		result.append_array(ray_cells(origin, direction))
+		if id == "magic_bolt" and is_plus(id):
+			result.append_array(ray_cells(origin, -direction))
 	return result
 
 ## Bolt and slash spirits placed on an enemy hit it first.

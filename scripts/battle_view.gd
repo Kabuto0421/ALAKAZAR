@@ -363,7 +363,7 @@ func _select_item(id: String, slot: int = -1) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
 	var item: Resource = model.item_definition(id)
-	if item == null or model.inventory.get(id,0) <= 0 or model.player.ap < item.ap_cost:
+	if item == null or model.inventory.get(id,0) <= 0 or model.player.ap < model.fairy_ap_cost(id):
 		return
 	selected_item = id
 	selected_item_slot = slot
@@ -387,7 +387,7 @@ func _item_act(cell: Vector2i) -> void:
 		return
 	if not model.item_targets(selected_item).has(cell):
 		return
-	if model.item_definition(selected_item).directional:
+	if model.is_directional(selected_item):
 		item_origin = cell
 		_update_controls()
 	else:
@@ -603,6 +603,9 @@ func _unit_center(unit: Dictionary) -> Vector2:
 func _text(at: Vector2,text: String,size: int=20,color: Color=INK,font: Font=null) -> void:
 	draw_string(ui_font if font == null else font,at,text,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
 
+func _text_width(text: String, size: int) -> float:
+	return ui_font.get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,size).x
+
 func _panel(rect: Rect2) -> void:
 	draw_rect(rect,Color("0b1415"))
 	draw_rect(rect,Color("324843"),false,2)
@@ -730,10 +733,14 @@ func _draw_board() -> void:
 			if model.fairies.has(cell):
 				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
 				_turn_badge(pos,int(model.fairy_turns.get(cell,0)))
+				if model.is_plus("stealth_fairy"):
+					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.walls.has(cell):
 				# The wall fills its whole tile; the countdown sits in a corner badge.
 				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,1.12)
 				_turn_badge(pos,int(model.walls[cell]))
+				if model.is_plus("wall_fairy"):
+					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			var cannon: Dictionary = model.cannon_at(cell)
 			if not cannon.is_empty():
 				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy","capacitor":"capacitor_fairy"}[cannon.kind]
@@ -751,10 +758,15 @@ func _draw_board() -> void:
 				if cannon.kind == "capacitor":
 					# Stored charge: three pips across the top, lit as it fills.
 					for k in range(Rules.CAPACITOR_FULL):
-						var pip := Rect2(pos+Vector2(10+k*16,4),Vector2(12,8))
+						var pip := Rect2(pos+Vector2(4+k*14,4),Vector2(12,8))
 						draw_rect(pip,Color(0.03,0.06,0.07,0.9))
 						if k < int(cannon.get("charge",0)):
 							draw_rect(pip.grow(-2),Color("ffdc4a"))
+				if cannon.get("plus",false):
+					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
+			var ally := model.ally_at(cell)
+			if ally.get("plus",false):
+				SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
@@ -830,7 +842,11 @@ func _draw_weapons() -> void:
 		draw_rect(rect,Color("1b3431") if equipped else Color("0b1415"))
 		draw_rect(rect,accent if equipped or peek_weapon == index else Color("324843"),false,4 if equipped else 2)
 		_text(pos+Vector2(10,22),str(slot+1),15,MUTED)
-		_text(pos+Vector2(28,38),("▶ " if equipped else "")+weapon.name,22,accent)
+		var label: String = ("▶ " if equipped else "")+weapon.name
+		_text(pos+Vector2(28,38),label,22,accent)
+		var forged: bool = model.weapon_power.has(index)
+		if forged:
+			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
 		var extras: Array[String] = ["攻撃%d" % model.weapon_damage(index)]
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
@@ -854,6 +870,8 @@ func _draw_weapons() -> void:
 					_draw_player_portrait(index,tile.get_center(),cell_size*1.1,1)
 				elif active:
 					draw_circle(tile.get_center(),maxf(2,cell_size*0.16),accent)
+		if forged:
+			SpiritIcon.paint_plus(self,origin+Vector2(side+4,-3),18)
 		if model.locked_slot >= 0:
 			if slot == model.locked_slot:
 				draw_rect(rect,Color("ffd35b"),false,4)
@@ -881,10 +899,13 @@ func _draw_intel() -> void:
 	if not selected_item.is_empty():
 		var item: Resource = model.item_definition(selected_item)
 		_text(Vector2(852,133),item.title,26,item.color)
+		if model.is_plus(selected_item):
+			_text(Vector2(854+_text_width(item.title,26),133),"+",26,GOLD)
+			SpiritIcon.paint_plus(self,Vector2(954,138),22)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
-		_text(Vector2(992,187),"1 AP",24,GOLD)
+		_text(Vector2(992,187),"%d AP" % model.fairy_ap_cost(selected_item),24,GOLD)
 		ItemPreview.paint(self,model,selected_item,clock)
-		var lines: PackedStringArray = item.description.split("\n")
+		var lines: PackedStringArray = model.fairy_description(selected_item).split("\n")
 		for i in range(lines.size()):
 			_text(Vector2(850,335+i*25),lines[i],18,INK)
 		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "配置先を選択",23,item.color)

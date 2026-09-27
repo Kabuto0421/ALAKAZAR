@@ -13,6 +13,9 @@ var quick_icons: Array[Control] = []
 var names: Array[Label] = []
 var costs: Array[Label] = []
 var keys: Array[Label] = []
+var pluses: Array[Label] = []
+var badges: Array[Control] = []
+const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 var hand_count: Label
 
 func setup(rules: RefCounted) -> void:
@@ -36,7 +39,15 @@ func setup(rules: RefCounted) -> void:
 		icon.size = Vector2(72,72)
 		button.add_child(icon)
 		quick_icons.append(icon)
+		var badge := PlusBadge.new()
+		badge.position = Vector2(56,6)
+		badge.size = Vector2(22,22)
+		button.add_child(badge)
+		badges.append(badge)
 		names.append(_label(button,Vector2(82,6),"",22))
+		var plus := _label(button,Vector2(82,6),"+",22)
+		plus.add_theme_color_override("font_color",Color("ffd35b"))
+		pluses.append(plus)
 		var summary := _label(button,Vector2(82,38),"",16)
 		summary.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 		summary.custom_minimum_size = Vector2(190,0)
@@ -73,7 +84,7 @@ func activate_slot(slot: int) -> void:
 	if not enabled or slot < 0 or slot >= hand.size():
 		return
 	var id := hand[slot]
-	if model.fairy_charges[slot] <= 0 or model.player.ap < 1:
+	if model.fairy_charges[slot] <= 0 or model.player.ap < model.fairy_ap_cost(id):
 		return
 	if selected_slot == slot:
 		selected_slot = -1
@@ -92,6 +103,8 @@ func refresh(can_use: bool, selected: String) -> void:
 		var button := quick_buttons[slot]
 		var present := slot < hand.size()
 		button.disabled = not present or not enabled
+		badges[slot].visible = present and model.is_plus(hand[slot])
+		pluses[slot].visible = badges[slot].visible
 		if not present:
 			quick_icons[slot].texture = null
 			quick_icons[slot].queue_redraw()
@@ -100,13 +113,15 @@ func refresh(can_use: bool, selected: String) -> void:
 			continue
 		var item: Resource = model.item_definition(hand[slot])
 		var count: int = model.fairy_charges[slot]
-		button.disabled = not enabled or model.player.ap < 1 or count == 0
-		button.tooltip_text = item.description
+		button.disabled = not enabled or model.player.ap < model.fairy_ap_cost(hand[slot]) or count == 0
+		button.tooltip_text = model.fairy_description(hand[slot])
 		button.add_theme_stylebox_override("normal",_style(Color("203432") if selected==item.id and slot==selected_slot else Color("0c191a"),item.color if selected==item.id and slot==selected_slot else Color("55716b")))
 		quick_icons[slot].texture = item.icon
 		quick_icons[slot].queue_redraw()
 		names[slot].text = item.title
 		names[slot].modulate = Color.WHITE if count > 0 else Color("768c87")
 		# What it does, in one line; the AP cost and single use are the same for every fairy.
-		costs[slot].text = (item.summary if item.summary != "" else "1 AP") if count > 0 else "使用済み・次戦で回復"
+		costs[slot].text = model.fairy_summary(hand[slot]) if count > 0 else "使用済み・次戦で回復"
+		var font: Font = names[slot].get_theme_font("font")
+		pluses[slot].position.x = 84 + font.get_string_size(item.title,HORIZONTAL_ALIGNMENT_LEFT,-1,22).x
 		costs[slot].modulate = Color("c9d8d2") if count > 0 else Color("768c87")
