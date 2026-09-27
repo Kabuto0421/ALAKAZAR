@@ -29,7 +29,7 @@ const TYPES = {
 	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
 	"slot": {"name": "ロトリック", "hp": 7, "ap": 1, "size": 2},
-	"shadow": {"name": "ロトリックの影", "hp": 1, "ap": 0, "size": 2},
+	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 }
 ## Two-by-two bosses: their cell is the top-left of the footprint.
 const BIG = ["rook", "prison", "slot", "shadow"]
@@ -1125,7 +1125,7 @@ func _sure_charge(enemy: Dictionary) -> void:
 		if enemy.cell == from:
 			return
 
-## Reel 6: a stealth fairy leaves a shadow of Rotorick where it stood.
+## Reel 6: Rotorick leaves a purple hologram of itself where it stood.
 func _leave_shadow(enemy: Dictionary) -> void:
 	for old in enemies:
 		if old.type == "shadow":
@@ -1138,7 +1138,7 @@ func _leave_shadow(enemy: Dictionary) -> void:
 	shadow.state = "lurk"
 	enemies.append(shadow)
 	events.append({"kind":"summon", "cell":enemy.cell + Vector2i.ONE, "id":-2, "fx":"stealth"})
-	add_log("隠密妖精がロトリックの影を残した")
+	add_log("ロトリックが残像を残した")
 
 ## A shadow cuts a player who stands next to it, once, then fades.
 func shadow_strike() -> void:
