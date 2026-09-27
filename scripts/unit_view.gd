@@ -122,9 +122,9 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"slot":
 			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
 			var frame: int = 7 if reel_value <= 0 else reel_value - 1
-			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-86,-116)*factor, Vector2.ONE*172*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
+			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-75,-100)*factor, Vector2.ONE*150*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
 		"shadow":
-			canvas.draw_texture_rect_region(ROTORICK_SHADOW, Rect2(Vector2(-86,-116)*factor, Vector2.ONE*172*factor), Rect2(224, 0, 112, 112), Color(tint, 0.9))
+			canvas.draw_texture_rect_region(ROTORICK_SHADOW, Rect2(Vector2(-75,-100)*factor, Vector2.ONE*150*factor), Rect2(224, 0, 112, 112), Color(tint, 0.9))
 		"rook":
 			canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-62,-68)*factor, Vector2.ONE*124*factor), Rect2(direction*56, (56 if red else 0), 56, 56), tint)
 		"prison":
@@ -150,7 +150,7 @@ func _draw_status() -> void:
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	# Rotorick's hearts sit above its head so the charge panel owns its feet.
-	var heart_y := -122.0 if kind == "slot" else 29+grow
+	var heart_y := -106.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
 	if kind == "slot":

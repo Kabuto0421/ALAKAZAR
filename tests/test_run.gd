@@ -132,7 +132,7 @@ func _initialize() -> void:
 	run.skip_reward()
 	verify(run.state==Run.State.CAMP,"A mid-game camp follows")
 	run.camp_rest()
-	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS2_LEVEL and m.board_size==6 and m.enemies.size()==1 and m.enemies[0].type=="slot","Rotorick waits after the mid-game camp")
+	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS2_LEVEL and m.board_size==8 and m.enemies.size()==1 and m.enemies[0].type=="slot","Rotorick waits after the mid-game camp")
 	m.enemies.clear()
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.FINISHED,"Beating Rotorick completes the expedition")

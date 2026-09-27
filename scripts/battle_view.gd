@@ -27,7 +27,7 @@ const GADGET = preload("res://assets/sprites/editor_ui/part_gadget_editor_icon.p
 const EFFECTS = preload("res://assets/sprites/effects/element_connection_atlas_24.png")
 var BOARD := Vector2(384,176)
 ## Largest board the grid buttons cover (the boss stage is 7x7).
-const MAX_BOARD := 7
+const MAX_BOARD := 8
 const TILE = 64
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
@@ -170,6 +170,9 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	model.reset(level,keep_inventory)
 	bgm.theme = "boss" if model.level == Rules.BOSS_LEVEL else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
+	# 8x8 fills the full height between the header and the weapon cards.
+	if model.board_size >= 8:
+		BOARD = Vector2(316,96)
 	for i in range(grid_buttons.size()):
 		var cell := Vector2i(i%MAX_BOARD,i/MAX_BOARD)
 		grid_buttons[i].position = BOARD+Vector2(cell)*TILE
@@ -610,7 +613,12 @@ func _draw() -> void:
 	_draw_weapons()
 	_draw_intel()
 	_draw_flashes()
-	_text(Vector2(352,126),"敵のターン" if busy and model.phase==Rules.Phase.ENEMY else "あなたのターン",27,CYAN if not busy else GOLD)
+	var turn_text := "敵のターン" if busy and model.phase==Rules.Phase.ENEMY else "あなたのターン"
+	if model.board_size >= 8:
+		# The 8x8 board reaches up here, so the turn label moves into the player panel.
+		_text(Vector2(40,208),turn_text,22,CYAN if not busy else GOLD)
+	else:
+		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
 
 	if model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
@@ -621,8 +629,10 @@ func _draw() -> void:
 
 func _draw_board() -> void:
 	var extent := Vector2.ONE*model.board_size*TILE
-	draw_rect(Rect2(BOARD-Vector2.ONE*10,extent+Vector2.ONE*20),Color("252820"))
-	draw_rect(Rect2(BOARD-Vector2.ONE*10,extent+Vector2.ONE*20),Color("4d5443"),false,3)
+	# The 8x8 board sits flush between the panels, so its frame is thinner.
+	var rim := 4.0 if model.board_size >= 8 else 10.0
+	draw_rect(Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2),Color("252820"))
+	draw_rect(Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2),Color("4d5443"),false,3)
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
@@ -784,7 +794,7 @@ func _draw_player_panel() -> void:
 
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
-	if model.board_size < MAX_BOARD:
+	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
 		_text(Vector2(555,605),"タップで装備・0 AP",20,MUTED)
 	for slot in range(model.owned_weapons.size()):
