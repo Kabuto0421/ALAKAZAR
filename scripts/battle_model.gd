@@ -693,19 +693,42 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 				if not other.is_empty():
 					fire_cannon(other, fired)
 		return
-	var cells := ray_cells(cannon.cell, cannon.dir)
-	events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":cannon.dir})
+	var shot_dir: Vector2i = cannon.dir
+	var passed: Array = []
+	var cells := cannon_line(cannon.cell, shot_dir, passed)
+	events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
 	for cell in cells:
-		events.append({"kind":"shot", "cell":cell, "id":-2, "dir":cannon.dir})
+		events.append({"kind":"shot", "cell":cell, "id":-2, "dir":shot_dir})
 		var enemy := enemy_at(cell)
 		if not enemy.is_empty():
 			damage_enemy(enemy, 1)
-	var end: Vector2i = (cells[-1] if not cells.is_empty() else cannon.cell) + cannon.dir
 	if cannon.kind == "vane":
 		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
-	var other := cannon_at(end)
-	if not other.is_empty():
-		fire_cannon(other, fired)
+	_resonate(passed, fired)
+
+## A cannon shot's path: it flies through other cannons (collected in `passed`,
+## which then resonate) and stops only at walls, obstacles, allies or the edge.
+func cannon_line(origin: Vector2i, direction: Vector2i, passed: Array) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not CARDINALS.has(direction):
+		return result
+	var cell := origin + direction
+	while inside(cell):
+		var other := cannon_at(cell)
+		if not other.is_empty():
+			passed.append(other)
+		elif blocked(cell):
+			break
+		result.append(cell)
+		cell += direction
+	return result
+
+## Cannons a shot passed through fire too, each in its own way.
+func _resonate(passed: Array, fired: Array) -> void:
+	for other in passed:
+		if cannons.has(other) and not fired.has(other.cell):
+			events.append({"kind":"resonate", "cell":other.cell, "id":-2})
+			fire_cannon(other, fired)
 
 ## Capacitor: every strike (a weapon or a chained cannon shot) stores 1; at 3 it
 ## discharges down all four lines, then starts charging again.
@@ -717,17 +740,14 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 		return
 	cannon.charge = 0
 	add_log("蓄電の妖精が放電！")
+	var passed: Array = []
 	for direction in CARDINALS:
-		var cells := ray_cells(cannon.cell, direction)
-		for cell in cells:
+		for cell in cannon_line(cannon.cell, direction, passed):
 			events.append({"kind":"zap", "cell":cell, "id":-2, "dir":direction})
 			var enemy := enemy_at(cell)
 			if not enemy.is_empty():
 				damage_enemy(enemy, 1)
-		var end: Vector2i = (cells[-1] if not cells.is_empty() else cannon.cell) + direction
-		var other := cannon_at(end)
-		if not other.is_empty():
-			fire_cannon(other, fired)
+	_resonate(passed, fired)
 
 ## Three parallel lanes: the lane through the placed tile and its two neighbours.
 func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
@@ -788,6 +808,8 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 		result.append_array(front_slash_cells(origin, direction))
 	elif id == "flying_slash":
 		result.append_array(slash_cells(origin, direction))
+	elif id in ["cannon_fairy", "vane_cannon"]:
+		result.append_array(cannon_line(origin, direction, []))
 	else:
 		result.append_array(ray_cells(origin, direction))
 	return result

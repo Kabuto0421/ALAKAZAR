@@ -246,6 +246,7 @@ func _initialize() -> void:
 	_rotorick()
 	_expiring_and_rewards()
 	_capacitor()
+	_resonance()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -775,3 +776,22 @@ func _capacitor() -> void:
 	m.player.ap = 2
 	m.player.cell = Vector2i(1,0)
 	verify(m.player_action(Vector2i(2,0)) and cap.charge == 1,"A chained cannon shot adds a charge")
+
+func _resonance() -> void:
+	# A shot flies through other cannons, and each cannon it passes fires as well.
+	var m := fixture()
+	m.player.cell = Vector2i(0,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,2),0))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(2,5),1))
+	m.place_cannon(Vector2i(1,2), Vector2i.RIGHT, "lance")
+	m.place_cannon(Vector2i(2,2), Vector2i.DOWN, "lance")
+	m.weapon = 0
+	verify(m.player_action(Vector2i(1,2)),"Striking the first cannon fires it")
+	verify(m.enemy_at(Vector2i(4,2)).is_empty(),"The shot passes through the second cannon and hits beyond it")
+	verify(m.enemy_at(Vector2i(2,5)).is_empty(),"The cannon it passed resonates and fires its own way")
+	verify(m.events.any(func(e): return e.kind == "resonate"),"Resonance has its own effect")
+	var passed: Array = []
+	verify(m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, passed).has(Vector2i(3,2)) and passed.size() == 1,"The line runs through cannons")
+	m.walls[Vector2i(3,2)] = 2
+	verify(not m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, []).has(Vector2i(4,2)),"Walls still stop a shot")
