@@ -11,5 +11,6 @@ title = "飛刃精霊"
 description = "斬撃精霊の上位版。3マス幅の\n斬撃を向きの先まで飛ばす。\n当たった敵すべてに1。\n各列は障害物で止まる。"
 color = Color(0.55, 0.95, 0.8, 1)
 directional = true
+target = 2
 effect = ExtResource("2")
 icon = ExtResource("3")

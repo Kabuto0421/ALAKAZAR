@@ -233,6 +233,7 @@ func _initialize() -> void:
 	_threats_and_weapons()
 	_ranged_soldiers()
 	_mid_weapons()
+	_place_on_enemies()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -469,3 +470,20 @@ func _mid_weapons() -> void:
 	var spots: Array = m.item_targets("wall_fairy")
 	verify(spots.has(Vector2i(3,4)) and spots.has(Vector2i(0,3)) and not spots.has(Vector2i(2,2)),"With the bow, fairies go on the empty tiles of its diagonal lines")
 	verify(not spots.has(Vector2i(4,5)) and not spots.has(Vector2i(5,6)),"Lines stop at the first enemy for placement too")
+
+func _place_on_enemies() -> void:
+	# Magic bolt and slash spirits may appear on an enemy's tile within weapon range.
+	var m := fixture()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(3,1),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,2),2))
+	m.fairy_loadout.assign(["slash_fairy","magic_bolt","wall_fairy"])
+	m.refill_fairies()
+	verify(m.item_targets("slash_fairy").has(Vector2i(2,2)) and m.item_targets("magic_bolt").has(Vector2i(2,2)),"Slash and bolt can be placed on an enemy in range")
+	verify(not m.item_targets("wall_fairy").has(Vector2i(2,2)),"Other fairies still need an empty tile")
+	verify(m.use_item("slash_fairy",Vector2i(2,2),Vector2i.RIGHT),"Slash placed on the enemy's tile")
+	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 2,"It slashes the row in front of that tile")
+	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT) and m.enemy_at(Vector2i(4,2)).is_empty(),"A bolt fired from an enemy's tile flies on past it")

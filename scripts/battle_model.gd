@@ -277,7 +277,9 @@ func item_targets(id: String) -> Array[Vector2i]:
 	for y in range(board_size):
 		for x in range(board_size):
 			var cell := Vector2i(x,y)
-			if cell == player.cell or blocked(cell) or not enemy_at(cell).is_empty():
+			if cell == player.cell or blocked(cell):
+				continue
+			if not enemy_at(cell).is_empty() and item.target != ItemDefinition.Target.WEAPON_ANY:
 				continue
 			if item.target == ItemDefinition.Target.ANY_EMPTY or weapon_cells.has(cell):
 				result.append(cell)
