@@ -19,7 +19,7 @@ var rng := RandomNumberGenerator.new()
 var boss_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
-var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy"]
+var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy"]
 
 func start(seed_value: int = -1) -> void:
 	if seed_value < 0:

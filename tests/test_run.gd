@@ -245,6 +245,7 @@ func _initialize() -> void:
 	_rook_and_prison()
 	_rotorick()
 	_expiring_and_rewards()
+	_capacitor()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -747,3 +748,30 @@ func _expiring_and_rewards() -> void:
 	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
 	verify(threes.size() == 12,"Twelve three-tile weapons feed the pre-boss reward")
+
+func _capacitor() -> void:
+	var m := fixture()
+	m.fairy_loadout.assign(["capacitor_fairy"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,5),0))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(5,2),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(4,4),2))
+	verify(Run.new().reward_fairy_pool.has("capacitor_fairy"),"The capacitor can be won as a reward")
+	verify(m.use_item("capacitor_fairy",Vector2i(2,2)),"The capacitor is placed on an empty tile in range")
+	var cap: Dictionary = m.cannon_at(Vector2i(2,2))
+	m.player.ap = 2
+	verify(m.player_action(Vector2i(2,2)) and cap.charge == 1 and m.enemy_at(Vector2i(5,2)).hp == 1,"A weapon strike stores one charge, nothing fires yet")
+	verify(m.player_action(Vector2i(2,2)) and cap.charge == 2,"A second strike stores two")
+	m.player.ap = 2
+	verify(m.player_action(Vector2i(2,2)) and cap.charge == 0,"The third strike discharges and resets")
+	verify(m.enemy_at(Vector2i(5,2)).is_empty() and m.enemy_at(Vector2i(2,5)).hp == 1,"The discharge hits every enemy on the four lines")
+	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"...but not off them")
+	verify(not m.cannon_at(Vector2i(2,2)).is_empty(),"It stays and can be charged again")
+	# A lance cannon's shot that ends on the capacitor charges it too.
+	m.place_cannon(Vector2i(2,0), Vector2i.DOWN, "lance")
+	m.player.ap = 2
+	m.player.cell = Vector2i(1,0)
+	verify(m.player_action(Vector2i(2,0)) and cap.charge == 1,"A chained cannon shot adds a charge")

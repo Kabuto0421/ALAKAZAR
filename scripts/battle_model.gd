@@ -4,11 +4,14 @@ extends RefCounted
 enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
-	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres")]
+	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
+	preload("res://items/capacitor_fairy.tres")]
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
-const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精"}
+const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精", "capacitor": "蓄電の妖精"}
+## Capacitor: hits (weapon or a chained shot) needed to discharge.
+const CAPACITOR_FULL := 3
 const CARDINALS = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const FormationLayout = preload("res://scripts/formation_layout.gd")
@@ -653,7 +656,7 @@ func cannon_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 func place_cannon(cell: Vector2i, direction: Vector2i, kind: String) -> void:
-	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS})
+	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":0})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
@@ -661,6 +664,9 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	if fired.has(cannon.cell):
 		return
 	fired.append(cannon.cell)
+	if cannon.kind == "capacitor":
+		_charge_capacitor(cannon, fired)
+		return
 	add_log("%sが発射" % CANNON_TITLES[cannon.kind])
 	if cannon.kind == "firework":
 		# The burst does not pick sides: enemies, allies and the player all take 1.
@@ -700,6 +706,28 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	var other := cannon_at(end)
 	if not other.is_empty():
 		fire_cannon(other, fired)
+
+## Capacitor: every strike (a weapon or a chained cannon shot) stores 1; at 3 it
+## discharges down all four lines, then starts charging again.
+func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
+	cannon.charge = int(cannon.get("charge", 0)) + 1
+	events.append({"kind":"spark", "cell":cannon.cell, "id":-2})
+	if cannon.charge < CAPACITOR_FULL:
+		add_log("蓄電の妖精に電気が溜まった（%d/%d）" % [cannon.charge, CAPACITOR_FULL])
+		return
+	cannon.charge = 0
+	add_log("蓄電の妖精が放電！")
+	for direction in CARDINALS:
+		var cells := ray_cells(cannon.cell, direction)
+		for cell in cells:
+			events.append({"kind":"zap", "cell":cell, "id":-2, "dir":direction})
+			var enemy := enemy_at(cell)
+			if not enemy.is_empty():
+				damage_enemy(enemy, 1)
+		var end: Vector2i = (cells[-1] if not cells.is_empty() else cannon.cell) + direction
+		var other := cannon_at(end)
+		if not other.is_empty():
+			fire_cannon(other, fired)
 
 ## Three parallel lanes: the lane through the placed tile and its two neighbours.
 func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:

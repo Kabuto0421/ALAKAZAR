@@ -699,7 +699,7 @@ func _draw_board() -> void:
 				_turn_badge(pos,int(model.walls[cell]))
 			var cannon: Dictionary = model.cannon_at(cell)
 			if not cannon.is_empty():
-				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy"}[cannon.kind]
+				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy","capacitor":"capacitor_fairy"}[cannon.kind]
 				# Directional art shows the facing itself; the plain icon gets an arrow.
 				if not DirectionSheet.paint(self,_center(cell),cannon_id,cannon.dir,0.95):
 					SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
@@ -708,6 +708,13 @@ func _draw_board() -> void:
 				if cannon.kind == "vane":
 					_draw_turn_hint(_center(cell),cannon.dir)
 				_turn_badge(pos,int(cannon.get("turns",0)))
+				if cannon.kind == "capacitor":
+					# Stored charge: three pips across the top, lit as it fills.
+					for k in range(Rules.CAPACITOR_FULL):
+						var pip := Rect2(pos+Vector2(10+k*16,4),Vector2(12,8))
+						draw_rect(pip,Color(0.03,0.06,0.07,0.9))
+						if k < int(cannon.get("charge",0)):
+							draw_rect(pip.grow(-2),Color("ffdc4a"))
 			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
@@ -1004,13 +1011,27 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"zap":
+			# A jagged bolt crackling along the line.
+			var across := Vector2(-dir.y, dir.x)
+			var pts := PackedVector2Array()
+			for k in range(5):
+				var along := -30.0 + k * 15.0
+				var jitter := (8.0 if k % 2 == 0 else -8.0) * (1.0 if int(clock * 30) % 2 == 0 else -1.0)
+				pts.append(pos + dir * along + across * (jitter if k in [1, 2, 3] else 0.0))
+			draw_polyline(pts, Color(0.1, 0.1, 0.2, fade * 0.6), 7)
+			draw_polyline(pts, Color("ffe76a", fade), 3)
+		"spark":
+			for k in range(6):
+				var ray := Vector2.from_angle(k * TAU / 6 + t * 2) * (10 + t * 18)
+				draw_line(pos + ray * 0.5, pos + ray, Color("ffe76a", fade), 2)
 		"burn":
 			draw_rect(Rect2(pos - Vector2.ONE * 28, Vector2.ONE * 56), Color(1, 0.25, 0.1, fade * 0.6))
 			draw_arc(pos, 8 + t * 20, 0, TAU, 16, Color("ffb35b", fade), 3, true)

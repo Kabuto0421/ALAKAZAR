@@ -1,0 +1,14 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/capacitor_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/capacitor_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "capacitor_fairy"
+title = "蓄電の妖精"
+description = "攻撃範囲の空きマスに設置。\n武器で叩くたびに電気が1溜まり\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"
+color = Color(1, 0.86, 0.3, 1)
+effect = ExtResource("2")
+icon = ExtResource("3")

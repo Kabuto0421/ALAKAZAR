@@ -63,6 +63,19 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			_enemy(canvas,center+Vector2(-30,30))
 			if progress > 0.5:
 				canvas.draw_arc(center,20+(progress-0.5)*60,0,TAU,24,item.color,3)
+		"capacitor_fairy":
+			var center := Vector2(976,282)
+			for offset in [Vector2.ZERO,Vector2.UP,Vector2.DOWN,Vector2.LEFT,Vector2.RIGHT,Vector2.UP*2,Vector2.DOWN*2,Vector2.LEFT*2,Vector2.RIGHT*2]:
+				_tile(canvas,center+offset*Vector2(30,24),item.color,22)
+			Icon.paint(canvas,center,item.icon,0.4)
+			_enemy(canvas,center+Vector2(60,0))
+			_enemy(canvas,center+Vector2(-60,0))
+			var stored := mini(int(progress*4),3)
+			for k in range(3):
+				canvas.draw_rect(Rect2(center+Vector2(22+k*14,-22),Vector2(10,7)),Color("ffdc4a") if k < stored else Color("1a2426"))
+			if stored == 3:
+				for dir in [Vector2.UP,Vector2.DOWN,Vector2.LEFT,Vector2.RIGHT]:
+					canvas.draw_line(center+dir*12,center+dir*Vector2(66,50),item.color,3)
 		"slash_fairy":
 			for x in range(3):
 				_tile(canvas,Vector2(924+x*52,269),item.color,34)
