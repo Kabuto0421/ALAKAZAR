@@ -54,6 +54,8 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "audio", "bgm"
 # libsndfile Vorbis setting: 0 = best quality, 1 = smallest. 0.5 (~74 kbps
 # mono) is the smallest setting that keeps these synth tracks transparent.
 COMPRESSION = 0.5
+# The quiet acoustic-style tracks expose Vorbis artefacts, so they get more bits.
+CLEAN_COMPRESSION = 0.2
 
 NOTE_INDEX = {"C": 0, "C#": 1, "Db": 1, "D": 2, "D#": 3, "Eb": 3, "E": 4, "F": 5,
               "F#": 6, "Gb": 6, "G": 7, "G#": 8, "Ab": 8, "A": 9, "A#": 10,
@@ -246,7 +248,7 @@ class Mix:
         data = numpy.array(total, dtype=numpy.float32) * scale
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
-                                 compression_level=COMPRESSION) as f:
+                                 compression_level=getattr(self, "compression", COMPRESSION)) as f:
             for i in range(0, len(data), 4096):
                 f.write(data[i:i + 4096])
 
@@ -817,6 +819,10 @@ def roto_theme(variant="normal"):
 # Celtic x cyber: the draft (before setting out) and the camp
 # ---------------------------------------------------------------------------
 
+# Breath noise in the whistle (0 = clean).
+BREATH = 0.0
+
+
 def whistle(note, seconds, vol=0.13, cut=None, vib=True):
     """Tin-whistle-like voice: soft sine with a little second harmonic, breath
     noise, delayed vibrato and an optional grace-note cut above."""
@@ -842,7 +848,7 @@ def whistle(note, seconds, vol=0.13, cut=None, vib=True):
             env = 0.85 + 0.15 * math.exp(-(t - 0.03) / 0.2)
         else:
             env = 0.85 * max(0.0, 1 - (t - seconds) / 0.08)
-        out[i] = (tone + breath * 0.12) * env * vol
+        out[i] = (tone + breath * BREATH) * env * vol
     return out
 
 
@@ -857,8 +863,8 @@ def bodhran(vol=0.5, accent=False):
         t = i / RATE
         f = 70 + (90 if accent else 60) * math.exp(-t * 25)
         phase += f / RATE
-        y += lp_coef(1800) * (rng.uniform(-1, 1) - y)
-        out[i] = (math.sin(2 * math.pi * phase) * math.exp(-t * 9) + y * math.exp(-t * 60) * 0.6) * vol
+        y += lp_coef(900) * (rng.uniform(-1, 1) - y)
+        out[i] = (math.sin(2 * math.pi * phase) * math.exp(-t * 9) + y * math.exp(-t * 80) * 0.15) * vol
     return out
 
 
@@ -875,19 +881,17 @@ def harp(note, vol=0.1):
 
 
 def crackle(rng, seconds, vol=0.05):
-    """Campfire: a low hiss bed with sparse pops."""
+    """Campfire, kept clean: no hiss, just a few soft rounded pops (short
+    decaying low sine blips instead of noise bursts)."""
     n = int(seconds * RATE)
     out = [0.0] * n
-    y = 0.0
-    for i in range(n):
-        y += lp_coef(900) * (rng.uniform(-1, 1) - y)
-        out[i] = y * vol * 0.25
-    for _ in range(int(seconds * 7)):
+    for _ in range(int(seconds * 3)):
         at = rng.randrange(n)
+        f = rng.uniform(900, 1600)
         pop = rng.uniform(0.3, 1.0) * vol
-        for k in range(int(0.006 * RATE)):
-            if at + k < n:
-                out[at + k] += rng.uniform(-1, 1) * pop * (1 - k / (0.006 * RATE))
+        for k in range(int(0.02 * RATE)):
+            t = k / RATE
+            out[(at + k) % n] += math.sin(2 * math.pi * f * t) * math.exp(-t * 300) * pop
     return out
 
 
@@ -947,8 +951,8 @@ def draft_theme(bpm=100):
             for k in (0, 3):
                 mix.put("kick", t0 + k * tick, kick(0.6))
                 kicks.append(t0 + k * tick)
-            mix.put("hat", t0 + 2 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.08))
-            mix.put("hat", t0 + 5 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.08))
+            mix.put("hat", t0 + 2 * tick, noise_hit(rng, 0.04, 6500, 10000, 0.035))
+            mix.put("hat", t0 + 5 * tick, noise_hit(rng, 0.04, 6500, 10000, 0.035))
         # Bass on the beats.
         for k in (0, 3):
             mix.put("bass", t0 + k * tick, synth(chord["bass"], tick * 2.4, "saw", detune=(-6, 6), vol=0.35,
@@ -966,8 +970,9 @@ def draft_theme(bpm=100):
                 if full:
                     # A quiet digital double an octave below.
                     mix.put("lead", t0 + tk * tick, pluck(midi(note) - 12, 2200, vol=0.05))
-    mix.put("fx", 4 * bar, noise_hit(rng, 1.2, 3000, 10000, 0.1))
-    mix.put("fx", 20 * bar, noise_hit(rng, 1.4, 3000, 10000, 0.13))
+    mix.put("fx", 4 * bar, noise_hit(rng, 1.0, 3000, 8000, 0.05))
+    mix.put("fx", 20 * bar, noise_hit(rng, 1.2, 3000, 8000, 0.06))
+    mix.compression = CLEAN_COMPRESSION
     mix.echo("arp", tick * 3, 0.3, 0.35)
     mix.echo("lead", tick * 3, 0.25, 0.25)
     mix.duck("arp", kicks, 0.3)
@@ -1031,6 +1036,7 @@ def camp_theme(bpm=76):
     mix.echo("lead", beat, 0.3, 0.35)
     mix.echo("rain", beat * 0.75, 0.45, 0.6)
     mix.loudness = 0.75
+    mix.compression = CLEAN_COMPRESSION
     return mix
 
 
