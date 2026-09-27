@@ -745,3 +745,5 @@ func _expiring_and_rewards() -> void:
 	run.battle.check_outcome()
 	run.finish_battle()
 	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
+	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
+	verify(threes.size() == 12,"Twelve three-tile weapons feed the pre-boss reward")

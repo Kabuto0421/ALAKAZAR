@@ -48,6 +48,15 @@ const DATA = [
 	{"id":"snake", "name":"蛇行剣", "short":"蛇行", "row":2, "color":"d0ff9a", "detail":"左上の1マスと右下の桂馬", "offsets":[Vector2i(-1,-1),Vector2i(2,1)]},
 	{"id":"shoulder", "name":"背負剣", "short":"背負", "row":2, "color":"ff9ad0", "detail":"左下の1マスと右上の桂馬", "offsets":[Vector2i(-1,1),Vector2i(2,-1)]},
 	{"id":"earth_knight", "name":"地桂剣", "short":"地桂", "row":2, "color":"c08cff", "detail":"下へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,2),Vector2i(1,2)]},
+	# Odd three-tile weapons: pre-boss rewards (and later), never as strong as a four-tile cross.
+	{"id":"fan", "name":"扇剣", "short":"扇", "row":2, "color":"ffc76b", "detail":"右上・右下の1マスと、右へ2マス跳ぶ", "offsets":[Vector2i(1,-1),Vector2i(2,0),Vector2i(1,1)]},
+	{"id":"back_fan", "name":"逆扇剣", "short":"逆扇", "row":2, "color":"7bc8ff", "detail":"左上・左下の1マスと、左へ2マス跳ぶ", "offsets":[Vector2i(-1,-1),Vector2i(-2,0),Vector2i(-1,1)]},
+	{"id":"scales", "name":"天秤剣", "short":"天秤", "row":2, "color":"e6d08a", "detail":"上・下の1マスと、右へ2マス跳ぶ", "offsets":[Vector2i(0,-1),Vector2i(0,1),Vector2i(2,0)]},
+	{"id":"swallow", "name":"飛燕剣", "short":"飛燕", "row":2, "color":"9fe0ff", "detail":"右の1マスと、右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(2,-2),Vector2i(2,2)]},
+	{"id":"glance", "name":"見返剣", "short":"見返", "row":2, "color":"c9a0ff", "detail":"右の1マスと、左の桂馬2つ", "offsets":[Vector2i(1,0),Vector2i(-2,-1),Vector2i(-2,1)]},
+	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
+	{"id":"retreat_tower", "name":"退城剣", "short":"退城", "row":2, "color":"ffa0c8", "detail":"左の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(-1,0),Vector2i(0,-2),Vector2i(0,2)]},
+	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・右・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1)]},
 	# Mid-game weapons, dropped after the first boss.
 	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
