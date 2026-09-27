@@ -5,7 +5,7 @@ enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres")]
-## Player turns a wall spirit stands, counting the turn it is placed.
+## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
 const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精"}
@@ -93,6 +93,8 @@ const WEAPON_LIMIT := 3
 var inventory: Dictionary = {}
 var shortcuts: Array[String] = ["magic_bolt", "stealth_fairy", "warp_fairy"]
 var fairies: Array[Vector2i] = []
+## Stealth fairies: cell -> player turns left.
+var fairy_turns: Dictionary = {}
 var obstacles: Array[Vector2i] = []
 ## Wall spirits: cell -> player turns left (including the current one).
 var walls: Dictionary = {}
@@ -119,6 +121,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	enemies.clear()
 	mines.clear()
 	fairies.clear()
+	fairy_turns.clear()
 	allies.clear()
 	next_ally_id = -100
 	obstacles.clear()
@@ -406,6 +409,7 @@ func trigger_fairies() -> void:
 		for enemy in ordered:
 			if enemy.hp > 0 and distance(cell, enemy.cell) == 1:
 				fairies.erase(cell)
+				fairy_turns.erase(cell)
 				events.append({"kind": "ambush", "cell": cell, "id": -2})
 				damage_enemy(enemy, 1)
 				break
@@ -626,6 +630,21 @@ func tick_walls() -> void:
 		if walls[cell] <= 0:
 			walls.erase(cell)
 			add_log("壁精霊が消えた")
+	for cannon in cannons.duplicate():
+		cannon.turns = int(cannon.get("turns", WALL_TURNS)) - 1
+		if cannon.turns <= 0:
+			cannons.erase(cannon)
+			add_log("%sが消えた" % CANNON_TITLES[cannon.kind])
+	for cell in fairy_turns.keys():
+		fairy_turns[cell] -= 1
+		if fairy_turns[cell] <= 0:
+			fairy_turns.erase(cell)
+			fairies.erase(cell)
+			add_log("隠密妖精が消えた")
+
+func place_stealth(cell: Vector2i) -> void:
+	fairies.append(cell)
+	fairy_turns[cell] = WALL_TURNS
 
 func cannon_at(cell: Vector2i) -> Dictionary:
 	for cannon in cannons:
@@ -634,7 +653,7 @@ func cannon_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 func place_cannon(cell: Vector2i, direction: Vector2i, kind: String) -> void:
-	cannons.append({"cell":cell, "dir":direction, "kind":kind})
+	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
@@ -705,6 +724,17 @@ func front_slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]
 		if inside(cell):
 			result.append(cell)
 	return result
+
+## 斬撃精霊: the two tiles to the left and right of where it is placed.
+func side_slash_cells(origin: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for side in [Vector2i.LEFT, Vector2i.RIGHT]:
+		if inside(origin + side):
+			result.append(origin + side)
+	return result
+
+func side_slash(origin: Vector2i) -> void:
+	_slash_hit(side_slash_cells(origin), Vector2i.RIGHT)
 
 func front_slash(origin: Vector2i, direction: Vector2i) -> void:
 	_slash_hit(front_slash_cells(origin, direction), direction)

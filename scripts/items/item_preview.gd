@@ -64,14 +64,13 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			if progress > 0.5:
 				canvas.draw_arc(center,20+(progress-0.5)*60,0,TAU,24,item.color,3)
 		"slash_fairy":
-			for y in range(3):
-				for x in range(3):
-					_tile(canvas,Vector2(924+x*52,229+y*40),item.color,34)
-			Icon.paint(canvas,Vector2(924,269),item.icon,0.45)
-			_enemy(canvas,Vector2(976,229))
-			_enemy(canvas,Vector2(976,309))
+			for x in range(3):
+				_tile(canvas,Vector2(924+x*52,269),item.color,34)
+			Icon.paint(canvas,Vector2(976,269),item.icon,0.45)
+			_enemy(canvas,Vector2(924,269))
+			_enemy(canvas,Vector2(1028,269))
 			if progress > 0.4:
-				canvas.draw_arc(Vector2(956,269),44,-1.2,1.2,16,item.color,4)
+				canvas.draw_line(Vector2(904,269),Vector2(1048,269),item.color,4)
 		"flying_slash":
 			for y in range(3):
 				for x in range(5):

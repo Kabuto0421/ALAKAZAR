@@ -104,10 +104,15 @@ func finish_battle() -> bool:
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	var mid := stage >= Battle.BOSS_LEVEL
+	# The last fight before a boss pays better: only big (3+ tile) weapons.
+	var before_boss := is_before_boss()
 	for index in range(Weapons.DATA.size()):
 		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid):
 			continue
-		if single_only and not Weapons.early_reward_pool().has(index):
+		if before_boss:
+			if Weapons.offsets(index).size() < 3:
+				continue
+		elif single_only and not Weapons.early_reward_pool().has(index):
 			continue
 		weapons.append(index)
 	# After the first boss, one weapon slot is a mid-game drop (hammer, bow) when one is left.
@@ -128,6 +133,10 @@ func finish_battle() -> bool:
 	for id in sample(fairy_candidates,2):
 		offers.append({"kind":"fairy","value":id})
 	return true
+
+## True on the reward right before a camp and its boss.
+func is_before_boss() -> bool:
+	return stage == LAST_NORMAL_STAGE or stage == Battle.MID_LEVELS[-1]
 
 func replace(slot: int) -> bool:
 	if state != State.REPLACE:

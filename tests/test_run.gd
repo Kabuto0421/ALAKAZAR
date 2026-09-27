@@ -244,6 +244,7 @@ func _initialize() -> void:
 	_place_on_enemies()
 	_rook_and_prison()
 	_rotorick()
+	_expiring_and_rewards()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -310,19 +311,20 @@ func _new_fairies() -> void:
 	verify(m.player_action(Vector2i(2,2)) and m.player.hp == 4,"Setting it off from the next tile hurts the player")
 	verify(m.allies.is_empty(),"The burst also hits allies")
 
-	# Slash spirit: only the three tiles directly in front.
+	# Slash spirit: the two tiles left and right of where it is placed.
 	m = fixture()
 	m.fairy_loadout.assign(["slash_fairy"])
 	m.refill_fairies()
 	m.weapon = 0
 	m.enemies.clear()
-	m.enemies.append(m.make_enemy("recruit",Vector2i(3,1),0))
-	m.enemies.append(m.make_enemy("heavy",Vector2i(3,3),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(3,2),0))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,1),1))
 	m.enemies.append(m.make_enemy("recruit",Vector2i(4,2),2))
-	verify(m.use_item("slash_fairy",Vector2i(2,2),Vector2i.RIGHT),"Slash spirit is placed in weapon range")
-	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Slash hits the three tiles in front")
-	verify(not m.enemy_at(Vector2i(4,2)).is_empty(),"Slash does not reach beyond the front row")
-	verify(m.directional_preview("slash_fairy",Vector2i(2,2),Vector2i.RIGHT) == [Vector2i(3,1),Vector2i(3,2),Vector2i(3,3)],"Slash preview is the front row")
+	verify(not m.item_definition("slash_fairy").directional,"The slash needs no direction")
+	verify(m.use_item("slash_fairy",Vector2i(2,2)),"Slash spirit is placed in weapon range")
+	verify(m.enemy_at(Vector2i(3,2)).is_empty() and m.enemy_at(Vector2i(2,1)).hp == 2,"Slash hits the tiles beside it, not above")
+	verify(not m.enemy_at(Vector2i(4,2)).is_empty(),"Slash reaches only one tile to each side")
+	verify(m.side_slash_cells(Vector2i(2,2)) == [Vector2i(1,2),Vector2i(3,2)],"Slash area is left and right")
 
 	# Flying slash (class-up): a three-wide wave, each lane stops at blockers.
 	m = fixture()
@@ -495,7 +497,7 @@ func _place_on_enemies() -> void:
 	verify(m.item_targets("slash_fairy").has(Vector2i(2,2)) and m.item_targets("magic_bolt").has(Vector2i(2,2)),"Slash and bolt can be placed on an enemy in range")
 	verify(not m.item_targets("wall_fairy").has(Vector2i(2,2)),"Other fairies still need an empty tile")
 	verify(m.use_item("slash_fairy",Vector2i(2,2),Vector2i.RIGHT),"Slash placed on the enemy's tile")
-	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 1,"It hits the enemy underneath and slashes the row in front")
+	verify(not m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 1,"It hits the enemy underneath and the tiles beside it")
 	verify(m.directional_preview("magic_bolt",Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,2)),"The preview includes the enemy underneath")
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT) and m.enemy_at(Vector2i(2,2)).is_empty() and m.enemy_at(Vector2i(4,2)).is_empty(),"A bolt on an enemy hits it and flies on past it")
 
@@ -721,3 +723,25 @@ func _rotorick() -> void:
 	boss.hp = 0
 	m.check_outcome()
 	verify(m.phase == Rules.Phase.WON,"Defeating Rotorick wins even with a shadow left")
+
+func _expiring_and_rewards() -> void:
+	# Placed spirits (cannons, stealth) vanish after three player turns, like walls.
+	var m := fixture()
+	m.place_cannon(Vector2i(3,3), Vector2i.UP, "vane")
+	m.place_stealth(Vector2i(4,4))
+	m.tick_walls()
+	m.tick_walls()
+	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through two turn changes")
+	m.tick_walls()
+	verify(m.cannons.is_empty() and m.fairies.is_empty(),"...and vanish on the third, like the wall")
+	# The reward right before a boss offers only big weapons.
+	var run := Run.new()
+	run.start(11)
+	run.choose(0)
+	run.choose(0)
+	run.stage = 2
+	run.start_battle()
+	run.battle.enemies.clear()
+	run.battle.check_outcome()
+	run.finish_battle()
+	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() >= 3),"The reward before the boss offers 3+ tile weapons")

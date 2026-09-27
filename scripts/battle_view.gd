@@ -632,6 +632,12 @@ func _draw_board() -> void:
 			hammer_zone = model.hammer_area(hover_cell)
 		elif Rules.WEAPONS[model.weapon].id == "bow":
 			bow_zone = model.bow_lines()
+	# Slash spirit: hovering a legal tile shows the two tiles it will cut.
+	var slash_zone: Array[Vector2i] = []
+	if selected_item == "slash_fairy" and model.item_targets("slash_fairy").has(hover_cell):
+		slash_zone = model.side_slash_cells(hover_cell)
+		if not model.enemy_at(hover_cell).is_empty():
+			slash_zone.append(hover_cell)
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -651,6 +657,9 @@ func _draw_board() -> void:
 				draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
 			if bow_zone.has(cell):
 				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
+			if slash_zone.has(cell):
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(model.item_definition("slash_fairy").color,0.3))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),model.item_definition("slash_fairy").color,false,3)
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
@@ -683,11 +692,11 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),Color("263b3d"))
 			if model.fairies.has(cell):
 				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
+				_turn_badge(pos,int(model.fairy_turns.get(cell,0)))
 			if model.walls.has(cell):
 				# The wall fills its whole tile; the countdown sits in a corner badge.
 				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,1.12)
-				draw_rect(Rect2(pos+Vector2(44,42),Vector2(18,20)),Color(0.03,0.06,0.07,0.85))
-				_text(pos+Vector2(47,59),str(model.walls[cell]),20,INK)
+				_turn_badge(pos,int(model.walls[cell]))
 			var cannon: Dictionary = model.cannon_at(cell)
 			if not cannon.is_empty():
 				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy"}[cannon.kind]
@@ -698,6 +707,7 @@ func _draw_board() -> void:
 						_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
 				if cannon.kind == "vane":
 					_draw_turn_hint(_center(cell),cannon.dir)
+				_turn_badge(pos,int(cannon.get("turns",0)))
 			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
 	if item_origin != Vector2i(-1,-1):
@@ -730,6 +740,13 @@ func _draw_turn_hint(center: Vector2, dir: Vector2i) -> void:
 	draw_circle(center+next*24,5,Color(0,0,0,0.6))
 	draw_circle(center+next*24,3,color)
 
+## Turns left for a placed spirit, in the tile's bottom-right corner.
+func _turn_badge(pos: Vector2, turns: int) -> void:
+	if turns <= 0:
+		return
+	draw_rect(Rect2(pos+Vector2(44,42),Vector2(18,20)),Color(0.03,0.06,0.07,0.85))
+	_text(pos+Vector2(47,59),str(turns),20,INK)
+
 func _draw_arrow(tip: Vector2, dir: Vector2, color: Color) -> void:
 	var side := Vector2(-dir.y,dir.x)*6
 	draw_colored_polygon(PackedVector2Array([tip+dir*8,tip-dir*4+side,tip-dir*4-side]),color)
@@ -750,7 +767,6 @@ func _draw_player_panel() -> void:
 	_text(Vector2(40,162),"AP",24,GOLD)
 	for i in range(2):
 		draw_rect(Rect2(94+i*96,137,84,29),GOLD if i<model.player.ap else Color("293d36"))
-	_text(Vector2(40,204),"右向き固定  →",22,CYAN)
 
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
