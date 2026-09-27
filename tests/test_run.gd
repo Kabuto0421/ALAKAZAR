@@ -805,7 +805,7 @@ func _class_ups() -> void:
 	# Wall+: two tiles in the chosen direction.
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
 	verify(m.is_directional("wall_fairy") and not m.use_item("wall_fairy",Vector2i(2,2)),"Wall+ asks for a direction")
-	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)),"Wall+ builds two tiles")
+	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)) and m.walls.has(Vector2i(2,4)) and m.walls.size() == 3,"Wall+ builds a three-tile line")
 	# Lance cannon+: fires both ways.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
 	m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP)

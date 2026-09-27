@@ -88,7 +88,7 @@ const PLUS_TEXT := {
 	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"],
 	"warp_fairy": ["0 APで空きマスへ瞬間移動", "0 APで使える。敵や障害物の\nないマスへ瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
-	"wall_fairy": ["3ターン残る2マスの壁", "攻撃範囲の空きマスと、選んだ\n向きの隣のマスに壁を置く。\n置いたターンを含め3ターン\n完全な障害物として残る。"],
+	"wall_fairy": ["3ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め3ターン\n完全な障害物として残る。"],
 	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
@@ -750,12 +750,17 @@ func place_wall(cell: Vector2i) -> void:
 	walls[cell] = WALL_TURNS
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wall"})
 
-## The upgraded wall's second tile, next to the first in the chosen direction.
-func wall_extension(cell: Vector2i, direction: Vector2i) -> Vector2i:
+## The upgraded wall: up to two more tiles in a straight line from the first,
+## stopping at the first tile that is taken or off the board.
+func wall_extension(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not CARDINALS.has(direction):
+		return result
 	var next := cell + direction
-	if not CARDINALS.has(direction) or not inside(next) or blocked(next) or next == player.cell or not enemy_at(next).is_empty():
-		return Vector2i(-1, -1)
-	return next
+	while result.size() < 2 and inside(next) and not blocked(next) and next != player.cell and enemy_at(next).is_empty():
+		result.append(next)
+		next += direction
+	return result
 
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
@@ -942,9 +947,7 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 		result.append(origin)
 	if id == "wall_fairy":
 		result.append(origin)
-		var extra := wall_extension(origin, direction)
-		if extra != Vector2i(-1, -1):
-			result.append(extra)
+		result.append_array(wall_extension(origin, direction))
 	elif id == "slash_fairy":
 		result.append_array(front_slash_cells(origin, direction))
 	elif id == "flying_slash":
