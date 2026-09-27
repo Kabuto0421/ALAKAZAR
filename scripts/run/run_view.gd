@@ -6,6 +6,11 @@ const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
+const MapCanvas = preload("res://scripts/run/map_canvas.gd")
+const GrannyPortrait = preload("res://scripts/run/granny_portrait.gd")
+const Battle = preload("res://scripts/battle_model.gd")
+## Buttons over the map nodes that can be taken now (tests click these).
+var map_buttons: Array[Button] = []
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
@@ -42,7 +47,7 @@ func _render() -> void:
 		add_child(battle_view)
 		return
 	# Camp tune at the camp; the draft tune for picks, rewards and the end screens.
-	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE, Run.State.CAMP_FAIRY] else "draft"
+	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE, Run.State.CAMP_FAIRY, Run.State.EVENT] else "draft"
 	bgm.sync(false, false)
 	screen = Control.new()
 	screen.name = "DraftScreen"
@@ -91,6 +96,11 @@ func _render() -> void:
 			_label(Vector2(44,94),"所持上限は3。手放すものを1つ選ぶ。",17,sub)
 			_replace_cards()
 			_button(Vector2(894,92),Vector2(214,34),"← 報酬へ戻る",_cancel)
+		Run.State.MAP:
+			_draw_map()
+			_loadout()
+		Run.State.EVENT:
+			_draw_event()
 		Run.State.CAMP:
 			_label(Vector2(44,48),"キャンプ — ひとつだけ選ぶ",30,INK)
 			_label(Vector2(44,94),"この先はボス：ロトリック（6×6）" if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",17,Color("ff987f"))
@@ -404,6 +414,129 @@ func _camp_option(index: int, title: String, detail: String, accent: Color, call
 func _rest() -> void:
 	if run.camp_rest():
 		_render()
+
+# --- map ------------------------------------------------------------------------
+
+const NODE_HELP := {
+	"battle": "⚔ 戦闘：敵を全滅させると報酬（武器3・妖精2）",
+	"event": "？ 何かが起こる。戦闘と報酬はないが、出会いがある",
+}
+
+func _draw_map() -> void:
+	var act := "序盤：外縁の森から城壁へ" if run.stage < Battle.BOSS_LEVEL else "中盤：監獄都市 ALAKAZAR の内側"
+	_label(Vector2(44,48),"進軍マップ — 次の行き先を選ぶ",30,INK)
+	_label(Vector2(44,94),act,17,Color("7fd08a"))
+	var canvas := MapCanvas.new()
+	canvas.position = Vector2(44,128)
+	canvas.size = Vector2(1064,330)
+	canvas.map_rows = run.map_rows
+	canvas.map_path = run.map_path
+	canvas.stage = run.stage
+	canvas.waiting = run.state == Run.State.MAP
+	for s in range(Battle.LAST_LEVEL+1):
+		if Battle.BOSS_LEVELS.has(s):
+			if run.stage >= s:
+				canvas.camp_done.append(canvas.columns.size())
+			canvas.columns.append({"kind":"camp", "count":1})
+		canvas.columns.append({"kind":"stage", "stage":s, "count":run.map_rows[s].size(), "boss":Battle.BOSS_LEVELS.has(s)})
+	for id in run.battle.fairy_loadout:
+		canvas.fairy_icons.append(run.battle.item_definition(id).icon)
+	screen.add_child(canvas)
+	var help := _label(Vector2(44,466),"光っているマスをクリックして進む",17,Color("9aafa9"))
+	map_buttons.clear()
+	var column := canvas.hero_column()
+	for index in run.map_rows[run.stage].size():
+		var kind: String = run.map_rows[run.stage][index].kind
+		var button := Button.new()
+		button.flat = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		button.size = Vector2(76,76)
+		button.position = canvas.position+canvas.node_position(column,index)-button.size/2
+		button.set_meta("kind",kind)
+		button.mouse_entered.connect(func():
+			canvas.hover = Vector2i(column,index)
+			help.text = NODE_HELP.get(kind,""))
+		button.mouse_exited.connect(func():
+			canvas.hover = Vector2i(-1,-1)
+			help.text = "光っているマスをクリックして進む")
+		button.pressed.connect(func():
+			if run.map_choose(index):
+				_render())
+		screen.add_child(button)
+		map_buttons.append(button)
+
+# --- events ------------------------------------------------------------------------
+
+const GRANNY_LINES := {
+	"intro": "あんたぁ、魔法陣に興味はあらんかね？",
+	"pick": "そりゃあええ。どれ、その得物を貸してみんさい。",
+	"done": "ほれ、できたで。…ただし、そいつでもう人は斬れんけぇね。\n歩いて、描いて、囲むんよ。",
+	"refused": "ほうね。気が変わったら、また来んさい。",
+}
+
+func _draw_event() -> void:
+	var backdrop := ColorRect.new()
+	backdrop.position = Vector2(44,110)
+	backdrop.size = Vector2(1064,590)
+	backdrop.color = Color("120c1f")
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.add_child(backdrop)
+	_label(Vector2(44,48),"？ — 路地裏の出会い",30,INK)
+	var portrait := GrannyPortrait.new()
+	portrait.position = Vector2(60,130)
+	portrait.size = Vector2(320,360)
+	screen.add_child(portrait)
+	_label(Vector2(120,500),"魔法陣のおばあさん",20,Color("c9b3ff"))
+	var box := Panel.new()
+	box.position = Vector2(400,130)
+	box.size = Vector2(690,120)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_stylebox_override("panel",_box(Color("1a1230"),Color("9b6bff")))
+	screen.add_child(box)
+	var line := _label(Vector2(420,146),GRANNY_LINES.get(run.event_step,""),23,INK)
+	line.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	line.custom_minimum_size = Vector2(650,0)
+	line.size = Vector2(650,0)
+	match run.event_step:
+		"intro":
+			var rule := _label(Vector2(410,270),"魔法陣を付けた武器は攻撃できなくなる。そのかわり、歩いた跡のマスが白くなり（戦闘中ずっと残る）、白いマスで囲むと、囲った中と白線の上の敵すべてに99ダメージ。",17,Color("c9b3ff"))
+			rule.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+			rule.custom_minimum_size = Vector2(670,0)
+			rule.size = Vector2(670,0)
+			_button(Vector2(420,380),Vector2(300,48),"武器を差し出す",func():
+				if run.event_accept():
+					_render())
+			_button(Vector2(760,380),Vector2(300,48),"断る",func():
+				run.event_step = "refused"
+				_render())
+		"pick":
+			for slot in run.battle.owned_weapons.size():
+				var card := Card.new()
+				card.position = Vector2(400+slot*232,270)
+				card.size = Vector2(216,350)
+				card.model = run.battle
+				card.offer = {"kind":"weapon","value":run.battle.owned_weapons[slot]}
+				var allowed: bool = run.can_enchant(slot)
+				card.preview_plus = false
+				card.action_text = "魔法陣を付ける" if allowed else ""
+				card.tag = "所持中" if allowed else "付けられない"
+				card.disabled = not allowed
+				if not allowed:
+					card.modulate = Color(1,1,1,0.45)
+				card.pressed.connect(func():
+					if run.event_enchant(slot):
+						_render())
+				screen.add_child(card)
+			_button(Vector2(400,640),Vector2(214,40),"← やめる",func():
+				run.event_back()
+				_render())
+		"done", "refused":
+			if run.event_step == "done":
+				_label(Vector2(420,280),"魔法陣が刻まれた。",20,Color("c9b3ff"))
+			_button(Vector2(420,380),Vector2(300,48),"先へ進む →",func():
+				run.event_leave()
+				_render())
 
 func _class_up() -> void:
 	if run.camp_class_up():

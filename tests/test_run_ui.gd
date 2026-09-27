@@ -27,6 +27,14 @@ func click(button: Control) -> void:
 	event.pressed = false
 	root.push_input(event,true)
 
+## Clicks the map's fight node and waits for the battle to come up.
+func go_battle() -> void:
+	for button in app.map_buttons:
+		if button.get_meta("kind") == "battle":
+			click(button)
+			break
+	await create_timer(0.8).timeout
+
 func cards() -> Array:
 	return app.screen.get_children().filter(func(node): return node is Card)
 
@@ -43,7 +51,9 @@ func run() -> void:
 		if card.offer.value=="acorn_fairy":
 			click(card)
 			break
-	await create_timer(0.8).timeout
+	await process_frame
+	verify(app.run.state==Run.State.MAP and app.map_buttons.size()==1 and app.map_buttons[0].get_meta("kind")=="battle","The fairy pick opens the map at the first fight")
+	await go_battle()
 	var view = app.battle_view
 	verify(view != null and view.model.board_size==4 and view.model.phase==Rules.Phase.PLAYER,"Fairy click starts the first battle and enemy-first turn")
 	verify(view.grid_buttons.filter(func(b): return b.visible).size()==16,"Only 4x4 board cells are clickable")
@@ -112,8 +122,10 @@ func run() -> void:
 	await process_frame
 	verify(app.run.state==Run.State.REPLACE and cards().size()==3,"Weapon reward opens replacement choices at cap")
 	click(cards()[2])
-	await create_timer(0.8).timeout
-	verify(app.run.state==Run.State.BATTLE and app.battle_view.model.board_size==5,"Replacement click starts 5x5 stage")
+	await process_frame
+	verify(app.run.state==Run.State.MAP and app.map_buttons.size()==2 and app.map_buttons.any(func(b): return b.get_meta("kind")=="event"),"The second floor forks into a fight or a ? event")
+	await go_battle()
+	verify(app.run.state==Run.State.BATTLE and app.battle_view.model.board_size==5,"Replacement then the map's fight starts the 5x5 stage")
 	verify(app.battle_view.grid_buttons.filter(func(b): return b.visible).size()==25,"5x5 has 25 active hit targets")
 	app.queue_free()
 	await create_timer(0.2).timeout

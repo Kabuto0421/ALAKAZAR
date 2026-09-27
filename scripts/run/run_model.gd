@@ -2,7 +2,7 @@ extends RefCounted
 
 const Battle = preload("res://scripts/battle_model.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
-enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST }
+enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, MAP, EVENT, FINISHED, LOST }
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
@@ -21,6 +21,16 @@ var stage := 0
 var offers: Array[Dictionary] = []
 ## Opening offers are rolled once so going back does not reroll them.
 var start_weapon_offers: Array[Dictionary] = []
+## The map: one row per stage (0-7). Each row lists the nodes to pick from:
+## {"kind": "battle" | "event" | "boss"}. The middle floor of each act offers a
+## fight or a "?" event, so an act has two or three fights and the bosses stay put.
+const EVENT_STAGES: Array[int] = [1, 5]
+var map_rows: Array = []
+## Which node was taken on each stage (-1 = not yet).
+var map_path: Array[int] = []
+## The current event and how far it has gone ("intro", "pick", "done").
+var event_id := ""
+var event_step := ""
 var start_fairy_offers: Array[Dictionary] = []
 var pending: Dictionary = {}
 var rng := RandomNumberGenerator.new()
@@ -57,6 +67,79 @@ func start(seed_value: int = -1) -> void:
 	for id in sample(starting_fairy_pool,3):
 		start_fairy_offers.append({"kind":"fairy","value":id})
 	offers.assign(start_weapon_offers)
+	_build_map()
+
+func _build_map() -> void:
+	map_rows.clear()
+	map_path.clear()
+	for row in Battle.LAST_LEVEL + 1:
+		if Battle.BOSS_LEVELS.has(row):
+			map_rows.append([{"kind":"boss"}])
+		elif EVENT_STAGES.has(row):
+			var nodes: Array = [{"kind":"battle"}, {"kind":"event", "event":"circle_granny"}]
+			if rng.randf() < 0.5:
+				nodes.reverse()
+			map_rows.append(nodes)
+		else:
+			map_rows.append([{"kind":"battle"}])
+		map_path.append(-1)
+
+## Map: take node `index` of the current stage's row.
+func map_choose(index: int) -> bool:
+	if state != State.MAP or stage >= map_rows.size() or index < 0 or index >= map_rows[stage].size():
+		return false
+	map_path[stage] = index
+	var node: Dictionary = map_rows[stage][index]
+	if node.kind == "event":
+		event_id = node.event
+		event_step = "intro"
+		state = State.EVENT
+	else:
+		start_battle()
+	return true
+
+## The fight node of the current map row (tests and quick paths use it).
+func map_battle_index() -> int:
+	if stage >= map_rows.size():
+		return -1
+	for i in map_rows[stage].size():
+		if map_rows[stage][i].kind == "battle":
+			return i
+	return -1
+
+# --- events --------------------------------------------------------------------
+
+## The granny's magic circle: any weapon that can move may be enchanted.
+func can_enchant(slot: int) -> bool:
+	if slot < 0 or slot >= battle.owned_weapons.size():
+		return false
+	var index: int = battle.owned_weapons[slot]
+	return not battle.is_circle(index) and Weapons.DATA[index].get("ranged", "") == ""
+
+func event_accept() -> bool:
+	if state != State.EVENT or event_step != "intro":
+		return false
+	event_step = "pick"
+	return true
+
+func event_enchant(slot: int) -> bool:
+	if state != State.EVENT or event_step != "pick" or not can_enchant(slot):
+		return false
+	battle.enchants[battle.owned_weapons[slot]] = "circle"
+	event_step = "done"
+	return true
+
+func event_back() -> void:
+	if state == State.EVENT and event_step == "pick":
+		event_step = "intro"
+
+## Leaving an event (after it is done, or refusing it) moves on along the map.
+func event_leave() -> void:
+	if state != State.EVENT:
+		return
+	event_id = ""
+	event_step = ""
+	advance()
 
 ## From the fairy pick back to the weapon pick, keeping the same offers.
 func back_to_weapon() -> void:
@@ -84,7 +167,7 @@ func choose(index: int) -> bool:
 		offers.assign(start_fairy_offers)
 	elif state == State.START_FAIRY:
 		battle.add_item(str(offer.value))
-		start_battle()
+		state = State.MAP
 	else:
 		var full: bool = battle.owned_weapons.size() >= Battle.WEAPON_LIMIT if offer.kind == "weapon" else battle.fairy_loadout.size() >= Battle.HAND_LIMIT
 		if full:
@@ -211,7 +294,7 @@ func advance() -> void:
 		state = State.CAMP
 	else:
 		stage += 1
-		start_battle()
+		state = State.MAP
 
 # --- camp -----------------------------------------------------------------
 
@@ -271,4 +354,5 @@ func camp_back() -> void:
 func _leave_camp() -> void:
 	offers.clear()
 	stage = Battle.BOSS_LEVEL if stage == LAST_NORMAL_STAGE else Battle.BOSS2_LEVEL
+	map_path[stage] = 0
 	start_battle()
