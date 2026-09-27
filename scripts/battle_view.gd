@@ -11,6 +11,10 @@ const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
+const CAPACITOR_CHARGED = preload("res://assets/sprites/spirits/capacitor_fairy_charged.png")
+const CAPACITOR_DISCHARGE = preload("res://assets/sprites/effects/capacitor_discharge.png")
+const ZAP_H = preload("res://assets/sprites/effects/zap_h.png")
+const ZAP_V = preload("res://assets/sprites/effects/zap_v.png")
 const CLOCKWISE_NEXT = {Vector2i.UP: Vector2i.RIGHT, Vector2i.RIGHT: Vector2i.DOWN, Vector2i.DOWN: Vector2i.LEFT, Vector2i.LEFT: Vector2i.UP}
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
@@ -701,7 +705,10 @@ func _draw_board() -> void:
 			if not cannon.is_empty():
 				var cannon_id: String = {"lance":"cannon_fairy","vane":"vane_cannon","firework":"firework_fairy","capacitor":"capacitor_fairy"}[cannon.kind]
 				# Directional art shows the facing itself; the plain icon gets an arrow.
-				if not DirectionSheet.paint(self,_center(cell),cannon_id,cannon.dir,0.95):
+				if cannon.kind == "capacitor":
+					# Crackling art once any charge is stored.
+					SpiritIcon.paint(self,_center(cell),CAPACITOR_CHARGED if int(cannon.get("charge",0)) > 0 else model.item_definition(cannon_id).icon,0.95)
+				elif not DirectionSheet.paint(self,_center(cell),cannon_id,cannon.dir,0.95):
 					SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
 					if cannon.dir != Vector2i.ZERO:
 						_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
@@ -1015,7 +1022,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1023,29 +1030,15 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
 		"zap":
-			# A jagged bolt crackling along the line.
-			var across := Vector2(-dir.y, dir.x)
-			var pts := PackedVector2Array()
-			for k in range(5):
-				var along := -30.0 + k * 15.0
-				var jitter := (8.0 if k % 2 == 0 else -8.0) * (1.0 if int(clock * 30) % 2 == 0 else -1.0)
-				pts.append(pos + dir * along + across * (jitter if k in [1, 2, 3] else 0.0))
-			draw_polyline(pts, Color(0.1, 0.1, 0.2, fade * 0.6), 7)
-			draw_polyline(pts, Color("ffe76a", fade), 3)
-		"push":
-			# Skid marks trailing behind a shoved enemy.
-			for k in range(3):
-				draw_line(pos - dir * (14 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, pos - dir * (24 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, Color("e5dfc5", fade * 0.7), 3)
-		"bump":
-			# Impact star where the enemy slams into something.
-			var at := pos + dir * 26
-			for k in range(6):
-				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
-				draw_line(at, at + ray, Color("ffd35b", fade), 3)
-		"resonate":
-			# Rings rippling out from a cannon the shot passed through.
-			draw_arc(pos, 14 + t * 22, 0, TAU, 24, Color("9ff5ff", fade), 3, true)
-			draw_arc(pos, 6 + t * 12, 0, TAU, 24, Color("ffffff", fade * 0.7), 2, true)
+			# The provided lightning tile, stretched across the tile and flickering.
+			var vertical: bool = dir.x == 0
+			var tex: Texture2D = ZAP_V if vertical else ZAP_H
+			var flicker := 0.75 + 0.25 * sin(clock * 60.0)
+			var rect := Rect2(pos - Vector2(12, 32), Vector2(24, 64)) if vertical else Rect2(pos - Vector2(32, 12), Vector2(64, 24))
+			draw_texture_rect(tex, rect, false, Color(1, 1, 1, fade * flicker))
+		"discharge":
+			var side := 150.0 + t * 40.0
+			draw_texture_rect(CAPACITOR_DISCHARGE, Rect2(pos - Vector2.ONE * side / 2, Vector2.ONE * side), false, Color(1, 1, 1, fade))
 		"spark":
 			for k in range(6):
 				var ray := Vector2.from_angle(k * TAU / 6 + t * 2) * (10 + t * 18)

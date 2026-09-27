@@ -773,6 +773,7 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 		add_log("蓄電の妖精に電気が溜まった（%d/%d）" % [cannon.charge, CAPACITOR_FULL])
 		return
 	cannon.charge = 0
+	events.append({"kind":"discharge", "cell":cannon.cell, "id":-2})
 	add_log("蓄電の妖精が放電！")
 	var passed: Array = []
 	for direction in CARDINALS:
