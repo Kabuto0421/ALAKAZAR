@@ -917,16 +917,16 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 	draw_set_transform(Vector2.ZERO)
 
 const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
-## Rotorick speaks as a polite executioner; the second line is the plain rule.
+## Rotorick's line (short, polite) and the plain rule, per reel.
 const REEL_LINES = {
-	0: ["運命の車輪が回っております。", "抽選中"],
-	1: ["判決、一。貴方の刃は第一の武器に限ります。狭い檻の中で、存分に足掻きなさい。", "このターン、武器は1枠目しか使えない"],
-	2: ["判決、二。第二の武器以外は没収いたしました。不自由こそ、罪人にふさわしい。", "このターン、武器は2枠目しか使えない"],
-	3: ["判決、三。第三の武器のみ、所持を許可いたします。その一振りで抗ってご覧なさい。", "このターン、武器は3枠目しか使えない"],
-	4: ["判決、四。この床は刑場となります。印の上に立つ者は、敵味方の区別なく焼かれるでしょう。", "赤黒のマスに、次の敵ターン開始時にいると1ダメージ（敵・味方も）"],
-	5: ["ERROR 05 ─ 抽選機構に致命的な例外が発生しました。執行プロセスを強制停止します。再起動まで：1ターン", "次の敵ターンは突進しない（攻撃のチャンス）"],
-	6: ["判決、六。残像を置いてまいります。私の姿をしておりますが、近づく罪人を斬るための刃に過ぎません。", "今いる場所に残像（ホログラム）を残して突進。残像は隣に来た者を1回斬って消える"],
-	7: ["刑を執行する。", "AP+1（合計2）：次の敵ターンは2回突進。1回目は避けても回り込んで必ず当たる（壁精霊などでは防げる）"],
+	0: ["抽選中です。", "抽選中"],
+	1: ["判決、一。第一の武器のみ許可します。", "武器は1枠目だけ"],
+	2: ["判決、二。第二の武器のみ許可します。", "武器は2枠目だけ"],
+	3: ["判決、三。第三の武器のみ許可します。", "武器は3枠目だけ"],
+	4: ["判決、四。床を焼きます。", "赤黒マスに次の敵ターンで1ダメージ"],
+	5: ["ERROR 05 ─ 停止中", "次の敵ターンは突進しない"],
+	6: ["判決、六。残像を置いていきます。", "残像の隣に入ると1ダメージ"],
+	7: ["刑を執行します。", "AP+1・2回突進・1回目は必中"],
 }
 
 ## Draws text wrapped every `per_line` characters; returns the y after the last line.
@@ -947,19 +947,77 @@ func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int)
 func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	var reel: int = int(enemy.get("reel",0))
 	var lines: Array = REEL_LINES[reel]
-	var y := 214.0
-	_text(Vector2(852,y),"移動：飛車（向きの先へ端まで突進）",16,CYAN)
-	y += 30
+	_text(Vector2(852,214),"移動：飛車（向きの先まで突進）",16,CYAN)
+	var line_color := Color("ffd35b") if reel == 5 else Color("f1e9d8")
+	var y := _wrapped(Vector2(852,250),lines[0] if reel == 5 else "「%s」" % lines[0],18,line_color,15)
 	if reel == 7:
-		y = _wrapped(Vector2(852,y),lines[0],20,Color("f1e9d8"),13)
-		y = _wrapped(Vector2(852,y+6),"この刃から、",30,Color("ff3b3b"),9)
-		y = _wrapped(Vector2(852,y),"逃れる術は無い。",30,Color("ff3b3b"),9)
-	elif reel == 5:
-		y = _wrapped(Vector2(852,y),lines[0],17,Color("ffd35b"),16)
-	else:
-		y = _wrapped(Vector2(852,y),"「%s」" % lines[0],17,Color("f1e9d8"),16)
-	draw_line(Vector2(852,y+2),Vector2(1108,y+2),Color("4d5443"),2)
-	_wrapped(Vector2(852,y+26),"効果：" + lines[1],17,Color("ff5b62") if reel == 7 else Color("ffd35b"),16)
+		y = _wrapped(Vector2(852,y+2),"逃げ場は無い。",28,Color("ff3b3b"),9)
+	_draw_reel_diagram(reel, Rect2(852,y+8,256,108))
+	_wrapped(Vector2(852,y+140),lines[1],19,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
+
+## Small picture of what the reel does, drawn from simple tiles.
+func _draw_reel_diagram(reel: int, box: Rect2) -> void:
+	draw_rect(box,Color("0b1415"))
+	draw_rect(box,Color("324843"),false,2)
+	var c := box.get_center()
+	var red := Color("ff3b3b")
+	var gold := Color("ffd35b")
+	var cell := 22.0
+	var tile := func(at: Vector2, color: Color, filled: bool = true) -> void:
+		draw_rect(Rect2(at-Vector2.ONE*(cell/2-1),Vector2.ONE*(cell-2)),color,filled,-1.0 if filled else 2.0)
+	var boss := func(at: Vector2, color: Color) -> void:
+		draw_rect(Rect2(at-Vector2.ONE*cell,Vector2.ONE*cell*2),color)
+		draw_rect(Rect2(at-Vector2.ONE*cell,Vector2.ONE*cell*2),Color("f1e9d8"),false,2)
+	match reel:
+		1, 2, 3:
+			# Three weapon slots: the drawn one lit, the others sealed.
+			for i in 3:
+				var at := c+Vector2((i-1)*72,0)
+				var active := i == reel-1
+				draw_rect(Rect2(at-Vector2(30,34),Vector2(60,68)),Color("152d2a") if active else Color("1a1f20"))
+				draw_rect(Rect2(at-Vector2(30,34),Vector2(60,68)),gold if active else Color("4d5443"),false,3 if active else 2)
+				_text(at+Vector2(-7,10),str(i+1),26,gold if active else Color("5d6a66"))
+				if not active:
+					draw_line(at-Vector2(22,26),at+Vector2(22,26),red,4)
+					draw_line(at+Vector2(-22,26),at+Vector2(22,-26),red,4)
+		4:
+			# A checker of burning tiles.
+			for y in 4:
+				for x in 8:
+					var at := box.position+Vector2(22+x*30,15+y*26)
+					if (x+y)%2 == 0:
+						draw_rect(Rect2(at-Vector2(13,11),Vector2(26,22)),Color(0.85,0.1,0.1,0.8))
+					else:
+						draw_rect(Rect2(at-Vector2(13,11),Vector2(26,22)),Color(0.1,0.05,0.05))
+		5:
+			boss.call(c,Color("2a3a44"))
+			draw_line(c-Vector2(14,14),c+Vector2(14,14),gold,5)
+			draw_line(c+Vector2(-14,14),c+Vector2(14,-14),gold,5)
+			_text(c+Vector2(34,8),"停止",20,gold)
+		6:
+			# Afterimage stays; Rotorick charges off; stepping next to it hurts.
+			boss.call(c+Vector2(-60,0),Color(0.6,0.35,0.9,0.5))
+			boss.call(c+Vector2(66,0),Color("2a3a44"))
+			draw_line(c+Vector2(-30,0),c+Vector2(36,0),red,4)
+			draw_colored_polygon(PackedVector2Array([c+Vector2(40,0),c+Vector2(28,-8),c+Vector2(28,8)]),red)
+			# A player standing next to the afterimage gets cut.
+			var victim := c+Vector2(-60-cell*1.5-8,0)
+			tile.call(victim,Color("2bdcc8"),false)
+			draw_circle(victim,6,Color("2bdcc8"))
+			draw_line(victim+Vector2(-12,-12),victim+Vector2(12,12),red,3)
+		7:
+			# Two charges; the first always lands.
+			boss.call(c+Vector2(-70,0),Color("3a2a18"))
+			for k in 2:
+				var y0 := c.y-12+k*24
+				draw_line(Vector2(c.x-40,y0),Vector2(c.x+60,y0),red,4)
+				draw_colored_polygon(PackedVector2Array([Vector2(c.x+68,y0),Vector2(c.x+56,y0-8),Vector2(c.x+56,y0+8)]),red)
+			_text(c+Vector2(-30,-24),"×2",18,gold)
+			draw_arc(c+Vector2(92,0),16,0,TAU,20,red,3)
+			draw_line(c+Vector2(76,0),c+Vector2(108,0),red,2)
+			draw_line(c+Vector2(92,-16),c+Vector2(92,16),red,2)
+		_:
+			_text(c+Vector2(-10,12),"?",34,gold)
 
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	var type: Dictionary = Rules.TYPES[enemy.type]
