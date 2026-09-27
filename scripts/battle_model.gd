@@ -24,7 +24,7 @@ const TYPES = {
 	"cavalry": {"name": "跳躍騎兵", "hp": 1, "ap": 2},
 	"horse": {"name": "馬", "hp": 2, "ap": 2},
 	"javelin": {"name": "投げ槍兵", "hp": 1, "ap": 2},
-	"archer": {"name": "弓兵", "hp": 1, "ap": 1},
+	"archer": {"name": "弓兵", "hp": 1, "ap": 2},
 	"rook": {"name": "突進くん", "hp": 3, "ap": 1, "size": 2},
 	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
@@ -231,7 +231,8 @@ func javelin_throw(enemy: Dictionary) -> bool:
 func archer_aim(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
 		return false
-	enemy.ap -= 1
+	# Aiming ends its turn, so the lane is always on show before the shot.
+	enemy.ap = 0
 	enemy.state = "aim"
 	enemy.intent = "構え"
 	add_log("弓兵が弓を構えた")
