@@ -76,7 +76,11 @@ func play_hit_reaction(direction: Vector2) -> void:
 	flash = 0.12
 
 func _draw() -> void:
-	if span > 1:
+	if kind == "slot":
+		# Charge panel ring under Rotorick, a size larger so its arrows stick out
+		# around the body: blue = waiting, red = charge set.
+		draw_texture_rect_region(ROTORICK_PANEL, Rect2(-108,-110,216,216), Rect2(facing*112, (112 if braced else 0), 112, 112), Color(1, 1, 1, 0.75))
+	elif span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
 	else:
 		draw_circle(Vector2(0,22),19,Color(0,0,0,0.35))
@@ -156,12 +160,8 @@ func _draw_status() -> void:
 	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
-	if kind == "slot":
-		# Charge panel ring laid over Rotorick, a size larger so its arrows sit
-		# outside the body: blue = waiting, red = charge set.
-		status_layer.draw_texture_rect_region(ROTORICK_PANEL, Rect2(-92,-94,184,184), Rect2(facing*112, (112 if braced else 0), 112, 112), Color(1, 1, 1, 0.6))
 	# Rotorick's hearts sit just above the ring.
-	var heart_y := -100.0 if kind == "slot" else 29+grow
+	var heart_y := -112.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
 	if attack_target:
