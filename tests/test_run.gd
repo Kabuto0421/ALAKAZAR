@@ -250,6 +250,7 @@ func _initialize() -> void:
 	_knockback()
 	_difficulty()
 	_shield_soldier()
+	_analyst()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -892,3 +893,32 @@ func _shield_soldier() -> void:
 		m = Rules.new()
 		m.reset(level)
 		verify(m.enemies.any(func(e): return e.type == "shield"),"Mid-game fight %d has a shield soldier" % level)
+
+func _analyst() -> void:
+	var m := fixture()
+	m.owned_weapons.assign([0,1,3])
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	var eye: Dictionary = m.make_enemy("analyst",Vector2i(2,2),0)
+	m.enemies.append(eye)
+	verify(m.player_action(Vector2i(2,2)) and eye.hp == 1 and eye.learned == 0,"The first hit lands and the analyst learns that weapon")
+	verify(m.player_action(Vector2i(2,2)) and eye.hp == 1 and m.events.any(func(e): return e.kind == "analyzed"),"The same weapon then does nothing")
+	m.player.ap = 2
+	m.player.cell = Vector2i(1,3)
+	m.weapon = 3
+	verify(m.player_action(Vector2i(2,2)) and m.enemy_at(Vector2i(2,2)).is_empty(),"A different weapon finishes it")
+	m = fixture()
+	m.enemies.clear()
+	eye = m.make_enemy("analyst",Vector2i(3,2),0)
+	m.enemies.append(eye)
+	m.fairy_loadout.assign(["magic_bolt"])
+	m.refill_fairies()
+	eye.learned = 0
+	m.weapon = 0
+	m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT)
+	verify(eye.hp == 1,"Fairies are never analysed")
+	for level in [4, 6]:
+		m = Rules.new()
+		m.reset(level)
+		verify(m.enemies.any(func(e): return e.type == "analyst"),"Mid-game fight %d has an analyst" % level)

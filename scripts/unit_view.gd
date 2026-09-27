@@ -34,6 +34,10 @@ var span := 1
 var braced := false
 ## Rotorick's reel (0 = spinning).
 var reel := 0
+## Analyst: the weapon it has learned ("" = none) and its colour.
+var learned_text := ""
+var learned_color := Color.WHITE
+const BADGE_FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -115,6 +119,8 @@ func _draw() -> void:
 			draw_ranged_gear(self,kind)
 		elif kind == "shield":
 			draw_tower_shield(self)
+		elif kind == "analyst":
+			draw_analyst_visor(self)
 	draw_set_transform(Vector2.ZERO)
 
 ## Sheets use the game facing order: up, right, down, left.
@@ -140,6 +146,13 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
 
+## Placeholder: a scanning visor and antenna on the soldier sprite.
+static func draw_analyst_visor(canvas: CanvasItem) -> void:
+	canvas.draw_rect(Rect2(-14,-22,22,6),Color("0b1a1a"))
+	canvas.draw_rect(Rect2(-12,-21,18,4),Color("7fffd0"))
+	canvas.draw_line(Vector2(6,-26),Vector2(12,-40),Color("0b1a1a"),3)
+	canvas.draw_circle(Vector2(12,-41),3,Color("7fffd0"))
+
 ## Placeholder: a tall tower shield held on the left (front) side.
 static func draw_tower_shield(canvas: CanvasItem) -> void:
 	canvas.draw_rect(Rect2(-31,-26,17,46),Color("101a1e"))
@@ -161,7 +174,7 @@ static func draw_ranged_gear(canvas: CanvasItem, gear: String) -> void:
 		canvas.draw_line(Vector2(-8,0)+Vector2.from_angle(PI*0.55)*20,Vector2(-8,0)+Vector2.from_angle(PI*1.45)*20,Color("f1ead2"),1)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
+	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	if kind == "slot":
@@ -174,6 +187,13 @@ func _draw_status() -> void:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))
 			status_layer.draw_line(corner,corner+Vector2(inward.x*10,0),Color("ff805a"),3)
 			status_layer.draw_line(corner,corner+Vector2(0,inward.y*10),Color("ff805a"),3)
+	if not learned_text.is_empty():
+		# Badge over the head naming the weapon it has analysed.
+		var width := 12.0 + learned_text.length() * 14.0
+		var at := Vector2(-width / 2, -52)
+		status_layer.draw_rect(Rect2(at, Vector2(width, 20)), Color(0.02, 0.08, 0.08, 0.92))
+		status_layer.draw_rect(Rect2(at, Vector2(width, 20)), Color("7fffd0"), false, 2)
+		status_layer.draw_string(BADGE_FONT, at + Vector2(6, 16), learned_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, learned_color)
 	if charge_warning:
 		var at := Vector2(10+grow,-32-grow)
 		status_layer.draw_rect(Rect2(at,Vector2(22,28)), Color("191e29"))

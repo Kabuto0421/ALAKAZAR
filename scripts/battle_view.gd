@@ -430,6 +430,9 @@ func _sync_units(animate: bool) -> void:
 		view.facing = 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.reel = int(unit.get("reel",0))
+		var learned := int(unit.get("learned",-1))
+		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
+		view.learned_color = Color(Rules.WEAPONS[learned].color) if learned >= 0 else Color.WHITE
 		view.set_meta("cells", model.footprint(unit) if id >= 0 else [unit.cell])
 		view.hop_height = 0.0
 		if animate:
@@ -916,6 +919,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 			UnitView.draw_ranged_gear(self,enemy.type)
 		elif enemy.type == "shield":
 			UnitView.draw_tower_shield(self)
+		elif enemy.type == "analyst":
+			UnitView.draw_analyst_visor(self)
 	draw_set_transform(Vector2.ZERO)
 
 const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
@@ -1054,6 +1059,9 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
 	elif enemy.type == "shield":
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
+	elif enemy.type == "analyst":
+		var learned := int(enemy.get("learned",-1))
+		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
 	var intent := "赤：構えた向きへ突進" if enemy.type == "rook" and enemy.get("state","") == "brace" else "すぐに構える" if enemy.type == "rook" else "壊すと執行兵2体" if enemy.type == "prison" else "執行" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
@@ -1094,7 +1102,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1125,6 +1133,10 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			for k in range(6):
 				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
 				draw_line(at, at + ray, Color("ffd35b", fade), 3)
+		"analyzed":
+			# A scan ring and "解析済" floating up.
+			draw_arc(pos, 18 + t * 10, 0, TAU, 24, Color("7fffd0", fade), 2, true)
+			_text(pos + Vector2(-30, -30 - t * 12), "解析済", 18, Color("7fffd0", fade))
 		"block":
 			# Sparks off the shield on the left side.
 			var hit_at := pos + Vector2(-24, -4)

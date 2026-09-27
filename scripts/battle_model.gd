@@ -30,6 +30,7 @@ const TYPES = {
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
 	"slot": {"name": "ロトリック", "hp": 7, "ap": 1, "size": 2},
 	"shield": {"name": "盾兵", "hp": 1, "ap": 1},
+	"analyst": {"name": "解析兵", "hp": 2, "ap": 1},
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 }
 ## Two-by-two bosses: their cell is the top-left of the footprint.
@@ -140,7 +141,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -165,7 +166,7 @@ func refill_fairies() -> void:
 
 func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
 	var state := "idle" if kind in CHARGERS else "approach"
-	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0}
+	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0, "learned": -1}
 
 ## Every tile a unit covers (four for the two-by-two bosses).
 func footprint(enemy: Dictionary) -> Array[Vector2i]:
@@ -530,9 +531,17 @@ func player_action(cell: Vector2i) -> bool:
 			if shield_blocks(target, player.cell):
 				_block(target)
 				continue
+			# Analyst: a weapon it has already analysed does nothing.
+			if target.type == "analyst" and int(target.get("learned", -1)) == weapon:
+				events.append({"kind":"analyzed", "cell":target.cell, "id":-2})
+				add_log("解析兵：その武器は解析済み")
+				continue
 			target.hp -= weapon_damage(weapon)
 			events.append({"kind": "hit", "cell": target.cell, "id": target.id})
 			add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[target.type].name])
+			if target.type == "analyst" and target.hp > 0:
+				target.learned = weapon
+				add_log("解析兵が%sを解析した" % WEAPONS[weapon].name)
 			if target.hp <= 0:
 				kills += 1
 				add_log("%sを撃破" % TYPES[target.type].name)

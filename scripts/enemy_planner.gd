@@ -45,6 +45,8 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "接近"
 		elif enemy.type == "shield":
 			enemy.intent = "盾を構えて前進"
+		elif enemy.type == "analyst":
+			enemy.intent = "解析しながら前進"
 		elif enemy.type == "javelin":
 			enemy.intent = "接近・投擲"
 		elif enemy.type == "archer":
@@ -116,7 +118,7 @@ func beat(model: RefCounted, index: int) -> void:
 				enemy.ap = 0
 		elif enemy.type in Rules.JUMPERS:
 			_cavalry_action(model, enemy)
-		elif enemy.type in ["heavy", "executioner", "shield"]:
+		elif enemy.type in ["heavy", "executioner", "shield", "analyst"]:
 			var action: Dictionary = heavy_behavior.decide(model,enemy)
 			if action.kind == "step":
 				model.enemy_step(enemy,action.cell)

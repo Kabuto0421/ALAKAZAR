@@ -43,7 +43,7 @@ position = Vector2(416, 288)
 script = ExtResource("2")
 enemy_kind = 3
 
-[node name="Enemy8_miner" type="Node2D" parent="."]
+[node name="Enemy8_analyst" type="Node2D" parent="."]
 position = Vector2(352, 96)
 script = ExtResource("2")
-enemy_kind = 1
+enemy_kind = 13
