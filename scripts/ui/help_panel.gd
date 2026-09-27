@@ -11,40 +11,39 @@ const CYAN := Color("2bdcc8")
 const GOLD := Color("ffd35b")
 const MUTED := Color("92b3ae")
 
-const Figure = preload("res://scripts/ui/help_figure.gd")
-## Each page: a title and up to three pictures with one short line each.
+const Shot = preload("res://scripts/ui/help_shot.gd")
+## Each page: a title and up to three screenshots (flipbooks) with a few words each.
 const PAGES := [
 	{"title": "基本", "items": [
-		{"kind": "move", "caption": "光るマスへ動ける"},
-		{"kind": "attack", "caption": "敵を押すと攻撃", "sub": "自分は動かない"},
-		{"kind": "win", "caption": "全滅で勝ち"},
+		{"shots": ["move_a", "move_b"], "caption": "光るマスへ動ける"},
+		{"shots": ["attack_a", "attack_b"], "caption": "敵を押すと攻撃", "sub": "自分は動かない"},
+		{"shots": ["win"], "caption": "全滅で勝ち"},
 	]},
 	{"title": "AP（行動力）", "items": [
-		{"kind": "ap_actions", "caption": "1行動 = AP1", "sub": "1ターンにAP2"},
-		{"kind": "ap_end", "caption": "AP0で敵のターン", "sub": "ボタンで早く渡せる"},
+		{"shots": ["ap_2", "ap_1", "ap_0"], "caption": "1行動 = AP1", "sub": "移動・攻撃・妖精 どれも1"},
+		{"shots": ["turn_a", "turn_b"], "caption": "AP0で敵のターン", "sub": "ターン終了で早く渡せる"},
 	]},
 	{"title": "敵にもAPがある", "items": [
-		{"kind": "enemy_ap1", "caption": "AP1の敵", "sub": "1マス動いて終わり"},
-		{"kind": "enemy_ap2", "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
-		{"kind": "enemy_ap_info", "caption": "敵に乗せるとAP", "sub": "何回動くか見える"},
+		{"shots": ["eap1_a", "eap1_b"], "caption": "AP1の敵", "sub": "1マス動いて終わり"},
+		{"shots": ["eap2_a", "eap2_b"], "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
+		{"shots": ["inspect_ap"], "caption": "敵に乗せるとAP", "sub": "右の欄で何回動くかわかる"},
 	]},
 	{"title": "危険を読む", "items": [
-		{"kind": "threat", "caption": "！は次に殴られる", "sub": "動いて避けよう"},
-		{"kind": "inspect", "caption": "赤いマスは攻撃範囲"},
+		{"shots": ["threat_a", "threat_b"], "caption": "！は次に殴られる", "sub": "動いて避けよう"},
 	]},
 	{"title": "武器", "items": [
-		{"kind": "switch", "caption": "3本を持ち替え", "sub": "0 AP・1〜3キー"},
-		{"kind": "jump", "caption": "跳ぶ", "sub": "間を飛び越える"},
-		{"kind": "slide", "caption": "滑る", "sub": "止まるまで進む"},
+		{"shots": ["switch_a", "switch_b"], "caption": "持ち替えで範囲が変わる", "sub": "0 AP・1〜3キー"},
+		{"shots": ["jump"], "caption": "跳ぶ", "sub": "間を飛び越える"},
+		{"shots": ["slide"], "caption": "滑る", "sub": "止まるまで進む"},
 	]},
 	{"title": "特殊効果", "items": [
-		{"kind": "circle", "caption": "魔法陣", "sub": "白いマスで囲むと99"},
-		{"kind": "push", "caption": "押出", "sub": "ぶつけるとさらに1"},
+		{"shots": ["circle_a", "circle_b", "circle_c"], "caption": "魔法陣", "sub": "白いマスで囲むと99"},
+		{"shots": ["push_a", "push_b"], "caption": "押出", "sub": "ぶつけるとさらに1"},
 	]},
 	{"title": "妖精", "items": [
-		{"kind": "place", "caption": "光るマスに置く", "sub": "AP1・各戦闘1回"},
-		{"kind": "cannon", "caption": "大砲は叩くと発射"},
-		{"kind": "fade", "caption": "3ターンで消える"},
+		{"shots": ["place_a", "place_b"], "caption": "光るマスに置く", "sub": "AP1・各戦闘1回"},
+		{"shots": ["cannon_a", "cannon_b"], "caption": "大砲は叩くと発射"},
+		{"shots": ["fade_3", "fade_2", "fade_1"], "caption": "3ターンで消える"},
 	]},
 ]
 
@@ -96,8 +95,9 @@ func _show() -> void:
 	var items: Array = data["items"]
 	for i in items.size():
 		var item: Dictionary = items[i]
-		var figure := Figure.new()
-		figure.kind = item.kind
+		var figure := Shot.new()
+		for name in item.shots:
+			figure.frames.append(load("res://assets/help/%s.png" % name))
 		# Two or three pictures, centred on the page.
 		var left := (744.0 - (items.size() * 232 + (items.size() - 1) * 24)) / 2.0
 		figure.position = Vector2(left + i * 256, 0)
