@@ -658,8 +658,21 @@ func _slash_hit(cells: Array[Vector2i], direction: Vector2i) -> void:
 
 ## Cells a directional fairy will affect, for the placement preview.
 func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	# A spirit placed on an enemy also strikes the enemy under it.
+	if not enemy_at(origin).is_empty():
+		result.append(origin)
 	if id == "slash_fairy":
-		return front_slash_cells(origin, direction)
-	if id == "flying_slash":
-		return slash_cells(origin, direction)
-	return ray_cells(origin, direction)
+		result.append_array(front_slash_cells(origin, direction))
+	elif id == "flying_slash":
+		result.append_array(slash_cells(origin, direction))
+	else:
+		result.append_array(ray_cells(origin, direction))
+	return result
+
+## Bolt and slash spirits placed on an enemy hit it first.
+func strike_under(cell: Vector2i, kind: String, direction: Vector2i) -> void:
+	var enemy := enemy_at(cell)
+	if not enemy.is_empty():
+		events.append({"kind":kind, "cell":cell, "id":-2, "dir":direction})
+		damage_enemy(enemy, 1)

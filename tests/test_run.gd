@@ -485,5 +485,6 @@ func _place_on_enemies() -> void:
 	verify(m.item_targets("slash_fairy").has(Vector2i(2,2)) and m.item_targets("magic_bolt").has(Vector2i(2,2)),"Slash and bolt can be placed on an enemy in range")
 	verify(not m.item_targets("wall_fairy").has(Vector2i(2,2)),"Other fairies still need an empty tile")
 	verify(m.use_item("slash_fairy",Vector2i(2,2),Vector2i.RIGHT),"Slash placed on the enemy's tile")
-	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 2,"It slashes the row in front of that tile")
-	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT) and m.enemy_at(Vector2i(4,2)).is_empty(),"A bolt fired from an enemy's tile flies on past it")
+	verify(m.enemy_at(Vector2i(3,1)).is_empty() and m.enemy_at(Vector2i(2,2)).hp == 1,"It hits the enemy underneath and slashes the row in front")
+	verify(m.directional_preview("magic_bolt",Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,2)),"The preview includes the enemy underneath")
+	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.RIGHT) and m.enemy_at(Vector2i(2,2)).is_empty() and m.enemy_at(Vector2i(4,2)).is_empty(),"A bolt on an enemy hits it and flies on past it")

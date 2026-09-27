@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "magic_bolt"
 title = "魔弾精霊"
-description = "攻撃範囲に配置（敵の上も可）。\n縦横の向きを選び、直線上の\n敵すべてに1ダメージ。\n障害物で止まる。"
+description = "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n縦横の向きを選び、直線上の\n敵すべてに1ダメージ。\n障害物で止まる。"
 color = Color(1, 0.71, 0.3, 1)
 directional = true
 target = 2

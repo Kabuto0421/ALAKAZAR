@@ -1,6 +1,7 @@
 extends RefCounted
 
 func apply(model: RefCounted, cell: Vector2i, direction: Vector2i) -> void:
+	model.strike_under(cell, "bolt", direction)
 	for target in model.ray_cells(cell, direction):
 		model.events.append({"kind": "bolt", "cell": target, "id": -2, "dir": direction})
 		var enemy: Dictionary = model.enemy_at(target)
