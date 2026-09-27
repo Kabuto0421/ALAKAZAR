@@ -5,6 +5,8 @@ var offsets: Array[Vector2i] = []
 var accent := Color("2bdcc8")
 ## Tiles the current loadout already reaches: drawn faintly, so an offer shows what it adds.
 var context: Array[Vector2i] = []
+## Directions a sliding weapon keeps going in (drawn as arrows past its tiles).
+var slides: Array = []
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -50,3 +52,11 @@ func _draw() -> void:
 				draw_circle(rect.get_center(),maxf(2,step*0.12),Color(accent,0.5) if known else accent)
 			elif known:
 				draw_circle(rect.get_center(),maxf(1.5,step*0.08),Color("6f8a86"))
+	# Sliding weapons: an arrow on the outermost tile of each line shows it keeps going.
+	for direction in slides:
+		var far: Vector2i = direction * half
+		var tip := origin + (Vector2(far + Vector2i(half, half)) + Vector2.ONE * 0.5) * step + Vector2(direction) * step * 0.3
+		var back := tip - Vector2(direction).normalized() * step * 0.5
+		var side := Vector2(-direction.y, direction.x).normalized() * step * 0.22
+		draw_line(back, tip, accent, maxf(2, step * 0.1))
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(direction).normalized() * step * 0.12, tip - side, tip + side]), accent)

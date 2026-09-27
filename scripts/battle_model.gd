@@ -89,6 +89,10 @@ var enchants: Dictionary = {}
 ## Magic circle: tiles the player has walked over with a circle weapon (they stay all fight).
 var circle_tiles: Array[Vector2i] = []
 const CIRCLE_DAMAGE := 99
+## 溜め大剣: extra damage stored by turns it was not used (reset when it hits).
+var blade_charge := 0
+var blade_used := false
+const BLADE_MAX := 2
 ## Camp class-ups: fairy id -> true. Upgraded fairies show a yellow "+".
 var fairy_plus: Dictionary = {}
 ## What each class-up does: [one-line summary, full description].
@@ -162,6 +166,8 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	locked_slot = -1
 	floor_cells.clear()
 	circle_tiles.clear()
+	blade_charge = 0
+	blade_used = false
 	slot_rolls = 0
 	slot_seed = randi()
 	refill_fairies()
@@ -548,6 +554,20 @@ func targets() -> Array[Vector2i]:
 			if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
 				result.append(cell)
 		return result
+	var lines: Array = Catalog.slides(weapon)
+	if not lines.is_empty():
+		# Sliding weapons: every free tile along each line, up to (and including) the first enemy or cannon.
+		for direction in lines:
+			var cell: Vector2i = player.cell + direction
+			while inside(cell):
+				if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
+					result.append(cell)
+					break
+				if blocked(cell):
+					break
+				result.append(cell)
+				cell += direction
+		return result
 	for offset in Catalog.offsets(weapon):
 		var cell: Vector2i = player.cell + offset
 		if inside(cell):
@@ -590,9 +610,25 @@ func player_action(cell: Vector2i) -> bool:
 		return false
 	if blocked(cell):
 		return false
+	# The swap staff cannot trade places with a 2x2 enemy.
+	if WEAPONS[weapon].get("swap", false) and int(enemy_at(cell).get("size", 1)) > 1:
+		return false
 	events.clear()
 	player.ap -= 1
+	if WEAPONS[weapon].has("charge"):
+		blade_used = true
 	var enemy := enemy_at(cell)
+	if not enemy.is_empty() and WEAPONS[weapon].get("swap", false):
+		# 入替の杖: trade places, no damage.
+		var from: Vector2i = player.cell
+		enemy.cell = from
+		player.cell = cell
+		events.append({"kind":"swap", "cell":cell, "id":-2, "from":from})
+		add_log("入替の杖で%sと位置を入れ替えた" % TYPES[enemy.type].name)
+		trigger_mine(player)
+		trigger_mine(enemy)
+		check_outcome()
+		return true
 	if not enemy.is_empty():
 		var struck: Array = [enemy]
 		if WEAPONS[weapon].id == "hammer":
@@ -624,6 +660,15 @@ func player_action(cell: Vector2i) -> bool:
 			elif Catalog.knockback(weapon) > 0:
 				var away := Vector2i(signi(cell.x - player.cell.x), signi(cell.y - player.cell.y))
 				knock_back(target, away, Catalog.knockback(weapon))
+			elif WEAPONS[weapon].get("pull", false) and target == enemy and int(target.get("size", 1)) == 1:
+				# 鎖鎌: drag the enemy to the tile in between.
+				var middle: Vector2i = player.cell + (cell - player.cell) / 2
+				if inside(middle) and middle != player.cell and not blocked(middle) and enemy_at(middle).is_empty():
+					events.append({"kind":"pull", "cell":middle, "id":-2, "from":cell})
+					target.cell = middle
+					trigger_mine(target)
+		if WEAPONS[weapon].has("charge"):
+			blade_charge = 0
 	elif WEAPONS[weapon].get("ranged","") == "bishop":
 		return false
 	else:
@@ -645,7 +690,17 @@ func is_circle(index: int) -> bool:
 
 ## Tiles a circle move paints: where the player stood and where they land.
 func circle_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
-	return [from, to]
+	var path: Array[Vector2i] = [from]
+	var gap := to - from
+	# A sliding weapon paints every tile it passed.
+	if not Catalog.slides(weapon).is_empty() and (gap.x == 0 or gap.y == 0 or absi(gap.x) == absi(gap.y)):
+		var step := Vector2i(signi(gap.x), signi(gap.y))
+		var tile := from + step
+		while tile != to:
+			path.append(tile)
+			tile += step
+	path.append(to)
+	return path
 
 func _draw_circle_path(from: Vector2i, to: Vector2i) -> void:
 	for tile in circle_path(from, to):
@@ -750,7 +805,8 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 			return
 
 func weapon_damage(index: int) -> int:
-	return Catalog.base_damage(index) + int(weapon_power.get(index, 0))
+	var bonus: int = blade_charge if WEAPONS[index].has("charge") else 0
+	return Catalog.base_damage(index) + int(weapon_power.get(index, 0)) + bonus
 
 func trigger_mine(unit: Dictionary) -> void:
 	if unit.type == "miner" or not mines.has(unit.cell):
@@ -1024,6 +1080,10 @@ func wall_extension(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
+	# 溜め大剣 stores one more point for every turn it sat unused.
+	if not blade_used:
+		blade_charge = mini(blade_charge + 1, BLADE_MAX)
+	blade_used = false
 	for cell in walls.keys():
 		walls[cell] -= 1
 		if walls[cell] <= 0:

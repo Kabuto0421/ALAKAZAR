@@ -31,7 +31,8 @@ func run() -> void:
 	root.add_child(scene)
 	await create_timer(0.7).timeout
 	for weapon in range(Rules.WEAPONS.size()):
-		if Rules.WEAPONS[weapon].get("tier","") == "mid":
+		# Mid-game weapons and the swap staff (no damage, it trades places) have their own tests.
+		if Rules.WEAPONS[weapon].get("tier","") == "mid" or Rules.WEAPONS[weapon].get("swap", false):
 			continue
 		for attack in [false,true]:
 			var target := fixture(weapon,attack)

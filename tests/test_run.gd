@@ -249,6 +249,7 @@ func _initialize() -> void:
 	_class_ups()
 	_rare_fairies()
 	_magic_circle()
+	_mechanic_weapons()
 	_resonance()
 	_knockback()
 	_difficulty()
@@ -374,10 +375,10 @@ func _threats_and_weapons() -> void:
 		if W.DATA[index].offsets.size() == 2:
 			jump_pairs += 1
 			verify(W.is_quirky(index),"Only weapons with a jump get two early tiles")
-	verify(jump_pairs == 23,"Twenty-three odd two-tile weapons are in the early pool")
+	verify(jump_pairs == 13,"Thirteen odd two-tile weapons are in the early pool (mirror twins removed)")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
-	verify(W.opening_pool().size() == 21,"Twenty-one up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 24 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0),"Early rewards are the two-tile jumpers plus the shield")
+	verify(W.opening_pool().size() == 12,"Twelve up-and-down weapons make the opening pick varied")
+	verify(W.early_reward_pool().size() == 15 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield and the swap staff")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -766,9 +767,9 @@ func _expiring_and_rewards() -> void:
 	run.battle.enemies.clear()
 	run.battle.check_outcome()
 	run.finish_battle()
-	verify(run.is_before_boss() and run.offers.slice(0,3).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
-	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
-	verify(threes.size() == 13,"Thirteen three-tile weapons feed the pre-boss reward")
+	verify(run.is_before_boss() and run.offers.slice(0,3).all(func(o): return Run.Weapons.is_boss_reward(o.value)),"The reward before the boss offers three-tile weapons or the lance (no cross)")
+	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.is_boss_reward(i))
+	verify(threes.size() == 10,"Nine three-tile weapons and the lance feed the pre-boss reward")
 
 ## Fixture with one upgraded fairy in hand and heavies (HP 3) placed as asked.
 func _plus_room(id: String, foes: Array) -> RefCounted:
@@ -942,7 +943,7 @@ func _magic_circle() -> void:
 	verify(found.inside == [Vector2i(3,2)] and found.line.size() == 4,"A diagonal diamond encloses its centre")
 	verify(m.circle_enclosure([Vector2i(0,2),Vector2i(1,2),Vector2i(2,2),Vector2i(3,2),Vector2i(4,2),Vector2i(5,2)]).inside.is_empty() or m.board_size > 6,"A line across the board encloses nothing (the edge is not a wall)")
 	# A circle weapon: moves paint white tiles, cannot attack, and closing a shape deals 99.
-	var down_right: int = Run.Weapons.DATA.map(func(w): return w.id).find("front_down")
+	var down_right: int = Run.Weapons.DATA.map(func(w): return w.id).find("front_diagonal")
 	m.owned_weapons.assign([0,1,down_right])
 	m.enchants[down_right] = "circle"
 	m.weapon = down_right
@@ -985,6 +986,58 @@ func _magic_circle() -> void:
 				run.replace(2)
 			verify(run.battle.enchants.values().has("circle"),"A chosen circle weapon keeps its enchantment")
 	verify(seen > 0 and seen < 30,"Circle weapons are a rare early reward (%d/60)" % seen)
+
+func _weapon_room(id: String, foes: Array) -> RefCounted:
+	var m := fixture()
+	var index: int = Run.Weapons.DATA.map(func(w): return w.id).find(id)
+	m.owned_weapons.assign([0,1,index])
+	m.weapon = index
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	for k in foes.size():
+		var foe: Dictionary = m.make_enemy("heavy",foes[k],k)
+		foe.hp = 5
+		m.enemies.append(foe)
+	return m
+
+func _mechanic_weapons() -> void:
+	# 香車槍: slides right to the first enemy.
+	var m := _weapon_room("lance",[Vector2i(4,2)])
+	verify(m.targets() == [Vector2i(2,2),Vector2i(3,2),Vector2i(4,2)],"The lance reaches every free tile to the right and the first enemy")
+	verify(m.player_action(Vector2i(4,2)) and m.enemies[0].hp == 4,"...and strikes it")
+	verify(m.player_action(Vector2i(3,2)) and m.player.cell == Vector2i(3,2),"...or slides to any free tile on the way")
+	# 飛車槍 and 角剣: four lines each.
+	m = _weapon_room("rook_spear",[Vector2i(1,0)])
+	verify(m.targets().has(Vector2i(1,0)) and not m.targets().has(Vector2i(1,-1)) and m.targets().has(Vector2i(m.board_size-1,2)) and m.targets().has(Vector2i(0,2)),"The rook spear slides along the four lines, stopping at the first enemy")
+	m = _weapon_room("bishop_blade",[Vector2i(3,4)])
+	verify(m.targets().has(Vector2i(2,3)) and m.targets().has(Vector2i(3,4)) and not m.targets().has(Vector2i(4,5)) and m.targets().has(Vector2i(0,1)),"The bishop blade slides along the diagonals")
+	# A sliding weapon with a magic circle paints its whole path.
+	m = _weapon_room("rook_spear",[])
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),0))
+	m.enchants[m.weapon] = "circle"
+	m.player_action(Vector2i(4,2))
+	verify([Vector2i(1,2),Vector2i(2,2),Vector2i(3,2),Vector2i(4,2)].all(func(c): return m.circle_tiles.has(c)),"A circle rook spear paints every tile it slid over")
+	# 鎖鎌: hit two tiles away and drag the enemy in.
+	m = _weapon_room("sickle",[Vector2i(3,2)])
+	verify(m.player_action(Vector2i(3,2)) and m.enemies[0].hp == 4 and m.enemies[0].cell == Vector2i(2,2),"The sickle hits and pulls the enemy next to the player")
+	# 入替の杖: trade places, no damage; not with a 2x2.
+	m = _weapon_room("swap_staff",[Vector2i(3,1)])
+	verify(m.player_action(Vector2i(3,1)) and m.player.cell == Vector2i(3,1) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The swap staff trades places without damage")
+	# 溜め大剣: +1 for each turn it sat unused, up to +2, back to normal after a hit.
+	m = _weapon_room("charge_blade",[Vector2i(2,2)])
+	m.tick_walls()
+	m.tick_walls()
+	m.tick_walls()
+	verify(m.weapon_damage(m.weapon) == 3,"The charge blade builds up to 3 damage while unused")
+	m.player_action(Vector2i(2,2))
+	verify(m.enemies[0].hp == 2 and m.weapon_damage(m.weapon) == 1,"Its hit spends the charge")
+	m.tick_walls()
+	verify(m.weapon_damage(m.weapon) == 1,"A turn it was used in stores nothing")
+	# Pools: the lance is a pre-boss reward, the rook and bishop mid-game drops, the staff an early reward.
+	var W := Run.Weapons
+	var ids: Array = W.DATA.map(func(w): return w.id)
+	verify(W.is_boss_reward(ids.find("lance")) and W.mid_pool().has(ids.find("rook_spear")) and W.mid_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
+	verify(W.DATA.size() == 39,"The catalogue is trimmed to 39 weapons")
 
 func _capacitor() -> void:
 	var m := fixture()

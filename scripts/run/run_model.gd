@@ -126,7 +126,7 @@ func finish_battle() -> bool:
 		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid):
 			continue
 		if before_boss:
-			if Weapons.offsets(index).size() != 3:
+			if not Weapons.is_boss_reward(index):
 				continue
 		elif single_only and not Weapons.early_reward_pool().has(index):
 			continue

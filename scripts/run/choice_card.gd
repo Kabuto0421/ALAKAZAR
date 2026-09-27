@@ -62,6 +62,7 @@ func _ready() -> void:
 		diagram.position = Vector2((size.x-side)/2,66)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
+		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.context = context
 		diagram.accent = accent
 		add_child(diagram)

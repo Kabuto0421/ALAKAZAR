@@ -914,7 +914,15 @@ func _draw_weapons() -> void:
 		extras.assign(["魔法陣","攻撃不可"] if circle else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
-		if Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2):
+		if weapon.has("slide"):
+			extras.append("滑る")
+		if weapon.get("pull",false):
+			extras.append("引寄")
+		if weapon.get("swap",false):
+			extras.append("入替")
+		if weapon.has("charge"):
+			extras.append("溜め%d/%d" % [model.blade_charge, Rules.BLADE_MAX])
+		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
 		_text(pos+Vector2(28,72),"・".join(extras),16,Color("c9b3ff") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
 		if circle:
@@ -937,6 +945,12 @@ func _draw_weapons() -> void:
 					_draw_player_portrait(index,tile.get_center(),cell_size*1.1,1)
 				elif active:
 					draw_circle(tile.get_center(),maxf(2,cell_size*0.16),accent)
+		# Sliding weapons: arrows past the outer tiles.
+		for direction in Catalog.slides(index):
+			var far := origin+(Vector2(direction*(count/2)+Vector2i(count/2,count/2))+Vector2.ONE*0.5)*cell_size
+			var tip: Vector2 = far+Vector2(direction).normalized()*cell_size*0.75
+			draw_line(far,tip,accent,2)
+			draw_circle(tip,2.5,accent)
 		if forged:
 			SpiritIcon.paint_plus(self,origin+Vector2(side+4,-3),18)
 		if model.locked_slot >= 0:
@@ -1280,7 +1294,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1317,6 +1331,22 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				var chunk := Vector2.from_angle(k * TAU / 7 + 0.3) * (6 + t * 26)
 				draw_rect(Rect2(pos + chunk - Vector2(3, 3), Vector2(6, 6)), Color("c9b79a", fade))
 			draw_arc(pos, 8 + t * 18, 0, TAU, 16, Color("ffd35b", fade * 0.8), 3, true)
+		"pull":
+			# The sickle's chain snapping the enemy in.
+			var from := _center(effect.from)
+			var at := from.lerp(pos, clampf(t * 2.0, 0.0, 1.0))
+			for k in range(6):
+				var link := at.lerp(pos - (pos - from).normalized() * 30, k / 5.0)
+				draw_arc(link, 4, 0, TAU, 8, Color("b8c4d0", fade), 2, true)
+			draw_line(at - Vector2(8, 8), at + Vector2(8, 8), Color("e8eef0", fade), 3)
+		"swap":
+			# Two violet arcs trading places.
+			var from := _center(effect.from)
+			var mid := (from + pos) / 2 + Vector2(0, -30)
+			draw_polyline(PackedVector2Array([from, mid, pos]), Color("c89bff", fade), 3, true)
+			draw_polyline(PackedVector2Array([pos, (from + pos) / 2 + Vector2(0, 30), from]), Color("e0c8ff", fade * 0.8), 3, true)
+			draw_circle(pos, 6 + t * 16, Color("c89bff", fade * 0.4))
+			draw_circle(from, 6 + t * 16, Color("c89bff", fade * 0.4))
 		"chalk":
 			# A tile turning white: a bright ring and a few rising sparkles.
 			draw_arc(pos, 8 + t * 22, 0, TAU, 24, Color(1, 1, 1, fade), 3, true)

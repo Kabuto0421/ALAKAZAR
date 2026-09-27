@@ -73,7 +73,8 @@ func run() -> void:
 	verify(view.model.phase==Rules.Phase.PLAYER and view.model.player.ap==2,"Turn returns to player after allies and enemies")
 	# Every movement pattern shares the existing sword animation, including backward attacks.
 	for weapon in range(Rules.WEAPONS.size()):
-		if Rules.WEAPONS[weapon].get("tier","") == "mid":
+		# Mid-game weapons and the swap staff (no damage, it trades places) have their own tests.
+		if Rules.WEAPONS[weapon].get("tier","") == "mid" or Rules.WEAPONS[weapon].get("swap", false):
 			continue
 		view.model.phase=Rules.Phase.PLAYER
 		view.model.player.ap=2
@@ -84,6 +85,7 @@ func run() -> void:
 		view.model.enemies.clear()
 		view.model.owned_weapons.assign([weapon])
 		view.model.equip(weapon)
+		view.model.blade_charge = 0
 		var target: Vector2i = view.model.player.cell+first
 		view.model.enemies.append(view.model.make_enemy("heavy",target,0))
 		view.model.enemies.append(view.model.make_enemy("heavy",Vector2i(3,3),1))
