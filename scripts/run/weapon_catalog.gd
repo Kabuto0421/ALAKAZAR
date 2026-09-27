@@ -57,6 +57,10 @@ const DATA = [
 	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
 	{"id":"retreat_tower", "name":"退城剣", "short":"退城", "row":2, "color":"ffa0c8", "detail":"左の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(-1,0),Vector2i(0,-2),Vector2i(0,2)]},
 	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・右・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1)]},
+	# Knockback: a struck enemy is shoved one tile away; if it cannot move it takes 1 more.
+	{"id":"shield", "name":"盾打ち", "short":"盾", "row":2, "color":"b8d7c5", "knockback":1, "detail":"右の1マス。攻撃した敵を右へ押し出す", "offsets":[Vector2i(1,0)]},
+	{"id":"sweep", "name":"薙ぎ払い", "short":"薙払", "row":2, "color":"d7c5b8", "knockback":1, "detail":"上・下の1マス。攻撃した敵を上下へ押し出す", "offsets":[Vector2i(0,-1),Vector2i(0,1)]},
+	{"id":"gale", "name":"突風剣", "short":"突風", "row":2, "color":"c5f0ff", "knockback":1, "detail":"右上・右・右下。攻撃した敵を外側へ押し出す", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1)]},
 	# Mid-game weapons, dropped after the first boss.
 	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
@@ -88,13 +92,17 @@ static func is_quirky(index: int) -> bool:
 static func is_early(index: int) -> bool:
 	return is_single(index) or is_quirky(index)
 
-## Rewards of the first fights: only the odd two-tile weapons.
-static func early_reward_pool() -> Array:
-	return single_pool().filter(func(index: int) -> bool: return is_quirky(index))
+static func knockback(index: int) -> int:
+	return int(DATA[index].get("knockback", 0)) if index >= 0 and index < DATA.size() else 0
 
-## Only moves left/right: the starting forward/backward pair already covers that.
+## Rewards of the first fights: the odd two-tile weapons, plus the one-tile shield.
+static func early_reward_pool() -> Array:
+	return single_pool().filter(func(index: int) -> bool: return is_quirky(index) or (knockback(index) > 0 and is_single(index)))
+
+## Only moves left/right: the starting forward/backward pair already covers that
+## (knockback weapons earn their place by the shove).
 static func horizontal_only(index: int) -> bool:
-	return DATA[index].offsets.all(func(o: Vector2i) -> bool: return o.y == 0)
+	return DATA[index].offsets.all(func(o: Vector2i) -> bool: return o.y == 0) and int(DATA[index].get("knockback", 0)) == 0
 
 ## Early weapons other than the starting forward/backward pair.
 static func single_pool() -> Array:

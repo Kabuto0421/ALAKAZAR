@@ -790,6 +790,8 @@ func _draw_weapons() -> void:
 		draw_rect(rect,accent if model.weapon==index else Color("324843"),false,3 if model.weapon==index else 2)
 		_text(pos+Vector2(12,32),weapon.name,23,accent)
 		var power_text := "  攻撃%d" % model.weapon_damage(index) if model.weapon_damage(index) > 1 else ""
+		if weapon.get("knockback",0) > 0:
+			power_text += "  押出"
 		_text(pos+Vector2(12,66),("装備中" if model.weapon==index else "装備する")+power_text,19,INK)
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
@@ -1011,7 +1013,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1028,6 +1030,16 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				pts.append(pos + dir * along + across * (jitter if k in [1, 2, 3] else 0.0))
 			draw_polyline(pts, Color(0.1, 0.1, 0.2, fade * 0.6), 7)
 			draw_polyline(pts, Color("ffe76a", fade), 3)
+		"push":
+			# Skid marks trailing behind a shoved enemy.
+			for k in range(3):
+				draw_line(pos - dir * (14 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, pos - dir * (24 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, Color("e5dfc5", fade * 0.7), 3)
+		"bump":
+			# Impact star where the enemy slams into something.
+			var at := pos + dir * 26
+			for k in range(6):
+				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
+				draw_line(at, at + ray, Color("ffd35b", fade), 3)
 		"resonate":
 			# Rings rippling out from a cannon the shot passed through.
 			draw_arc(pos, 14 + t * 22, 0, TAU, 24, Color("9ff5ff", fade), 3, true)

@@ -247,6 +247,7 @@ func _initialize() -> void:
 	_expiring_and_rewards()
 	_capacitor()
 	_resonance()
+	_knockback()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -370,7 +371,7 @@ func _threats_and_weapons() -> void:
 	verify(jump_pairs == 23,"Twenty-three odd two-tile weapons are in the early pool")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
 	verify(W.opening_pool().size() == 21,"Twenty-one up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 23 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2),"Early rewards are all two-tile")
+	verify(W.early_reward_pool().size() == 24 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0),"Early rewards are the two-tile jumpers plus the shield")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -748,7 +749,7 @@ func _expiring_and_rewards() -> void:
 	run.finish_battle()
 	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
-	verify(threes.size() == 12,"Twelve three-tile weapons feed the pre-boss reward")
+	verify(threes.size() == 13,"Thirteen three-tile weapons feed the pre-boss reward")
 
 func _capacitor() -> void:
 	var m := fixture()
@@ -795,3 +796,49 @@ func _resonance() -> void:
 	verify(m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, passed).has(Vector2i(3,2)) and passed.size() == 1,"The line runs through cannons")
 	m.walls[Vector2i(3,2)] = 2
 	verify(not m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, []).has(Vector2i(4,2)),"Walls still stop a shot")
+
+func _knockback() -> void:
+	var W := Run.Weapons
+	var shield: int = W.DATA.map(func(d): return d.id).find("shield")
+	verify(W.early_reward_pool().has(shield) and not W.opening_pool().has(shield),"The shield drops early (not as the opening pick)")
+	var m := fixture()
+	m.owned_weapons.assign([0,1,shield])
+	m.weapon = shield
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
+	verify(m.player_action(Vector2i(2,2)) and m.enemies[0].cell == Vector2i(3,2) and m.enemies[0].hp == 1,"A shield hit deals 1 and shoves the enemy a tile away")
+	m.player.ap = 2
+	m.player.cell = Vector2i(2,2)
+	m.walls[Vector2i(4,2)] = 3
+	verify(m.player_action(Vector2i(3,2)) and m.enemy_at(Vector2i(3,2)).is_empty(),"Shoved into a wall it takes 1 more (a heavy goes down)")
+	m = fixture()
+	m.weapon = shield
+	m.owned_weapons.assign([0,1,shield])
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	var front: Dictionary = m.make_enemy("heavy",Vector2i(2,2),0)
+	var back: Dictionary = m.make_enemy("heavy",Vector2i(3,2),1)
+	m.enemies.append(front)
+	m.enemies.append(back)
+	m.player_action(Vector2i(2,2))
+	verify(front.cell == Vector2i(2,2) and front.hp == 0 and back.hp == 1,"Slamming into another enemy hurts both")
+	m = fixture()
+	m.weapon = shield
+	m.owned_weapons.assign([0,1,shield])
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
+	m.mines.append(Vector2i(3,2))
+	m.player_action(Vector2i(2,2))
+	verify(m.enemy_at(Vector2i(3,2)).is_empty() and m.mines.is_empty(),"A shove onto a mine sets it off")
+	var gale: int = W.DATA.map(func(d): return d.id).find("gale")
+	m = fixture()
+	m.weapon = gale
+	m.owned_weapons.assign([0,1,gale])
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(2,1),0))
+	m.player_action(Vector2i(2,1))
+	verify(m.enemies[0].cell == Vector2i(3,0),"Gale shoves diagonally outward")
+	verify(W.offsets(gale).size() == 3,"Gale is a three-tile pre-boss weapon")

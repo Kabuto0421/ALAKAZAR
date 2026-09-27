@@ -87,11 +87,14 @@ func run() -> void:
 		var target: Vector2i = view.model.player.cell+first
 		view.model.enemies.append(view.model.make_enemy("heavy",target,0))
 		view.model.enemies.append(view.model.make_enemy("heavy",Vector2i(3,3),1))
+		var struck: Dictionary = view.model.enemies[0]
 		view._sync_units(false)
 		view._update_controls()
 		view._act(target)
 		verify(view.actors[-1].weapon_row==2 and view.actors[-1].sword_attack_elapsed>=0.0,"Weapon %d uses sword art and attack motion" % weapon)
-		verify(view.model.player.ap==1 and view.model.enemies[0].hp==1,"Sword action deals one damage for one AP")
+		# Knockback weapons may add a slam on top of the hit.
+		var shoved: bool = Rules.WEAPONS[weapon].get("knockback",0) > 0
+		verify(view.model.player.ap==1 and (struck.hp==1 or (shoved and struck.hp<=1)),"Sword action deals one damage for one AP")
 		view._act(target)
 		verify(view.model.player.ap==1,"Animation rejects duplicate taps")
 		await create_timer(Motion.duration(1)+0.08).timeout

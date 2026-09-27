@@ -518,6 +518,9 @@ func player_action(cell: Vector2i) -> bool:
 			if target.hp <= 0:
 				kills += 1
 				add_log("%sを撃破" % TYPES[target.type].name)
+			elif Catalog.knockback(weapon) > 0:
+				var away := Vector2i(signi(cell.x - player.cell.x), signi(cell.y - player.cell.y))
+				knock_back(target, away, Catalog.knockback(weapon))
 	elif WEAPONS[weapon].get("ranged","") == "bishop":
 		return false
 	else:
@@ -526,6 +529,37 @@ func player_action(cell: Vector2i) -> bool:
 		shadow_strike()
 	check_outcome()
 	return true
+
+## Shove an enemy `tiles` squares. Blocked by the edge, terrain, a cannon, the
+## player or another enemy, it slams into it: 1 damage (and 1 to an enemy it hits).
+func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
+	var big: bool = int(enemy.get("size", 1)) > 1
+	if direction == Vector2i.ZERO or (big and direction.x != 0 and direction.y != 0):
+		return
+	for step in tiles:
+		var front: Array[Vector2i] = [enemy.cell + direction]
+		if big:
+			front = _front_cells(enemy, direction)
+		var obstacle := {}
+		var stopped := false
+		for cell in front:
+			if not inside(cell) or blocked(cell) or cell == player.cell:
+				stopped = true
+			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
+				stopped = true
+				obstacle = enemy_at(cell)
+		if stopped:
+			events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
+			add_log("%sが叩きつけられた" % TYPES[enemy.type].name)
+			damage_enemy(enemy, 1)
+			if not obstacle.is_empty():
+				damage_enemy(obstacle, 1)
+			return
+		enemy.cell += direction
+		events.append({"kind":"push", "cell":enemy.cell, "id":-2, "dir":direction})
+		trigger_mine(enemy)
+		if enemy.hp <= 0:
+			return
 
 func weapon_damage(index: int) -> int:
 	return Catalog.base_damage(index) + int(weapon_power.get(index, 0))
