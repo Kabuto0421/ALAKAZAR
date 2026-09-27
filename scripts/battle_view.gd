@@ -164,6 +164,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
+	bgm.theme = "boss" if model.level == Rules.BOSS_LEVEL else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
 	for i in range(grid_buttons.size()):
 		var cell := Vector2i(i%MAX_BOARD,i/MAX_BOARD)

@@ -186,6 +186,8 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 | ファイル | 内容 |
 | --- | --- |
 | `battle_loop.ogg` | 戦闘BGM（132BPM・36小節、約65秒のループ）。大半は控えめなグルーヴで、1周に1回だけ盛り上げ→フック→クライマックス（ツインリードとスタブ）→余韻と山を作り、キックの抜けたブレイクを経て元に戻る |
+| `boss_loop.ogg` | 最初のボス戦のBGM（Eマイナー・140BPM・32小節、約55秒のループ）。重い行進曲調で、Eの上にFを当てた不穏な進行、オクターブで跳ねるベース、行進のフック、ツインリードのクライマックス、キックの抜けたブレイク |
+| `rotorick_loop.ogg` | ロトリック戦のBGM（Aハーモニックマイナー・152BPMの3連符、約51秒のループ）。狂ったサイバーサーカス調（ブンチャッチャのベースと半音で転がるリード）に、リールが回るような速いアルペジオ。途中に鐘が鳴る重いハーフテンポの「執行」パートを挟み、大当たりの鐘の上昇音からクライマックスへ |
 | `victory.ogg` | 勝利ジングル（上昇アルペジオからDメジャーで解決） |
 | `defeat.ogg` | 敗北ジングル（戦闘のパッドがテープストップして沈む） |
 
@@ -193,6 +195,7 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 
 ```sh
 python3 tools/generate_bgm.py
+python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # 指定した曲だけ
 ```
 
 戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。

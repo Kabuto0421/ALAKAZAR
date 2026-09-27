@@ -20,6 +20,15 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      battle_loop.ogg.import).
     victory.ogg      rising arp that resolves D minor -> D major
     defeat.ogg       the battle pad powering down (tape-stop and filter close)
+    boss_loop.ogg    first boss: E minor, 140 BPM, 32 bars. A heavier march:
+                     Phrygian F against E, octave-bouncing bass, a marching
+                     hook, a twin-lead climax and a kick-less break.
+    rotorick_loop.ogg  Rotorick: A harmonic minor, 152 BPM in a triplet 12/8
+                     swing. A mad cyber-circus (oom-pah bass, chromatic lead),
+                     reel-spin arpeggios, a half-time "execution" section with a
+                     tolling bell, then a jackpot climax.
+
+    python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
 """
 
 import math
@@ -466,11 +475,288 @@ def defeat_jingle():
     return mix
 
 
+# ---------------------------------------------------------------------------
+# Boss themes (same instruments; their own keys and tempos)
+# ---------------------------------------------------------------------------
+
+def with_tempo(bpm, render):
+    """Run a renderer with STEP set for its tempo (the shared voices read STEP)."""
+    global STEP
+    saved = STEP
+    STEP = 60.0 / bpm / 4
+    try:
+        return render()
+    finally:
+        STEP = saved
+
+
+def lower_third(note, pcs):
+    m = midi(note) if isinstance(note, str) else note
+    below = [c for c in range(m - 1, m - 13, -1) if c % 12 in pcs]
+    return below[1]
+
+
+def bell(note, seconds, vol=0.1):
+    """Cold metallic toll: a sine plus an inharmonic partial."""
+    m = midi(note)
+    body = synth(m, seconds, "sine", vol=vol, attack=0.002, decay=0.9, sustain=0.0,
+                 release=0.4, cutoff=(6000, 3000, 0.5))
+    ring = synth(m + 17.58, seconds, "sine", vol=vol * 0.45, attack=0.002, decay=0.35,
+                 sustain=0.0, release=0.2, cutoff=(8000, 4000, 0.3))
+    octave = synth(m - 12, seconds, "sine", vol=vol * 0.6, attack=0.004, decay=1.4,
+                   sustain=0.0, release=0.5, cutoff=(3000, 1500, 0.5))
+    return [a + b + c for a, b, c in zip(body, ring + [0.0] * len(body), octave)][:len(body)]
+
+
+# E natural minor; D# is used over the B chord.
+BOSS_PCS = [4, 6, 7, 9, 11, 0, 2]
+BOSS_CHORDS = {
+    "Em": {"bass": "E2", "pad": ["E3", "G3", "B3", "E4"], "arp": ["E4", "G4", "B4", "E5"]},
+    "F": {"bass": "F2", "pad": ["F3", "A3", "C4", "F4"], "arp": ["F4", "A4", "C5", "F5"]},
+    "D": {"bass": "D2", "pad": ["D3", "F#3", "A3", "D4"], "arp": ["D4", "F#4", "A4", "D5"]},
+    "C": {"bass": "C2", "pad": ["C3", "E3", "G3", "C4"], "arp": ["C4", "E4", "G4", "C5"]},
+    "Am": {"bass": "A1", "pad": ["A2", "C3", "E3", "A3"], "arp": ["A3", "C4", "E4", "A4"]},
+    "B": {"bass": "B1", "pad": ["B2", "D#3", "F#3", "B3"], "arp": ["B3", "D#4", "F#4", "B4"]},
+}
+MENACE = ["Em", "F", "Em", "D"]
+TURN = ["Em", "C", "Am", "B"]
+BOSS_HOOK = [
+    [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "A5"), (12, 2, "G5"), (14, 2, "F#5")],
+    [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 8, "B5")],
+    [(0, 2, "A5"), (2, 2, "G5"), (4, 2, "E5"), (6, 2, "C5"), (8, 4, "E5"), (12, 4, "A5")],
+    [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "D#6"), (8, 8, "B5")],
+]
+BOSS_CLIMAX = [
+    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "B5")],
+    [(0, 2, "C6"), (2, 2, "F6"), (4, 2, "E6"), (6, 2, "C6"), (8, 8, "A5")],
+    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "G6"), (6, 2, "F#6"), (8, 4, "E6"), (12, 4, "B5")],
+    [(0, 3, "A5"), (3, 3, "D6"), (6, 2, "F#6"), (8, 8, "A6")],
+]
+# name, bars, progression, kick, hat, clap, arp vol, arp cutoff, pad vol, bass vol, lead
+BOSS_SECTIONS = [
+    ("intro",  4, MENACE, 0.6,  0.10, 0.0,  0.08, 900,  0.10, 0.45, None),
+    ("drive",  8, MENACE, 0.85, 0.18, 0.35, 0.11, 1800, 0.10, 0.52, None),
+    ("hook",   8, TURN,   0.9,  0.20, 0.40, 0.11, 2600, 0.11, 0.52, "hook"),
+    ("climax", 8, MENACE, 0.95, 0.24, 0.50, 0.12, 4200, 0.12, 0.55, "climax"),
+    ("break",  4, TURN,   0.0,  0.0,  0.0,  0.07, 800,  0.11, 0.35, None),
+]
+
+
+def boss_theme():
+    bar_len = 16 * STEP
+    plan = []
+    for name, count, prog, *levels in BOSS_SECTIONS:
+        for i in range(count):
+            plan.append((name, i, count, BOSS_CHORDS[prog[i % 4]], levels))
+    mix = Mix(len(plan) * bar_len, wrap=True)
+    rng = random.Random(21)
+    kicks = []
+    starts = {}
+    for bar, (name, idx, count, chord, levels) in enumerate(plan):
+        k_vol, hat, clap, arp_v, arp_c, pad_v, bass_v, part = levels
+        t0 = bar * bar_len
+        starts.setdefault(name, bar)
+        climax = name == "climax"
+        for beat in range(4):
+            bt = t0 + beat * 4 * STEP
+            if k_vol and (name != "intro" or beat == 0):
+                mix.put("kick", bt, kick(k_vol))
+                kicks.append(bt)
+            # March bass: root, octave, root on the 16ths after the kick.
+            for s in (1, 2, 3):
+                note = midi(chord["bass"]) + (12 if s == 2 and name != "intro" else 0)
+                mix.put("bass", bt + s * STEP, bass_note(note, vol=bass_v))
+            if hat:
+                mix.put("hat", bt + 2 * STEP, noise_hit(rng, 0.08, 6000, 12000, hat))
+                for s in (1, 3):
+                    mix.put("hat", bt + s * STEP, noise_hit(rng, 0.03, 7000, 13000, hat * 0.35))
+            if clap and beat in (1, 3):
+                mix.put("clap", bt, noise_hit(rng, 0.18, 900, 3200, clap, bursts=3))
+            if climax:
+                mix.put("stab", bt + 2 * STEP, stab(chord["arp"][:3]))
+        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=1100 if climax else 800, vol=pad_v))
+        order = [0, 1, 2, 3, 2, 1, 2, 3] if name != "break" else [0, 2, 1, 2]
+        for s in range(16):
+            note = chord["arp"][order[s % len(order)]]
+            mix.put("arp", t0 + s * STEP, pluck(note, arp_c, vol=arp_v))
+        if part:
+            phrase = BOSS_CLIMAX[idx % 4] if part == "climax" and idx < 4 else BOSS_HOOK[idx % 4]
+            lift = 12 if part == "climax" and idx >= 4 else 0
+            prev = None
+            for step, length, note in phrase:
+                m = midi(note) + lift
+                mix.put("lead", t0 + step * STEP, lead(m, length, glide_from=prev))
+                if part == "climax":
+                    mix.put("lead", t0 + step * STEP, lead(lower_third(m, BOSS_PCS + [3]), length, vol=0.09))
+                prev = m
+    # Tension into the drive, and crashes on the big entrances.
+    mix.put("fx", (starts["drive"] - 2) * bar_len, riser(rng, 2 * bar_len))
+    mix.put("fx", starts["drive"] * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.18))
+    mix.put("fx", starts["hook"] * bar_len, noise_hit(rng, 1.4, 3000, 11000, 0.14))
+    mix.put("fx", starts["climax"] * bar_len - 4 * STEP, riser(rng, 4 * STEP, vol=0.16))
+    mix.put("fx", starts["climax"] * bar_len, noise_hit(rng, 2.2, 2500, 11000, 0.22))
+    mix.put("fx", (len(plan) - 2) * bar_len, riser(rng, 2 * bar_len, vol=0.1))
+    mix.echo("arp", STEP * 3, 0.3, 0.4)
+    mix.echo("lead", STEP * 3, 0.35, 0.38)
+    mix.echo("stab", STEP * 3, 0.25, 0.3)
+    mix.duck("pad", kicks, 0.7)
+    mix.duck("arp", kicks, 0.45)
+    mix.duck("stab", kicks, 0.3)
+    mix.duck("bass", kicks, 0.3, length=0.12)
+    mix.duck("lead", kicks, 0.2)
+    return mix
+
+
+# A harmonic minor (G#) for the circus-executioner mood.
+ROTO_PCS = [9, 11, 0, 2, 4, 5, 8]
+ROTO_CHORDS = {
+    "Am": {"bass": "A1", "fifth": "E2", "chord": ["A3", "C4", "E4"], "pad": ["A2", "C3", "E3", "A3"]},
+    "E": {"bass": "E2", "fifth": "B1", "chord": ["G#3", "B3", "D4"], "pad": ["E2", "G#2", "B2", "D3"]},
+    "Dm": {"bass": "D2", "fifth": "A1", "chord": ["D4", "F4", "A4"], "pad": ["D3", "F3", "A3", "D4"]},
+    "F": {"bass": "F1", "fifth": "C2", "chord": ["F3", "A3", "C4"], "pad": ["F2", "A2", "C3", "F3"]},
+}
+ROTO_PROG = ["Am", "E", "Am", "E", "Dm", "Am", "E", "Am"]
+# (tick, length, note) on a 12-tick bar (triplet eighths).
+ROTO_TUNE = [
+    [(0, 2, "E5"), (2, 1, "A5"), (3, 2, "G#5"), (5, 1, "A5"), (6, 2, "C6"), (8, 1, "B5"), (9, 3, "A5")],
+    [(0, 2, "G#5"), (2, 1, "B5"), (3, 2, "A5"), (5, 1, "G#5"), (6, 2, "F5"), (8, 1, "E5"), (9, 3, "D5")],
+    [(0, 2, "E5"), (2, 1, "A5"), (3, 2, "G#5"), (5, 1, "A5"), (6, 2, "E6"), (8, 1, "D6"), (9, 3, "C6")],
+    [(0, 1, "B5"), (1, 1, "C6"), (2, 1, "B5"), (3, 1, "A5"), (4, 1, "G#5"), (5, 1, "F5"), (6, 3, "E5"), (9, 3, "G#5")],
+    [(0, 2, "D5"), (2, 1, "F5"), (3, 2, "A5"), (5, 1, "D6"), (6, 3, "C6"), (9, 2, "A5"), (11, 1, "F5")],
+    [(0, 2, "E5"), (2, 1, "A5"), (3, 2, "C6"), (5, 1, "E6"), (6, 3, "D6"), (9, 3, "C6")],
+    [(0, 1, "G#5"), (1, 1, "A5"), (2, 1, "B5"), (3, 1, "C6"), (4, 1, "D6"), (5, 1, "E6"),
+     (6, 1, "F6"), (7, 1, "E6"), (8, 1, "D6"), (9, 3, "B5")],
+    [(0, 3, "A5"), (3, 3, "E5"), (6, 6, "A4")],
+]
+# The executioner's verdict: slow, low, deliberate.
+ROTO_VERDICT = [
+    [(0, 6, "A3"), (6, 6, "C4")],
+    [(0, 6, "B3"), (6, 3, "G#3"), (9, 3, "E3")],
+    [(0, 6, "F3"), (6, 6, "D3")],
+    [(0, 9, "E3"), (9, 3, "G#3")],
+]
+# name, bars, kick pattern, clap, oom-pah vol, reel vol, pad vol, lead
+ROTO_SECTIONS = [
+    ("spin",    4, "none",  0.0,  0.0,  0.10, 0.09, None),
+    ("circus",  8, "waltz", 0.0,  0.10, 0.05, 0.07, "tune"),
+    ("frenzy",  8, "four",  0.35, 0.11, 0.06, 0.08, "tune2"),
+    ("verdict", 4, "half",  0.0,  0.0,  0.0,  0.12, "verdict"),
+    ("jackpot", 8, "four",  0.45, 0.12, 0.08, 0.10, "twin"),
+]
+
+
+def roto_theme():
+    beat_len = 4 * STEP
+    tick = beat_len / 3
+    bar_len = 4 * beat_len
+    plan = []
+    for name, count, *levels in ROTO_SECTIONS:
+        for i in range(count):
+            plan.append((name, i, count, levels))
+    mix = Mix(len(plan) * bar_len, wrap=True)
+    rng = random.Random(77)
+    kicks = []
+    starts = {}
+
+    def note_len(ticks):
+        return ticks * tick * 0.9
+
+    for bar, (name, idx, count, levels) in enumerate(plan):
+        kick_mode, clap, oompah, reel, pad_v, part = levels
+        key = "Am" if name == "spin" else ROTO_PROG[idx % 8] if name != "verdict" else ["Am", "E", "Dm", "E"][idx % 4]
+        chord = ROTO_CHORDS[key]
+        t0 = bar * bar_len
+        starts.setdefault(name, bar)
+        for beat in range(4):
+            bt = t0 + beat * beat_len
+            hit = (kick_mode == "four") or (kick_mode == "waltz" and beat in (0, 2)) or (kick_mode == "half" and beat == 0)
+            if hit:
+                mix.put("kick", bt, kick(0.95 if kick_mode == "half" else 0.8))
+                kicks.append(bt)
+            if clap and beat in (1, 3):
+                mix.put("clap", bt, noise_hit(rng, 0.16, 900, 3200, clap, bursts=3))
+            if kick_mode != "none":
+                mix.put("hat", bt + 2 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.12))
+            if oompah:
+                # Oom-pah: bass on the beat (root / fifth), chord plucks on the swung offbeats.
+                bass = chord["bass"] if beat in (0, 2) else chord["fifth"]
+                mix.put("bass", bt, synth(bass, tick * 1.6, "saw", detune=(-6, 6), vol=0.5,
+                                          attack=0.003, decay=0.1, sustain=0.45, release=0.03,
+                                          cutoff=(1500, 280, 0.05)))
+                for off in (1, 2):
+                    for nt in chord["chord"]:
+                        mix.put("comp", bt + off * tick, pluck(nt, 1800, vol=oompah * 0.55))
+            if reel:
+                # Reel spin: fast triplet plucks tumbling through the chord.
+                tones = chord["chord"] + [chord["chord"][0]]
+                for k in range(3):
+                    idx_note = (beat * 3 + k + bar) % 4
+                    m = midi(tones[idx_note]) + 12
+                    mix.put("arp", bt + k * tick, pluck(m, 2600, vol=reel))
+        if name == "spin":
+            # The wheel winds up: ticks speeding up from quarter notes to triplets.
+            density = [4, 6, 12, 12][idx]
+            for k in range(density):
+                m = midi(["A4", "C5", "E5", "G#5"][k % 4]) + (12 if idx == 3 else 0)
+                mix.put("arp", t0 + k * bar_len / density, pluck(m, 1500 + 600 * idx, vol=0.1))
+            bass = synth("A1", bar_len * 0.95, "saw", detune=(-6, 6), vol=0.3, attack=0.05,
+                         decay=0.6, sustain=0.6, release=0.2, cutoff=(700, 300, 0.4))
+            mix.put("bass", t0, bass)
+        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=900, vol=pad_v))
+        if part in ("tune", "tune2", "twin"):
+            phrase = ROTO_TUNE[idx % 8]
+            prev = None
+            for tk, length, note in phrase:
+                m = midi(note) + (12 if part == "twin" and idx >= 4 else 0)
+                mix.put("lead", t0 + tk * tick, synth(m, note_len(length), "saw", detune=(-7, 7),
+                                                       vol=0.15, attack=0.006, decay=0.18, sustain=0.6,
+                                                       release=0.06, cutoff=(3000, 1700, 0.15),
+                                                       glide_from=prev if length > 1 else None))
+                if part in ("tune2", "twin"):
+                    low = lower_third(m, ROTO_PCS)
+                    mix.put("lead", t0 + tk * tick, synth(low, note_len(length), "pulse", duty=0.25,
+                                                           vol=0.07, attack=0.004, decay=0.15, sustain=0.5,
+                                                           release=0.05, cutoff=(2500, 1200, 0.1)))
+                prev = m
+        elif part == "verdict":
+            mix.put("bell", t0, bell("A5" if idx % 2 == 0 else "E5", 2.0, vol=0.12))
+            for tk, length, note in ROTO_VERDICT[idx % 4]:
+                mix.put("lead", t0 + tk * tick, synth(note, note_len(length), "saw", detune=(-9, 0, 9),
+                                                       vol=0.2, attack=0.03, decay=0.5, sustain=0.7,
+                                                       release=0.2, cutoff=(1600, 700, 0.3)))
+                mix.put("lead", t0 + tk * tick, synth(midi(note) - 12, note_len(length), "saw", detune=(-5, 5),
+                                                       vol=0.12, attack=0.03, decay=0.5, sustain=0.7,
+                                                       release=0.2, cutoff=(900, 400, 0.3)))
+    # Jackpot: a bright bell sweep and crash as the climax lands.
+    jp = starts["jackpot"] * bar_len
+    for k, note in enumerate(["A5", "C6", "E6", "A6", "C7", "E7"]):
+        mix.put("bell", jp - (6 - k) * tick, bell(note, 0.8, vol=0.07))
+    mix.put("fx", jp, noise_hit(rng, 2.2, 2500, 11000, 0.22))
+    mix.put("fx", starts["circus"] * bar_len - 2 * beat_len, riser(rng, 2 * beat_len, vol=0.12))
+    mix.put("fx", starts["frenzy"] * bar_len, noise_hit(rng, 1.4, 3000, 11000, 0.15))
+    mix.put("fx", starts["verdict"] * bar_len, noise_hit(rng, 2.5, 1200, 6000, 0.14))
+    mix.put("fx", jp - 2 * beat_len, riser(rng, 2 * beat_len, vol=0.16))
+    mix.echo("arp", tick * 2, 0.3, 0.35)
+    mix.echo("lead", tick * 3, 0.3, 0.32)
+    mix.echo("bell", beat_len, 0.4, 0.5)
+    mix.duck("pad", kicks, 0.6)
+    mix.duck("comp", kicks, 0.3)
+    mix.duck("arp", kicks, 0.35)
+    mix.duck("lead", kicks, 0.15)
+    return mix
+
+
 def main():
+    import sys
     os.makedirs(OUT_DIR, exist_ok=True)
     tracks = {"battle_loop.ogg": battle_theme, "victory.ogg": victory_jingle,
-              "defeat.ogg": defeat_jingle}
+              "defeat.ogg": defeat_jingle,
+              "boss_loop.ogg": lambda: with_tempo(140, boss_theme),
+              "rotorick_loop.ogg": lambda: with_tempo(152, roto_theme)}
+    only = sys.argv[1:]
     for name, render in tracks.items():
+        if only and name not in only:
+            continue
         path = os.path.join(OUT_DIR, name)
         mix = render()
         mix.write(path)

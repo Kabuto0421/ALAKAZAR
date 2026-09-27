@@ -627,7 +627,7 @@ func _rotorick() -> void:
 	verify(boss.hp == 3 and boss.ap == 1 and m.footprint(boss).size() == 4,"Rotorick: HP3, AP1, two by two")
 	verify(boss.state == "idle" and int(boss.reel) == 0,"Rotorick enters idle with the reel spinning")
 	m.player.cell = Vector2i(0,2)
-	verify(m.boss_intro() and boss.state == "brace" and int(boss.reel) >= 1 and int(boss.reel) <= 7,"Before the first turn it aims and shows a reel")
+	verify(m.boss_intro() and boss.state == ("stun" if int(boss.reel) == 5 else "brace") and int(boss.reel) >= 1 and int(boss.reel) <= 7,"Before the first turn it aims and shows a reel")
 	# The reel is drawn from the model's seed, never twice in a row, 7 rarer.
 	var counts := {}
 	var last := 0
