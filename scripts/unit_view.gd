@@ -12,6 +12,16 @@ const EXECUTIONER_ATLAS = preload("res://assets/sprites/enemies/executioner_dire
 const ROTORICK_ATLAS = preload("res://assets/sprites/enemies/rotorick_reel_112.png")
 const ROTORICK_SHADOW = preload("res://assets/sprites/enemies/rotorick_shadow_112.png")
 const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
+## Soldier sheets: 128 px cells, columns up/right/down/left, optional second row
+## for a state (archer aiming, analyst holding a learned weapon), draw size.
+const SOLDIER_SHEETS = {
+	"javelin": [preload("res://assets/sprites/enemies/javelin_directions.png"), 80.0],
+	"shield": [preload("res://assets/sprites/enemies/shield_soldier_directions.png"), 64.0],
+	"archer": [preload("res://assets/sprites/enemies/archer_directions.png"), 66.0],
+	"analyst": [preload("res://assets/sprites/enemies/analyst_directions.png"), 62.0],
+}
+## Second-row state for soldier sheets (archer aiming, analyst after learning).
+var alt_row := false
 const PLAYER_ATLAS_CELL := 362.0
 const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
@@ -107,6 +117,8 @@ func _draw() -> void:
 		_draw_cavalry(tint)
 	elif kind in BOSS_KINDS:
 		draw_boss(self, kind, facing, braced, tint, 1.0, reel)
+	elif SOLDIER_SHEETS.has(kind):
+		draw_soldier(self, kind, facing, alt_row, tint)
 	else:
 		var side := 64.0 if kind == "heavy" else 56.0
 		draw_texture_rect_region(ENEMY_ATLAS,Rect2(-side/2,-side/2-4,side,side),Rect2(facing*28,0,28,28),tint)
@@ -115,12 +127,6 @@ func _draw() -> void:
 			draw_rect(Rect2(-21,-4,16,25),Color("78968f"))
 			draw_rect(Rect2(-18,0,10,16),Color("293d42"))
 			draw_rect(Rect2(-15,2,4,13),Color("b8d7c5"))
-		elif kind in ["javelin","archer"]:
-			draw_ranged_gear(self,kind)
-		elif kind == "shield":
-			draw_tower_shield(self)
-		elif kind == "analyst":
-			draw_analyst_visor(self)
 	draw_set_transform(Vector2.ZERO)
 
 ## Sheets use the game facing order: up, right, down, left.
@@ -146,32 +152,12 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
 
-## Placeholder: a scanning visor and antenna on the soldier sprite.
-static func draw_analyst_visor(canvas: CanvasItem) -> void:
-	canvas.draw_rect(Rect2(-14,-22,22,6),Color("0b1a1a"))
-	canvas.draw_rect(Rect2(-12,-21,18,4),Color("7fffd0"))
-	canvas.draw_line(Vector2(6,-26),Vector2(12,-40),Color("0b1a1a"),3)
-	canvas.draw_circle(Vector2(12,-41),3,Color("7fffd0"))
-
-## Placeholder: a tall tower shield held on the left (front) side.
-static func draw_tower_shield(canvas: CanvasItem) -> void:
-	canvas.draw_rect(Rect2(-31,-26,17,46),Color("101a1e"))
-	canvas.draw_rect(Rect2(-29,-24,13,42),Color("6d8a9a"))
-	canvas.draw_rect(Rect2(-26,-20,7,34),Color("a9c4d2"))
-	canvas.draw_rect(Rect2(-24,-6,3,6),Color("2bdcc8"))
-
-## Placeholder gear on the soldier sprite until dedicated art exists.
-static func draw_ranged_gear(canvas: CanvasItem, gear: String) -> void:
-	if gear == "javelin":
-		# A spear raised over the shoulder, tip pointing ahead (left).
-		canvas.draw_line(Vector2(24,-24),Vector2(-20,-8),Color("1b1410"),5)
-		canvas.draw_line(Vector2(24,-24),Vector2(-20,-8),Color("c79a5b"),3)
-		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-30,-4),Vector2(-18,-13),Vector2(-16,-5)]),Color("e8eef0"))
-	else:
-		# A bow held out in front.
-		canvas.draw_arc(Vector2(-8,0),20,PI*0.55,PI*1.45,12,Color("1b1410"),5)
-		canvas.draw_arc(Vector2(-8,0),20,PI*0.55,PI*1.45,12,Color("b77a3c"),3)
-		canvas.draw_line(Vector2(-8,0)+Vector2.from_angle(PI*0.55)*20,Vector2(-8,0)+Vector2.from_angle(PI*1.45)*20,Color("f1ead2"),1)
+static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, alt: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
+	var entry: Array = SOLDIER_SHEETS[soldier]
+	var sheet: Texture2D = entry[0]
+	var side: float = entry[1] * factor
+	var row := 1 if alt and sheet.get_height() > 128 else 0
+	canvas.draw_texture_rect_region(sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
 
 func _draw_status() -> void:
 	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst"] else 1

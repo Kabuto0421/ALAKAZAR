@@ -2,6 +2,7 @@ extends RefCounted
 
 const Icon = preload("res://scripts/items/spirit_icon.gd")
 const Units = preload("res://scripts/unit_view.gd")
+const Sheet = preload("res://scripts/items/direction_sheet.gd")
 
 # Illustrations are independent of gameplay state and never consume items or AP.
 static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float) -> void:
@@ -44,7 +45,31 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			Icon.paint(canvas,Vector2(976,267),item.icon,0.7)
 			_enemy(canvas,Vector2(1080-minf(progress/0.6,1.0)*52,265))
 			canvas._text(Vector2(868,232),"3ターン通れない",19,item.color)
-		"cannon_fairy","vane_cannon":
+		"vane_cannon":
+			# Four shots in a row: after each one the aim turns 90 degrees clockwise.
+			var center := Vector2(976,276)
+			var shot := mini(int(progress*4),3)
+			var dirs := [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]
+			var aim: Vector2i = dirs[shot]
+			for d in dirs:
+				for k in range(1,3):
+					_tile(canvas,center+Vector2(d)*k*20,item.color,18)
+			_tile(canvas,center,item.color,18)
+			var tail := fmod(progress*4.0,1.0)
+			if tail < 0.55:
+				canvas.draw_line(center+Vector2(aim)*10,center+Vector2(aim)*(10+tail/0.55*34),item.color,4)
+			if not Sheet.paint(canvas,center,"vane_cannon",aim,0.34):
+				Icon.paint(canvas,center,item.icon,0.34)
+			# Clockwise hint from this aim to the next one.
+			var from := Vector2(aim).angle()+0.35
+			canvas.draw_arc(center,27,from,from+PI/2-0.7,12,Color("9ff5ff"),3)
+			var tip := center+Vector2.from_angle(from+PI/2-0.7)*27
+			var along := Vector2.from_angle(from+PI/2-0.7+PI/2)
+			canvas.draw_colored_polygon(PackedVector2Array([tip+along*7,tip-along*3+along.orthogonal()*5,tip-along*3-along.orthogonal()*5]),Color("9ff5ff"))
+			canvas._text(Vector2(1030,250),"%d発目" % (shot+1),16,Color("9ff5ff"))
+			canvas._text(Vector2(1030,272),"時計回り",15,item.color)
+			canvas._text(Vector2(1030,292),"に90度",15,item.color)
+		"cannon_fairy":
 			for i in range(5):
 				_tile(canvas,Vector2(872+i*52,269),item.color)
 			Icon.paint(canvas,Vector2(872,267),item.icon,0.65)
@@ -52,7 +77,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			_enemy(canvas,Vector2(1080,265))
 			if progress > 0.4:
 				canvas.draw_line(Vector2(890,285),Vector2(1090,285),item.color,3)
-			canvas._text(Vector2(856,232),"このマスを攻撃 → 発射" if id == "cannon_fairy" else "撃つたびに90度回る",18,item.color)
+			canvas._text(Vector2(856,232),"このマスを攻撃 → 発射",18,item.color)
 		"firework_fairy":
 			var center := Vector2(976,262)
 			for y in range(-1,2):

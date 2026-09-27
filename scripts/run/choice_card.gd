@@ -38,11 +38,11 @@ func _ready() -> void:
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.accent = accent
 		add_child(diagram)
-		_label(Vector2(16,263),description,19,Color("e5dfc5"))
+		_wrap_label(_label(Vector2(16,256),description,17,Color("e5dfc5")),size.x-32)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
-		_label(Vector2(16,298),"移動・攻撃 1 AP  /  攻撃 %d" % damage,18,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(16,334),"1 AP  /  攻撃 %d" % damage,17,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 		if Weapons.knockback(int(offer.value)) > 0:
-			_label(Vector2(16,322),"押し出し：壁や敵にぶつけると+1",17,Color("c5f0ff"))
+			_label(Vector2(16,358),"押し出し：ぶつけると+1",16,Color("c5f0ff"))
 	else:
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -52,11 +52,15 @@ func _ready() -> void:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(icon)
-		var desc := _label(Vector2(14,239),description,17,Color("e5dfc5"))
-		desc.size = Vector2(size.x-28,115)
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_label(Vector2(16,365),"1 AP  /  毎戦闘 1回",18,accent)
+		_wrap_label(_label(Vector2(14,236),description.replace("\n",""),15,Color("e5dfc5")),size.x-28)
+		_label(Vector2(16,368),"1 AP  /  毎戦闘 1回",17,accent)
 	_label(Vector2(16,size.y-43),action_text + "  →",23,accent)
+
+## Wrap a label to a fixed width (its minimum width pins it once it is laid out).
+func _wrap_label(label: Label, width: float) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	label.custom_minimum_size = Vector2(width, 0)
+	label.size = Vector2(width, 0)
 
 func _label(at: Vector2, value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()

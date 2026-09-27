@@ -430,6 +430,7 @@ func _sync_units(animate: bool) -> void:
 		view.facing = 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.reel = int(unit.get("reel",0))
+		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
 		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
 		view.learned_color = Color(Rules.WEAPONS[learned].color) if learned >= 0 else Color.WHITE
@@ -809,10 +810,15 @@ func _draw_weapons() -> void:
 		draw_rect(rect,Color("152d2a") if model.weapon==index else Color("0b1415"))
 		draw_rect(rect,accent if model.weapon==index else Color("324843"),false,3 if model.weapon==index else 2)
 		_text(pos+Vector2(12,32),weapon.name,23,accent)
-		var power_text := "  攻撃%d" % model.weapon_damage(index) if model.weapon_damage(index) > 1 else ""
+		_text(pos+Vector2(12,62),"装備中" if model.weapon==index else "装備する",19,INK)
+		# Extras on their own short line so they never run into the range picture.
+		var extras: Array[String] = []
+		if model.weapon_damage(index) > 1:
+			extras.append("攻撃%d" % model.weapon_damage(index))
 		if weapon.get("knockback",0) > 0:
-			power_text += "  押出"
-		_text(pos+Vector2(12,66),("装備中" if model.weapon==index else "装備する")+power_text,19,INK)
+			extras.append("押出")
+		if not extras.is_empty():
+			_text(pos+Vector2(12,86),"・".join(extras),15,GOLD)
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
 		var cell_size := 72.0/count
@@ -841,7 +847,6 @@ func _draw_intel() -> void:
 		_text(Vector2(852,133),item.title,26,item.color)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
 		_text(Vector2(992,187),"1 AP",24,GOLD)
-		_text(Vector2(1032,222),"動作例",17,MUTED)
 		ItemPreview.paint(self,model,selected_item,clock)
 		var lines: PackedStringArray = item.description.split("\n")
 		for i in range(lines.size()):
@@ -857,7 +862,7 @@ func _draw_intel() -> void:
 		_text(Vector2(852,177),"装備中",21,MUTED)
 		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing)
 		_text(Vector2(852,495),"移動・攻撃範囲",23,INK)
-		_text(Vector2(852,535),Rules.WEAPONS[selected_weapon].detail,20,MUTED)
+		_wrapped(Vector2(852,528),Rules.WEAPONS[selected_weapon].detail,18,MUTED,14)
 	else:
 		_text(Vector2(852,133),"敵の情報",26,CYAN)
 		_text(Vector2(852,295),"敵にカーソルを",23,INK)
@@ -908,6 +913,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		actor._draw_drone(Color.WHITE,self)
 	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
+	elif UnitView.SOLDIER_SHEETS.has(enemy.type):
+		UnitView.draw_soldier(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "aim" or int(enemy.get("learned",-1)) >= 0,Color.WHITE,0.9)
 	elif enemy.type in UnitView.BOSS_KINDS:
 		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:
@@ -915,12 +922,6 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		if enemy.type == "heavy":
 			draw_rect(Rect2(-22,0,18,26),Color("78968f"))
 			draw_rect(Rect2(-18,4,10,18),Color("293d42"))
-		elif enemy.type in Rules.RANGED:
-			UnitView.draw_ranged_gear(self,enemy.type)
-		elif enemy.type == "shield":
-			UnitView.draw_tower_shield(self)
-		elif enemy.type == "analyst":
-			UnitView.draw_analyst_visor(self)
 	draw_set_transform(Vector2.ZERO)
 
 const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
@@ -1026,6 +1027,33 @@ func _draw_reel_diagram(reel: int, box: Rect2) -> void:
 		_:
 			_text(c+Vector2(-10,12),"?",34,gold)
 
+## Two-by-two enemies: a 4x4 diagram, the body filling the middle 2x2 and the
+## eight tiles around it marked (moves for the prison, cuts for the afterimage).
+func _draw_big_range(enemy: Dictionary) -> void:
+	var shadow: bool = enemy.type == "shadow"
+	_text(Vector2(852,217),"攻撃範囲（動かない）" if shadow else "移動・攻撃範囲",21,INK)
+	var step := 46.0
+	var origin := Vector2(980-step*2,236)
+	var tone := Color("ff805a") if shadow else CYAN
+	for y in range(4):
+		for x in range(4):
+			var rect := Rect2(origin+Vector2(x,y)*step,Vector2.ONE*(step-5))
+			var inner: bool = x in [1,2] and y in [1,2]
+			var edge: bool = not inner and (x in [1,2] or y in [1,2])
+			draw_rect(rect,Color(tone,0.3) if edge else Color("192828"))
+			draw_rect(rect,tone if edge else Color("46625e"),false,2)
+			if edge:
+				if shadow:
+					draw_line(rect.get_center()-Vector2(6,6),rect.get_center()+Vector2(6,6),tone,3)
+					draw_line(rect.get_center()-Vector2(6,-6),rect.get_center()+Vector2(6,-6),tone,3)
+				else:
+					draw_circle(rect.get_center(),6,tone)
+	_draw_enemy_portrait(enemy,origin+Vector2.ONE*step*2-Vector2.ONE*2.5,0.9)
+	var note := "隣に来た者を1回斬って消える" if shadow else "2×2で縦横に1マスずつ動く"
+	_text(Vector2(852,450),note,18,tone)
+	_text(Vector2(852,489),"動かない罠" if shadow else "壊すと執行兵2体",23,CYAN)
+	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	var type: Dictionary = Rules.TYPES[enemy.type]
 	_text(Vector2(852,133),type.name,28,INK)
@@ -1046,13 +1074,21 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	if enemy.type == "rook":
 		_text(Vector2(852,217),"移動・攻撃範囲：飛車",21,INK)
 		_draw_range(ROOK_RANGE,CYAN,enemy)
-		_text(Vector2(852,450),"構えた向きへ、端までまっすぐ突進",18,Color("ff805a"))
+		_text(Vector2(852,450),"向きの先へ端まで突進",18,Color("ff805a"))
 		var rook_intent := "赤：構えた向きへ突進" if enemy.get("state","") == "brace" else "すぐに構える"
 		_text(Vector2(852,489),rook_intent,23,GOLD)
 		_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 		return
+	if enemy.type in ["prison", "shadow"]:
+		_draw_big_range(enemy)
+		return
 	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
 	_draw_range(model.enemy_offsets(enemy),CYAN,enemy,-1,0,2,false,model.enemy_attack_offsets(enemy))
+	if enemy.type == "shield":
+		# The shield sits on the left side of the soldier.
+		var middle := Vector2(980-96+64,236+64)
+		draw_rect(Rect2(middle+Vector2(-4,6),Vector2(9,47)),Color("101a1e"))
+		draw_rect(Rect2(middle+Vector2(-2,8),Vector2(5,43)),Color("2bdcc8"))
 	if enemy.type == "archer":
 		_text(Vector2(852,450),"赤＝左へ一直線に射る",18,Color("ff805a"))
 	elif enemy.type == "javelin":
@@ -1062,7 +1098,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "analyst":
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
-	var intent := "赤：構えた向きへ突進" if enemy.type == "rook" and enemy.get("state","") == "brace" else "すぐに構える" if enemy.type == "rook" else "壊すと執行兵2体" if enemy.type == "prison" else "執行" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
+	var intent := "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
@@ -1267,5 +1303,5 @@ func _draw_rules() -> void:
 	var lines := ["移動・攻撃・妖精使用：1 AP", "武器をタップ：持ち替え 0 AP", "向きは固定。武器と妖精は各3枠", "終了後：どんぐり妖精 → 敵", "妖精は各戦闘で使用回数が回復"]
 	for i in range(lines.size()):
 		_text(Vector2(350,212+i*55),lines[i],20,INK if i%2==0 else MUTED)
-	_text(Vector2(350,503),"! 次の敵ターンに突撃",20,GOLD)
+	_text(Vector2(350,503),"! その場にいると次の敵ターンに攻撃される",20,GOLD)
 	_text(Vector2(350,554),"1–3 武器 / 4–6 妖精 / Esc 取消",20,INK,LATIN)
