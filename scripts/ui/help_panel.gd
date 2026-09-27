@@ -12,38 +12,48 @@ const GOLD := Color("ffd35b")
 const MUTED := Color("92b3ae")
 
 const Shot = preload("res://scripts/ui/help_shot.gd")
-## Each page: a title and up to three screenshots (flipbooks) with a few words each.
+## Each page: a title, a short lead that states the rule, and up to three
+## screenshot flipbooks (with a tag per frame) that show it happening.
 const PAGES := [
-	{"title": "基本", "items": [
-		{"shots": ["move_a", "move_b"], "caption": "光るマスへ動ける"},
-		{"shots": ["attack_a", "attack_b"], "caption": "敵を押すと攻撃", "sub": "自分は動かない"},
-		{"shots": ["win"], "caption": "全滅で勝ち"},
+	{"title": "基本", "lead": "あなたのターンにはAPが2つ。APの数だけ、今の武器の範囲（光るマス）で「移動」「攻撃」「妖精を置く」ができる。", "items": [
+		{"shots": ["basic_move_a", "basic_move_b"], "tags": ["AP 2", "移動 −1 AP"], "caption": "移動", "sub": "光るマスへ"},
+		{"shots": ["basic_attack_a", "basic_attack_b"], "tags": ["AP 2", "攻撃 −1 AP"], "caption": "攻撃", "sub": "敵を押す。自分は動かない"},
+		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く", "sub": "光るマスに置く"},
 	]},
-	{"title": "AP（行動力）", "items": [
-		{"shots": ["ap_2", "ap_1", "ap_0"], "caption": "1行動 = AP1", "sub": "移動・攻撃・妖精 どれも1"},
-		{"shots": ["turn_a", "turn_b"], "caption": "AP0で敵のターン", "sub": "ターン終了で早く渡せる"},
+	{"title": "AP（行動力）", "lead": "移動・攻撃・妖精はどれもAP1。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
+		{"shots": ["ap_seq_0", "ap_seq_1", "ap_seq_2"], "tags": ["AP 2", "移動 −1 AP", "攻撃 −1 AP"], "caption": "1ターンに2回", "sub": "動いてから殴る、など"},
+		{"shots": ["turn_a", "turn_b"], "tags": ["AP 0", "敵のターンのあと AP 2"], "caption": "AP0で敵のターン", "sub": "次のターンでまた2に戻る"},
+		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP", "sub": "光るマスが変わる"},
 	]},
-	{"title": "敵にもAPがある", "items": [
-		{"shots": ["eap1_a", "eap1_b"], "caption": "AP1の敵", "sub": "1マス動いて終わり"},
-		{"shots": ["eap2_a", "eap2_b"], "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
-		{"shots": ["inspect_ap"], "caption": "敵に乗せるとAP", "sub": "右の欄で何回動くかわかる"},
+	{"title": "武器", "lead": "武器は3本まで。武器ごとに動ける方向と攻撃力が違う。いろんな方向の武器を集めて、組み合わせて戦おう。", "items": [
+		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "縦跳剣", "桂馬剣"], "caption": "動ける方向が違う", "sub": "下のカードの図が範囲"},
+		{"shots": ["power_a", "power_b"], "tags": ["ハンマー 攻撃3", "攻撃 −1 AP"], "caption": "攻撃力も違う", "sub": "カードの「攻撃N」"},
+		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["縦跳剣", "跳ぶ −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる", "sub": "跳んでから、別の武器で殴る"},
 	]},
-	{"title": "危険を読む", "items": [
-		{"shots": ["threat_a", "threat_b"], "caption": "！は次に殴られる", "sub": "動いて避けよう"},
+	{"title": "武器のクセ", "lead": "報酬で手に入る武器は、動き方にクセがある。カードの範囲図と「跳ぶ」「滑る」などのタグを見て選ぼう。", "items": [
+		{"shots": ["jump"], "caption": "跳ぶ", "sub": "間にいる敵を飛び越える"},
+		{"shots": ["slide"], "caption": "滑る", "sub": "ふさがるまで一直線に進む"},
 	]},
-	{"title": "武器", "items": [
-		{"shots": ["switch_a", "switch_b"], "caption": "持ち替えで範囲が変わる", "sub": "0 AP・1〜3キー"},
-		{"shots": ["jump"], "caption": "跳ぶ", "sub": "間を飛び越える"},
-		{"shots": ["slide"], "caption": "滑る", "sub": "止まるまで進む"},
+	{"title": "特殊効果", "lead": "一部の武器には特別な効果が付いている。紫の枠は魔法陣、「押出」のタグは押し出し。", "items": [
+		{"shots": ["circle_a", "circle_b", "circle_c"], "tags": ["囲める場所が紫", "発動", "99ダメージ"], "caption": "魔法陣", "sub": "攻撃できない。歩いた跡で囲むと99"},
+		{"shots": ["push_a", "push_b"], "tags": ["押出", "ぶつかって +1"], "caption": "押出", "sub": "押された敵がぶつかると+1"},
 	]},
-	{"title": "特殊効果", "items": [
-		{"shots": ["circle_a", "circle_b", "circle_c"], "caption": "魔法陣", "sub": "白いマスで囲むと99"},
-		{"shots": ["push_a", "push_b"], "caption": "押出", "sub": "ぶつけるとさらに1"},
+	{"title": "妖精", "lead": "妖精は各戦闘1回ずつ使える道具で、使うとAP1。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
+		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "使うとAP1", "sub": "1戦闘1回（次の戦闘で回復）"},
+		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第", "sub": "水色のマスに置ける"},
 	]},
-	{"title": "妖精", "items": [
-		{"shots": ["place_a", "place_b"], "caption": "光るマスに置く", "sub": "AP1・各戦闘1回"},
-		{"shots": ["cannon_a", "cannon_b"], "caption": "大砲は叩くと発射"},
-		{"shots": ["fade_3", "fade_2", "fade_1"], "caption": "3ターンで消える"},
+	{"title": "設置系の妖精", "lead": "壁・大砲・隠密妖精などの設置系は、置いたターンを含めて3ターンで消える。右下の数字が残りのターン。", "items": [
+		{"shots": ["fade_3", "fade_2", "fade_1", "fade_0"], "tags": ["残り3", "残り2", "残り1", "消えた"], "caption": "3ターンで消える"},
+		{"shots": ["cannon_a", "cannon_b"], "tags": ["大砲", "叩く −1 AP"], "caption": "大砲は武器で叩くと発射", "sub": "向きの直線上の敵すべてに1"},
+	]},
+	{"title": "敵にもAPがある", "lead": "敵にもAPがあり、移動も攻撃も1AP。AP2の敵は、2マス先からでも寄ってきてそのまま殴ってくる。", "items": [
+		{"shots": ["eap1_a", "eap1_b"], "tags": ["敵AP 1", "敵 移動 −1"], "caption": "AP1の敵", "sub": "1マス動いて終わり"},
+		{"shots": ["eap2_a", "eap2_b"], "tags": ["敵AP 2", "敵 移動→攻撃"], "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
+		{"shots": ["inspect_ap"], "caption": "敵に乗せるとAP", "sub": "右の欄の黄色い四角の数"},
+	]},
+	{"title": "危険を読む", "lead": "！が付いた敵は、あなたが今の場所にいると次のターンに攻撃してくる。！が消える場所へ動けば避けられる。", "items": [
+		{"shots": ["threat_rule"], "caption": "！は次に殴られる"},
+		{"shots": ["dodge_0", "dodge_1", "dodge_2", "dodge_3"], "tags": ["！が付いた", "避ける場所へ", "移動 −1 AP", "敵のターン：無傷"], "caption": "実践：避ける", "sub": "寄られても殴られない"},
 	]},
 ]
 
@@ -51,6 +61,7 @@ var page := 0
 var body: Control
 var title_label: Label
 var page_label: Label
+var lead_label: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -72,8 +83,12 @@ func _ready() -> void:
 	head.add_theme_font_override("font", LATIN)
 	title_label = _label(panel, Vector2(28, 62), "", 28, INK)
 	page_label = _label(panel, Vector2(680, 24), "", 20, MUTED)
+	lead_label = _label(panel, Vector2(28, 104), "", 19, GOLD)
+	lead_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	lead_label.custom_minimum_size = Vector2(744, 0)
+	lead_label.size = Vector2(744, 0)
 	body = Control.new()
-	body.position = Vector2(28, 116)
+	body.position = Vector2(28, 168)
 	body.size = Vector2(744, 380)
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(body)
@@ -91,6 +106,7 @@ func _show() -> void:
 		child.queue_free()
 	var data: Dictionary = PAGES[page]
 	title_label.text = data.title
+	lead_label.text = data.get("lead", "")
 	page_label.text = "%d / %d" % [page + 1, PAGES.size()]
 	var items: Array = data["items"]
 	for i in items.size():
@@ -98,18 +114,23 @@ func _show() -> void:
 		var figure := Shot.new()
 		for name in item.shots:
 			figure.frames.append(load("res://assets/help/%s.png" % name))
+		figure.tags = item.get("tags", [])
 		# Two or three pictures, centred on the page.
 		var left := (744.0 - (items.size() * 232 + (items.size() - 1) * 24)) / 2.0
 		figure.position = Vector2(left + i * 256, 0)
-		figure.size = Vector2(232, 232)
+		figure.size = Vector2(232, 262)
 		body.add_child(figure)
 		if item.caption != "":
-			var caption := _label(body, figure.position + Vector2(0, 244), item.caption, 22, INK)
+			var caption := _label(body, figure.position + Vector2(0, 270), item.caption, 21, INK)
+			caption.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 			caption.custom_minimum_size = Vector2(232, 0)
+			caption.size = Vector2(232, 0)
 			caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if item.has("sub"):
-			var sub := _label(body, figure.position + Vector2(0, 276), item.sub, 17, MUTED)
+			var sub := _label(body, figure.position + Vector2(0, 298), item.sub, 15, MUTED)
+			sub.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 			sub.custom_minimum_size = Vector2(232, 0)
+			sub.size = Vector2(232, 0)
 			sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func close() -> void:

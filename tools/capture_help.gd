@@ -65,12 +65,35 @@ func board(margin: float = 12.0) -> Rect2:
 	var side: float = m.board_size * 64.0
 	return Rect2(bv.BOARD - Vector2.ONE * margin, Vector2.ONE * (side + margin * 2))
 
-func shot(name: String, area: Rect2) -> void:
+const PANEL := Rect2(24, 94, 280, 84)
+const HAND := Rect2(24, 262, 280, 100)
+
+## The equipped weapon's card in the bar under the board.
+func card() -> Rect2:
+	var slot: int = m.owned_weapons.find(m.weapon)
+	return Rect2(352 + slot * 260, 620, 248, 94)
+
+## Saves several screen areas stacked top to bottom as one picture.
+func shot(name: String, areas) -> void:
 	bv.queue_redraw()
 	await frames(4)
-	var image: Image = root.get_texture().get_image()
-	var rect := Rect2i(area.position * SCALE, area.size * SCALE)
-	image.get_region(rect).save_png("res://assets/help/%s.png" % name)
+	var screen: Image = root.get_texture().get_image()
+	var parts: Array = areas if areas is Array else [areas]
+	var pieces: Array[Image] = []
+	var width := 0
+	var height := 0
+	for area in parts:
+		var piece := screen.get_region(Rect2i(area.position * SCALE, area.size * SCALE))
+		pieces.append(piece)
+		width = maxi(width, piece.get_width())
+		height += piece.get_height() + 6
+	var out := Image.create(width, height - 6, false, screen.get_format())
+	out.fill(Color("0c181b"))
+	var y := 0
+	for piece in pieces:
+		out.blit_rect(piece, Rect2i(Vector2i.ZERO, piece.get_size()), Vector2i((width - piece.get_width()) / 2, y))
+		y += piece.get_height() + 6
+	out.save_png("res://assets/help/%s.png" % name)
 
 func act(cell: Vector2i) -> void:
 	m.player_action(cell)
@@ -89,77 +112,82 @@ func enemy_turn() -> void:
 	bv._update_controls()
 
 func capture_all() -> void:
-	# Basics: lit tiles, moving, attacking without moving, winning.
-	setup([["heavy", Vector2i(3, 0)]], Vector2i(0, 1), "front_diagonal")
-	await shot("move_a", board())
+	# --- 基本: with the AP panel, each action costs 1 ---
+	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "front_diagonal")
+	await shot("basic_move_a", [PANEL, board()])
 	act(Vector2i(1, 2))
-	await shot("move_b", board())
-	setup([["heavy", Vector2i(1, 1)]], Vector2i(0, 1))
-	await shot("attack_a", board())
+	await shot("basic_move_b", [PANEL, board()])
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
+	await shot("basic_attack_a", [PANEL, board()])
 	act(Vector2i(1, 1))
 	await frames(2)
-	await shot("attack_b", board())
+	await shot("basic_attack_b", [PANEL, board()])
+	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
+	m.fairy_loadout.assign(["wall_fairy", "cannon_fairy"])
+	m.refill_fairies()
+	bv._select_item("wall_fairy", 0)
+	await shot("basic_fairy_a", [PANEL, board()])
+	bv._commit_item(Vector2i(1, 1), Vector2i.ZERO)
+	await frames(8)
+	await shot("basic_fairy_b", [PANEL, board()])
 	setup([["recruit", Vector2i(1, 1)]], Vector2i(0, 1))
 	act(Vector2i(1, 1))
 	await frames(2)
 	await shot("win", Rect2(368, 226, 416, 282))
-	# Your AP: the panel emptying one action at a time.
-	var panel := Rect2(24, 94, 280, 90)
-	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
-	await shot("ap_2", panel)
+	# --- AP: two actions, then the enemy turn; switching is free ---
+	setup([["heavy", Vector2i(2, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
+	m.enemies[0].hp = 5
+	await shot("ap_seq_0", [PANEL, board()])
 	act(Vector2i(1, 1))
-	await shot("ap_1", panel)
+	await shot("ap_seq_1", [PANEL, board()])
 	act(Vector2i(2, 1))
-	await shot("ap_0", panel)
-	# Turn over: the enemies move.
+	await frames(2)
+	await shot("ap_seq_2", [PANEL, board()])
 	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1))
 	m.player.ap = 0
-	await shot("turn_a", board())
+	await shot("turn_a", [PANEL, board()])
 	enemy_turn()
-	await shot("turn_b", board())
-	# Enemy AP: an AP-1 heavy steps once; an AP-2 executioner steps and hits.
-	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1))
-	await shot("eap1_a", board())
-	enemy_turn()
-	await shot("eap1_b", board())
-	setup([["executioner", Vector2i(2, 1)]], Vector2i(0, 1))
-	await shot("eap2_a", board())
-	enemy_turn()
-	await frames(2)
-	await shot("eap2_b", board())
-	# Hovering an enemy: its AP and range in the info panel.
-	setup([["executioner", Vector2i(2, 1)]], Vector2i(0, 3))
-	bv.selected_enemy_id = 0
-	await shot("inspect_ap", Rect2(832, 94, 296, 300))
-	# "!": the enemies that would hit you if you stayed.
-	setup([["recruit", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "vault")
-	await shot("threat_a", board())
-	act(Vector2i(0, 3))
-	m.player.ap = 2
-	bv._sync_units(false)
-	await shot("threat_b", board())
-	# Weapons: the bar, a jump, a slide.
-	# Switching weapons changes the lit tiles (free).
+	await shot("turn_b", [PANEL, board()])
 	setup([["heavy", Vector2i(3, 3)]], Vector2i(1, 1), "front_diagonal")
 	m.weapon = 0
-	bv.queue_redraw()
-	await shot("switch_a", board())
+	await shot("switch_a", [PANEL, board(), card()])
 	m.weapon = ids.find("front_diagonal")
-	await shot("switch_b", board())
+	await shot("switch_b", [PANEL, board(), card()])
+	# --- 武器: directions, power, combining ---
+	for pick in [["dir_a", "forward"], ["dir_b", "vault"], ["dir_c", "knight"]]:
+		setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), pick[1])
+		m.player.cell = Vector2i(1, 1)
+		bv._sync_units(false)
+		await shot(pick[0], [board(), card()])
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "hammer")
+	await shot("power_a", [board(), card()])
+	act(Vector2i(1, 1))
+	await frames(2)
+	await shot("power_b", [board(), card()])
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 3), "vault")
+	m.weapon = ids.find("vault")
+	await shot("combo_0", [PANEL, board(), card()])
+	act(Vector2i(0, 1))
+	await shot("combo_1", [PANEL, board(), card()])
+	m.weapon = 0
+	await shot("combo_2", [PANEL, board(), card()])
+	act(Vector2i(1, 1))
+	await frames(2)
+	await shot("combo_3", [PANEL, board(), card()])
+	# --- 武器の種類 ---
 	setup([["heavy", Vector2i(0, 1)]], Vector2i(0, 2), "vault")
 	m.weapon = ids.find("vault")
-	await shot("jump", board())
+	await shot("jump", [board(), card()])
 	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1), "rook_spear")
-	await shot("slide", board())
-	# Knockback into a wall.
+	await shot("slide", [board(), card()])
+	# --- 特殊効果 ---
 	setup([["heavy", Vector2i(1, 1)]], Vector2i(0, 1), "shield")
 	m.obstacles.append(Vector2i(2, 1))
 	bv.queue_redraw()
-	await shot("push_a", board())
+	await shot("push_a", [board(), card()])
 	act(Vector2i(1, 1))
 	await frames(2)
-	await shot("push_b", board())
-	# Magic circle: the preview, then the spell mid-cast.
+	await shot("push_b", [board(), card()])
 	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "front_diagonal")
 	m.enchants[m.weapon] = "circle"
 	m.enemies[0].hp = 9
@@ -178,17 +206,22 @@ func capture_all() -> void:
 	await shot("circle_c", board(40))
 	bv.set_process(false)
 	await frames(90)
-	# Fairies: placing, cannons, the three-turn countdown.
+	# --- 妖精: 1 AP, placed in weapon range, once per fight, 3 turns ---
+	for pick in [["fairy_range_a", "forward"], ["fairy_range_b", "front_diagonal"]]:
+		setup([["heavy", Vector2i(3, 3)]], Vector2i(1, 1), pick[1])
+		m.fairy_loadout.assign(["wall_fairy"])
+		m.refill_fairies()
+		bv._select_item("wall_fairy", 0)
+		await shot(pick[0], [board(), card()])
 	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
 	m.fairy_loadout.assign(["wall_fairy", "cannon_fairy"])
 	m.refill_fairies()
+	bv._update_controls()
+	await shot("fairy_once_a", [PANEL, HAND])
 	bv._select_item("wall_fairy", 0)
-	bv.hover_cell = Vector2i(1, 1)
-	await shot("place_a", board())
-	bv.hover_cell = Vector2i(-9, -9)
 	bv._commit_item(Vector2i(1, 1), Vector2i.ZERO)
 	await frames(8)
-	await shot("place_b", board())
+	await shot("fairy_once_b", [PANEL, HAND])
 	setup([["heavy", Vector2i(3, 1)], ["heavy", Vector2i(2, 1)]], Vector2i(0, 1))
 	m.place_cannon(Vector2i(1, 1), Vector2i.RIGHT, "lance")
 	bv.queue_redraw()
@@ -200,3 +233,33 @@ func capture_all() -> void:
 	for turns in [3, 2, 1]:
 		m.walls[Vector2i(1, 1)] = turns
 		await shot("fade_%d" % turns, board())
+	m.walls.clear()
+	await shot("fade_0", board())
+	# --- 敵にもAP ---
+	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1))
+	await shot("eap1_a", board())
+	enemy_turn()
+	await shot("eap1_b", board())
+	setup([["executioner", Vector2i(2, 1)]], Vector2i(0, 1))
+	await shot("eap2_a", board())
+	enemy_turn()
+	await frames(2)
+	await shot("eap2_b", board())
+	setup([["executioner", Vector2i(2, 1)]], Vector2i(0, 3))
+	bv.selected_enemy_id = 0
+	await shot("inspect_ap", Rect2(832, 94, 296, 300))
+	# --- 危険: the rule, then a real dodge ---
+	setup([["recruit", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
+	await shot("threat_rule", board())
+	setup([["heavy", Vector2i(2, 2)], ["heavy", Vector2i(1, 0)]], Vector2i(1, 2), "backward")
+	m.weapon = 1
+	await shot("dodge_0", board())
+	bv.hover_cell = Vector2i(0, 2)
+	await shot("dodge_1", board())
+	bv.hover_cell = Vector2i(-9, -9)
+	act(Vector2i(0, 2))
+	await shot("dodge_2", board())
+	m.player.ap = 0
+	enemy_turn()
+	await frames(2)
+	await shot("dodge_3", [PANEL, board()])
