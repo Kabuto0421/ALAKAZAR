@@ -1142,7 +1142,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1173,6 +1173,12 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			for k in range(6):
 				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
 				draw_line(at, at + ray, Color("ffd35b", fade), 3)
+		"smash":
+			# Debris flying out of a smashed tile.
+			for k in range(7):
+				var chunk := Vector2.from_angle(k * TAU / 7 + 0.3) * (6 + t * 26)
+				draw_rect(Rect2(pos + chunk - Vector2(3, 3), Vector2(6, 6)), Color("c9b79a", fade))
+			draw_arc(pos, 8 + t * 18, 0, TAU, 16, Color("ffd35b", fade * 0.8), 3, true)
 		"analyzed":
 			# A scan ring and "解析済" floating up.
 			draw_arc(pos, 18 + t * 10, 0, TAU, 24, Color("7fffd0", fade), 2, true)

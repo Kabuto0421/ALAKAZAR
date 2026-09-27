@@ -978,6 +978,7 @@ func rook_charge(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or enemy.state != "brace":
 		return false
 	enemy.ap -= 1
+	enemy["crashed"] = false
 	var forward: Vector2i = CARDINALS[enemy.facing]
 	var side := Vector2i(absi(forward.y), absi(forward.x))
 	var in_lane := func() -> bool:
@@ -993,8 +994,13 @@ func rook_charge(enemy: Dictionary) -> bool:
 		var front := _front_cells(enemy, forward)
 		var stop := false
 		for cell in front:
-			if not inside(cell) or arrow_stopped(cell) or not ally_at(cell).is_empty() or fairies.has(cell):
+			if not inside(cell):
 				stop = true
+			elif _smash(cell):
+				# Placed things in the lane are smashed; the crash ends the charger's turn.
+				stop = true
+				enemy.ap = 0
+				enemy["crashed"] = true
 			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stop = true
 		if stop:
@@ -1021,6 +1027,34 @@ func rook_charge(enemy: Dictionary) -> bool:
 	if not terminal() and enemy.hp > 0:
 		rook_brace(enemy)
 	return true
+
+## A charger crashing into a tile: walls, cannons, stealth fairies, allies and
+## obstacles there are destroyed. Returns true if anything was in the way.
+func _smash(cell: Vector2i) -> bool:
+	var hit := false
+	if walls.has(cell):
+		walls.erase(cell)
+		hit = true
+	var cannon := cannon_at(cell)
+	if not cannon.is_empty():
+		cannons.erase(cannon)
+		hit = true
+	if fairies.has(cell):
+		fairies.erase(cell)
+		fairy_turns.erase(cell)
+		hit = true
+	if obstacles.has(cell):
+		obstacles.erase(cell)
+		hit = true
+	var ally := ally_at(cell)
+	if not ally.is_empty():
+		ally.hp = 0
+		allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+		hit = true
+	if hit:
+		events.append({"kind":"smash", "cell":cell, "id":-2})
+		add_log("突進で障害物が砕けた")
+	return hit
 
 ## True once the player shares the rook's other axis (it can turn and aim at them).
 func in_lane_perpendicular(enemy: Dictionary, forward: Vector2i) -> bool:
@@ -1144,7 +1178,7 @@ func _sure_charge(enemy: Dictionary) -> void:
 	var before: int = player.hp
 	rook_charge(enemy)
 	for attempt in 3:
-		if player.hp < before or terminal() or enemy.hp <= 0:
+		if player.hp < before or terminal() or enemy.hp <= 0 or enemy.get("crashed", false):
 			return
 		# The homing follow-up is part of the same sure strike, so it costs no extra AP.
 		var from: Vector2i = enemy.cell

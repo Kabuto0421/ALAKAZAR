@@ -567,6 +567,20 @@ func _rook_and_prison() -> void:
 	m.walls[Vector2i(2,0)] = 3
 	_enemy_turn(m)
 	verify(m.player.hp == 5 and rook.cell == Vector2i(3,0),"A wall spirit blocks the charge")
+	verify(not m.walls.has(Vector2i(2,0)),"...and is smashed by it")
+	# An acorn ally in the lane is smashed too, so the rook never gets stuck.
+	m = _boss_room()
+	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
+	m.enemies = m.enemies.filter(func(e): return e.type == "rook")
+	rook.cell = Vector2i(4,0)
+	rook.state = "brace"
+	rook.facing = 3
+	m.player.cell = Vector2i(0,0)
+	m.summon_acorn(Vector2i(3,1))
+	_enemy_turn(m)
+	verify(m.allies.is_empty() and rook.cell == Vector2i(4,0) and m.player.hp == 5,"An acorn in the lane is smashed and the charge stops there")
+	_enemy_turn(m)
+	verify(m.player.hp == 4,"Next turn the lane is clear and the charge lands")
 	# Multi-tile effects hit a big enemy once.
 	m = _boss_room()
 	rook = m.enemies.filter(func(e): return e.type == "rook")[0]
