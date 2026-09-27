@@ -127,23 +127,6 @@ func _draw_attack() -> void:
 	if t < 0.9:
 		_cursor(foe + Vector2(4, 6))
 
-## Two AP a turn; then the enemies move.
-func _draw_ap() -> void:
-	var t := _phase(3.2)
-	var used := 0 if t < 0.8 else 1 if t < 1.6 else 2
-	for i in 2:
-		var rect := Rect2(Vector2(40 + i * 84, 34), Vector2(72, 26))
-		draw_rect(rect, GOLD if i >= used else Color("293d36"))
-	_text(Vector2(40, 26), "AP", 22, GOLD, LATIN)
-	var origin := Vector2(60, 90)
-	for x in 3:
-		draw_rect(Rect2(origin + Vector2(x * T, 0) + Vector2.ONE * 2, Vector2.ONE * (T - 4)), Color("5e5442"))
-	_player(origin + Vector2(T / 2, T / 2))
-	var step := clampf((t - 1.9) / 0.4, 0.0, 1.0)
-	_enemy(origin + Vector2(T * 2.5 - step * T, T / 2))
-	if t > 1.6:
-		_text(Vector2(64, 170), "敵のターン", 22, RED)
-
 ## "!" marks an enemy that will hit you if you stay; step away and it goes.
 func _draw_threat() -> void:
 	var t := _phase(2.6)
@@ -271,58 +254,6 @@ func _draw_fade() -> void:
 		for k in 6:
 			draw_circle(center + Vector2.from_angle(k) * 26, 4, Color("b9b39f", 0.6))
 
-## An act: three fights, a camp, then the boss.
-func _draw_flow() -> void:
-	var steps := ["⚔", "⚔", "⚔", "camp", "boss"]
-	var lit := int(time / 0.6) % 6
-	for i in steps.size():
-		var at := Vector2(24 + i * 44, size.y / 2 - 10)
-		var on := i < lit
-		draw_circle(at, 17, Color("15301f") if on else Color("101a1c"))
-		draw_arc(at, 17, 0, TAU, 24, GOLD if on else Color(INK, 0.4), 2, true)
-		match steps[i]:
-			"⚔":
-				for flip in [-1.0, 1.0]:
-					var dir := Vector2(flip, -1).normalized()
-					draw_line(at - dir * 8, at + dir * 10, Color.WHITE, 3)
-			"camp":
-				draw_colored_polygon(PackedVector2Array([at + Vector2(-7, 7), at + Vector2(7, 7), at + Vector2(0, -9)]), Color("ff8a3a"))
-			"boss":
-				draw_rect(Rect2(at + Vector2(-9, -6), Vector2(18, 14)), RED, false, 2)
-				for k in 3:
-					draw_rect(Rect2(at + Vector2(-9 + k * 7, -10), Vector2(4, 4)), RED)
-		if i < steps.size() - 1:
-			draw_line(at + Vector2(18, 0), at + Vector2(26, 0), Color(INK, 0.5), 2)
-	_text(Vector2(size.x / 2 - 22, size.y / 2 + 50), "×2章", 22, GOLD)
-
-## After a win, pick one of five.
-func _draw_reward() -> void:
-	var pick := int(time / 0.7) % 5
-	for i in 5:
-		var rect := Rect2(Vector2(14 + i * 43, 60), Vector2(38, 60))
-		var chosen := i == pick
-		draw_rect(rect, Color("172b2b") if chosen else Color("0c181b"))
-		draw_rect(rect, GOLD if chosen else Color(INK, 0.4), false, 3 if chosen else 1)
-		if i < 3:
-			# A tiny range picture: the hero in the middle, two reachable tiles.
-			var shapes := [[Vector2i(1, -1), Vector2i(1, 1)], [Vector2i(0, -1), Vector2i(0, 1)], [Vector2i(2, 1), Vector2i(-2, -1)]]
-			for y in range(-2, 3):
-				for x in range(-2, 3):
-					var dot := rect.get_center() + Vector2(x, y) * 6.5
-					var on: bool = shapes[i].has(Vector2i(x, y))
-					draw_rect(Rect2(dot - Vector2(2.5, 2.5), Vector2(5, 5)), GOLD if on else Color(INK, 0.15) if Vector2i(x, y) != Vector2i.ZERO else CYAN)
-		else:
-			Icon.paint(self, rect.get_center(), icons["magic_bolt"] if i == 3 else icons["capacitor_fairy"], 0.4)
-	_text(Vector2(30, 150), "武器3　妖精2", 20, INK)
-
-## HP carries over; each win heals 1.
-func _draw_hp() -> void:
-	var t := _phase(2.4)
-	var full := 3 if t < 1.2 else 4
-	_hearts(Vector2(48, size.y / 2), full, 5)
-	if t > 1.2:
-		_text(Vector2(size.x / 2 - 18, size.y / 2 - 26 - (t - 1.2) * 20), "+1", 24, Color("7be08a"), LATIN)
-
 ## The magic circle: close a ring of white tiles, everything inside takes 99.
 func _draw_circle() -> void:
 	var t := _phase(3.0)
@@ -344,13 +275,6 @@ func _draw_circle() -> void:
 		draw_arc(_at(origin, Vector2(1, 1)), 20 + a * 60, 0, TAU, 32, Color(VIOLET, 1 - a), 5, true)
 		_outlined(Vector2(size.x / 2 - 22, origin.y - 8), "99", 52, GOLD)
 
-## A yellow "+" marks an upgraded weapon or fairy.
-func _draw_plus() -> void:
-	var center := size / 2
-	Icon.paint(self, center, icons["capacitor_fairy"], 1.3)
-	var pulse := 1.0 + 0.1 * sin(time * 5.0)
-	Icon.paint_plus(self, center + Vector2(48, -52), 30 * pulse)
-
 ## Knockback: shove the enemy; if it slams into something it takes 1 more.
 func _draw_push() -> void:
 	var t := _phase(2.4)
@@ -368,28 +292,113 @@ func _draw_push() -> void:
 			draw_line(foe + Vector2(20, 0), foe + Vector2(20, 0) + Vector2.from_angle(k * TAU / 6) * 12, GOLD, 3)
 		_text(foe + Vector2(0, -26), "+1", 20, GOLD, LATIN)
 
-## The keys and the mouse, laid out wide.
-func _draw_keys() -> void:
-	var rows := [[["1", "2", "3"], "武器を持ち替え"], [["4", "5", "6"], "妖精を選ぶ"]]
-	for r in rows.size():
-		for k in 3:
-			_keycap(Vector2(40 + k * 54, 30 + r * 64), rows[r][0][k])
-		_text(Vector2(212, 58 + r * 64), rows[r][1], 22, INK)
-	_keycap(Vector2(40, 170), "SPACE", 150)
-	_text(Vector2(212, 198), "ターン終了", 22, INK)
-	_keycap(Vector2(40, 234), "Esc", 60)
-	_text(Vector2(112, 262), "取消", 22, INK)
-	_keycap(Vector2(400, 30), "H")
-	_text(Vector2(456, 58), "この説明", 22, INK)
-	_keycap(Vector2(400, 94), "R")
-	_text(Vector2(456, 122), "戦闘をやり直す", 22, INK)
-	# Mouse: left click acts, right click pins the enemy info.
-	var mouse := Vector2(420, 170)
-	draw_rect(Rect2(mouse, Vector2(40, 60)), Color("1c2a2c"))
-	draw_rect(Rect2(mouse, Vector2(40, 60)), INK, false, 2)
-	draw_line(mouse + Vector2(20, 0), mouse + Vector2(20, 24), INK, 2)
-	draw_line(mouse + Vector2(0, 24), mouse + Vector2(40, 24), INK, 2)
-	var blink := 0.5 + 0.5 * sin(time * 4.0)
-	draw_rect(Rect2(mouse + Vector2(2, 2), Vector2(17, 21)), Color(GOLD, 0.5 * blink))
-	_text(Vector2(476, 190), "左：移動・攻撃・置く", 20, INK)
-	_text(Vector2(476, 222), "右：敵の情報を固定", 20, MUTED)
+func _ap_boxes(pos: Vector2, total: int, left: int, color: Color = GOLD, label: String = "AP") -> void:
+	_text(pos + Vector2(0, 14), label, 18, color)
+	var shift := 12.0 * label.length() + 14.0
+	for i in total:
+		var rect := Rect2(pos + Vector2(shift + i * 24, 0), Vector2(20, 16))
+		draw_rect(rect, color if i < left else Color("293d36"))
+		draw_rect(rect, Color(color, 0.6), false, 1)
+
+func _row(origin: Vector2, count: int) -> void:
+	for x in count:
+		draw_rect(Rect2(origin + Vector2(x * T, 0) + Vector2.ONE * 2, Vector2.ONE * (T - 4)), Color("5e5442"))
+
+## Your AP: each action costs 1 - a move, an attack, or a fairy.
+func _draw_ap_actions() -> void:
+	var t := _phase(4.0)
+	var origin := Vector2(36, 70)
+	_row(origin, 4)
+	var step := clampf((t - 0.5) / 0.3, 0.0, 1.0)
+	var you := origin + Vector2(T / 2 + step * T, T / 2)
+	_player(you)
+	var placed := t > 1.9
+	if t > 1.5:
+		var drop := clampf((t - 1.5) / 0.4, 0.0, 1.0)
+		Icon.paint(self, origin + Vector2(T * 2.5, T / 2 - 50 * (1.0 - drop)), icons["wall_fairy"], 0.55)
+	var left := 2 - (1 if t > 0.8 else 0) - (1 if placed else 0)
+	_ap_boxes(Vector2(70, 26), 2, left)
+	if t > 0.8 and t < 1.6:
+		_text(you + Vector2(-14, -34), "−1", 20, GOLD, LATIN)
+	if placed and t < 2.8:
+		_text(origin + Vector2(T * 2.2, -8), "−1", 20, GOLD, LATIN)
+	# Legend: the three actions, 1 AP each.
+	var legend := [["移動", Color.WHITE], ["攻撃", ORANGE], ["妖精", CYAN]]
+	for i in 3:
+		var at := Vector2(20 + i * 70, 160)
+		draw_rect(Rect2(at, Vector2(62, 44)), Color("101c1e"))
+		draw_rect(Rect2(at, Vector2(62, 44)), Color(legend[i][1], 0.6), false, 1)
+		_text(at + Vector2(6, 20), legend[i][0], 16, legend[i][1])
+		draw_rect(Rect2(at + Vector2(8, 26), Vector2(14, 11)), GOLD)
+		_text(at + Vector2(26, 38), "1", 16, GOLD, LATIN)
+
+## AP 0 (or "ターン終了") hands the turn to the enemies.
+func _draw_ap_end() -> void:
+	var t := _phase(3.4)
+	var ended := t > 1.2
+	_ap_boxes(Vector2(70, 22), 2, 0 if ended else 1)
+	var button := Rect2(Vector2(46, 56), Vector2(140, 34))
+	draw_rect(button, Color("203432") if t > 0.9 and t < 1.2 else Color("0c191a"))
+	draw_rect(button, CYAN, false, 2)
+	_text(button.position + Vector2(18, 24), "ターン終了", 18, INK)
+	if t < 1.2:
+		_cursor(button.get_center().lerp(button.get_center() + Vector2(40, 60), clampf(1.0 - t / 0.9, 0.0, 1.0)))
+	var origin := Vector2(56, 110)
+	_row(origin, 3)
+	_player(origin + Vector2(T / 2, T / 2))
+	var step := clampf((t - 1.6) / 0.4, 0.0, 1.0)
+	_enemy(origin + Vector2(T * 2.5 - step * T, T / 2))
+	if ended:
+		_text(Vector2(62, 196), "敵のターン", 22, RED)
+
+## Enemies spend AP too: an AP-1 enemy moves one tile and is done.
+func _draw_enemy_ap1() -> void:
+	var t := _phase(3.0)
+	var origin := Vector2(36, 96)
+	_row(origin, 4)
+	_player(origin + Vector2(T / 2, T / 2))
+	var step := clampf((t - 0.6) / 0.35, 0.0, 1.0)
+	var foe := origin + Vector2(T * 3.5 - step * T, T / 2)
+	_enemy(foe)
+	_ap_boxes(Vector2(64, 36), 1, 0 if step >= 1.0 else 1, RED, "敵のAP")
+	if t > 1.2:
+		_text(Vector2(64, 190), "ここで止まる", 20, MUTED)
+
+## An AP-2 enemy moves AND hits: danger from two tiles away.
+func _draw_enemy_ap2() -> void:
+	var t := _phase(3.4)
+	var origin := Vector2(36, 96)
+	_row(origin, 4)
+	var you := origin + Vector2(T / 2, T / 2)
+	var step := clampf((t - 0.6) / 0.35, 0.0, 1.0)
+	var foe := origin + Vector2(T * 2.5 - step * T, T / 2)
+	var struck := t > 1.5
+	_player(you + (Vector2(-4, 0) if struck and t < 1.7 else Vector2.ZERO))
+	_enemy(foe)
+	var left := 2 - (1 if step >= 1.0 else 0) - (1 if struck else 0)
+	_ap_boxes(Vector2(64, 36), 2, left, RED, "敵のAP")
+	if struck and t < 2.4:
+		draw_arc(you, 18, -2.4, -0.4, 12, Color(1, 1, 1, 0.9), 4, true)
+		_text(you + Vector2(-8, -34), "−1", 22, RED, LATIN)
+	if struck:
+		_hearts(Vector2(70, 196), 4, 5)
+
+## Hovering an enemy shows its AP (how many actions it gets).
+func _draw_enemy_ap_info() -> void:
+	var t := _phase(3.0)
+	var foe := Vector2(56, 70)
+	draw_rect(Rect2(foe - Vector2(T / 2, T / 2) + Vector2.ONE * 2, Vector2.ONE * (T - 4)), Color("5e5442"))
+	_enemy(foe)
+	var shown := t > 0.8
+	_cursor(foe.lerp(foe + Vector2(40, 60), clampf(1.0 - t / 0.8, 0.0, 1.0)) + Vector2(6, 6))
+	if shown:
+		var panel := Rect2(Vector2(96, 24), Vector2(124, 150))
+		draw_rect(panel, Color("0b1415"))
+		draw_rect(panel, Color("324843"), false, 2)
+		_text(panel.position + Vector2(10, 26), "歩兵", 20, INK)
+		_text(panel.position + Vector2(10, 56), "HP", 18, RED, LATIN)
+		draw_circle(panel.position + Vector2(52, 50), 6, RED)
+		var pulse := 0.6 + 0.4 * sin(time * 8.0)
+		draw_rect(Rect2(panel.position + Vector2(4, 70), Vector2(116, 30)), Color(GOLD, 0.15 * pulse))
+		_ap_boxes(panel.position + Vector2(10, 78), 2, 2)
+		_text(panel.position + Vector2(10, 132), "2回動ける", 16, GOLD)

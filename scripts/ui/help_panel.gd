@@ -17,35 +17,34 @@ const PAGES := [
 	{"title": "基本", "items": [
 		{"kind": "move", "caption": "光るマスへ動ける"},
 		{"kind": "attack", "caption": "敵を押すと攻撃", "sub": "自分は動かない"},
-		{"kind": "ap", "caption": "1ターンに2回", "sub": "そのあと敵の番"},
-	]},
-	{"title": "敵", "items": [
-		{"kind": "threat", "caption": "！は次に殴られる", "sub": "動いて避けよう"},
-		{"kind": "inspect", "caption": "敵に乗せると", "sub": "攻撃範囲が見える"},
 		{"kind": "win", "caption": "全滅で勝ち"},
 	]},
+	{"title": "AP（行動力）", "items": [
+		{"kind": "ap_actions", "caption": "1行動 = AP1", "sub": "1ターンにAP2"},
+		{"kind": "ap_end", "caption": "AP0で敵のターン", "sub": "ボタンで早く渡せる"},
+	]},
+	{"title": "敵にもAPがある", "items": [
+		{"kind": "enemy_ap1", "caption": "AP1の敵", "sub": "1マス動いて終わり"},
+		{"kind": "enemy_ap2", "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
+		{"kind": "enemy_ap_info", "caption": "敵に乗せるとAP", "sub": "何回動くか見える"},
+	]},
+	{"title": "危険を読む", "items": [
+		{"kind": "threat", "caption": "！は次に殴られる", "sub": "動いて避けよう"},
+		{"kind": "inspect", "caption": "赤いマスは攻撃範囲"},
+	]},
 	{"title": "武器", "items": [
-		{"kind": "switch", "caption": "持ち替えは自由", "sub": "0 AP・1〜3キー"},
+		{"kind": "switch", "caption": "3本を持ち替え", "sub": "0 AP・1〜3キー"},
 		{"kind": "jump", "caption": "跳ぶ", "sub": "間を飛び越える"},
 		{"kind": "slide", "caption": "滑る", "sub": "止まるまで進む"},
 	]},
+	{"title": "特殊効果", "items": [
+		{"kind": "circle", "caption": "魔法陣", "sub": "白いマスで囲むと99"},
+		{"kind": "push", "caption": "押出", "sub": "ぶつけるとさらに1"},
+	]},
 	{"title": "妖精", "items": [
-		{"kind": "place", "caption": "光るマスに置く", "sub": "各戦闘1回"},
+		{"kind": "place", "caption": "光るマスに置く", "sub": "AP1・各戦闘1回"},
 		{"kind": "cannon", "caption": "大砲は叩くと発射"},
 		{"kind": "fade", "caption": "3ターンで消える"},
-	]},
-	{"title": "遠征", "items": [
-		{"kind": "flow", "caption": "戦闘3→休憩→ボス"},
-		{"kind": "reward", "caption": "勝ったら1つ選ぶ"},
-		{"kind": "hp", "caption": "HPは持ち越し", "sub": "勝つたび+1"},
-	]},
-	{"title": "特別", "items": [
-		{"kind": "circle", "caption": "魔法陣：囲むと99", "sub": "紫の枠の武器"},
-		{"kind": "push", "caption": "押出：ぶつけて+1"},
-		{"kind": "plus", "caption": "黄色い＋は強化済み"},
-	]},
-	{"title": "キー", "items": [
-		{"kind": "keys", "caption": "", "wide": true},
 	]},
 ]
 
@@ -99,12 +98,10 @@ func _show() -> void:
 		var item: Dictionary = items[i]
 		var figure := Figure.new()
 		figure.kind = item.kind
-		if item.get("wide", false):
-			figure.position = Vector2(0, 0)
-			figure.size = Vector2(744, 300)
-		else:
-			figure.position = Vector2(i * 256, 0)
-			figure.size = Vector2(232, 232)
+		# Two or three pictures, centred on the page.
+		var left := (744.0 - (items.size() * 232 + (items.size() - 1) * 24)) / 2.0
+		figure.position = Vector2(left + i * 256, 0)
+		figure.size = Vector2(232, 232)
 		body.add_child(figure)
 		if item.caption != "":
 			var caption := _label(body, figure.position + Vector2(0, 244), item.caption, 22, INK)
