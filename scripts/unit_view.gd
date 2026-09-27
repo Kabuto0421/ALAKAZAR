@@ -76,10 +76,7 @@ func play_hit_reaction(direction: Vector2) -> void:
 	flash = 0.12
 
 func _draw() -> void:
-	if kind == "slot":
-		# Charge panel ring under Rotorick: blue = waiting, red = charge set.
-		draw_texture_rect_region(ROTORICK_PANEL, Rect2(-76,-66,152,152), Rect2(facing*112, (112 if braced else 0), 112, 112))
-	elif span > 1:
+	if span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
 	else:
 		draw_circle(Vector2(0,22),19,Color(0,0,0,0.35))
@@ -125,13 +122,13 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"slot":
 			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
 			var frame: int = 7 if reel_value <= 0 else reel_value - 1
-			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-75,-100)*factor, Vector2.ONE*150*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
+			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-64,-66)*factor, Vector2.ONE*128*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
 		"shadow":
 			# A flickering purple hologram: translucent, with scan lines.
 			var t: float = Time.get_ticks_msec() / 1000.0
 			var alpha := 0.5 + 0.12 * sin(t * 9.0)
 			var jitter := Vector2(2.0 * sin(t * 23.0), 0) if int(t * 7) % 5 == 0 else Vector2.ZERO
-			var rect := Rect2((Vector2(-75,-100) + jitter) * factor, Vector2.ONE * 150 * factor)
+			var rect := Rect2((Vector2(-64,-66) + jitter) * factor, Vector2.ONE * 128 * factor)
 			canvas.draw_texture_rect_region(ROTORICK_SHADOW, rect, Rect2(224, 0, 112, 112), Color(0.85, 0.6, 1.0, alpha))
 			for k in range(0, int(rect.size.y), 6):
 				canvas.draw_line(Vector2(rect.position.x + 20 * factor, rect.position.y + k), Vector2(rect.end.x - 20 * factor, rect.position.y + k), Color(0.75, 0.45, 1.0, 0.12), 1)
@@ -159,12 +156,14 @@ func _draw_status() -> void:
 	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
-	# Rotorick's hearts sit above its head so the charge panel owns its feet.
-	var heart_y := -106.0 if kind == "slot" else 29+grow
+	if kind == "slot":
+		# Charge panel ring laid over Rotorick, a size larger so its arrows sit
+		# outside the body: blue = waiting, red = charge set.
+		status_layer.draw_texture_rect_region(ROTORICK_PANEL, Rect2(-92,-94,184,184), Rect2(facing*112, (112 if braced else 0), 112, 112))
+	# Rotorick's hearts sit just above the ring.
+	var heart_y := -100.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
-	if kind == "slot":
-		_draw_charge_arrow()
 	if attack_target:
 		for corner in [Vector2(-28-grow,-27-grow),Vector2(28+grow,-27-grow),Vector2(-28-grow,24+grow),Vector2(28+grow,24+grow)]:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))
@@ -176,23 +175,6 @@ func _draw_status() -> void:
 		status_layer.draw_rect(Rect2(at+Vector2(2,2),Vector2(18,24)), Color("ffbd59"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,5),Vector2(6,12)), Color("351e20"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,20),Vector2(6,4)), Color("351e20"))
-
-## Rotorick: a bold chevron just outside the body, on top of everything, pointing
-## where the next charge goes (red when set, blue while jammed or waiting).
-func _draw_charge_arrow() -> void:
-	var dir := Vector2([Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT][facing])
-	var side := Vector2(-dir.y, dir.x)
-	var pulse := 4.0 * sin(clock * 6.0)
-	# Clear of the body on every side (above the hearts when aiming up).
-	var reach: float = [130.0, 92.0, 96.0, 92.0][facing]
-	var tip := dir * (reach + pulse) + Vector2(0, -6)
-	var color := Color("ff3b3b") if braced else Color("5ac8ff")
-	for k in range(2):
-		var at := tip - dir * (k * 20)
-		var points := PackedVector2Array([at + dir * 4, at - dir * 20 + side * 24, at - dir * 10 + side * 24, at + dir * 12, at - dir * 10 - side * 24, at - dir * 20 - side * 24])
-		status_layer.draw_colored_polygon(points, Color(0.05, 0.02, 0.02, 0.9))
-		var inner := PackedVector2Array([at, at - dir * 17 + side * 18, at - dir * 11 + side * 18, at + dir * 6, at - dir * 11 - side * 18, at - dir * 17 - side * 18])
-		status_layer.draw_colored_polygon(inner, Color(color, 1.0 - k * 0.3))
 
 func _draw_cavalry(tint: Color, canvas: CanvasItem = null) -> void:
 	if canvas == null:
