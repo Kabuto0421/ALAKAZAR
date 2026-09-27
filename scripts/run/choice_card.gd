@@ -80,14 +80,14 @@ func _ready() -> void:
 			ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			var style := StyleBoxFlat.new()
 			style.draw_center = false
-			style.border_color = Color("9b6bff")
+			style.border_color = Color("f4f2ea")
 			style.set_border_width_all(2)
 			style.set_corner_radius_all(6)
 			ring.add_theme_stylebox_override("panel",style)
 			add_child(ring)
 		if Weapons.knockback(int(offer.value)) > 0:
 			stats += " / 押し出し"
-		_label(Vector2(14,y),stats,15,Color("c9b3ff") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(14,y),stats,15,Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

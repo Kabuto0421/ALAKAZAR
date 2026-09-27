@@ -4,8 +4,8 @@ extends Node2D
 ## white flash, a shockwave and a rain of sparks. Drawn above every unit.
 
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
-const VIOLET := Color("9b6bff")
-const CYAN := Color("7fe8ff")
+const VIOLET := Color("ffffff")
+const CYAN := Color("e4eeff")
 const GOLD := Color("ffd35b")
 const WHITE := Color("fffaf0")
 const LIFE := 2.9

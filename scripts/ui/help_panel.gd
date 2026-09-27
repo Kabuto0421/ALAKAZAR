@@ -21,35 +21,31 @@ const PAGES := [
 		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く", "sub": "光るマスに置く"},
 	]},
 	{"title": "AP（行動力）", "lead": "移動・攻撃・妖精はどれもAP1。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
-		{"shots": ["ap_seq_0", "ap_seq_1", "ap_seq_2"], "tags": ["AP 2", "移動 −1 AP", "攻撃 −1 AP"], "caption": "1ターンに2回", "sub": "動いてから殴る、など"},
-		{"shots": ["turn_a", "turn_b"], "tags": ["AP 0", "敵のターンのあと AP 2"], "caption": "AP0で敵のターン", "sub": "次のターンでまた2に戻る"},
+		{"shots": ["loop_0", "loop_1", "loop_2", "loop_3", "loop_4"], "tags": ["あなたのターン AP 2", "移動 −1 AP", "攻撃 −1 AP → 0", "敵のターン", "またあなたのターン AP 2"], "caption": "2回動いたら敵の番", "sub": "敵が動くとAPが2に戻る。これのくり返し", "wide": true},
 		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP", "sub": "光るマスが変わる"},
 	]},
 	{"title": "武器", "lead": "武器は3本まで。武器ごとに動ける方向と攻撃力が違う。いろんな方向の武器を集めて、組み合わせて戦おう。", "items": [
 		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "縦跳剣", "桂馬剣"], "caption": "動ける方向が違う", "sub": "下のカードの図が範囲"},
 		{"shots": ["power_a", "power_b"], "tags": ["ハンマー 攻撃3", "攻撃 −1 AP"], "caption": "攻撃力も違う", "sub": "カードの「攻撃N」"},
-		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["縦跳剣", "跳ぶ −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる", "sub": "跳んでから、別の武器で殴る"},
+		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["縦跳剣", "移動 −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる", "sub": "動いてから、別の武器で殴る"},
 	]},
-	{"title": "武器のクセ", "lead": "報酬で手に入る武器は、動き方にクセがある。カードの範囲図と「跳ぶ」「滑る」などのタグを見て選ぼう。", "items": [
-		{"shots": ["jump"], "caption": "跳ぶ", "sub": "間にいる敵を飛び越える"},
+	{"title": "特殊効果", "lead": "一部の武器には特別な効果がある。白い枠は魔法陣。カードの「押出」「滑る」などのタグも見よう。", "items": [
+		{"shots": ["circle_a", "circle_b", "circle_c"], "tags": ["囲める場所が光る", "発動", "99ダメージ"], "caption": "魔法陣", "sub": "歩いた跡で囲むと99ダメージ"},
+		{"shots": ["push_a", "push_b"], "tags": ["押出", "ぶつかって +1"], "caption": "押出", "sub": "押された敵がぶつかると+1"},
 		{"shots": ["slide"], "caption": "滑る", "sub": "ふさがるまで一直線に進む"},
 	]},
-	{"title": "特殊効果", "lead": "一部の武器には特別な効果が付いている。紫の枠は魔法陣、「押出」のタグは押し出し。", "items": [
-		{"shots": ["circle_a", "circle_b", "circle_c"], "tags": ["囲める場所が紫", "発動", "99ダメージ"], "caption": "魔法陣", "sub": "攻撃できない。歩いた跡で囲むと99"},
-		{"shots": ["push_a", "push_b"], "tags": ["押出", "ぶつかって +1"], "caption": "押出", "sub": "押された敵がぶつかると+1"},
-	]},
-	{"title": "妖精", "lead": "妖精は各戦闘1回ずつ使える道具で、使うとAP1。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
-		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "使うとAP1", "sub": "1戦闘1回（次の戦闘で回復）"},
+	{"title": "妖精", "lead": "妖精はいっしょに戦う相棒。各戦闘1回ずつ力を貸してくれて、呼ぶとAP1。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
+		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "呼ぶとAP1", "sub": "1戦闘1回（次の戦闘でまた呼べる）"},
 		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第", "sub": "水色のマスに置ける"},
 	]},
 	{"title": "設置系の妖精", "lead": "壁・大砲・隠密妖精などの設置系は、置いたターンを含めて3ターンで消える。右下の数字が残りのターン。", "items": [
 		{"shots": ["fade_3", "fade_2", "fade_1", "fade_0"], "tags": ["残り3", "残り2", "残り1", "消えた"], "caption": "3ターンで消える"},
 		{"shots": ["cannon_a", "cannon_b"], "tags": ["大砲", "叩く −1 AP"], "caption": "大砲は武器で叩くと発射", "sub": "向きの直線上の敵すべてに1"},
 	]},
-	{"title": "敵にもAPがある", "lead": "敵にもAPがあり、移動も攻撃も1AP。AP2の敵は、2マス先からでも寄ってきてそのまま殴ってくる。", "items": [
-		{"shots": ["eap1_a", "eap1_b"], "tags": ["敵AP 1", "敵 移動 −1"], "caption": "AP1の敵", "sub": "1マス動いて終わり"},
+	{"title": "敵にもAPがある", "lead": "敵にもAPがあり、移動も攻撃も1AP。同じ2マス先からでも、AP1の敵は寄るだけ、AP2の敵は寄ってそのまま殴ってくる。", "items": [
+		{"shots": ["eap1_a", "eap1_b"], "tags": ["敵AP 1", "敵 移動 −1 → 終わり"], "caption": "AP1の敵", "sub": "寄ってきて終わり"},
 		{"shots": ["eap2_a", "eap2_b"], "tags": ["敵AP 2", "敵 移動→攻撃"], "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
-		{"shots": ["inspect_ap"], "caption": "敵に乗せるとAP", "sub": "右の欄の黄色い四角の数"},
+		{"shots": ["inspect_ap"], "caption": "敵に乗せると情報", "sub": "HP・AP・動き・攻撃範囲"},
 	]},
 	{"title": "危険を読む", "lead": "！が付いた敵は、あなたが今の場所にいると次のターンに攻撃してくる。！が消える場所へ動けば避けられる。", "items": [
 		{"shots": ["threat_rule"], "caption": "！は次に殴られる"},
@@ -115,22 +111,29 @@ func _show() -> void:
 		for name in item.shots:
 			figure.frames.append(load("res://assets/help/%s.png" % name))
 		figure.tags = item.get("tags", [])
-		# Two or three pictures, centred on the page.
-		var left := (744.0 - (items.size() * 232 + (items.size() - 1) * 24)) / 2.0
-		figure.position = Vector2(left + i * 256, 0)
-		figure.size = Vector2(232, 262)
+		# Two or three pictures, centred on the page; a "wide" one takes two slots.
+		var slots := 0
+		for other in items:
+			slots += 2 if other.get("wide", false) else 1
+		var before := 0
+		for k in i:
+			before += 2 if items[k].get("wide", false) else 1
+		var left := (744.0 - (slots * 232 + (slots - 1) * 24)) / 2.0
+		var span := 2 if item.get("wide", false) else 1
+		figure.position = Vector2(left + before * 256, 0)
+		figure.size = Vector2(232 * span + 24 * (span - 1), 262)
 		body.add_child(figure)
 		if item.caption != "":
 			var caption := _label(body, figure.position + Vector2(0, 270), item.caption, 21, INK)
 			caption.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-			caption.custom_minimum_size = Vector2(232, 0)
-			caption.size = Vector2(232, 0)
+			caption.custom_minimum_size = Vector2(figure.size.x, 0)
+			caption.size = Vector2(figure.size.x, 0)
 			caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if item.has("sub"):
 			var sub := _label(body, figure.position + Vector2(0, 298), item.sub, 15, MUTED)
 			sub.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-			sub.custom_minimum_size = Vector2(232, 0)
-			sub.size = Vector2(232, 0)
+			sub.custom_minimum_size = Vector2(figure.size.x, 0)
+			sub.size = Vector2(figure.size.x, 0)
 			sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func close() -> void:

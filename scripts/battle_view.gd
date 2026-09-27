@@ -25,7 +25,7 @@ const HelpPanel = preload("res://scripts/ui/help_panel.gd")
 ## The manual opens by itself on the first battle after the game starts (not saved).
 static var help_seen := false
 var help: Control
-const CIRCLE_VIOLET = Color("9b6bff")
+const CIRCLE_WHITE = Color("f4f2ea")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
@@ -753,13 +753,13 @@ func _draw_board() -> void:
 				# Magic circle chalk: white tiles that stay all fight (a burning floor is drawn over them).
 				var glow := 0.55 + 0.08 * sin(clock * 3.0 + x + y)
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(0.94,0.95,1.0,glow))
-				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("b9a4ff"),false,2)
-				draw_arc(pos+Vector2(32,32),10,clock,clock+TAU*0.8,16,Color(CIRCLE_VIOLET,0.6),2,true)
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("fffdf2"),false,2)
+				draw_arc(pos+Vector2(32,32),10,clock,clock+TAU*0.8,16,Color(GOLD,0.55),2,true)
 			if circle_zone.has(cell):
-				# Preview: what closing the circle here would catch.
+				# Preview: what closing the circle here would catch (pulsing gold).
 				var pulse := 0.5 + 0.5 * sin(clock * 8.0)
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CIRCLE_VIOLET,0.2+0.15*pulse))
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("d9c9ff"),false,2)
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.95,0.7,0.2+0.15*pulse))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),GOLD,false,2)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -928,10 +928,10 @@ func _draw_weapons() -> void:
 			extras.append("溜め%d/%d" % [model.blade_charge, Rules.BLADE_MAX])
 		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
-		_text(pos+Vector2(28,72),"・".join(extras),16,Color("c9b3ff") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
+		_text(pos+Vector2(28,72),"・".join(extras),16,Color("f4f2ea") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
 		if circle:
-			# A violet inner frame marks the enchantment.
-			draw_rect(rect.grow(-3),Color(CIRCLE_VIOLET,0.5),false,1)
+			# A white inner frame marks the enchantment.
+			draw_rect(rect.grow(-3),Color(CIRCLE_WHITE,0.6),false,1)
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
@@ -1355,7 +1355,7 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			# A tile turning white: a bright ring and a few rising sparkles.
 			draw_arc(pos, 8 + t * 22, 0, TAU, 24, Color(1, 1, 1, fade), 3, true)
 			for k in range(4):
-				draw_circle(pos + Vector2(-15 + k * 10, 12 - t * 28 - (k % 2) * 6), 2.5, Color(CIRCLE_VIOLET.lightened(0.4), fade))
+				draw_circle(pos + Vector2(-15 + k * 10, 12 - t * 28 - (k % 2) * 6), 2.5, Color(GOLD, fade))
 		"circle":
 			pass
 		"axe":

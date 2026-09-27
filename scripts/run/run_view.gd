@@ -201,7 +201,7 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 		if offer.get("enchant", "") == "circle":
 			card.tag = "魔法陣の武器"
 			card.note = "囲むと99ダメージ"
-			card.note_color = Color("c9b3ff")
+			card.note_color = Color("f4f2ea")
 		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
 			card.tag = ("魔法陣" if offer.get("enchant", "") == "circle" else "武器") + " ・ 交換"
 	else:
@@ -290,7 +290,7 @@ func _loadout() -> void:
 			_badge(diagram.position+Vector2(104,-6),20)
 		var damage: int = run.battle.weapon_damage(index)
 		if run.battle.is_circle(index):
-			_label(at+Vector2(10,130),"魔法陣・攻撃不可",14,Color("c9b3ff"))
+			_label(at+Vector2(10,130),"魔法陣・攻撃不可",14,Color("f4f2ea"))
 		else:
 			_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	for slot in run.battle.HAND_LIMIT:

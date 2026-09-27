@@ -67,6 +67,8 @@ func board(margin: float = 12.0) -> Rect2:
 
 const PANEL := Rect2(24, 94, 280, 84)
 const HAND := Rect2(24, 262, 280, 100)
+## "あなたのターン" / "敵のターン" above the board.
+const TURN := Rect2(340, 96, 420, 44)
 
 ## The equipped weapon's card in the bar under the board.
 func card() -> Rect2:
@@ -130,24 +132,31 @@ func capture_all() -> void:
 	bv._commit_item(Vector2i(1, 1), Vector2i.ZERO)
 	await frames(8)
 	await shot("basic_fairy_b", [PANEL, board()])
-	setup([["recruit", Vector2i(1, 1)]], Vector2i(0, 1))
-	act(Vector2i(1, 1))
-	await frames(2)
-	await shot("win", Rect2(368, 226, 416, 282))
 	# --- AP: two actions, then the enemy turn; switching is free ---
+	# The turn loop: your AP runs out, the enemies act, your turn comes back.
+	var turn_area := [PANEL, TURN, board()]
 	setup([["heavy", Vector2i(2, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
 	m.enemies[0].hp = 5
-	await shot("ap_seq_0", [PANEL, board()])
+	await shot("loop_0", turn_area)
 	act(Vector2i(1, 1))
-	await shot("ap_seq_1", [PANEL, board()])
+	await shot("loop_1", turn_area)
 	act(Vector2i(2, 1))
 	await frames(2)
-	await shot("ap_seq_2", [PANEL, board()])
-	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1))
-	m.player.ap = 0
-	await shot("turn_a", [PANEL, board()])
-	enemy_turn()
-	await shot("turn_b", [PANEL, board()])
+	await shot("loop_2", turn_area)
+	var planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m, 0)
+	planner.beat(m, 1)
+	bv.busy = true
+	bv._sync_units(false)
+	bv._feedback()
+	await frames(2)
+	await shot("loop_3", turn_area)
+	planner.finish(m)
+	bv.busy = false
+	bv._sync_units(false)
+	bv._update_controls()
+	await shot("loop_4", turn_area)
 	setup([["heavy", Vector2i(3, 3)]], Vector2i(1, 1), "front_diagonal")
 	m.weapon = 0
 	await shot("switch_a", [PANEL, board(), card()])
@@ -174,14 +183,12 @@ func capture_all() -> void:
 	act(Vector2i(1, 1))
 	await frames(2)
 	await shot("combo_3", [PANEL, board(), card()])
-	# --- 武器の種類 ---
-	setup([["heavy", Vector2i(0, 1)]], Vector2i(0, 2), "vault")
-	m.weapon = ids.find("vault")
-	await shot("jump", [board(), card()])
+	# --- 滑る (shown with the special effects) ---
 	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1), "rook_spear")
 	await shot("slide", [board(), card()])
 	# --- 特殊効果 ---
-	setup([["heavy", Vector2i(1, 1)]], Vector2i(0, 1), "shield")
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "shield")
+	m.enemies[0].hp = 5
 	m.obstacles.append(Vector2i(2, 1))
 	bv.queue_redraw()
 	await shot("push_a", [board(), card()])
@@ -236,7 +243,7 @@ func capture_all() -> void:
 	m.walls.clear()
 	await shot("fade_0", board())
 	# --- 敵にもAP ---
-	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1))
+	setup([["heavy", Vector2i(2, 1)]], Vector2i(0, 1))
 	await shot("eap1_a", board())
 	enemy_turn()
 	await shot("eap1_b", board())
@@ -247,7 +254,7 @@ func capture_all() -> void:
 	await shot("eap2_b", board())
 	setup([["executioner", Vector2i(2, 1)]], Vector2i(0, 3))
 	bv.selected_enemy_id = 0
-	await shot("inspect_ap", Rect2(832, 94, 296, 300))
+	await shot("inspect_ap", Rect2(832, 94, 296, 420))
 	# --- 危険: the rule, then a real dodge ---
 	setup([["recruit", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
 	await shot("threat_rule", board())
