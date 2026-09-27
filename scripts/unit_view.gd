@@ -10,7 +10,6 @@ const ROOK_ATLAS = preload("res://assets/sprites/enemies/rook_boss_directions_56
 const PRISON_ATLAS = preload("res://assets/sprites/enemies/prison_directions.png")
 const EXECUTIONER_ATLAS = preload("res://assets/sprites/enemies/executioner_directions.png")
 const ROTORICK_ATLAS = preload("res://assets/sprites/enemies/rotorick_reel_112.png")
-const ROTORICK_PANEL = preload("res://assets/sprites/enemies/rotorick_charge_panel_112.png")
 const ROTORICK_SHADOW = preload("res://assets/sprites/enemies/rotorick_shadow_112.png")
 const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
 const PLAYER_ATLAS_CELL := 362.0
@@ -76,11 +75,7 @@ func play_hit_reaction(direction: Vector2) -> void:
 	flash = 0.12
 
 func _draw() -> void:
-	if kind == "slot":
-		# Charge panel ring under Rotorick, a size larger so its arrows stick out
-		# around the body: blue = waiting, red = charge set.
-		draw_texture_rect_region(ROTORICK_PANEL, Rect2(-108,-110,216,216), Rect2(facing*112, (112 if braced else 0), 112, 112), Color(1, 1, 1, 0.75))
-	elif span > 1:
+	if span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
 	else:
 		draw_circle(Vector2(0,22),19,Color(0,0,0,0.35))
@@ -160,8 +155,9 @@ func _draw_status() -> void:
 	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner"] else 1
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
-	# Rotorick's hearts sit just above the ring.
-	var heart_y := -112.0 if kind == "slot" else 29+grow
+	if kind == "slot":
+		_draw_rotorick_arrows()
+	var heart_y := -98.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
 	if attack_target:
@@ -175,6 +171,30 @@ func _draw_status() -> void:
 		status_layer.draw_rect(Rect2(at+Vector2(2,2),Vector2(18,24)), Color("ffbd59"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,5),Vector2(6,12)), Color("351e20"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,20),Vector2(6,4)), Color("351e20"))
+
+## Rotorick: red chevrons outside the body point where the next charge goes.
+## Jammed (reel 5, state "stun"): yellow arrows crowd in from all around instead.
+func _draw_rotorick_arrows() -> void:
+	var pulse := 3.0 * sin(clock * 6.0)
+	if not braced:
+		# Two staggered rings of yellow arrows, all pointing in.
+		for ring in range(2):
+			for k in range(14):
+				var dir := Vector2.from_angle((k + ring * 0.5) * TAU / 14.0 + clock * 0.4)
+				var at := dir * (Vector2(84, 80) + Vector2.ONE * (ring * 22 - pulse)) + Vector2(0, -6)
+				_chevron(at, -dir, 12.0 - ring * 2.0, Color("ffd35b") if ring == 0 else Color("ffe98a"))
+		return
+	var dir := Vector2([Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT][facing])
+	var reach: float = [140.0, 96.0, 98.0, 96.0][facing]
+	for k in range(2):
+		_chevron(dir * (reach + pulse - k * 20) + Vector2(0, -6), dir, 24.0, Color(Color("ff3b3b"), 1.0 - k * 0.3))
+
+func _chevron(tip: Vector2, dir: Vector2, size: float, color: Color) -> void:
+	var side := Vector2(-dir.y, dir.x)
+	var outer := PackedVector2Array([tip + dir * size * 0.2, tip - dir * size * 0.85 + side * size, tip - dir * size * 0.45 + side * size, tip + dir * size * 0.55, tip - dir * size * 0.45 - side * size, tip - dir * size * 0.85 - side * size])
+	status_layer.draw_colored_polygon(outer, Color(0.05, 0.02, 0.02, 0.9))
+	var inner := PackedVector2Array([tip, tip - dir * size * 0.7 + side * size * 0.75, tip - dir * size * 0.45 + side * size * 0.75, tip + dir * size * 0.28, tip - dir * size * 0.45 - side * size * 0.75, tip - dir * size * 0.7 - side * size * 0.75])
+	status_layer.draw_colored_polygon(inner, color)
 
 func _draw_cavalry(tint: Color, canvas: CanvasItem = null) -> void:
 	if canvas == null:
