@@ -72,7 +72,7 @@ func _ready() -> void:
 		var stats := "1 AP / 攻撃 %d" % damage
 		if circle:
 			# The enchantment replaces the attack: say so plainly.
-			stats = "魔法陣：攻撃不可。歩いた跡で囲むと99"
+			stats = "魔法陣・攻撃不可"
 			var ring := Panel.new()
 			ring.position = Vector2(4,4)
 			ring.size = size-Vector2(8,8)

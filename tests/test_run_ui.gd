@@ -106,7 +106,7 @@ func run() -> void:
 	await process_frame
 	click(view.result_button)
 	await process_frame
-	verify(app.run.state==Run.State.REWARD and cards().size()==4,"Clear button opens four rewards")
+	verify(app.run.state==Run.State.REWARD and cards().size()==5,"Clear button opens five rewards")
 	verify(app.run.battle.fairy_charges==[1],"Clear restores the used fairy")
 	click(cards()[0])
 	await process_frame

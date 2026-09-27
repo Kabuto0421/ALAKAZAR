@@ -6,6 +6,9 @@ enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORG
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
+## Each reward shows this many weapons and fairies (pick one of them, or skip).
+const WEAPON_OFFERS := 3
+const FAIRY_OFFERS := 2
 ## Difficulty: 0 = normal. Raise it to strip the helpers below.
 var difficulty := 0
 
@@ -134,10 +137,10 @@ func finish_battle() -> bool:
 		var drop: int = sample(drops,1)[0]
 		offers.append({"kind":"weapon","value":drop})
 		weapons.erase(drop)
-		for index in sample(weapons,1):
+		for index in sample(weapons,WEAPON_OFFERS-1):
 			offers.append({"kind":"weapon","value":index})
 	else:
-		for index in sample(weapons,2):
+		for index in sample(weapons,WEAPON_OFFERS):
 			offers.append({"kind":"weapon","value":index})
 	# Now and then one weapon offer comes with a magic circle (never the bow, which cannot move).
 	var circle_chance := CIRCLE_CHANCE_LATE if mid else CIRCLE_CHANCE_EARLY
@@ -150,7 +153,7 @@ func finish_battle() -> bool:
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:
 		fairy_candidates = reward_fairy_pool.duplicate()
-	for id in sample(fairy_candidates,2):
+	for id in sample(fairy_candidates,FAIRY_OFFERS):
 		offers.append({"kind":"fairy","value":id})
 	# Beating the first boss can turn the last fairy offer into a rare one.
 	var rares: Array = RARE_FAIRIES.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))

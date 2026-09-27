@@ -68,8 +68,8 @@ func _initialize() -> void:
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
-	verify(run.offers.size()==4 and run.offers.slice(0,2).all(func(o): return o.kind=="weapon") and run.offers.slice(2).all(func(o): return o.kind=="fairy"),"Rewards always contain two weapons and two fairies")
-	verify(run.offers.slice(0,2).all(func(o): return Run.Weapons.is_quirky(o.value) and Run.Weapons.offsets(o.value).size() < 4),"Early reward weapons are odd two-tile weapons, weaker than a cross")
+	verify(run.offers.size()==5 and run.offers.slice(0,3).all(func(o): return o.kind=="weapon") and run.offers.slice(3).all(func(o): return o.kind=="fairy"),"Rewards always contain three weapons and two fairies")
+	verify(run.offers.slice(0,3).all(func(o): return Run.Weapons.is_quirky(o.value) and Run.Weapons.offsets(o.value).size() < 4),"Early reward weapons are odd two-tile weapons, weaker than a cross")
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -86,7 +86,7 @@ func _initialize() -> void:
 	m.enemies.clear()
 	m.check_outcome()
 	run.finish_battle()
-	run.choose(2)
+	run.choose(3)
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
 	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
 	verify(m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Cavalry first appears in the third fight")
@@ -110,7 +110,7 @@ func _initialize() -> void:
 	m.enemies.clear()
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating the boss opens a reward")
-	verify(run.offers.slice(0,2).any(func(o): return Run.Weapons.is_mid(o.value)),"After the boss a hammer or bow is offered")
+	verify(run.offers.slice(0,3).any(func(o): return Run.Weapons.is_mid(o.value)),"After the boss a hammer or bow is offered")
 	run.skip_reward()
 	verify(run.state==Run.State.BATTLE and m.level==4 and m.board_size==6,"Mid-game fight 1 follows the boss")
 	var mid_types: Array = m.enemies.map(func(e): return e.type)
@@ -200,8 +200,8 @@ func _initialize() -> void:
 	run.battle.enemies.clear()
 	run.battle.check_outcome()
 	run.finish_battle()
-	var incoming: String = run.offers[2].value
-	run.choose(2)
+	var incoming: String = run.offers[3].value
+	run.choose(3)
 	verify(run.state==Run.State.REPLACE,"Full fairy loadout requires replacement")
 	run.replace(0)
 	verify(run.battle.fairy_loadout.size()==3 and run.battle.fairy_loadout[0]==incoming,"Fairy replacement persists and preserves cap")
@@ -766,7 +766,7 @@ func _expiring_and_rewards() -> void:
 	run.battle.enemies.clear()
 	run.battle.check_outcome()
 	run.finish_battle()
-	verify(run.is_before_boss() and run.offers.slice(0,2).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
+	verify(run.is_before_boss() and run.offers.slice(0,3).all(func(o): return Run.Weapons.offsets(o.value).size() == 3),"The reward before the boss offers three-tile weapons (no cross)")
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.offsets(i).size() == 3 and not Run.Weapons.is_mid(i))
 	verify(threes.size() == 13,"Thirteen three-tile weapons feed the pre-boss reward")
 

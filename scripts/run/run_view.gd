@@ -81,7 +81,7 @@ func _render() -> void:
 			if run.is_before_boss():
 				_label(Vector2(44,94),"ボス前の特別報酬：武器は3マスの強い武器から。",17,Color("ffd35b"))
 			else:
-				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器2候補・妖精2候補。",17,sub)
+				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器3候補・妖精2候補。",17,sub)
 			_cards(run.offers)
 			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
@@ -197,21 +197,21 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 		card.note_color = GOOD if added > 0 else Color("92b3ae")
 		if offer.get("enchant", "") == "circle":
 			card.tag = "魔法陣の武器"
-			card.note = "レア：攻撃の代わりに魔法陣"
+			card.note = "囲むと99ダメージ"
 			card.note_color = Color("c9b3ff")
 		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
-			card.tag = ("魔法陣の武器" if offer.get("enchant", "") == "circle" else "武器") + " ・ 満杯なので交換"
+			card.tag = ("魔法陣" if offer.get("enchant", "") == "circle" else "武器") + " ・ 交換"
 	else:
 		var id := str(offer.value)
 		if offer.get("rare", false):
 			card.tag = "レア妖精"
-			card.note = "ボス撃破のレアドロップ"
+			card.note = "ボスのレアドロップ"
 			card.note_color = Color("ffd35b")
 		if run.battle.fairy_loadout.has(id):
 			card.note = "同じ妖精を所持中"
 			card.note_color = Color("ffd35b")
 		if run.state == Run.State.REWARD and run.battle.fairy_loadout.size() >= run.battle.HAND_LIMIT:
-			card.tag = ("レア妖精" if offer.get("rare", false) else "妖精") + " ・ 満杯なので交換"
+			card.tag = ("レア妖精" if offer.get("rare", false) else "妖精") + " ・ 交換"
 
 ## Replacement: the incoming item on the left, the owned ones to give up on the right.
 func _replace_cards() -> void:
