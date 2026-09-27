@@ -460,6 +460,12 @@ func _update_controls() -> void:
 	history_text.text = "\n\n".join(model.logs)
 	result_button.visible = model.terminal() and not busy and not show_rules and not inventory_ui.opened
 	bgm.sync(model.terminal() and not busy,model.phase == Rules.Phase.WON)
+	# Rotorick's music reacts to the reel on show: 5 breaks down, 7 hits the jackpot.
+	var reel := 0
+	for enemy in model.enemies:
+		if enemy.type == "slot":
+			reel = int(enemy.get("reel",0))
+	bgm.set_layer("error" if reel == 5 else "jackpot" if reel == 7 else "normal")
 	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "ビルド選択へ →"
 	for actor in actors.values():
 		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened

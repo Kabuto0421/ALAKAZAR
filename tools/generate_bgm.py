@@ -23,6 +23,10 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
     boss_loop.ogg    first boss: E minor, 140 BPM, 32 bars. A heavier march:
                      Phrygian F against E, octave-bouncing bass, a marching
                      hook, a twin-lead climax and a kick-less break.
+    rotorick_error.ogg / rotorick_jackpot.ogg  the same loop, sample-for-sample
+                     in time, for reel 5 (a broken, muffled, stuttering
+                     machine) and reel 7 (gold bells, octave leads, heavier
+                     kick); the game cross-fades between the three.
     rotorick_loop.ogg  Rotorick: A harmonic minor, 152 BPM in a triplet 12/8
                      swing. A mad cyber-circus that grabs from the first bar
                      and never lets up (oom-pah bass, chromatic lead, reel-spin
@@ -226,11 +230,13 @@ class Mix:
         import soundfile
 
         total = [sum(b[i] for b in self.buses.values()) for i in range(self.n)]
+        if getattr(self, "post", None):
+            total = self.post(total)
         total = [math.tanh(s * 1.1) for s in total]  # gentle glue
         # Match loudness across tracks (RMS), never exceeding the peak ceiling.
         top = max(abs(s) for s in total) or 1.0
         rms = math.sqrt(sum(s * s for s in total) / self.n) or 1.0
-        scale = min(peak / top, TARGET_RMS / rms)
+        scale = min(peak / top, TARGET_RMS * getattr(self, "loudness", 1.0) / rms)
         data = numpy.array(total, dtype=numpy.float32) * scale
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
@@ -499,7 +505,7 @@ def lower_third(note, pcs):
 
 def bell(note, seconds, vol=0.1):
     """Cold metallic toll: a sine plus an inharmonic partial."""
-    m = midi(note)
+    m = midi(note) if isinstance(note, str) else note
     body = synth(m, seconds, "sine", vol=vol, attack=0.002, decay=0.9, sustain=0.0,
                  release=0.4, cutoff=(6000, 3000, 0.5))
     ring = synth(m + 17.58, seconds, "sine", vol=vol * 0.45, attack=0.002, decay=0.35,
@@ -647,7 +653,50 @@ ROTO_SECTIONS = [
 ]
 
 
-def roto_theme():
+def broken_machine(beat_len):
+    """Reel 5: wobbling pitch, a muffled low-pass, bit-crush grit and stutters.
+    Every step wraps around the loop so the seam stays clean."""
+    def post(total):
+        n = len(total)
+        out = [0.0] * n
+        for i in range(n):  # pitch wobble through a modulated delay
+            t = i / RATE
+            d = (0.006 + 0.004 * math.sin(2 * math.pi * 0.55 * t)) * RATE
+            j = i - d
+            k = math.floor(j)
+            f = j - k
+            out[i] = total[k % n] * (1 - f) + total[(k + 1) % n] * f
+        a = lp_coef(750)
+        y1 = y2 = 0.0
+        for _ in range(2):  # two passes so the filter state wraps into the start
+            for i in range(n):
+                y1 += a * (out[i] - y1)
+                y2 += a * (y1 - y2)
+                out[i] = y2 if _ else out[i]
+        hold = 0.0
+        crush = int(RATE / 6000)
+        rng = random.Random(55)
+        beat = int(beat_len * RATE)
+        cut = [rng.random() < 0.3 for _ in range(n // beat + 1)]
+        fade = int(0.006 * RATE)
+        for i in range(n):
+            if i % crush == 0:
+                hold = round(out[i] * 24) / 24
+            s = out[i] * 0.6 + hold * 0.4
+            b, pos = divmod(i, beat)
+            if cut[b] and pos > beat // 2:  # the machine drops out for half a beat
+                edge = min(pos - beat // 2, beat - pos)
+                s *= max(0.0, 1 - edge / fade) if edge < fade else 0.0
+            out[i] = s
+        return out
+    return post
+
+
+def roto_theme(variant="normal"):
+    """variant: "normal", "error" (reel 5) or "jackpot" (reel 7). All three
+    share the timeline exactly so the game can cross-fade between them."""
+    error = variant == "error"
+    jackpot = variant == "jackpot"
     beat_len = 4 * STEP
     tick = beat_len / 3
     bar_len = 4 * beat_len
@@ -673,10 +722,19 @@ def roto_theme():
             bt = t0 + beat * beat_len
             hit = (kick_mode == "four") or (kick_mode == "waltz" and beat in (0, 2)) or (kick_mode == "half" and beat == 0)
             if hit:
-                mix.put("kick", bt, kick(0.95 if name == "verdict" and beat == 0 else 0.8))
+                if not error:
+                    mix.put("kick", bt, kick((0.95 if name == "verdict" and beat == 0 else 0.8) + (0.1 if jackpot else 0.0)))
                 kicks.append(bt)
-            if clap and beat in (1, 3):
-                mix.put("clap", bt, noise_hit(rng, 0.16, 900, 3200, clap, bursts=3))
+            if clap and beat in (1, 3) and not error:
+                mix.put("clap", bt, noise_hit(rng, 0.16, 900, 3200, clap * (1.3 if jackpot else 1.0), bursts=3))
+            if jackpot:
+                # Gold: a bell on every beat climbing the chord, and a sub thump on the bar.
+                tone = chord["chord"][beat % 3]
+                mix.put("bell", bt, bell(midi(tone) + 24, 0.5, vol=0.05))
+                if beat == 0:
+                    mix.put("bass", bt, synth(midi(chord["bass"]) - 12, beat_len * 1.5, "sine", vol=0.35,
+                                              attack=0.004, decay=0.4, sustain=0.2, release=0.1,
+                                              cutoff=(400, 200, 0.2)))
             if kick_mode != "none":
                 mix.put("hat", bt + 2 * tick, noise_hit(rng, 0.05, 6500, 12500, 0.12))
             if oompah:
@@ -696,7 +754,7 @@ def roto_theme():
                     m = midi(tones[idx_note]) + 12
                     mix.put("arp", bt + k * tick, pluck(m, 2600, vol=reel))
         mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=900, vol=pad_v))
-        if part in ("tune", "tune2", "twin"):
+        if part in ("tune", "tune2", "twin") and not error:
             phrase = ROTO_TUNE[idx % 8]
             prev = None
             for tk, length, note in phrase:
@@ -705,6 +763,10 @@ def roto_theme():
                                                        vol=0.15, attack=0.006, decay=0.18, sustain=0.6,
                                                        release=0.06, cutoff=(3000, 1700, 0.15),
                                                        glide_from=prev if length > 1 else None))
+                if jackpot:
+                    mix.put("lead", t0 + tk * tick, synth(m + 12, note_len(length), "pulse", duty=0.3,
+                                                           vol=0.06, attack=0.004, decay=0.15, sustain=0.5,
+                                                           release=0.05, cutoff=(4500, 2200, 0.1)))
                 if part in ("tune2", "twin"):
                     low = lower_third(m, ROTO_PCS)
                     mix.put("lead", t0 + tk * tick, synth(low, note_len(length), "pulse", duty=0.25,
@@ -713,7 +775,7 @@ def roto_theme():
                 prev = m
         elif part == "verdict":
             mix.put("bell", t0, bell("A5" if idx % 2 == 0 else "E5", 2.0, vol=0.12))
-            for tk, length, note in ROTO_VERDICT[idx % 4]:
+            for tk, length, note in ([] if error else ROTO_VERDICT[idx % 4]):
                 mix.put("lead", t0 + tk * tick, synth(note, note_len(length), "saw", detune=(-9, 0, 9),
                                                        vol=0.2, attack=0.03, decay=0.5, sustain=0.7,
                                                        release=0.2, cutoff=(1600, 700, 0.3)))
@@ -737,6 +799,11 @@ def roto_theme():
     mix.duck("comp", kicks, 0.3)
     mix.duck("arp", kicks, 0.35)
     mix.duck("lead", kicks, 0.15)
+    if error:
+        mix.post = broken_machine(beat_len)
+        mix.loudness = 0.65
+    elif jackpot:
+        mix.loudness = 1.1
     return mix
 
 
@@ -746,7 +813,9 @@ def main():
     tracks = {"battle_loop.ogg": battle_theme, "victory.ogg": victory_jingle,
               "defeat.ogg": defeat_jingle,
               "boss_loop.ogg": lambda: with_tempo(140, boss_theme),
-              "rotorick_loop.ogg": lambda: with_tempo(152, roto_theme)}
+              "rotorick_loop.ogg": lambda: with_tempo(152, roto_theme),
+              "rotorick_error.ogg": lambda: with_tempo(152, lambda: roto_theme("error")),
+              "rotorick_jackpot.ogg": lambda: with_tempo(152, lambda: roto_theme("jackpot"))}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:
