@@ -734,7 +734,7 @@ func _rotorick() -> void:
 	m.walls[Vector2i(3,2)] = 3
 	m.walls[Vector2i(3,3)] = 3
 	_enemy_turn(m)
-	verify(m.player.hp == 5,"Reel 7 is still stopped by wall spirits")
+	verify(m.player.hp <= 4 and not m.walls.has(Vector2i(3,3)),"Reel 7 smashes a wall spirit and keeps chasing")
 	# Winning ignores leftover shadows.
 	m = _slot_room()
 	boss = m.enemies[0]

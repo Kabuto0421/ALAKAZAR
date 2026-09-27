@@ -978,7 +978,6 @@ func rook_charge(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or enemy.state != "brace":
 		return false
 	enemy.ap -= 1
-	enemy["crashed"] = false
 	var forward: Vector2i = CARDINALS[enemy.facing]
 	var side := Vector2i(absi(forward.y), absi(forward.x))
 	var in_lane := func() -> bool:
@@ -997,10 +996,8 @@ func rook_charge(enemy: Dictionary) -> bool:
 			if not inside(cell):
 				stop = true
 			elif _smash(cell):
-				# Placed things in the lane are smashed; the crash ends the charger's turn.
+				# Placed things in the lane are smashed, and the charge stops there.
 				stop = true
-				enemy.ap = 0
-				enemy["crashed"] = true
 			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stop = true
 		if stop:
@@ -1173,12 +1170,12 @@ func _burn_floor(enemy: Dictionary) -> void:
 	floor_cells.clear()
 	check_outcome()
 
-## Reel 7: the first charge always reaches the player (walls and blockers still stop it).
+## Reel 7: the first charge always reaches the player; blockers in the way are smashed first.
 func _sure_charge(enemy: Dictionary) -> void:
 	var before: int = player.hp
 	rook_charge(enemy)
 	for attempt in 3:
-		if player.hp < before or terminal() or enemy.hp <= 0 or enemy.get("crashed", false):
+		if player.hp < before or terminal() or enemy.hp <= 0:
 			return
 		# The homing follow-up is part of the same sure strike, so it costs no extra AP.
 		var from: Vector2i = enemy.cell
