@@ -31,6 +31,8 @@ func cards() -> Array:
 	return app.screen.get_children().filter(func(node): return node is Card)
 
 func run() -> void:
+	# The first-battle manual would cover the board; it is checked on its own below.
+	load("res://scripts/battle_view.gd").help_seen = true
 	root.size=Vector2i(1728,1080)
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
@@ -47,6 +49,16 @@ func run() -> void:
 	var view = app.battle_view
 	verify(view != null and view.model.board_size==4 and view.model.phase==Rules.Phase.PLAYER,"Fairy click starts the first battle and enemy-first turn")
 	verify(view.grid_buttons.filter(func(b): return b.visible).size()==16,"Only 4x4 board cells are clickable")
+	# The field manual: H opens it over the battle, pages turn, closing hands control back.
+	view._toggle_rules()
+	await process_frame
+	verify(view.help.visible and view.show_rules and view.help.page == 0,"H opens the field manual")
+	view.help._turn(1)
+	view.help._turn(99)
+	verify(view.help.page == view.help.PAGES.size()-1,"Manual pages turn and stop at the last one")
+	view.help.close()
+	await process_frame
+	verify(not view.help.visible and not view.show_rules,"Closing the manual returns to the battle")
 	verify(view.actors[-1].facing==1 and view.model.enemies.all(func(e): return view.actors[e.id].facing==3),"Player faces right and enemy sprites face left")
 	verify(not view.model.turn_to(0),"Rotation and paid equip buttons were removed")
 	verify(view.inventory_ui.quick_buttons[0].position.x==24 and view.weapon_buttons[0].position.y>=620,"Fairies are on the left; weapons moved below board")

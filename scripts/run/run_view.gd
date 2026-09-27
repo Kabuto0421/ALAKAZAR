@@ -6,6 +6,8 @@ const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
+const HelpPanel = preload("res://scripts/ui/help_panel.gd")
+var help: Control
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
@@ -60,6 +62,7 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,14),"ALAKAZAR",30,CYAN).add_theme_font_override("font",LATIN)
+	_button(Vector2(894,12),Vector2(214,32),"遊び方 [H]",_open_help)
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
 		_label(Vector2(972,50),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	var sub := Color("9aafa9")
@@ -366,6 +369,23 @@ func _button(at: Vector2,extent: Vector2,value: String,callback: Callable) -> Bu
 	button.pressed.connect(callback)
 	screen.add_child(button)
 	return button
+
+func _open_help() -> void:
+	if not is_instance_valid(screen):
+		return
+	if not is_instance_valid(help) or help.get_parent() != screen:
+		help = HelpPanel.new()
+		help.size = screen.size
+		screen.add_child(help)
+	help.visible = true
+	help.move_to_front()
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_H and is_instance_valid(screen):
+		if is_instance_valid(help) and help.visible:
+			help.close()
+		else:
+			_open_help()
 
 func _battle_finished() -> void:
 	if run.finish_battle():

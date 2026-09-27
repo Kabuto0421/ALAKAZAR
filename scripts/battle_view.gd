@@ -21,6 +21,11 @@ const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
+const HelpPanel = preload("res://scripts/ui/help_panel.gd")
+## The manual opens by itself on a player's first battle (remembered across sessions).
+static var help_seen := false
+const SETTINGS_PATH := "user://settings.cfg"
+var help: Control
 const CIRCLE_VIOLET = Color("9b6bff")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
@@ -87,6 +92,8 @@ func _ready() -> void:
 	add_child(bgm)
 	_make_ui()
 	_start(model.level,true)
+	if model.level == 0:
+		_maybe_first_help()
 
 func _make_ui() -> void:
 	var theme := Theme.new()
@@ -118,7 +125,7 @@ func _make_ui() -> void:
 			var tile_button := _button(ui,Rect2(BOARD+Vector2(cell)*TILE,Vector2(TILE,TILE)),"",func(): _act(cell))
 			grid_buttons.append(tile_button)
 	end_button = _button(ui,Rect2(24,580,280,58),"ターン終了 [SPACE]",_enemy_turn)
-	rules_button = _button(ui,Rect2(802,34,142,36),"ルール [H]",_toggle_rules)
+	rules_button = _button(ui,Rect2(802,34,142,36),"遊び方 [H]",_toggle_rules)
 	cancel_button = _button(ui,Rect2(832,552,296,42),"取消 [Esc]",_cancel_item)
 	var arrow_positions := ITEM_ARROW_POSITIONS
 	var arrows := ["↑","→","↓","←"]
@@ -144,6 +151,14 @@ func _make_ui() -> void:
 	inventory_ui = InventoryView.new()
 	ui.add_child(inventory_ui)
 	inventory_ui.setup(model)
+	# The manual sits on top of everything else in the UI layer.
+	help = HelpPanel.new()
+	help.size = Vector2(1152,720)
+	help.visible = false
+	help.closed.connect(func():
+		show_rules = false
+		_update_controls())
+	ui.add_child.call_deferred(help)
 	inventory_ui.item_selected.connect(_select_item)
 	inventory_ui.open_changed.connect(_cancel_item)
 
@@ -416,7 +431,23 @@ func _toggle_rules() -> void:
 	inventory_ui.set_open(false)
 	_cancel_item()
 	show_rules = not show_rules
+	help.visible = show_rules
+	if show_rules:
+		help._show()
 	_update_controls()
+
+## First battle ever: open the manual once, and remember that it was shown.
+func _maybe_first_help() -> void:
+	if help_seen or not managed_run:
+		return
+	var settings := ConfigFile.new()
+	if settings.load(SETTINGS_PATH) == OK and settings.get_value("help", "seen", false):
+		help_seen = true
+		return
+	help_seen = true
+	settings.set_value("help", "seen", true)
+	settings.save(SETTINGS_PATH)
+	_toggle_rules()
 
 func _sync_units(animate: bool) -> void:
 	for event in model.events:
@@ -675,8 +706,6 @@ func _draw() -> void:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
 	if model.terminal() and not busy:
 		_draw_result()
-	if show_rules:
-		_draw_rules()
 
 func _draw_board() -> void:
 	var extent := Vector2.ONE*model.board_size*TILE
@@ -1498,12 +1527,3 @@ func _draw_result() -> void:
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
 	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
 
-func _draw_rules() -> void:
-	draw_rect(Rect2(320,116,500,501),Color("060e10"))
-	_panel(Rect2(328,124,484,485))
-	_text(Vector2(352,163),"FIELD MANUAL",28,CYAN,LATIN)
-	var lines := ["移動・攻撃・妖精使用：1 AP", "武器をタップ：持ち替え 0 AP", "向きは固定。武器と妖精は各3枠", "終了後：どんぐり妖精 → 敵", "妖精は各戦闘で使用回数が回復"]
-	for i in range(lines.size()):
-		_text(Vector2(350,212+i*55),lines[i],20,INK if i%2==0 else MUTED)
-	_text(Vector2(350,503),"! その場にいると次の敵ターンに攻撃される",20,GOLD)
-	_text(Vector2(350,554),"1–3 武器 / 4–6 妖精 / Esc 取消",20,INK,LATIN)
