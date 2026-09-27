@@ -113,6 +113,8 @@ func _draw() -> void:
 			draw_rect(Rect2(-15,2,4,13),Color("b8d7c5"))
 		elif kind in ["javelin","archer"]:
 			draw_ranged_gear(self,kind)
+		elif kind == "shield":
+			draw_tower_shield(self)
 	draw_set_transform(Vector2.ZERO)
 
 ## Sheets use the game facing order: up, right, down, left.
@@ -137,6 +139,13 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-62,-66)*factor, Vector2.ONE*124*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
+
+## Placeholder: a tall tower shield held on the left (front) side.
+static func draw_tower_shield(canvas: CanvasItem) -> void:
+	canvas.draw_rect(Rect2(-31,-26,17,46),Color("101a1e"))
+	canvas.draw_rect(Rect2(-29,-24,13,42),Color("6d8a9a"))
+	canvas.draw_rect(Rect2(-26,-20,7,34),Color("a9c4d2"))
+	canvas.draw_rect(Rect2(-24,-6,3,6),Color("2bdcc8"))
 
 ## Placeholder gear on the soldier sprite until dedicated art exists.
 static func draw_ranged_gear(canvas: CanvasItem, gear: String) -> void:

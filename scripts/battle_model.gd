@@ -29,6 +29,7 @@ const TYPES = {
 	"prison": {"name": "移動監獄", "hp": 1, "ap": 1, "size": 2},
 	"executioner": {"name": "執行兵", "hp": 2, "ap": 2},
 	"slot": {"name": "ロトリック", "hp": 7, "ap": 1, "size": 2},
+	"shield": {"name": "盾兵", "hp": 1, "ap": 1},
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 }
 ## Two-by-two bosses: their cell is the top-left of the footprint.
@@ -139,7 +140,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -392,8 +393,22 @@ func assign_shortcut(slot: int, id: String) -> bool:
 var strike_guard := false
 var struck_ids: Array = []
 
-func damage_enemy(enemy: Dictionary, amount: int) -> void:
+## Shield soldier: its shield faces left, so a hit from the tile directly to its
+## left, or a shot flying rightward into it, is blocked.
+func shield_blocks(enemy: Dictionary, attacker_cell: Vector2i = Vector2i(-99, -99), travel: Vector2i = Vector2i.ZERO) -> bool:
+	if enemy.get("type", "") != "shield":
+		return false
+	return attacker_cell == enemy.cell + Vector2i.LEFT or travel == Vector2i.RIGHT
+
+func _block(enemy: Dictionary) -> void:
+	events.append({"kind":"block", "cell":enemy.cell, "id":-2})
+	add_log("盾兵が盾で防いだ")
+
+func damage_enemy(enemy: Dictionary, amount: int, travel: Vector2i = Vector2i.ZERO) -> void:
 	if enemy.hp <= 0:
+		return
+	if shield_blocks(enemy, Vector2i(-99, -99), travel):
+		_block(enemy)
 		return
 	if strike_guard:
 		if struck_ids.has(enemy.id):
@@ -512,6 +527,9 @@ func player_action(cell: Vector2i) -> bool:
 		elif WEAPONS[weapon].get("ranged","") == "bishop":
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
 		for target in struck:
+			if shield_blocks(target, player.cell):
+				_block(target)
+				continue
 			target.hp -= weapon_damage(weapon)
 			events.append({"kind": "hit", "cell": target.cell, "id": target.id})
 			add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[target.type].name])
@@ -735,7 +753,7 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 		events.append({"kind":"shot", "cell":cell, "id":-2, "dir":shot_dir})
 		var enemy := enemy_at(cell)
 		if not enemy.is_empty():
-			damage_enemy(enemy, 1)
+			damage_enemy(enemy, 1, shot_dir)
 	if cannon.kind == "vane":
 		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
 	_resonate(passed, fired)
@@ -781,7 +799,7 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 			events.append({"kind":"zap", "cell":cell, "id":-2, "dir":direction})
 			var enemy := enemy_at(cell)
 			if not enemy.is_empty():
-				damage_enemy(enemy, 1)
+				damage_enemy(enemy, 1, direction)
 	_resonate(passed, fired)
 
 ## Three parallel lanes: the lane through the placed tile and its two neighbours.

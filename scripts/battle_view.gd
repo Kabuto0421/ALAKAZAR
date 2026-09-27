@@ -914,6 +914,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 			draw_rect(Rect2(-18,4,10,18),Color("293d42"))
 		elif enemy.type in Rules.RANGED:
 			UnitView.draw_ranged_gear(self,enemy.type)
+		elif enemy.type == "shield":
+			UnitView.draw_tower_shield(self)
 	draw_set_transform(Vector2.ZERO)
 
 const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
@@ -1050,6 +1052,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝左へ一直線に射る",18,Color("ff805a"))
 	elif enemy.type == "javelin":
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
+	elif enemy.type == "shield":
+		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
 	var intent := "赤：構えた向きへ突進" if enemy.type == "rook" and enemy.get("state","") == "brace" else "すぐに構える" if enemy.type == "rook" else "壊すと執行兵2体" if enemy.type == "prison" else "執行" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "接近中"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
@@ -1090,7 +1094,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1107,6 +1111,27 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"discharge":
 			var side := 150.0 + t * 40.0
 			draw_texture_rect(CAPACITOR_DISCHARGE, Rect2(pos - Vector2.ONE * side / 2, Vector2.ONE * side), false, Color(1, 1, 1, fade))
+		"resonate":
+			# Rings rippling out from a cannon the shot passed through.
+			draw_arc(pos, 14 + t * 22, 0, TAU, 24, Color("9ff5ff", fade), 3, true)
+			draw_arc(pos, 6 + t * 12, 0, TAU, 24, Color("ffffff", fade * 0.7), 2, true)
+		"push":
+			# Skid marks trailing behind a shoved enemy.
+			for k in range(3):
+				draw_line(pos - dir * (14 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, pos - dir * (24 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, Color("e5dfc5", fade * 0.7), 3)
+		"bump":
+			# Impact star where the enemy slams into something.
+			var at := pos + dir * 26
+			for k in range(6):
+				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
+				draw_line(at, at + ray, Color("ffd35b", fade), 3)
+		"block":
+			# Sparks off the shield on the left side.
+			var hit_at := pos + Vector2(-24, -4)
+			for k in range(5):
+				var spark_ray := Vector2.from_angle(PI + (k - 2) * 0.45) * (6 + t * 16)
+				draw_line(hit_at, hit_at + spark_ray, Color("e6f2ff", fade), 2)
+			_text(pos + Vector2(-26, -30 - t * 10), "防", 18, Color("a9c4d2", fade))
 		"spark":
 			for k in range(6):
 				var ray := Vector2.from_angle(k * TAU / 6 + t * 2) * (10 + t * 18)

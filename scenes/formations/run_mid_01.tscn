@@ -13,10 +13,10 @@ position = Vector2(224, 160)
 script = ExtResource("2")
 enemy_kind = 2
 
-[node name="Enemy2_infantry" type="Node2D" parent="."]
+[node name="Enemy2_shield" type="Node2D" parent="."]
 position = Vector2(288, 160)
 script = ExtResource("2")
-enemy_kind = 0
+enemy_kind = 12
 
 [node name="Enemy3_javelin" type="Node2D" parent="."]
 position = Vector2(352, 32)
