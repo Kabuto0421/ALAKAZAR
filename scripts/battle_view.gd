@@ -19,6 +19,7 @@ const CLOCKWISE_NEXT = {Vector2i.UP: Vector2i.RIGHT, Vector2i.RIGHT: Vector2i.DO
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
 const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
+const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
@@ -436,14 +437,14 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id >= 0 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
-		view.facing = 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
+		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.reel = int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
 		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
 		view.learned_color = Color(Rules.WEAPONS[learned].color) if learned >= 0 else Color.WHITE
-		view.set_meta("cells", model.footprint(unit) if id >= 0 else [unit.cell])
+		view.set_meta("cells", model.footprint(unit))
 		view.hop_height = 0.0
 		if animate:
 			var jumping := false
@@ -767,8 +768,17 @@ func _draw_board() -> void:
 			var ally := model.ally_at(cell)
 			if ally.get("plus",false):
 				SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
-			if cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
+			if cell == item_origin and Rules.BIG_FAIRIES.has(selected_item):
+				pass
+			elif cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
+	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
+	# 2x2 fairies are drawn after the tiles so no later tile covers them.
+	if Rules.BIG_FAIRIES.has(selected_item):
+		if item_origin != Vector2i(-1,-1):
+			_draw_big_ghost(item_origin,aim)
+		elif model.item_targets(selected_item).has(hover_cell):
+			_draw_big_ghost(hover_cell,Vector2i.RIGHT)
 	if item_origin != Vector2i(-1,-1):
 		if selected_item == "vane_cannon":
 			_draw_turn_hint(_center(item_origin),aim)
@@ -879,6 +889,20 @@ func _draw_weapons() -> void:
 			else:
 				draw_rect(rect,Color(0,0,0,0.62))
 				_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
+
+## A 2x2 fairy about to be placed: its sprite over the block it would take.
+func _draw_big_ghost(cell: Vector2i, direction: Vector2i) -> void:
+	var anchor: Vector2i = model.big_anchor(cell)
+	if anchor == Vector2i(-1, -1):
+		return
+	var center := _center(anchor) + Vector2.ONE * TILE / 2
+	var accent: Color = model.item_definition(selected_item).color
+	_dashed_rect(Rect2(center - Vector2.ONE * (TILE - 4), Vector2.ONE * (TILE * 2 - 8)), accent, 3)
+	if selected_item == "axe_spirit":
+		var frame: int = Rules.CARDINALS.find(direction)
+		draw_texture_rect_region(AXE_DASH, Rect2(center - Vector2.ONE * 62, Vector2.ONE * 124), Rect2(maxi(frame, 0) * 224, 0, 224, 224), Color(1, 1, 1, 0.85))
+	else:
+		draw_texture_rect(UnitView.HOLY_SPIRIT, Rect2(center - Vector2(62, 68), Vector2.ONE * 124), false, Color(1, 1, 1, 0.7))
 
 func _dashed_rect(rect: Rect2, color: Color, width: float) -> void:
 	var corners := [rect.position, rect.position+Vector2(rect.size.x,0), rect.end, rect.position+Vector2(0,rect.size.y)]
@@ -1199,7 +1223,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1236,6 +1260,18 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				var chunk := Vector2.from_angle(k * TAU / 7 + 0.3) * (6 + t * 26)
 				draw_rect(Rect2(pos + chunk - Vector2(3, 3), Vector2(6, 6)), Color("c9b79a", fade))
 			draw_arc(pos, 8 + t * 18, 0, TAU, 16, Color("ffd35b", fade * 0.8), 3, true)
+		"axe":
+			# The wind axe sweeps from where it appeared to where it stops, then fades.
+			var half := Vector2.ONE * TILE / 2
+			var from := pos + half
+			var to := _center(effect.to) + half
+			var at := from.lerp(to, ease(minf(t * 1.6, 1.0), 0.6))
+			var alpha := 1.0 if t < 0.7 else fade / 0.3
+			for k in range(4):
+				var lane := Vector2(-dir.y, dir.x) * (k - 1.5) * 22
+				draw_line(at + lane - dir * 50, at + lane - dir * (90 + k * 10), Color("9fffc0", alpha * 0.55), 3)
+			var frame: int = Rules.CARDINALS.find(Vector2i(dir))
+			draw_texture_rect_region(AXE_DASH, Rect2(at - Vector2.ONE * 62, Vector2.ONE * 124), Rect2(maxi(frame, 0) * 224, 0, 224, 224), Color(1, 1, 1, alpha))
 		"analyzed":
 			# A scan ring and "解析済" floating up.
 			draw_arc(pos, 18 + t * 10, 0, TAU, 24, Color("7fffd0", fade), 2, true)
@@ -1314,6 +1350,11 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 					for i in range(4):
 						var x := -18 + i * 12
 						draw_circle(pos + Vector2(x, 20 - t * 6), 4 + t * 6, Color("b9b39f", fade * 0.6))
+				"holy":
+					# Golden motes rising from the tile.
+					for i in range(4):
+						draw_circle(pos + Vector2(-18 + i * 12, 16 - t * 30 - (i % 2) * 6), 3, Color("ffe38a", fade))
+					draw_arc(pos, 10 + t * 18, 0, TAU, 20, Color("fff4c4", fade * 0.7), 2, true)
 				"acorn":
 					for i in range(3):
 						var leaf := pos + Vector2(-12 + i * 12, 10 - t * 26 - i * 3)

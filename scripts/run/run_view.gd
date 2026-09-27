@@ -199,11 +199,15 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			card.tag = "武器 ・ 満杯なので交換"
 	else:
 		var id := str(offer.value)
+		if offer.get("rare", false):
+			card.tag = "レア妖精"
+			card.note = "ボス撃破のレアドロップ"
+			card.note_color = Color("ffd35b")
 		if run.battle.fairy_loadout.has(id):
 			card.note = "同じ妖精を所持中"
 			card.note_color = Color("ffd35b")
 		if run.state == Run.State.REWARD and run.battle.fairy_loadout.size() >= run.battle.HAND_LIMIT:
-			card.tag = "妖精 ・ 満杯なので交換"
+			card.tag = ("レア妖精" if offer.get("rare", false) else "妖精") + " ・ 満杯なので交換"
 
 ## Replacement: the incoming item on the left, the owned ones to give up on the right.
 func _replace_cards() -> void:

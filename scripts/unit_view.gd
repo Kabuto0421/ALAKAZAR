@@ -11,6 +11,9 @@ const PRISON_ATLAS = preload("res://assets/sprites/enemies/prison_directions.png
 const EXECUTIONER_ATLAS = preload("res://assets/sprites/enemies/executioner_directions.png")
 const ROTORICK_ATLAS = preload("res://assets/sprites/enemies/rotorick_reel_112.png")
 const ROTORICK_SHADOW = preload("res://assets/sprites/enemies/rotorick_shadow_112.png")
+const HOLY_SPIRIT = preload("res://assets/sprites/spirits/holy_spirit.png")
+const HOLY_KNIGHT = preload("res://assets/sprites/spirits/holy_knight_directions.png")
+const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
 ## Soldier sheets: 128 px cells, columns up/right/down/left, optional second row
 ## for a state (archer aiming, analyst holding a learned weapon), draw size.
@@ -111,6 +114,12 @@ func _draw() -> void:
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)
 	elif kind == "acorn":
 		draw_texture_rect(ACORN,Rect2(-30,-35,60,60),false,tint)
+	elif kind == "holy":
+		# A gentle bob, since the box has no facing of its own.
+		var bob := sin(Time.get_ticks_msec() / 1000.0 * 2.4) * 2.0
+		draw_texture_rect(HOLY_SPIRIT,Rect2(Vector2(-62,-68+bob),Vector2.ONE*124),false,tint)
+	elif kind == "holy_knight":
+		draw_texture_rect_region(HOLY_KNIGHT,Rect2(-32,-36,64,64),Rect2(facing*128,0,128,128),tint)
 	elif kind == "miner":
 		_draw_drone(tint)
 	elif kind in ["cavalry","horse"]:

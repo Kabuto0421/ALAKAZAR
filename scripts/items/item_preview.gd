@@ -39,6 +39,30 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			_enemy(canvas,Vector2(1000,268))
 			canvas._text(Vector2(867,230),"HP 1 / AP 1",21,item.color)
 			canvas._text(Vector2(856,306),"味方 → 敵の順に行動",18,item.color)
+		"axe_spirit":
+			# The 2x2 axe sweeps right and drives the enemy into the wall.
+			for i in range(6):
+				_tile(canvas,Vector2(880+i*38,254),item.color,36)
+				_tile(canvas,Vector2(880+i*38,292),item.color,36)
+			var sweep := minf(progress/0.6,1.0)
+			canvas.draw_texture_rect_region(Units.AXE_DASH,Rect2(Vector2(861+sweep*76,235),Vector2.ONE*76),Rect2(224,0,224,224))
+			_enemy(canvas,Vector2(994+sweep*76,254))
+			canvas.draw_line(Vector2(1091,234),Vector2(1091,312),item.color,4)
+			if progress > 0.6:
+				canvas._text(Vector2(1030,232),"−1 −1",17,item.color)
+		"holy_spirit":
+			# The holy box strikes a touching enemy; broken, two knights step out.
+			var box := Vector2(930,270)
+			for offset in [Vector2(-1,-1),Vector2(1,-1),Vector2(-1,1),Vector2(1,1)]:
+				_tile(canvas,box+offset*26,item.color,50)
+			if progress < 0.55:
+				canvas.draw_texture_rect(Units.HOLY_SPIRIT,Rect2(box-Vector2(50,54),Vector2.ONE*100),false)
+				_enemy(canvas,Vector2(1010,244))
+				canvas._text(Vector2(996,212),"−1",18,item.color)
+			else:
+				canvas.draw_texture_rect_region(Units.HOLY_KNIGHT,Rect2(box+Vector2(-26,-26)-Vector2(24,28),Vector2.ONE*48),Rect2(256,0,128,128))
+				canvas.draw_texture_rect_region(Units.HOLY_KNIGHT,Rect2(box+Vector2(26,26)-Vector2(24,28),Vector2.ONE*48),Rect2(256,0,128,128))
+				canvas._text(Vector2(1000,262),"壊れると\n聖騎士×2",17,item.color)
 		"wall_fairy":
 			for i in range(5):
 				_tile(canvas,Vector2(872+i*52,269),item.color)

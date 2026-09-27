@@ -25,6 +25,9 @@ var rng := RandomNumberGenerator.new()
 var boss_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
+## Rare 2x2 fairies: one of the two fairy offers after the first boss may be one.
+const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
+const RARE_CHANCE := 0.3
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy"]
 
 func start(seed_value: int = -1) -> void:
@@ -138,6 +141,10 @@ func finish_battle() -> bool:
 		fairy_candidates = reward_fairy_pool.duplicate()
 	for id in sample(fairy_candidates,2):
 		offers.append({"kind":"fairy","value":id})
+	# Beating the first boss can turn the last fairy offer into a rare one.
+	var rares: Array = RARE_FAIRIES.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
+	if stage == Battle.BOSS_LEVEL and not rares.is_empty() and rng.randf() < RARE_CHANCE:
+		offers[offers.size()-1] = {"kind":"fairy","value":sample(rares,1)[0], "rare":true}
 	return true
 
 ## True on the reward right before a camp and its boss.

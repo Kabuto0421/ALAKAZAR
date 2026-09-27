@@ -5,7 +5,11 @@ enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
-	preload("res://items/capacitor_fairy.tres")]
+	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres")]
+## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
+const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
+## Ally unit types, for logs (enemies use TYPES).
+const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士"}
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -280,7 +284,7 @@ func archer_shoot(enemy: Dictionary) -> bool:
 			end = cell
 			ally.hp -= 1
 			events.append({"kind":"hit", "cell":cell, "id":ally.id})
-			allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+			_bury_allies()
 			break
 	events.append({"kind":"arrow", "cell":end, "from":enemy.cell, "id":-2, "dir":CARDINALS[enemy.get("facing",3)]})
 	check_outcome()
@@ -313,7 +317,7 @@ func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 		enemy.ap -= 1
 		ally.hp -= 1
 		events.append({"kind":"hit", "cell":cell, "id":ally.id})
-		allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+		_bury_allies()
 		return true
 	if blocked(cell) or not enemy_at(cell).is_empty():
 		return false
@@ -383,6 +387,8 @@ func item_targets(id: String) -> Array[Vector2i]:
 			if cell == player.cell or blocked(cell):
 				continue
 			if not enemy_at(cell).is_empty() and item.target != ItemDefinition.Target.WEAPON_ANY:
+				continue
+			if BIG_FAIRIES.has(id) and big_anchor(cell) == Vector2i(-1, -1):
 				continue
 			if item.target == ItemDefinition.Target.ANY_EMPTY or weapon_cells.has(cell):
 				result.append(cell)
@@ -657,15 +663,15 @@ func trigger_mine(unit: Dictionary) -> void:
 	mines.erase(unit.cell)
 	unit.hp -= 1
 	events.append({"kind": "mine", "cell": unit.cell, "id": unit.id})
-	var label: String = "探索者" if unit.type == "player" else "どんぐり妖精" if unit.type == "acorn" else TYPES[unit.type].name
+	var label: String = "探索者" if unit.type == "player" else ALLY_NAMES[unit.type] if ALLY_NAMES.has(unit.type) else TYPES[unit.type].name
 	add_log("地雷が爆発！ %sに1ダメージ" % label)
-	if unit.type not in ["player","acorn"] and unit.hp <= 0:
+	if unit.type != "player" and not ALLY_NAMES.has(unit.type) and unit.hp <= 0:
 		kills += 1
 	check_outcome()
 
 func check_outcome() -> void:
 	_release_prisoners()
-	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+	_bury_allies()
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
 	if not enemies.any(func(e: Dictionary) -> bool: return e.type == "slot"):
 		locked_slot = -1
@@ -687,9 +693,121 @@ func add_log(message: String) -> void:
 
 func ally_at(cell: Vector2i) -> Dictionary:
 	for ally in allies:
-		if ally.hp > 0 and ally.cell == cell:
+		if ally.hp > 0 and (ally.cell == cell or (int(ally.get("size", 1)) > 1 and footprint(ally).has(cell))):
 			return ally
 	return {}
+
+## Removes fallen allies. A broken holy spirit lets out two holy knights on a
+## diagonal of its footprint (the friendly mirror of the moving prison).
+func _bury_allies() -> void:
+	for holy in allies.duplicate():
+		if holy.type != "holy" or holy.hp > 0 or holy.get("released", false):
+			continue
+		holy.released = true
+		for pair in [[Vector2i(0,0), Vector2i(1,1)], [Vector2i(1,0), Vector2i(0,1)]]:
+			var spots: Array[Vector2i] = []
+			for offset in pair:
+				var cell: Vector2i = holy.cell + offset
+				if inside(cell) and cell != player.cell and enemy_at(cell).is_empty() and not obstacles.has(cell) and not walls.has(cell) and cannon_at(cell).is_empty() and not fairies.has(cell):
+					spots.append(cell)
+			if spots.size() == 2:
+				for cell in spots:
+					allies.append({"id":next_ally_id, "type":"holy_knight", "cell":cell, "hp":1, "ap":1, "facing":2})
+					next_ally_id -= 1
+					events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
+				add_log("聖精霊が壊れ、聖騎士が2体現れた")
+				break
+	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+
+## Top-left of a free 2x2 block that contains `cell`, preferring blocks away
+## from the player; (-1,-1) when none fits.
+func big_anchor(cell: Vector2i) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_gap := -1.0
+	for offset in [Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(1,1)]:
+		var anchor: Vector2i = cell - offset
+		var free := true
+		for tile in footprint({"cell":anchor, "size":2}):
+			if not inside(tile) or blocked(tile) or tile == player.cell or not enemy_at(tile).is_empty():
+				free = false
+		var gap := (Vector2(anchor) + Vector2.ONE * 0.5).distance_to(Vector2(player.cell))
+		if free and gap > best_gap:
+			best = anchor
+			best_gap = gap
+	return best
+
+func summon_holy(cell: Vector2i) -> void:
+	var anchor := big_anchor(cell)
+	if anchor == Vector2i(-1, -1):
+		return
+	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":1, "ap":1, "facing":2, "size":2})
+	next_ally_id -= 1
+	for tile in footprint({"cell":anchor, "size":2}):
+		events.append({"kind":"summon", "cell":tile, "id":-2, "fx":"holy"})
+
+## 風斧精霊: a 2x2 axe that charges like the rook in the chosen direction and
+## vanishes. Enemies it meets take 1 and are driven ahead of it; one slammed
+## into something takes 1 more (the knockback rule), and the axe stops there.
+func axe_charge(cell: Vector2i, direction: Vector2i) -> void:
+	var anchor := big_anchor(cell)
+	if anchor == Vector2i(-1, -1) or not CARDINALS.has(direction):
+		return
+	var axe := {"cell":anchor, "size":2}
+	var start := anchor
+	# Knockback bumps must land even on an enemy the axe already cut.
+	var guard := strike_guard
+	strike_guard = false
+	var cut: Array[int] = []
+	var steps := 0
+	while steps < board_size * 2:
+		steps += 1
+		var front := _front_cells(axe, direction)
+		var stop := false
+		for tile in front:
+			if not inside(tile) or blocked(tile) or tile == player.cell:
+				stop = true
+		if stop:
+			break
+		var shoved: Array[Dictionary] = []
+		for tile in front:
+			var enemy := enemy_at(tile)
+			if not enemy.is_empty() and not shoved.has(enemy):
+				shoved.append(enemy)
+		for enemy in shoved:
+			if not cut.has(enemy.id):
+				cut.append(enemy.id)
+				damage_enemy(enemy, 1, direction)
+			if enemy.hp > 0:
+				knock_back(enemy, direction, 1)
+		var still_blocked := false
+		for tile in front:
+			if not enemy_at(tile).is_empty():
+				still_blocked = true
+		if still_blocked:
+			break
+		axe.cell += direction
+	strike_guard = guard
+	events.append({"kind":"axe", "cell":start, "id":-2, "dir":direction, "to":axe.cell})
+	add_log("風斧精霊の突進")
+	check_outcome()
+
+## Cells the axe will sweep, for the placement preview.
+func axe_preview(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var anchor := big_anchor(cell)
+	if anchor == Vector2i(-1, -1):
+		return result
+	var axe := {"cell":anchor, "size":2}
+	result.append_array(footprint(axe))
+	if not CARDINALS.has(direction):
+		return result
+	for step in board_size:
+		var front := _front_cells(axe, direction)
+		if front.any(func(tile: Vector2i) -> bool: return not inside(tile) or blocked(tile) or tile == player.cell):
+			break
+		result.append_array(front)
+		axe.cell += direction
+	return result
 
 func summon_acorn(cell: Vector2i) -> void:
 	var plus := is_plus("acorn_fairy")
@@ -705,6 +823,9 @@ func act_allies() -> void:
 		if ally.hp <= 0 or terminal():
 			continue
 		ally.ap = 1
+		if ally.type == "holy":
+			_holy_action(ally)
+			continue
 		var adjacent: Array[Dictionary] = []
 		for enemy in enemies:
 			var gap: Vector2i = (enemy.cell - ally.cell).abs()
@@ -714,9 +835,12 @@ func act_allies() -> void:
 		adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
 			return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
 		if not adjacent.is_empty():
+			var gap_to: Vector2i = adjacent[0].cell - ally.cell
+			if absi(gap_to.x) + absi(gap_to.y) == 1:
+				ally.facing = CARDINALS.find(gap_to)
 			damage_enemy(adjacent[0],1)
 			ally.ap = 0
-			add_log("どんぐり妖精が攻撃")
+			add_log("%sが攻撃" % ALLY_NAMES[ally.type])
 			check_outcome()
 			continue
 		# Breadth-first search finds the nearest reachable enemy without crossing allies.
@@ -738,11 +862,52 @@ func act_allies() -> void:
 					break
 				queue.append(next)
 		if destination != start and enemy_at(destination).is_empty():
+			ally.facing = CARDINALS.find(destination - start)
 			ally.cell = destination
 			trigger_mine(ally)
 		ally.ap = 0
 	check_outcome()
 
+
+## 聖精霊: like the moving prison, but on the player's side. It strikes an enemy
+## touching one of its sides, otherwise slides one tile toward the nearest enemy.
+func _holy_action(holy: Dictionary) -> void:
+	holy.ap = 0
+	for direction in CARDINALS:
+		for tile in _front_cells(holy, direction):
+			var enemy := enemy_at(tile)
+			if not enemy.is_empty():
+				holy.facing = CARDINALS.find(direction)
+				damage_enemy(enemy, 1, direction)
+				add_log("聖精霊が攻撃")
+				check_outcome()
+				return
+	var best := Vector2i.ZERO
+	var best_score := _holy_distance(holy)
+	for direction in CARDINALS:
+		var free := true
+		for tile in _front_cells(holy, direction):
+			if not inside(tile) or blocked(tile) or tile == player.cell or mines.has(tile) or not enemy_at(tile).is_empty():
+				free = false
+		if not free:
+			continue
+		var probe := holy.duplicate()
+		probe.cell = holy.cell + direction
+		var score := _holy_distance(probe)
+		if score < best_score:
+			best = direction
+			best_score = score
+	if best != Vector2i.ZERO:
+		holy.cell += best
+		holy.facing = CARDINALS.find(best)
+
+func _holy_distance(holy: Dictionary) -> int:
+	var best := 999
+	for enemy in enemies:
+		if enemy.hp > 0:
+			for tile in footprint(enemy):
+				best = mini(best, footprint_distance(holy, tile))
+	return best
 
 # --- wall, cannon and slash fairies ---------------------------------------
 
@@ -945,6 +1110,8 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 	# A spirit placed on an enemy also strikes the enemy under it.
 	if not enemy_at(origin).is_empty():
 		result.append(origin)
+	if id == "axe_spirit":
+		return axe_preview(origin, direction)
 	if id == "wall_fairy":
 		result.append(origin)
 		result.append_array(wall_extension(origin, direction))
@@ -1131,7 +1298,7 @@ func _smash(cell: Vector2i) -> bool:
 	var ally := ally_at(cell)
 	if not ally.is_empty():
 		ally.hp = 0
-		allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
+		_bury_allies()
 		hit = true
 	if hit:
 		events.append({"kind":"smash", "cell":cell, "id":-2})

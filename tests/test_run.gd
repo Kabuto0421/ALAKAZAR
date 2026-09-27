@@ -247,6 +247,7 @@ func _initialize() -> void:
 	_expiring_and_rewards()
 	_capacitor()
 	_class_ups()
+	_rare_fairies()
 	_resonance()
 	_knockback()
 	_difficulty()
@@ -856,6 +857,81 @@ func _class_ups() -> void:
 	run.pending = {"kind":"fairy","value":"wall_fairy"}
 	run.replace(0)
 	verify(not run.battle.is_plus("magic_bolt"),"Swapping out an upgraded fairy loses its class-up")
+
+func _rare_fairies() -> void:
+	# Wind axe: a 2x2 rook-style charge that drives the enemy into the wall, then vanishes.
+	var m := fixture()
+	m.fairy_loadout.assign(["axe_spirit"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	var tough: Dictionary = m.make_enemy("heavy",Vector2i(4,2),0)
+	tough.hp = 5
+	m.enemies.append(tough)
+	verify(m.item_targets("axe_spirit").has(Vector2i(2,2)) and m.big_anchor(Vector2i(2,2)) != Vector2i(-1,-1),"The axe fits a 2x2 block around a tile in range")
+	verify(not m.use_item("axe_spirit",Vector2i(2,2)),"The axe needs a direction")
+	verify(m.use_item("axe_spirit",Vector2i(2,2),Vector2i.RIGHT),"The axe charges")
+	verify(tough.cell == Vector2i(m.board_size-1,2) and tough.hp == 3,"It hits for 1, drives the enemy to the wall, and the slam adds 1")
+	verify(m.allies.is_empty() and m.events.any(func(e): return e.kind == "axe"),"The axe vanishes after its charge")
+	# Holy spirit: a 2x2 ally that strikes what touches it; broken, it frees two knights.
+	m = fixture()
+	m.fairy_loadout.assign(["holy_spirit"])
+	m.refill_fairies()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	verify(m.use_item("holy_spirit",Vector2i(2,2)) and m.allies.size() == 1 and m.allies[0].type == "holy" and m.allies[0].size == 2,"The holy spirit is summoned as a 2x2 ally")
+	var holy: Dictionary = m.allies[0]
+	verify(m.footprint(holy).all(func(c): return m.blocked(c) and m.ally_at(c) == holy),"It blocks all four of its tiles")
+	var foe: Dictionary = m.make_enemy("heavy",m.footprint(holy)[1]+Vector2i.RIGHT,0)
+	m.enemies.append(foe)
+	m.phase = Rules.Phase.PLAYER
+	m.act_allies()
+	verify(foe.hp == 1,"It strikes an enemy touching its side")
+	var far: Dictionary = m.make_enemy("heavy",Vector2i(5,5),1)
+	m.enemies.assign([far])
+	var before: Vector2i = holy.cell
+	m.phase = Rules.Phase.PLAYER
+	m.act_allies()
+	verify(holy.cell != before and m.footprint_distance(holy,far.cell) < 4,"With no one touching, it slides toward the nearest enemy")
+	holy.hp = 0
+	m._bury_allies()
+	var knights: Array = m.allies.filter(func(a): return a.type == "holy_knight")
+	verify(knights.size() == 2 and knights.all(func(k): return k.hp == 1 and k.ap == 1),"Broken, it frees two holy knights (HP1, AP1)")
+	# Knights fight like acorns.
+	var knight: Dictionary = knights[0]
+	var next_to: Dictionary = m.make_enemy("heavy",knight.cell+Vector2i.UP if m.inside(knight.cell+Vector2i.UP) else knight.cell+Vector2i.DOWN,2)
+	m.enemies.append(next_to)
+	m.phase = Rules.Phase.PLAYER
+	m.act_allies()
+	verify(next_to.hp == 1,"A holy knight attacks an adjacent enemy")
+	# Rare drop: only after the first boss, now and then.
+	var rare_runs := 0
+	var early_rare := 0
+	for seed_value in 40:
+		var run := Run.new()
+		run.start(seed_value)
+		run.choose(0)
+		run.choose(0)
+		run.stage = Rules.BOSS_LEVEL
+		run.start_battle()
+		run.battle.enemies.clear()
+		run.battle.check_outcome()
+		run.finish_battle()
+		if run.offers.any(func(o): return o.get("rare", false)):
+			rare_runs += 1
+		var early := Run.new()
+		early.start(seed_value)
+		early.choose(0)
+		early.choose(0)
+		early.battle.enemies.clear()
+		early.battle.check_outcome()
+		early.finish_battle()
+		if early.offers.any(func(o): return Run.RARE_FAIRIES.has(str(o.value))):
+			early_rare += 1
+	verify(rare_runs > 0 and rare_runs < 40,"After the first boss a rare fairy sometimes drops (%d/40)" % rare_runs)
+	verify(early_rare == 0,"Rare fairies never drop before the first boss")
 
 func _capacitor() -> void:
 	var m := fixture()
