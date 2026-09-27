@@ -3,6 +3,8 @@ extends Node
 const Run = preload("res://scripts/run/run_model.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 const Card = preload("res://scripts/run/choice_card.gd")
+const Weapons = preload("res://scripts/run/weapon_catalog.gd")
+const Diagram = preload("res://scripts/run/range_diagram.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
@@ -56,59 +58,55 @@ func _render() -> void:
 	backdrop.color = Color("080f13")
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
-	_label(Vector2(44,24),"ALAKAZAR",32,CYAN).add_theme_font_override("font",LATIN)
+	_label(Vector2(44,14),"ALAKAZAR",30,CYAN).add_theme_font_override("font",LATIN)
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
-		_label(Vector2(960,85),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
+		_label(Vector2(972,50),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
+	var sub := Color("9aafa9")
 	match run.state:
 		Run.State.START_WEAPON:
-			_label(Vector2(44,85),"最初の武器を選ぶ",36,INK)
-			_label(Vector2(44,137),"1 / 2    前進剣 → と 後退剣 ← に、3本目を追加",22,Color("9aafa9"))
-			_cards(run.offers)
-			_label(Vector2(44,665),"明るいマスが移動・攻撃範囲。武器は1ダメージ、持ち替え0 AP。",20,INK)
-		Run.State.START_FAIRY:
-			_label(Vector2(44,85),"最初の妖精を選ぶ",36,INK)
-			_label(Vector2(44,137),"2 / 2    妖精は各戦闘1回・使用1 AP",22,Color("9aafa9"))
+			_label(Vector2(44,48),"最初の武器を選ぶ",30,INK)
+			_label(Vector2(44,94),"1 / 2   前進剣 → と 後退剣 ← に3本目を追加。明るいマスが新しく届くマス、暗いマスは今の武器で届くマス。",17,sub)
 			_cards(run.offers)
 			_loadout()
-			_button(Vector2(44,668),Vector2(152,36),"← 武器選択",_back_to_weapon)
+		Run.State.START_FAIRY:
+			_label(Vector2(44,48),"最初の妖精を選ぶ",30,INK)
+			_label(Vector2(44,94),"2 / 2   妖精は各戦闘1回・使用1 AP",17,sub)
+			_cards(run.offers)
+			_loadout()
+			_button(Vector2(894,92),Vector2(214,34),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
 			var cleared := "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
-			_label(Vector2(44,85),"%s — 報酬を1つ選ぶ" % cleared,32,INK)
+			_label(Vector2(44,48),"%s — 報酬を1つ選ぶ" % cleared,30,INK)
 			if run.is_before_boss():
-				_label(Vector2(44,137),"ボス前の特別報酬：武器は3マスの強い武器から。",22,Color("ffd35b"))
+				_label(Vector2(44,94),"ボス前の特別報酬：武器は3マスの強い武器から。",17,Color("ffd35b"))
 			else:
-				_label(Vector2(44,137),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器2候補・妖精2候補。",22,Color("9aafa9"))
+				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器2候補・妖精2候補。",17,sub)
 			_cards(run.offers)
 			_loadout()
-			_button(Vector2(895,670),Vector2(214,36),"今の構成で進む",_skip)
+			_button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
 		Run.State.REPLACE:
 			var title: String = run.battle.WEAPONS[int(run.pending.value)].name if run.pending.kind=="weapon" else run.battle.item_definition(str(run.pending.value)).title
-			_label(Vector2(44,85),"「%s」と交換する装備を選ぶ" % title,30,INK)
-			_label(Vector2(44,137),"所持上限は3。選んだ装備を手放します。",22,Color("9aafa9"))
-			var owned: Array[Dictionary] = []
-			if run.pending.kind == "weapon":
-				for index in run.battle.owned_weapons:
-					owned.append({"kind":"weapon","value":index})
-			else:
-				for id in run.battle.fairy_loadout:
-					owned.append({"kind":"fairy","value":id})
-			_cards(owned,true)
-			_button(Vector2(44,665),Vector2(230,40),"← 報酬へ戻る",_cancel)
+			_label(Vector2(44,48),"「%s」と交換する装備を選ぶ" % title,30,INK)
+			_label(Vector2(44,94),"所持上限は3。選んだ装備を手放します。赤いマスは手放すと届かなくなるマス。",17,sub)
+			_replace_cards()
+			_loadout()
+			_button(Vector2(894,92),Vector2(214,34),"← 報酬へ戻る",_cancel)
 		Run.State.CAMP:
-			_label(Vector2(44,85),"キャンプ — ひとつだけ選ぶ",36,INK)
-			_label(Vector2(44,137),"この先はボス：ロトリック（6×6）" if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",22,Color("ff987f"))
+			_label(Vector2(44,48),"キャンプ — ひとつだけ選ぶ",30,INK)
+			_label(Vector2(44,94),"この先はボス：ロトリック（6×6）" if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",17,Color("ff987f"))
 			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
 			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1",Color("ffd35b"),_forge,true)
 			_camp_option(2,"妖精のクラスアップ","準備中",Color("9aafa9"),func(): pass,false)
 			_loadout()
 		Run.State.CAMP_FORGE:
-			_label(Vector2(44,85),"鍛える武器を選ぶ",36,INK)
-			_label(Vector2(44,137),"選んだ武器の攻撃力が +1 される",22,Color("9aafa9"))
+			_label(Vector2(44,48),"鍛える武器を選ぶ",30,INK)
+			_label(Vector2(44,94),"選んだ武器の攻撃力が +1 される",17,sub)
 			var owned_weapons: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned_weapons.append({"kind":"weapon","value":index})
 			_cards(owned_weapons,false,true)
-			_button(Vector2(44,665),Vector2(230,40),"← キャンプへ戻る",_camp_back)
+			_loadout()
+			_button(Vector2(894,92),Vector2(214,34),"← キャンプへ戻る",_camp_back)
 		Run.State.FINISHED, Run.State.LOST:
 			var won: bool = run.state == Run.State.FINISHED
 			_label(Vector2(260,170),"遠征達成！" if won else "探索終了",52,CYAN if won else Color("ff987f"))
@@ -121,16 +119,34 @@ func _render() -> void:
 				_label(Vector2(260,320+slot*42),weapon.name+"  /  "+weapon.detail,23,Color(weapon.color))
 			_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →",_restart)
 
+const CARD_TOP := 136.0
+const CARD_HEIGHT := 350.0
+const GOOD := Color("7be08a")
+const BAD := Color("ff6b6b")
+
+## Every tile the owned weapons reach, optionally leaving one slot out.
+func _coverage(skip_slot: int = -1) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for slot in run.battle.owned_weapons.size():
+		if slot == skip_slot:
+			continue
+		for offset in Weapons.offsets(run.battle.owned_weapons[slot]):
+			if not tiles.has(offset):
+				tiles.append(offset)
+	return tiles
+
 func _cards(offers: Array, replacing: bool = false, forging: bool = false) -> void:
 	var gap := 20.0
 	var width := (1064-gap*(offers.size()-1))/offers.size()
+	var coverage := _coverage()
 	for index in offers.size():
 		var card := Card.new()
-		card.position = Vector2(44+index*(width+gap),187)
-		card.size = Vector2(width,440)
+		card.position = Vector2(44+index*(width+gap),CARD_TOP)
+		card.size = Vector2(width,CARD_HEIGHT)
 		card.offer = offers[index]
 		card.model = run.battle
 		card.action_text = "これと交換" if replacing else "鍛える" if forging else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
+		_compare(card, coverage, forging)
 		if forging:
 			card.pressed.connect(func():
 				if run.camp_forge_weapon(index):
@@ -145,11 +161,165 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false) -> vo
 					_render())
 		screen.add_child(card)
 
+## Tells an offer card how it compares with the current loadout.
+func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
+	var offer: Dictionary = card.offer
+	if offer.kind == "weapon":
+		var index := int(offer.value)
+		if forging:
+			var damage: int = run.battle.weapon_damage(index)
+			card.note = "攻撃 %d → %d" % [damage, damage+1]
+			card.note_color = Color("ffd35b")
+			return
+		card.context = coverage
+		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
+		card.note = "新しく届く +%dマス" % added if added > 0 else "届く範囲は増えない"
+		card.note_color = GOOD if added > 0 else Color("92b3ae")
+		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
+			card.tag = "武器 ・ 満杯なので交換"
+	else:
+		var id := str(offer.value)
+		if run.battle.fairy_loadout.has(id):
+			card.note = "同じ妖精を所持中"
+			card.note_color = Color("ffd35b")
+		if run.state == Run.State.REWARD and run.battle.fairy_loadout.size() >= run.battle.HAND_LIMIT:
+			card.tag = "妖精 ・ 満杯なので交換"
+
+## Replacement: the incoming item on the left, the owned ones to give up on the right.
+func _replace_cards() -> void:
+	var weapon: bool = run.pending.kind == "weapon"
+	var holder := Control.new()
+	holder.position = Vector2(44,CARD_TOP)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.add_child(holder)
+	var incoming := Card.new()
+	incoming.size = Vector2(236,CARD_HEIGHT)
+	incoming.offer = run.pending
+	incoming.model = run.battle
+	incoming.tag = "入手する"
+	incoming.action_text = ""
+	incoming.disabled = true
+	incoming.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	holder.add_child(incoming)
+	_label(Vector2(284,CARD_TOP+CARD_HEIGHT/2-20),"⇄",28,INK)
+	var slots: int = run.battle.owned_weapons.size() if weapon else run.battle.fairy_loadout.size()
+	var gap := 16.0
+	var left := 318.0
+	var width := (1108-left-gap*(slots-1))/slots
+	for slot in slots:
+		var card := Card.new()
+		card.position = Vector2(left+slot*(width+gap),CARD_TOP)
+		card.size = Vector2(width,CARD_HEIGHT)
+		card.model = run.battle
+		card.action_text = "これを手放す"
+		card.tag = "手放す候補"
+		if weapon:
+			var index: int = run.battle.owned_weapons[slot]
+			card.offer = {"kind":"weapon","value":index}
+			# What is still reachable after the swap: the other weapons plus the new one.
+			var kept := _coverage(slot)
+			for offset in Weapons.offsets(int(run.pending.value)):
+				if not kept.has(offset):
+					kept.append(offset)
+			var lost: Array[Vector2i] = []
+			for offset in Weapons.offsets(index):
+				if not kept.has(offset):
+					lost.append(offset)
+			card.context = kept
+			card.lost = lost
+			card.note = "失うマス %d" % lost.size() if not lost.is_empty() else "届く範囲は減らない"
+			card.note_color = BAD if not lost.is_empty() else GOOD
+		else:
+			card.offer = {"kind":"fairy","value":run.battle.fairy_loadout[slot]}
+		card.pressed.connect(func():
+			if run.replace(slot):
+				_render())
+		screen.add_child(card)
+
+## The owned weapons and fairies, with the combined reach, along the bottom.
 func _loadout() -> void:
-	var names: Array[String] = []
-	for index in run.battle.owned_weapons:
-		names.append(run.battle.WEAPONS[index].name)
-	_label(Vector2(44,638),"武器："+" / ".join(names),19,Color("9aafa9"))
+	var top := 504.0
+	var panel := Panel.new()
+	panel.position = Vector2(44,top)
+	panel.size = Vector2(1064,200)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel",_box(Color("0a1417"),Color("23403f")))
+	screen.add_child(panel)
+	var weapons: Array = run.battle.owned_weapons
+	var fairies: Array = run.battle.fairy_loadout
+	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Color("9aafa9"))
+	_label(Vector2(548,top+6),"合計の届く範囲",15,Color("9aafa9"))
+	_label(Vector2(712,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Color("9aafa9"))
+	for slot in run.battle.WEAPON_LIMIT:
+		var at := Vector2(56+slot*160,top+30)
+		if slot >= weapons.size():
+			_empty_slot(at,Vector2(150,160))
+			continue
+		var index: int = weapons[slot]
+		var data: Dictionary = Weapons.DATA[index]
+		var accent := Color(data.color)
+		var box := Panel.new()
+		box.position = at
+		box.size = Vector2(150,160)
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
+		screen.add_child(box)
+		var diagram := Diagram.new()
+		diagram.position = at+Vector2(29,6)
+		diagram.size = Vector2(92,92)
+		diagram.offsets = Weapons.offsets(index)
+		diagram.accent = accent
+		screen.add_child(diagram)
+		_label(at+Vector2(10,104),data.name,17,Color("eee7d2"))
+		var damage: int = run.battle.weapon_damage(index)
+		_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+	var union := Diagram.new()
+	union.position = Vector2(548,top+44)
+	union.size = Vector2(140,140)
+	union.offsets = _coverage()
+	union.accent = CYAN
+	screen.add_child(union)
+	for slot in run.battle.HAND_LIMIT:
+		var at := Vector2(710+slot*132,top+30)
+		if slot >= fairies.size():
+			_empty_slot(at,Vector2(124,160))
+			continue
+		var item: Resource = run.battle.item_definition(str(fairies[slot]))
+		var box := Panel.new()
+		box.position = at
+		box.size = Vector2(124,160)
+		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(item.color,0.6)))
+		screen.add_child(box)
+		var icon := TextureRect.new()
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = item.icon
+		icon.position = at+Vector2(22,8)
+		icon.size = Vector2(80,80)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		screen.add_child(icon)
+		var name_label := _label(at+Vector2(8,100),item.title,15,Color("eee7d2"))
+		name_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		name_label.custom_minimum_size = Vector2(108,0)
+		name_label.size = Vector2(108,0)
+
+func _empty_slot(at: Vector2, extent: Vector2) -> void:
+	var box := Panel.new()
+	box.position = at
+	box.size = extent
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_stylebox_override("panel",_box(Color("08111a",0.0),Color("2c3d3d")))
+	screen.add_child(box)
+	_label(at+extent/2-Vector2(15,12),"空き",15,Color("4b6663"))
+
+func _box(fill: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	return style
 
 func _label(at: Vector2,value: String,font_size: int,color: Color) -> Label:
 	var label := Label.new()
@@ -190,8 +360,8 @@ func _skip() -> void:
 
 func _camp_option(index: int, title: String, detail: String, accent: Color, callback: Callable, enabled: bool) -> void:
 	var button := Button.new()
-	button.position = Vector2(44+index*362,197)
-	button.size = Vector2(340,380)
+	button.position = Vector2(44+index*362,CARD_TOP)
+	button.size = Vector2(340,CARD_HEIGHT)
 	button.focus_mode = Control.FOCUS_NONE
 	button.disabled = not enabled
 	for state in ["normal","hover","pressed","disabled"]:
@@ -205,7 +375,7 @@ func _camp_option(index: int, title: String, detail: String, accent: Color, call
 	screen.add_child(button)
 	_label(button.position+Vector2(20,24),title,30,accent if enabled else Color("5b6e6a"))
 	_label(button.position+Vector2(20,110),detail,24,INK if enabled else Color("5b6e6a"))
-	_label(button.position+Vector2(20,318),"選ぶ  →" if enabled else "—",23,accent if enabled else Color("5b6e6a"))
+	_label(button.position+Vector2(20,CARD_HEIGHT-56),"選ぶ  →" if enabled else "—",23,accent if enabled else Color("5b6e6a"))
 
 func _rest() -> void:
 	if run.camp_rest():
