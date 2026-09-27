@@ -122,13 +122,13 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"slot":
 			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
 			var frame: int = 7 if reel_value <= 0 else reel_value - 1
-			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-64,-66)*factor, Vector2.ONE*128*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
+			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-77,-82)*factor, Vector2.ONE*154*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
 		"shadow":
 			# A flickering purple hologram: translucent, with scan lines.
 			var t: float = Time.get_ticks_msec() / 1000.0
 			var alpha := 0.5 + 0.12 * sin(t * 9.0)
 			var jitter := Vector2(2.0 * sin(t * 23.0), 0) if int(t * 7) % 5 == 0 else Vector2.ZERO
-			var rect := Rect2((Vector2(-64,-66) + jitter) * factor, Vector2.ONE * 128 * factor)
+			var rect := Rect2((Vector2(-77,-82) + jitter) * factor, Vector2.ONE * 154 * factor)
 			canvas.draw_texture_rect_region(ROTORICK_SHADOW, rect, Rect2(224, 0, 112, 112), Color(0.85, 0.6, 1.0, alpha))
 			for k in range(0, int(rect.size.y), 6):
 				canvas.draw_line(Vector2(rect.position.x + 20 * factor, rect.position.y + k), Vector2(rect.end.x - 20 * factor, rect.position.y + k), Color(0.75, 0.45, 1.0, 0.12), 1)
@@ -159,7 +159,7 @@ func _draw_status() -> void:
 	if kind == "slot":
 		# Charge panel ring laid over Rotorick, a size larger so its arrows sit
 		# outside the body: blue = waiting, red = charge set.
-		status_layer.draw_texture_rect_region(ROTORICK_PANEL, Rect2(-92,-94,184,184), Rect2(facing*112, (112 if braced else 0), 112, 112))
+		status_layer.draw_texture_rect_region(ROTORICK_PANEL, Rect2(-92,-94,184,184), Rect2(facing*112, (112 if braced else 0), 112, 112), Color(1, 1, 1, 0.6))
 	# Rotorick's hearts sit just above the ring.
 	var heart_y := -100.0 if kind == "slot" else 29+grow
 	for i in range(max_hp):
