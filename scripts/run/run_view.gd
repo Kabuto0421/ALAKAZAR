@@ -47,7 +47,6 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,24),"ALAKAZAR",32,CYAN).add_theme_font_override("font",LATIN)
-	_label(Vector2(560,35),"序盤3戦 → キャンプ → ボス → 中盤3戦 → キャンプ → ロトリック",20,Color("9aafa9"))
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
 		_label(Vector2(960,85),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	match run.state:
