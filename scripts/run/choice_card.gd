@@ -9,7 +9,6 @@ var action_text := "選ぶ"
 var tag := ""
 ## Comparison against the current loadout, drawn on the range diagram.
 var context: Array[Vector2i] = []
-var lost: Array[Vector2i] = []
 ## One line under the stats: what this choice changes.
 var note := ""
 var note_color := Color("92b3ae")
@@ -48,7 +47,6 @@ func _ready() -> void:
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.context = context
-		diagram.lost = lost
 		diagram.accent = accent
 		add_child(diagram)
 		_wrap_label(_label(Vector2(14,72+side),description,15,Color("e5dfc5")),size.x-28)

@@ -17,6 +17,7 @@ const ZAP_H = preload("res://assets/sprites/effects/zap_h.png")
 const ZAP_V = preload("res://assets/sprites/effects/zap_v.png")
 const CLOCKWISE_NEXT = {Vector2i.UP: Vector2i.RIGHT, Vector2i.RIGHT: Vector2i.DOWN, Vector2i.DOWN: Vector2i.LEFT, Vector2i.LEFT: Vector2i.UP}
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
+const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
@@ -48,6 +49,8 @@ var buttons: Array[Button] = []
 var end_button: Button
 var result_button: Button
 var weapon_buttons: Array[Button] = []
+## Weapon under the cursor in the weapon bar: its reach is previewed on the board.
+var peek_weapon := -1
 var grid_buttons: Array[Button] = []
 var busy := false
 var generation := 0
@@ -96,6 +99,12 @@ func _make_ui() -> void:
 		var button := _button(ui,Rect2(352+slot*260,620,248,94),"",func():
 			if slot < model.owned_weapons.size():
 				_equip(model.owned_weapons[slot]))
+		button.mouse_entered.connect(func():
+			peek_weapon = model.owned_weapons[slot] if slot < model.owned_weapons.size() else -1
+			queue_redraw())
+		button.mouse_exited.connect(func():
+			peek_weapon = -1
+			queue_redraw())
 		weapon_buttons.append(button)
 	for y in range(MAX_BOARD):
 		for x in range(MAX_BOARD):
@@ -656,6 +665,13 @@ func _draw_board() -> void:
 		slash_zone = model.side_slash_cells(hover_cell)
 		if not model.enemy_at(hover_cell).is_empty():
 			slash_zone.append(hover_cell)
+	var peek_zone: Array[Vector2i] = []
+	var peek_color := Color.WHITE
+	if peek_weapon >= 0 and peek_weapon != model.weapon and model.phase == Rules.Phase.PLAYER and selected_item.is_empty():
+		peek_color = Color(Rules.WEAPONS[peek_weapon].color)
+		for offset in model.weapon_offsets(peek_weapon):
+			if model.inside(model.player.cell+offset):
+				peek_zone.append(model.player.cell+offset)
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -697,6 +713,9 @@ func _draw_board() -> void:
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.18))
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.7),false,2)
+			if peek_zone.has(cell):
+				_dashed_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),peek_color,3)
+				draw_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),Color(peek_color,0.14))
 			if cell == hover_cell and model.inside(cell) and not show_rules:
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("fff0bd"),false,2)
 			if cell == model.player.cell:
@@ -800,35 +819,41 @@ func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
 	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
-		_text(Vector2(555,605),"タップで装備・0 AP",20,MUTED)
+		_text(Vector2(555,605),"タップか1〜3キーで装備・0 AP",18,MUTED)
 	for slot in range(model.owned_weapons.size()):
 		var index: int = model.owned_weapons[slot]
 		var weapon: Dictionary = Rules.WEAPONS[index]
 		var pos := Vector2(352+slot*260,620)
 		var rect := Rect2(pos,Vector2(248,94))
 		var accent := Color(weapon.color)
-		draw_rect(rect,Color("152d2a") if model.weapon==index else Color("0b1415"))
-		draw_rect(rect,accent if model.weapon==index else Color("324843"),false,3 if model.weapon==index else 2)
-		_text(pos+Vector2(12,32),weapon.name,23,accent)
-		_text(pos+Vector2(12,62),"装備中" if model.weapon==index else "装備する",19,INK)
-		# Extras on their own short line so they never run into the range picture.
-		var extras: Array[String] = []
-		if model.weapon_damage(index) > 1:
-			extras.append("攻撃%d" % model.weapon_damage(index))
+		var equipped: bool = model.weapon == index
+		draw_rect(rect,Color("1b3431") if equipped else Color("0b1415"))
+		draw_rect(rect,accent if equipped or peek_weapon == index else Color("324843"),false,4 if equipped else 2)
+		_text(pos+Vector2(10,22),str(slot+1),15,MUTED)
+		_text(pos+Vector2(28,38),("▶ " if equipped else "")+weapon.name,22,accent)
+		var extras: Array[String] = ["攻撃%d" % model.weapon_damage(index)]
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
-		if not extras.is_empty():
-			_text(pos+Vector2(12,86),"・".join(extras),15,GOLD)
+		if Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2):
+			extras.append("跳ぶ")
+		_text(pos+Vector2(28,72),"・".join(extras),16,GOLD if model.weapon_damage(index) > 1 else MUTED)
+		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var count := RangeDiagram.span(offsets)
-		var cell_size := 72.0/count
+		var side := 84.0
+		var cell_size := side/count
+		var origin := pos+Vector2(248-side-6,5)
 		for y in range(count):
 			for x in range(count):
 				var offset := Vector2i(x-count/2,y-count/2)
-				var tile := Rect2(pos+Vector2(166+x*cell_size,11+y*cell_size),Vector2.ONE*(cell_size-3))
-				draw_rect(tile,Color(accent,0.55) if offsets.has(offset) else Color("253a36"))
+				var tile := Rect2(origin+Vector2(x,y)*cell_size+Vector2.ONE,Vector2.ONE*(cell_size-2))
+				var active := offsets.has(offset)
+				draw_rect(tile,Color(accent,0.3) if active else Color("172627"))
+				draw_rect(tile,accent if active else Color("3d5753"),false,1)
 				if offset == Vector2i.ZERO:
-					_draw_player_portrait(index,tile.get_center(),28,1)
+					_draw_player_portrait(index,tile.get_center(),cell_size*1.1,1)
+				elif active:
+					draw_circle(tile.get_center(),maxf(2,cell_size*0.16),accent)
 		if model.locked_slot >= 0:
 			if slot == model.locked_slot:
 				draw_rect(rect,Color("ffd35b"),false,4)
@@ -836,6 +861,17 @@ func _draw_weapons() -> void:
 			else:
 				draw_rect(rect,Color(0,0,0,0.62))
 				_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
+
+func _dashed_rect(rect: Rect2, color: Color, width: float) -> void:
+	var corners := [rect.position, rect.position+Vector2(rect.size.x,0), rect.end, rect.position+Vector2(0,rect.size.y)]
+	for k in 4:
+		var a: Vector2 = corners[k]
+		var b: Vector2 = corners[(k+1)%4]
+		var length := a.distance_to(b)
+		var t := 0.0
+		while t < length:
+			draw_line(a.lerp(b,t/length),a.lerp(b,minf(t+7,length)/length),color,width)
+			t += 12
 
 func _draw_intel() -> void:
 	_panel(Rect2(832,94,296,508))

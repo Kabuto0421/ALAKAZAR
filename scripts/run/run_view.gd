@@ -87,9 +87,8 @@ func _render() -> void:
 		Run.State.REPLACE:
 			var title: String = run.battle.WEAPONS[int(run.pending.value)].name if run.pending.kind=="weapon" else run.battle.item_definition(str(run.pending.value)).title
 			_label(Vector2(44,48),"「%s」と交換する装備を選ぶ" % title,30,INK)
-			_label(Vector2(44,94),"所持上限は3。選んだ装備を手放します。赤いマスは手放すと届かなくなるマス。",17,sub)
+			_label(Vector2(44,94),"所持上限は3。手放すものを1つ選ぶ。",17,sub)
 			_replace_cards()
-			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"← 報酬へ戻る",_cancel)
 		Run.State.CAMP:
 			_label(Vector2(44,48),"キャンプ — ひとつだけ選ぶ",30,INK)
@@ -122,15 +121,12 @@ func _render() -> void:
 const CARD_TOP := 136.0
 const CARD_HEIGHT := 350.0
 const GOOD := Color("7be08a")
-const BAD := Color("ff6b6b")
 
-## Every tile the owned weapons reach, optionally leaving one slot out.
-func _coverage(skip_slot: int = -1) -> Array[Vector2i]:
+## Every tile the owned weapons reach.
+func _coverage() -> Array[Vector2i]:
 	var tiles: Array[Vector2i] = []
-	for slot in run.battle.owned_weapons.size():
-		if slot == skip_slot:
-			continue
-		for offset in Weapons.offsets(run.battle.owned_weapons[slot]):
+	for index in run.battle.owned_weapons:
+		for offset in Weapons.offsets(index):
 			if not tiles.has(offset):
 				tiles.append(offset)
 	return tiles
@@ -212,25 +208,9 @@ func _replace_cards() -> void:
 		card.size = Vector2(width,CARD_HEIGHT)
 		card.model = run.battle
 		card.action_text = "これを手放す"
-		card.tag = "手放す候補"
-		if weapon:
-			var index: int = run.battle.owned_weapons[slot]
-			card.offer = {"kind":"weapon","value":index}
-			# What is still reachable after the swap: the other weapons plus the new one.
-			var kept := _coverage(slot)
-			for offset in Weapons.offsets(int(run.pending.value)):
-				if not kept.has(offset):
-					kept.append(offset)
-			var lost: Array[Vector2i] = []
-			for offset in Weapons.offsets(index):
-				if not kept.has(offset):
-					lost.append(offset)
-			card.context = kept
-			card.lost = lost
-			card.note = "失うマス %d" % lost.size() if not lost.is_empty() else "届く範囲は減らない"
-			card.note_color = BAD if not lost.is_empty() else GOOD
-		else:
-			card.offer = {"kind":"fairy","value":run.battle.fairy_loadout[slot]}
+		card.tag = "所持中"
+		# Kept plain on purpose: the new item on the left, what you would give up on the right.
+		card.offer = {"kind":"weapon","value":run.battle.owned_weapons[slot]} if weapon else {"kind":"fairy","value":run.battle.fairy_loadout[slot]}
 		card.pressed.connect(func():
 			if run.replace(slot):
 				_render())

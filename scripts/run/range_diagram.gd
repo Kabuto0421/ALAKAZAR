@@ -5,9 +5,6 @@ var offsets: Array[Vector2i] = []
 var accent := Color("2bdcc8")
 ## Tiles the current loadout already reaches: drawn faintly, so an offer shows what it adds.
 var context: Array[Vector2i] = []
-## Tiles that would be lost (a replacement): drawn in red.
-var lost: Array[Vector2i] = []
-const LOST := Color("ff6b6b")
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -34,10 +31,7 @@ func _draw() -> void:
 			var known := context.has(offset)
 			var fill := Color("172627")
 			var border := Color("3d5753")
-			if lost.has(offset):
-				fill = Color(LOST,0.28)
-				border = LOST
-			elif active and known:
+			if active and known:
 				# Already reachable with the current loadout.
 				fill = Color(accent,0.12)
 				border = Color(accent,0.45)
@@ -52,8 +46,6 @@ func _draw() -> void:
 			if offset == Vector2i.ZERO:
 				var cell := Units.PLAYER_ATLAS_CELL
 				draw_texture_rect_region(Units.PLAYER_ATLAS,rect,Rect2(cell,2*cell,cell,cell))
-			elif lost.has(offset):
-				draw_circle(rect.get_center(),maxf(2,step*0.12),LOST)
 			elif active:
 				draw_circle(rect.get_center(),maxf(2,step*0.12),Color(accent,0.5) if known else accent)
 			elif known:
