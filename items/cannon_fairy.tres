@@ -9,6 +9,7 @@ script = ExtResource("1")
 id = "cannon_fairy"
 title = "槍砲精霊"
 description = "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"
+summary = "叩くと向きの直線に1"
 color = Color(1, 0.55, 0.35, 1)
 directional = true
 effect = ExtResource("2")

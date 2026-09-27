@@ -9,6 +9,7 @@ script = ExtResource("1")
 id = "acorn_fairy"
 title = "どんぐり妖精"
 description = "攻撃範囲の空きマスに召喚。\nHP1・AP1、縦横1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"
+summary = "味方を召喚。敵より先に動く"
 color = Color(0.69, 0.84, 0.39, 1)
 effect = ExtResource("2")
 icon = ExtResource("3")

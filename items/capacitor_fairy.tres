@@ -9,6 +9,7 @@ script = ExtResource("1")
 id = "capacitor_fairy"
 title = "蓄電の妖精"
 description = "攻撃範囲の空きマスに設置。\n武器で叩くたびに電気が1溜まり\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"
+summary = "叩いて3回溜めると4方向に1"
 color = Color(1, 0.86, 0.3, 1)
 effect = ExtResource("2")
 icon = ExtResource("3")

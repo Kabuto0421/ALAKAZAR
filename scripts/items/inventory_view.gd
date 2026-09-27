@@ -12,6 +12,7 @@ var quick_buttons: Array[Button] = []
 var quick_icons: Array[Control] = []
 var names: Array[Label] = []
 var costs: Array[Label] = []
+var keys: Array[Label] = []
 var hand_count: Label
 
 func setup(rules: RefCounted) -> void:
@@ -35,8 +36,15 @@ func setup(rules: RefCounted) -> void:
 		icon.size = Vector2(72,72)
 		button.add_child(icon)
 		quick_icons.append(icon)
-		names.append(_label(button,Vector2(82,12),"",24))
-		costs.append(_label(button,Vector2(82,50),"",18))
+		names.append(_label(button,Vector2(82,6),"",22))
+		var summary := _label(button,Vector2(82,38),"",16)
+		summary.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		summary.custom_minimum_size = Vector2(190,0)
+		summary.size = Vector2(190,0)
+		costs.append(summary)
+		var key := _label(button,Vector2(252,6),str(slot+4),15)
+		key.modulate = Color("768c87")
+		keys.append(key)
 	refresh(true,"")
 
 func _style(fill: Color,border: Color) -> StyleBoxFlat:
@@ -99,4 +107,6 @@ func refresh(can_use: bool, selected: String) -> void:
 		quick_icons[slot].queue_redraw()
 		names[slot].text = item.title
 		names[slot].modulate = Color.WHITE if count > 0 else Color("768c87")
-		costs[slot].text = "1 AP  /  残り %d回" % count if count > 0 else "使用済み・次戦で回復"
+		# What it does, in one line; the AP cost and single use are the same for every fairy.
+		costs[slot].text = (item.summary if item.summary != "" else "1 AP") if count > 0 else "使用済み・次戦で回復"
+		costs[slot].modulate = Color("c9d8d2") if count > 0 else Color("768c87")
