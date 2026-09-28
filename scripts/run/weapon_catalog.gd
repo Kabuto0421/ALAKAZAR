@@ -48,13 +48,10 @@ const DATA = [
 	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
 	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
-	{"id":"dragon_spear", "name":"竜王槍", "short":"竜王", "row":2, "color":"ff9a5a", "tier":"late", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "steps":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"縦横に滑り、斜めにも1マス。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)]},
-	{"id":"horse_blade", "name":"竜馬剣", "short":"竜馬", "row":2, "color":"6fb4ff", "tier":"late", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "steps":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"斜めに滑り、縦横にも1マス。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2),Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1),Vector2i(-1,0)]},
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"gold", "name":"金将剣", "short":"金将", "row":2, "color":"ffd35b", "tier":"mid", "detail":"右3マス・上下・左（斜め後ろ以外の6マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,-1),Vector2i(0,1),Vector2i(-1,0)]},
 	{"id":"silver", "name":"銀将剣", "short":"銀将", "row":2, "color":"d8e2ee", "tier":"mid", "detail":"右3マスと左斜め2マス（5マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(-1,-1),Vector2i(-1,1)]},
-	{"id":"king", "name":"王将剣", "short":"王将", "row":2, "color":"ffe27a", "tier":"mid", "detail":"周囲8マス", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "detail":"右1マス。使わないターンごとに攻撃+1（最大3）", "offsets":[Vector2i(1,0)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
@@ -68,7 +65,7 @@ static func is_mid(index: int) -> bool:
 static func mid_pool() -> Array:
 	return range(DATA.size()).filter(func(index: int) -> bool: return is_mid(index))
 
-## Sliding weapons (飛車槍・角剣・竜王槍・竜馬剣): offered only after Rotorick.
+## 飛車槍・角剣: offered only after Rotorick, and only as magic circle weapons.
 static func is_late(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "late"
 
@@ -103,10 +100,6 @@ static func early_reward_pool() -> Array:
 		if DATA[index].get("early", false) and not pool.has(index):
 			pool.append(index)
 	return pool
-
-## Single tiles a sliding weapon also reaches (竜王槍's diagonals, 竜馬剣's sides).
-static func steps(index: int) -> Array:
-	return DATA[index].get("steps", []) if index >= 0 and index < DATA.size() else []
 
 ## Weapons that slide along lines until something is in the way.
 static func slides(index: int) -> Array:

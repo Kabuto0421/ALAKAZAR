@@ -1053,14 +1053,9 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 45,"39 weapons plus six wide-reach late ones")
-	# 竜王槍 / 竜馬剣: slide lines plus single steps; 八方桂剣 and 王将剣 are late drops.
-	m = _weapon_room("dragon_spear",[Vector2i(1,0)])
-	verify(m.targets().has(Vector2i(0,1)) and m.targets().has(Vector2i(2,3)) and m.targets().has(Vector2i(m.board_size-1,2)) and not m.targets().has(Vector2i(3,4)),"The dragon spear slides along lines and steps one tile diagonally")
-	m = _weapon_room("horse_blade",[])
-	verify(m.targets().has(Vector2i(1,1)) and m.targets().has(Vector2i(3,4)) and not m.targets().has(Vector2i(1,0)),"The dragon horse slides diagonally and steps one tile straight")
-	verify(["eight_knight","gold","silver","king"].all(func(id): return W.mid_pool().has(ids.find(id))),"The wide-reach generals drop after the first boss")
-	verify(["rook_spear","bishop_blade","dragon_spear","horse_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The sliding weapons are late drops")
+	verify(W.DATA.size() == 42,"39 weapons plus the three late generals")
+	verify(["eight_knight","gold","silver"].all(func(id): return W.mid_pool().has(ids.find(id))),"The generals drop after the first boss")
+	verify(W.late_pool().size() == 2 and ["rook_spear","bishop_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The rook spear and bishop blade are the late drops")
 	# Sliding weapons never turn up before Rotorick, and do after it.
 	var before := false
 	var after := false
@@ -1076,6 +1071,7 @@ func _mechanic_weapons() -> void:
 			trial.battle.check_outcome()
 			trial.finish_battle()
 			var sliding: bool = trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value))
+			verify(trial.offers.all(func(o): return o.kind != "weapon" or not W.is_late(o.value) or o.get("enchant", "") == "circle"),"Rook and bishop moves only come as magic circle weapons")
 			if stage < Rules.BOSS2_LEVEL:
 				before = before or sliding
 			else:

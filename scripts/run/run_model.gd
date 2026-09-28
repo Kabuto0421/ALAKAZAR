@@ -150,9 +150,14 @@ func finish_battle() -> bool:
 	else:
 		for index in sample(weapons,WEAPON_OFFERS):
 			offers.append({"kind":"weapon","value":index})
+	# 飛車槍・角剣 only ever come as magic circle weapons.
+	for offer in offers:
+		if Weapons.is_late(int(offer.value)):
+			offer.enchant = "circle"
+			offer.rare = true
 	# Now and then one weapon offer comes with a magic circle (never the bow, which cannot move).
 	var circle_chance := CIRCLE_CHANCE_LATE if mid else CIRCLE_CHANCE_EARLY
-	var movable: Array = offers.filter(func(o: Dictionary) -> bool: return Weapons.DATA[int(o.value)].get("ranged", "") == "")
+	var movable: Array = offers.filter(func(o: Dictionary) -> bool: return Weapons.DATA[int(o.value)].get("ranged", "") == "" and o.get("enchant", "") == "")
 	if not movable.is_empty() and rng.randf() < circle_chance:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
