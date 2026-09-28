@@ -1581,8 +1581,11 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
 		"gravity":
-			# Rings closing in (pull) or rushing out (push).
+			# The fairy shows for a moment on its tile, then fades with the rings:
+			# closing in (pull) or rushing out (push).
 			var pulling: bool = effect.get("pull", true)
+			var side := 64.0 * (1.0 + 0.15 * sin(t * PI))
+			draw_texture_rect(model.item_definition("gravity_fairy").icon, Rect2(pos - Vector2.ONE * side / 2, Vector2.ONE * side), false, Color(1, 1, 1, fade))
 			for k in range(3):
 				var r := (1.0 - t) * 60.0 - k * 14.0 if pulling else t * 60.0 + k * 14.0
 				if r > 2.0:
