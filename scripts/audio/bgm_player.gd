@@ -15,6 +15,12 @@ const ROTORICK_LAYERS = {
 	"jackpot": preload("res://assets/audio/bgm/rotorick_jackpot.ogg"),
 }
 const LAYER_ORDER = ["normal", "error", "jackpot"]
+## The Prison King: his theme and its rage twin, sample-aligned, played together.
+const KING_LAYERS = [
+	preload("res://assets/audio/bgm/king_loop.ogg"),
+	preload("res://assets/audio/bgm/king_rage.ogg"),
+]
+const KING_VICTORY = preload("res://assets/audio/bgm/king_victory.ogg")
 const SILENT_DB := -60.0
 const CROSSFADE := 0.5
 const VICTORY = preload("res://assets/audio/bgm/victory.ogg")
@@ -28,6 +34,9 @@ var theme := "battle"
 var rotorick := AudioStreamSynchronized.new()
 var layer := "normal"
 var layer_tween: Tween
+var king := AudioStreamSynchronized.new()
+var king_raging := false
+var king_tween: Tween
 
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
@@ -36,11 +45,16 @@ func _ready() -> void:
 	for i in LAYER_ORDER.size():
 		rotorick.set_sync_stream(i, ROTORICK_LAYERS[LAYER_ORDER[i]])
 		rotorick.set_sync_stream_volume(i, 0.0 if i == 0 else SILENT_DB)
+	king.stream_count = KING_LAYERS.size()
+	for i in KING_LAYERS.size():
+		king.set_sync_stream(i, KING_LAYERS[i])
+		king.set_sync_stream_volume(i, 0.0 if i == 0 else SILENT_DB)
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:
-	var fight: AudioStream = BOSS if theme == "boss" else rotorick if theme == "rotorick" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
-	var track: AudioStream = (VICTORY if won else DEFEAT) if result_shown else fight
+	var fight: AudioStream = king if theme == "king" else BOSS if theme == "boss" else rotorick if theme == "rotorick" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
+	var victory: AudioStream = KING_VICTORY if theme == "king" else VICTORY
+	var track: AudioStream = (victory if won else DEFEAT) if result_shown else fight
 	if player.stream == track:
 		return
 	player.stream = track
@@ -71,6 +85,20 @@ func set_layer(name: String) -> void:
 		var from: float = rotorick.get_sync_stream_volume(i)
 		# Fade in linear gain so the sum stays level through the cross-fade.
 		layer_tween.tween_method(func(g: float) -> void: rotorick.set_sync_stream_volume(i, linear_to_db(maxf(g, 0.001))),
+			db_to_linear(from), db_to_linear(target), CROSSFADE)
+
+## The Prison King at half health: fade to the rage twin on the same beat. Idempotent.
+func set_king_rage(on: bool) -> void:
+	if on == king_raging:
+		return
+	king_raging = on
+	if king_tween and king_tween.is_valid():
+		king_tween.kill()
+	king_tween = create_tween().set_parallel(true)
+	for i in KING_LAYERS.size():
+		var target := 0.0 if (i == 1) == on else SILENT_DB
+		var from: float = king.get_sync_stream_volume(i)
+		king_tween.tween_method(func(g: float) -> void: king.set_sync_stream_volume(i, linear_to_db(maxf(g, 0.001))),
 			db_to_linear(from), db_to_linear(target), CROSSFADE)
 
 func layer_volume(name: String) -> float:

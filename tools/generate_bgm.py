@@ -38,6 +38,15 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      with a cyber arp and, in the second passes, a soft kick.
     camp_loop.ogg    the camp: a D Mixolydian slow air in 3/4, harp arpeggios,
                      drone, a campfire crackle and a faint digital rain.
+    king_loop.ogg    the Prison King (final boss): C Phrygian dominant, 120 BPM
+                     half-time, 90 bars (3 minutes). Prison bells, chain rattles,
+                     iron doors slamming, a throne-room organ and a crawling bass;
+                     the king's motif, the battle hook remembered in C minor, a
+                     twin-lead climax and a bells-and-heartbeat silence.
+    king_rage.ogg    the same score in sync for the enraged king: double-time
+                     drums, a siren, bells on every beat, distorted bass,
+                     melodies an octave up.
+    king_victory.ogg chains snap, the great bell tolls, the battle hook in D major.
 
     python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
 """
@@ -1040,6 +1049,235 @@ def camp_theme(bpm=76):
     return mix
 
 
+# ---------------------------------------------------------------------------
+# The Prison King (final boss): heavy, slow and regal; a rage twin in sync
+# ---------------------------------------------------------------------------
+
+# C Phrygian dominant (C Db E F G Ab Bb); the battle-hook quote borrows C minor.
+KING_PCS = [0, 1, 4, 5, 7, 8, 10]
+KING_CHORDS = {
+    "C": {"bass": "C2", "pad": ["C3", "E3", "G3", "C4"], "arp": ["C4", "E4", "G4", "C5"]},
+    "Db": {"bass": "Db2", "pad": ["Db3", "F3", "Ab3", "Db4"], "arp": ["Db4", "F4", "Ab4", "Db5"]},
+    "Fm": {"bass": "F1", "pad": ["F2", "Ab2", "C3", "F3"], "arp": ["F3", "Ab3", "C4", "F4"]},
+    "Bbm": {"bass": "Bb1", "pad": ["Bb2", "Db3", "F3", "Bb3"], "arp": ["Bb3", "Db4", "F4", "Bb4"]},
+    "Ab": {"bass": "Ab1", "pad": ["Ab2", "C3", "Eb3", "Ab3"], "arp": ["Ab3", "C4", "Eb4", "Ab4"]},
+    "Cm": {"bass": "C2", "pad": ["C3", "Eb3", "G3", "C4"], "arp": ["C4", "Eb4", "G4", "C5"]},
+    "G": {"bass": "G1", "pad": ["G2", "B2", "D3", "G3"], "arp": ["G3", "B3", "D4", "G4"]},
+}
+# The king's own motif: slow, stepping through the flat second and the major third.
+KING_MOTIF = [
+    [(0, 6, "C5"), (6, 2, "Db5"), (8, 8, "E5")],
+    [(0, 4, "F5"), (4, 4, "E5"), (8, 4, "Db5"), (12, 4, "C5")],
+    [(0, 6, "G5"), (6, 2, "Ab5"), (8, 6, "G5"), (14, 2, "F5")],
+    [(0, 4, "E5"), (4, 4, "Db5"), (8, 8, "C5")],
+]
+KING_ANSWER = [
+    [(0, 4, "C6"), (4, 4, "Bb5"), (8, 4, "Ab5"), (12, 4, "G5")],
+    [(0, 6, "Ab5"), (6, 2, "G5"), (8, 8, "F5")],
+    [(0, 4, "E5"), (4, 4, "F5"), (8, 4, "G5"), (12, 4, "Ab5")],
+    [(0, 6, "Bb5"), (6, 2, "Ab5"), (8, 8, "G5")],
+]
+# name, bars, progression
+KING_PLAN = [
+    ("gate", 6, ["C", "C", "Db", "C", "Db", "C"]),
+    ("march", 12, ["C", "Db", "Fm", "C"]),
+    ("motif", 12, ["C", "Db", "Fm", "C"]),
+    ("quote", 12, ["Cm", "Ab", "Fm", "G"]),
+    ("build", 8, ["Fm", "Db", "Bbm", "C"]),
+    ("climax", 16, ["C", "Db", "Fm", "Db"]),
+    ("silence", 8, ["C", "C", "Db", "C"]),
+    ("reprise", 12, ["C", "Db", "Fm", "C"]),
+    ("turn", 4, ["Db", "Db", "C", "C"]),
+]
+
+
+def organ(notes, seconds, vol=0.05, cutoff=1600):
+    """Throne-room organ: square voices with their octave, slow swell."""
+    voices = []
+    for nt in notes:
+        m = midi(nt) if isinstance(nt, str) else nt
+        for shift, v in ((0, vol), (12, vol * 0.5)):
+            voices.append(synth(m + shift, seconds, "pulse", duty=0.5, vol=v, attack=0.12,
+                                decay=0.8, sustain=0.85, release=0.3, cutoff=(cutoff, cutoff * 0.7, 1.0)))
+    return [sum(v) for v in zip(*voices)]
+
+
+def chains(rng, vol=0.08):
+    """A rattle of chain links: a few bright, gritty bursts."""
+    return noise_hit(rng, 0.28, 2500, 9000, vol, bursts=5)
+
+
+def door_slam(rng, vol=0.5):
+    """An iron door slamming shut: a low thud and a clang."""
+    thud = kick(vol)
+    clang = noise_hit(rng, 0.45, 300, 2600, vol * 0.35)
+    ring = bell("C3", 0.6, vol=vol * 0.08)
+    out = [0.0] * max(len(thud), len(clang), len(ring))
+    for part in (thud, clang, ring):
+        for i, x in enumerate(part):
+            out[i] += x
+    return out
+
+
+def dirty_bass(note, steps, vol):
+    raw = bass_note(note, steps, vol=vol)
+    return [math.tanh(x * 4.0) * vol * 0.6 for x in raw]
+
+
+def siren(seconds, vol=0.04):
+    """A wailing alarm: a pulse voice gliding a fifth up and back."""
+    return synth("G5", seconds, "pulse", duty=0.35, vol=vol, attack=0.05, decay=1.0, sustain=0.9,
+                 release=0.2, cutoff=(3200, 2400, 1.0),
+                 pitch=lambda t: 2 ** ((7 * (0.5 - 0.5 * math.cos(t * math.pi * 2 / seconds))) / 12))
+
+
+def king_theme(variant="normal"):
+    """Three minutes under the Prison King. 'rage' is the same score, sample for
+    sample in time, with double-time drums, a siren, tolling bells on every
+    beat, a distorted bass and the melodies an octave up; the game cross-fades
+    to it when the king drops to half health."""
+    rage = variant == "rage"
+    bar_len = 16 * STEP
+    beat = 4 * STEP
+    plan = []
+    for name, count, prog in KING_PLAN:
+        for i in range(count):
+            plan.append((name, i, count, KING_CHORDS[prog[i % len(prog)]]))
+    mix = Mix(len(plan) * bar_len, wrap=True)
+    rng = random.Random(1111)
+    kicks = []
+    starts = {}
+    # The battle hook, down a tone to C and borrowed into the king's minor.
+    quote = [[(st, ln, midi(nt) - 2) for st, ln, nt in bar] for bar in HOOK]
+    for b, (name, idx, count, chord) in enumerate(plan):
+        t0 = b * bar_len
+        starts.setdefault(name, b)
+        quiet = name in ("gate", "silence")
+        big = name in ("climax", "build")
+        # --- drums ---
+        if quiet:
+            # A heartbeat under the bells (faster in rage).
+            for k in ((0, 1, 2, 3) if rage else (0, 2)):
+                mix.put("kick", t0 + k * beat, kick(0.32))
+                mix.put("kick", t0 + k * beat + STEP, kick(0.2))
+        else:
+            level = 0.95 if big else 0.8
+            for k in range(4):
+                if k in (0, 2) or rage:
+                    mix.put("kick", t0 + k * beat, kick(level))
+                    kicks.append(t0 + k * beat)
+                if k == 2 or (rage and k in (1, 3)):
+                    mix.put("clap", t0 + k * beat, noise_hit(rng, 0.22, 700, 3000, 0.42 if big else 0.34, bursts=3))
+            hats = range(16) if rage else range(0, 16, 2)
+            for s in hats:
+                mix.put("hat", t0 + s * STEP, noise_hit(rng, 0.04, 7000, 13000, 0.07 if s % 4 else 0.12))
+            if name == "build" and idx >= count - 2:
+                for s in range(8, 16):
+                    mix.put("clap", t0 + s * STEP, noise_hit(rng, 0.08, 900, 3500, 0.12 + 0.02 * s))
+        # --- bells, chains, doors, keys ---
+        toll = quiet or name == "climax" or (name == "quote" and idx % 2 == 0)
+        if toll:
+            for k in (range(4) if rage else (0,)):
+                mix.put("bell", t0 + k * beat, bell("C4" if k == 0 else "G3", 2.0 if k == 0 else 0.8, vol=0.09))
+        if not quiet:
+            mix.put("chain", t0 + 14 * STEP, chains(rng, 0.06 if not rage else 0.09))
+        if idx % 4 == 3 and name in ("march", "motif", "climax", "reprise", "build"):
+            mix.put("door", t0 + 12 * STEP, door_slam(rng, 0.55))
+        if quiet and b % 2 == 1:
+            for k in range(3):
+                mix.put("keys", t0 + (6 + k * 2) * STEP, pluck(midi("C7") + [0, 4, 7][k], 6000, vol=0.03))
+        # --- drone / organ / bass ---
+        if quiet:
+            mix.put("drone", t0, synth(chord["bass"], bar_len, "sine", vol=0.07, attack=0.3, decay=1.0,
+                                       sustain=0.9, release=0.4, cutoff=(500, 400, 1.0)))
+            mix.put("pad", t0, organ(chord["pad"][:3], bar_len - 0.1, vol=0.018, cutoff=800))
+        else:
+            mix.put("pad", t0, organ(chord["pad"], bar_len - 0.1, vol=0.045 if big else 0.035,
+                                     cutoff=2200 if big else 1500))
+            root = midi(chord["bass"])
+            bass_steps = range(0, 16, 2) if rage else ((0, 4, 8, 12) if not big else range(0, 16, 2))
+            for s in bass_steps:
+                note = root + (12 if big and s % 4 == 2 else 0) + (1 if name == "march" and s == 12 and idx % 2 else 0)
+                vol = 0.5 if s % 4 == 0 else 0.4
+                mix.put("bass", t0 + s * STEP, dirty_bass(note, 2, vol) if rage else bass_note(note, 3 if not big else 2, vol))
+        # --- arps ---
+        if name in ("climax", "reprise", "build") or (rage and not quiet):
+            order = [0, 1, 2, 3, 2, 1, 2, 3]
+            for s in range(0, 16, 1 if rage else 2):
+                mix.put("arp", t0 + s * STEP, pluck(chord["arp"][order[(s // (1 if rage else 2)) % 8]],
+                                                   3200 if big else 2200, vol=0.08))
+        if rage and not quiet and idx % 2 == 0:
+            mix.put("siren", t0, siren(bar_len * 2))
+        # --- melodies ---
+        lift = 12 if rage else 0
+        if name in ("motif", "reprise") or (name == "climax" and idx < 8):
+            prev = None
+            for st, ln, nt in KING_MOTIF[idx % 4]:
+                m = midi(nt) + lift - (12 if name == "reprise" else 0)
+                mix.put("lead", t0 + st * STEP, lead(m, ln, glide_from=prev, vol=0.15))
+                if name == "climax":
+                    mix.put("lead", t0 + st * STEP, lead(lower_third(m, KING_PCS), ln, vol=0.08))
+                prev = m
+        if name == "climax" and idx >= 8:
+            for st, ln, nt in KING_ANSWER[idx % 4]:
+                m = midi(nt) + lift
+                mix.put("lead", t0 + st * STEP, lead(m, ln, vol=0.15))
+                mix.put("lead", t0 + st * STEP, lead(lower_third(m, KING_PCS), ln, vol=0.08))
+        if name == "quote":
+            # The battle hook, remembered in the dark: a slow choir-like voice.
+            for st, ln, m in quote[idx % 4]:
+                mix.put("choir", t0 + st * STEP, synth(m + lift, ln * STEP * 0.95, "saw", detune=(-9, 9), vol=0.11,
+                                                       attack=0.12, decay=0.5, sustain=0.8, release=0.2,
+                                                       cutoff=(1800, 1200, 0.4)))
+    # Swells into the big entrances.
+    for name in ("march", "build", "climax", "reprise"):
+        mix.put("fx", starts[name] * bar_len - 2 * bar_len, riser(rng, 2 * bar_len, vol=0.1))
+        mix.put("fx", starts[name] * bar_len, noise_hit(rng, 1.8, 2500, 11000, 0.18))
+    mix.put("fx", len(plan) * bar_len - 2 * bar_len, riser(rng, 2 * bar_len, vol=0.12))
+    mix.echo("bell", beat * 1.5, 0.35, 0.5)
+    mix.echo("lead", STEP * 3, 0.35, 0.35)
+    mix.echo("choir", beat, 0.4, 0.5)
+    mix.echo("arp", STEP * 3, 0.3, 0.35)
+    mix.echo("keys", STEP * 3, 0.5, 0.6)
+    mix.duck("pad", kicks, 0.5)
+    mix.duck("arp", kicks, 0.35)
+    mix.duck("bass", kicks, 0.25, length=0.12)
+    mix.loudness = 1.1 if rage else 1.0
+    return mix
+
+
+def king_victory_jingle():
+    """The Prison King falls: chains snap one by one, the great bell tolls, and the
+    battle hook finally rings out in D major."""
+    mix = Mix(9.5, wrap=False)
+    rng = random.Random(77)
+    for k in range(4):
+        mix.put("chain", 0.25 * k, chains(rng, 0.12))
+        mix.put("chain", 0.25 * k + 0.05, noise_hit(rng, 0.15, 3000, 11000, 0.1))
+    mix.put("door", 1.1, door_slam(rng, 0.8))
+    mix.put("bell", 1.1, bell("D4", 3.0, vol=0.12))
+    hit = 1.9
+    mix.put("pad", hit, pad_chord(["D3", "F#3", "A3", "D4", "F#4"], 6.0, cutoff=2400, vol=0.09))
+    mix.put("bass", hit, synth("D2", 5.0, "saw", detune=(-6, 6), vol=0.4, decay=1.5,
+                               sustain=0.5, release=0.8, cutoff=(1600, 300, 0.2)))
+    mix.put("kick", hit, kick())
+    mix.put("fx", hit, noise_hit(rng, 2.4, 3000, 11000, 0.18))
+    # The hook's first two bars in D major (F -> F#, C -> C#).
+    major = {"F5": "F#5", "C5": "C#5", "F4": "F#4"}
+    t = hit
+    for bar in HOOK[:2]:
+        for st, ln, nt in bar:
+            mix.put("lead", t + st * STEP, lead(major.get(nt, nt), ln, vol=0.15))
+        t += 16 * STEP
+    mix.put("lead", t, lead("D6", 12, glide_from="A5", vol=0.14))
+    for i, note in enumerate(["A5", "D6", "F#6", "A6", "F#6", "D6", "A5", "D6"]):
+        mix.put("arp", t + i * STEP, pluck(note, 3500, vol=0.09))
+    mix.echo("lead", STEP * 3, 0.3, 0.35)
+    mix.echo("arp", STEP * 3, 0.35, 0.45)
+    mix.echo("bell", 0.4, 0.4, 0.5)
+    return mix
+
+
 def main():
     import sys
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1050,7 +1288,10 @@ def main():
               "rotorick_error.ogg": lambda: with_tempo(152, lambda: roto_theme("error")),
               "rotorick_jackpot.ogg": lambda: with_tempo(152, lambda: roto_theme("jackpot")),
               "draft_loop.ogg": lambda: with_tempo(100, draft_theme),
-              "camp_loop.ogg": lambda: with_tempo(76, camp_theme)}
+              "camp_loop.ogg": lambda: with_tempo(76, camp_theme),
+              "king_loop.ogg": lambda: with_tempo(120, king_theme),
+              "king_rage.ogg": lambda: with_tempo(120, lambda: king_theme("rage")),
+              "king_victory.ogg": king_victory_jingle}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:

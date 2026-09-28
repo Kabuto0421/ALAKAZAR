@@ -198,7 +198,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
-	bgm.theme = "boss" if model.level == Rules.BOSS_LEVEL or model.level == Rules.FINAL_LEVEL or Rules.LATE_LEVELS.has(model.level) else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
+	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
 	TILE = 64.0 if model.board_size <= 8 else floorf(512.0/model.board_size)
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
 	# 8x8 (and the shrunk 10x10) fill the full height between the header and the weapon cards.
@@ -635,6 +635,8 @@ func _update_controls() -> void:
 		if enemy.type == "slot":
 			reel = int(enemy.get("reel",0))
 	bgm.set_layer("error" if reel == 5 else "jackpot" if reel == 7 else "normal")
+	# The Prison King's theme turns to its rage twin at half health.
+	bgm.set_king_rage(model.king_enraged())
 	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "ビルド選択へ →"
 	for actor in actors.values():
 		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened
