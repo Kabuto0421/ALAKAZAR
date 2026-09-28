@@ -47,6 +47,13 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      drums, a siren, bells on every beat, distorted bass,
                      melodies an octave up.
     king_victory.ogg chains snap, the great bell tolls, the battle hook in D major.
+    king_intro.ogg   under the blackout before the final battle: a cell door slams,
+                     the organ swells, the great bell and the king's motif.
+    king_rage_sting.ogg  the king enrages: chains snap, siren, a distorted roar, a
+                     dissonant organ cluster and clashing bells.
+    king_fall.ogg    the king falls: chains burst, a great hit, bells over C major.
+    rotorick_intro.ogg  Rotorick arrives: reels spin and lock, a buzzer, a stab.
+    (Sound effects are rendered by tools/generate_sfx.py.)
 
     python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
 """
@@ -1278,6 +1285,102 @@ def king_victory_jingle():
     return mix
 
 
+def king_intro_sting():
+    """Under the blackout before the final battle (3.8 s, then the theme starts):
+    a cell door slams in the dark, the throne-room organ swells, and as his name
+    appears the great bell tolls under the first bar of his motif."""
+    mix = Mix(4.3, wrap=False)
+    rng = random.Random(81)
+    mix.put("door", 0.2, door_slam(rng, 0.8))
+    mix.put("fx", 0.0, riser(rng, 1.2, 0.05))
+    mix.put("organ", 0.5, organ(["C3", "G3", "C4", "E4"], 3.0, vol=0.05, cutoff=1300))
+    mix.put("bass", 0.5, synth("C1", 3.0, "saw", detune=(-8, 8), vol=0.3, attack=0.4, decay=1.5,
+                               sustain=0.7, release=0.6, cutoff=(500, 250, 1.0)))
+    hit = 1.25
+    mix.put("kick", hit, kick())
+    mix.put("bell", hit, bell("C3", 2.4, vol=0.14))
+    mix.put("bell", hit + 1.0, bell("G2", 1.6, vol=0.09))
+    mix.put("chain", hit, chains(rng, 0.1))
+    mix.put("fx", hit, noise_hit(rng, 1.2, 200, 3000, 0.1))
+    for st, ln, nt in KING_MOTIF[0]:
+        mix.put("lead", hit + st * STEP, lead(midi(nt) - 12, ln, vol=0.12))
+    mix.put("fx", 3.2, riser(rng, 0.6, 0.08))
+    mix.echo("bell", 0.5, 0.4, 0.5)
+    mix.echo("lead", STEP * 3, 0.3, 0.3)
+    return mix
+
+
+def king_rage_sting():
+    """The king enrages (2.6 s): chains snap, the siren wails, a distorted roar,
+    then a dissonant organ cluster and bells clashing a semitone apart."""
+    mix = Mix(3.0, wrap=False)
+    rng = random.Random(82)
+    mix.put("kick", 0.0, kick())
+    mix.put("fx", 0.0, noise_hit(rng, 0.6, 400, 9000, 0.2))
+    for k in range(3):
+        mix.put("chain", 0.05 + 0.1 * k, chains(rng, 0.12))
+    mix.put("siren", 0.0, siren(2.4, 0.05))
+    roar = synth("C1", 1.3, "saw", detune=(-20, 0, 17), vol=0.5, attack=0.05, decay=0.8, sustain=0.6,
+                 release=0.3, cutoff=(900, 300, 0.4), pitch=lambda t: 1 + 0.05 * math.sin(t * 40))
+    mix.put("roar", 0.1, [math.tanh(x * 3.0) * 0.3 for x in roar])
+    mix.put("door", 0.35, door_slam(rng, 0.7))
+    mix.put("organ", 0.35, organ(["C3", "Db3", "E3", "G3", "Bb3"], 2.0, vol=0.045, cutoff=1800))
+    mix.put("bell", 0.35, bell("C4", 1.8, vol=0.1))
+    mix.put("bell", 0.35, bell("Db4", 1.8, vol=0.08))
+    mix.put("kick", 0.35, kick())
+    mix.echo("bell", 0.3, 0.35, 0.4)
+    return mix
+
+
+def king_fall_sting():
+    """The king falls (3.0 s): chains burst one after another into a rising rush,
+    a great hit into the white-out, then the bells ring out over a bright C major."""
+    mix = Mix(3.6, wrap=False)
+    rng = random.Random(83)
+    for k in range(4):
+        mix.put("chain", 0.18 * k, chains(rng, 0.13))
+        mix.put("chain", 0.18 * k + 0.03, noise_hit(rng, 0.12, 3000, 11000, 0.08))
+    mix.put("fx", 0.1, riser(rng, 0.9, 0.12))
+    hit = 1.0
+    mix.put("kick", hit, kick(1.0))
+    mix.put("door", hit, door_slam(rng, 0.9))
+    mix.put("fx", hit, noise_hit(rng, 1.6, 2500, 11000, 0.16))
+    mix.put("bell", hit, bell("C4", 2.4, vol=0.12))
+    mix.put("bell", hit + 0.25, bell("G4", 2.2, vol=0.08))
+    mix.put("pad", 1.2, pad_chord(["C3", "G3", "C4", "E4", "G4"], 2.0, cutoff=2200, vol=0.07))
+    mix.put("bass", 1.2, synth("C2", 1.8, "saw", detune=(-6, 6), vol=0.3, attack=0.2, decay=1.2,
+                               sustain=0.5, release=0.5, cutoff=(1200, 300, 0.3)))
+    mix.echo("bell", 0.4, 0.4, 0.5)
+    return mix
+
+
+def rotorick_intro_sting():
+    """Rotorick arrives (2 s): the reels spin up and lock, a buzzer, and the
+    circus stab in A harmonic minor."""
+    mix = Mix(2.6, wrap=False)
+    rng = random.Random(84)
+    t = 0.0
+    gap = 0.09
+    notes = ["A4", "C5", "E5", "G#5"]
+    i = 0
+    while t < 1.2:
+        mix.put("arp", t, pluck(notes[i % 4], 3000, vol=0.09))
+        mix.put("fx", t, noise_hit(rng, 0.03, 3000, 9000, 0.05))
+        t += gap
+        gap = max(0.045, gap * 0.9) if t < 0.7 else gap * 1.18
+        i += 1
+    for k in range(3):
+        mix.put("fx", 1.2 + 0.08 * k, noise_hit(rng, 0.05, 800, 6000, 0.12))
+    hit = 1.45
+    mix.put("buzz", hit, synth("A2", 0.35, "pulse", duty=0.5, vol=0.08, sustain=1.0,
+                               cutoff=(2000, 2000, 1.0)))
+    mix.put("kick", hit, kick())
+    mix.put("pad", hit, pad_chord(["A3", "C4", "E4", "G#4"], 0.6, cutoff=2600, vol=0.08))
+    mix.put("bass", hit, bass_note("A1", 4, vol=0.5))
+    mix.echo("arp", 0.12, 0.3, 0.3)
+    return mix
+
+
 def main():
     import sys
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1291,7 +1394,11 @@ def main():
               "camp_loop.ogg": lambda: with_tempo(76, camp_theme),
               "king_loop.ogg": lambda: with_tempo(120, king_theme),
               "king_rage.ogg": lambda: with_tempo(120, lambda: king_theme("rage")),
-              "king_victory.ogg": king_victory_jingle}
+              "king_victory.ogg": king_victory_jingle,
+              "king_intro.ogg": lambda: with_tempo(120, king_intro_sting),
+              "king_rage_sting.ogg": lambda: with_tempo(120, king_rage_sting),
+              "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
+              "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting)}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:

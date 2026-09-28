@@ -129,6 +129,15 @@ func run() -> void:
 	await create_timer(0.8).timeout
 	verify(app.run.state==Run.State.BATTLE and app.battle_view.model.board_size==5,"Replacement click starts 5x5 stage")
 	verify(app.battle_view.grid_buttons.filter(func(b): return b.visible).size()==25,"5x5 has 25 active hit targets")
+	# Sound: every mapped effect exists, and the M key silences effects with the music.
+	var battle = app.battle_view
+	var sounds: Array = battle.EVENT_SFX.values() + battle.SUMMON_SFX.values() + ["step", "slash", "hit", "enemy_die", "player_hurt", "turn_player", "turn_enemy", "denied", "select", "siege_warn", "glutton_windup", "wolf_sulk", "gravity_pull", "gravity_push", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse", "summon"]
+	verify(sounds.all(func(n): return battle.sfx.has(n) and ResourceLoader.exists("res://assets/audio/sfx/%s.ogg" % n)),"Every battle sound effect has its file")
+	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
+	battle.bgm.toggle_mute()
+	verify(battle.sfx.muted,"Muting the music mutes the sound effects too")
+	battle.bgm.toggle_mute()
+	verify(not battle.sfx.muted,"Unmuting brings them back")
 	app.queue_free()
 	await create_timer(0.2).timeout
 	print("RUN UI: %d checks, %d failures" % [checks,failures])

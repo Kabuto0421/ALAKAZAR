@@ -41,6 +41,17 @@ static var help_seen := false
 var help: Control
 const CIRCLE_WHITE = Color("f4f2ea")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
+const SfxPlayer = preload("res://scripts/audio/sfx_player.gd")
+## Sound for each event kind (summons, hits and gravity are picked in _event_sound).
+const EVENT_SFX = {"javelin":"throw", "arrow":"arrow", "block":"block", "ambush":"ambush",
+	"combo":"combo", "swap":"swap", "quake":"quake", "analyzed":"scan", "pull":"push",
+	"chalk":"chalk", "circle":"circle_cast", "bump":"crash", "push":"push", "mine":"blast",
+	"axe":"axe", "warp":"swap", "bolt":"bolt", "fall":"abyss_fall", "devour":"glutton_bite",
+	"gulp":"glutton_gulp", "bite":"wolf_bite", "firework":"firework", "blast":"blast",
+	"muzzle":"cannon", "resonate":"resonate", "spark":"zap", "discharge":"discharge", "zap":"zap",
+	"slash":"slash", "roar":"roar", "dash":"dash", "burn":"burn", "smash":"smash", "plant":"plant"}
+const SUMMON_SFX = {"abyss":"abyss_crack", "wolf":"wolf_howl", "shadow":"shadow", "stealth":"shadow",
+	"wall":"wall_rise", "cannon":"clank", "prison":"fortress_spawn", "revive":"king_revive"}
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const HP_EMPTY = preload("res://assets/sprites/editor_ui/part_capacity_unit_empty.png")
@@ -92,6 +103,7 @@ var direction_buttons: Array[Button] = []
 var cancel_button: Button
 var rules_button: Button
 var bgm: Node
+var sfx: Node
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -102,6 +114,8 @@ func _ready() -> void:
 	add_child(weapon_effects)
 	bgm = BgmPlayer.new()
 	add_child(bgm)
+	sfx = SfxPlayer.new()
+	add_child(sfx)
 	_make_ui()
 	_start(model.level,true)
 	if model.level == 0:
@@ -188,6 +202,9 @@ func _button(parent: Control, rect: Rect2, title: String, callback: Callable) ->
 	button.add_theme_color_override("font_hover_color",CYAN)
 	button.add_theme_color_override("font_disabled_color",Color("56716c"))
 	button.pressed.connect(callback)
+	# Labelled buttons click (the board's tiles have their own sounds).
+	if not title.is_empty():
+		button.pressed.connect(func(): _sound("select"))
 	parent.add_child(button)
 	buttons.append(button)
 	return button
@@ -234,6 +251,10 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		_boss_intro()
 	if model.level == Rules.FINAL_LEVEL:
 		_final_intro()
+	elif model.level == Rules.BOSS2_LEVEL:
+		# Rotorick: the reels spin up before his music starts.
+		bgm.hold(1.9)
+		_sting("rotorick_intro")
 
 ## The Prison King's entrance: black-out, the throne hall, his name, then the fight.
 func _final_intro() -> void:
@@ -259,6 +280,13 @@ func _cinematic(mode: String, focus := Vector2(576, 360)) -> void:
 	layer.scale = Vector2.ONE * UI_SCALE
 	add_child(layer)
 	layer.add_child(fx)
+	# Each cinematic has its sting: the intro holds the music until it ends,
+	# the rage and the fall dip it underneath.
+	if mode == "intro":
+		bgm.hold(BossCinematic.LIFE[mode])
+	else:
+		bgm.duck(BossCinematic.LIFE[mode])
+	_sting({"intro":"king_intro", "rage":"king_rage", "fall":"king_fall"}[mode])
 	await get_tree().create_timer(BossCinematic.LIFE[mode]).timeout
 
 ## The rook enters blue, pauses, then snaps into its red stance before the player moves.
@@ -313,6 +341,7 @@ func _enemy_turn() -> void:
 	selected_weapon = -1
 	busy = true
 	var token := generation
+	_sound("turn_enemy")
 	model.act_allies()
 	if not await _glutton_windup(token):
 		return
@@ -333,7 +362,10 @@ func _enemy_turn() -> void:
 		busy = false
 		_update_controls()
 		return
+	var rings: int = model.siege_rings
 	planner.begin(model)
+	if model.siege_rings > rings:
+		_sound("siege_warn")
 	_update_controls()
 	if not model.events.is_empty():
 		# Rule A: the siege closing and burning shows before the enemies move.
@@ -347,7 +379,12 @@ func _enemy_turn() -> void:
 	if token != generation:
 		return
 	for beat in range(2):
+		var cells := {}
+		for enemy in model.enemies:
+			cells[enemy.id] = enemy.cell
 		planner.beat(model,beat)
+		if model.enemies.any(func(e: Dictionary) -> bool: return cells.has(e.id) and cells[e.id] != e.cell):
+			_sound("enemy_step")
 		if not await _play_charges(token):
 			return
 		_sync_units(true)
@@ -361,6 +398,8 @@ func _enemy_turn() -> void:
 	planner.finish(model)
 	_sync_units(false)
 	busy = false
+	if not model.terminal():
+		_sound("turn_player")
 	_update_controls()
 	queue_redraw()
 
@@ -392,6 +431,7 @@ func _act(cell: Vector2i) -> void:
 	var origin: Vector2i = model.player.cell
 	var attacking := not enemy.is_empty()
 	if not model.player_action(cell):
+		_sound("denied")
 		if not model.targets().has(cell):
 			selected_enemy_id = -2
 			queue_redraw()
@@ -405,7 +445,10 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 	var weapon_kind: String = Rules.WEAPONS[weapon_action.weapon].id if not weapon_action.is_empty() else ""
 	# Swords swing; the hammer uses its own sheet; the bow just looses an arrow.
 	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_kind not in ["hammer","bow"]
+	if not weapon_action.is_empty() and not weapon_action.attacking:
+		_sound("step")
 	if sword_attack:
+		_sound("slash")
 		# The model resolves immediately; keep the prior enemy visuals until contact.
 		var player_view = actors[-1]
 		player_view.play_sword_attack(model.facing)
@@ -567,6 +610,7 @@ func _sync_units(animate: bool) -> void:
 			actor.position = _unit_center(unit)
 			actor.scale = Vector2.ONE*TILE/64.0
 			actor.z_index = 2
+			actor.set_meta("enemy", model.enemies.has(unit))
 			add_child(actor)
 			actors[id] = actor
 		var view: Node2D = actors[id]
@@ -595,6 +639,9 @@ func _sync_units(animate: bool) -> void:
 		if not living.has(id):
 			if clock < hold_dead_until:
 				continue
+			if actors[id].get_meta("enemy", false) and not actors[id].get_meta("fallen", false):
+				actors[id].set_meta("fallen", true)
+				_sound({"king":"king_collapse", "fortress":"fortress_collapse"}.get(actors[id].kind, "enemy_die"))
 			if actors[id].kind == "king":
 				# The king crumbles through his death frames before he is gone.
 				actors[id].play_anim("death")
@@ -602,9 +649,52 @@ func _sync_units(animate: bool) -> void:
 			actors[id].queue_free()
 			actors.erase(id)
 
+func _sound(name: String, volume_db: float = 0.0) -> void:
+	if sfx != null:
+		sfx.play(name, volume_db)
+
+func _sting(name: String) -> void:
+	if sfx != null:
+		sfx.sting(name)
+
+## The sound one event makes ("" for none).
+func _event_sound(event: Dictionary, gravity: bool, raging: bool) -> String:
+	match event.kind:
+		"hit":
+			if int(event.id) == -1:
+				return "player_hurt"
+			if actors.has(int(event.id)):
+				match actors[int(event.id)].kind:
+					"king":
+						return "king_hit"
+					"fortress":
+						return "fortress_crack"
+			return "hit"
+		"summon":
+			return SUMMON_SFX.get(event.get("fx", ""), "summon")
+		"gravity":
+			return "gravity_pull" if event.get("pull", false) else "gravity_push"
+		"pull", "push":
+			# The gravity fairy's own sound covers the enemies it moves.
+			if gravity:
+				return ""
+		"roar":
+			# The rage sting has its own roar.
+			if raging:
+				return ""
+	return EVENT_SFX.get(event.kind, "")
+
 func _feedback(weapon_attack: bool = false) -> void:
 	# A magic circle shows its own "99"s: no ordinary hit popups under it.
 	var casting := model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle")
+	var gravity := model.events.any(func(e: Dictionary) -> bool: return e.kind == "gravity")
+	var raging := model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_rage")
+	var heard := {}
+	for event in model.events:
+		var sound := _event_sound(event, gravity, raging)
+		if sound != "" and not heard.has(sound):
+			heard[sound] = true
+			_sound(sound)
 	for event in model.events:
 		if casting and event.kind == "hit" and event.id >= 0:
 			continue
@@ -657,6 +747,7 @@ func _glutton_windup(token: int) -> bool:
 	var gulps: Array = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "gulp")
 	if gulps.is_empty():
 		return true
+	_sound("glutton_windup")
 	for event in gulps:
 		if not actors.has(int(event.by)):
 			continue
@@ -770,7 +861,10 @@ func _process(delta: float) -> void:
 		var reach: Array[Vector2i] = model.all_reach()
 		for wolf in model.allies:
 			if wolf.type == "wolf" and actors.has(wolf.id):
-				actors[wolf.id].sulking = wolf.hp > 0 and reach.has(wolf.cell)
+				var sulking: bool = wolf.hp > 0 and reach.has(wolf.cell)
+				if sulking and not actors[wolf.id].sulking:
+					_sound("wolf_sulk")
+				actors[wolf.id].sulking = sulking
 				actors[wolf.id].sulk_flip = model.player.cell.x > wolf.cell.x
 	queue_redraw()
 
@@ -802,7 +896,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_rules()
 			return
 		if event.keycode == KEY_M:
-			bgm.toggle_mute()
+			bgm.toggle_mute()  # the sound effects follow the music
 			return
 		if event.keycode == KEY_B:
 			inventory_ui.toggle()

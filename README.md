@@ -161,7 +161,7 @@ AP2の歩兵を、AP1の重装兵の後ろに置いています。重装兵が�
 | `H`／上部のボタン | ルールの表示 |
 | 上部の「履歴」 | 戦闘履歴の表示 |
 | `Esc`／右クリック | 妖精の選択を取り消す |
-| `M` | BGMのミュート・解除 |
+| `M` | BGMと効果音のミュート・解除 |
 
 ## 武器と妖精
 
@@ -285,6 +285,10 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ALAKA
 | `king_victory.ogg` | 監獄の王の撃破ジングル。鎖が1本ずつちぎれ、鉄扉と大鐘が鳴り、普段の戦闘曲のメロディが初めてDメジャーで鳴り響く |
 | `victory.ogg` | 勝利ジングル（上昇アルペジオからDメジャーで解決） |
 | `defeat.ogg` | 敗北ジングル（戦闘のパッドがテープストップして沈む） |
+| `king_intro.ogg` | 最終決戦の開始時、暗転の間に鳴る登場曲（約4秒）。闇の中で鉄扉が閉まり、オルガンが膨らみ、王の名前と同時に大鐘と王のモチーフ。鳴り終わってから `king_loop.ogg` が頭から始まる |
+| `king_rage_sting.ogg` | 怒り状態に入った瞬間の合図（約2.6秒）。鎖がちぎれ、サイレン、歪んだ咆哮、半音ぶつかる鐘と不協和のオルガン。この間はBGMを下げる |
+| `king_fall.ogg` | 王を倒した瞬間（約3秒）。鎖が次々に弾け、白く飛ぶ瞬間に大きな一撃、Cメジャーの上で鐘が鳴り響く。そのあと撃破ジングルへ |
+| `rotorick_intro.ogg` | ロトリック戦の開始合図（約2秒）。リールが回って止まり、ブザーとAハーモニックマイナーの一撃。鳴り終わってからロトリックの曲が始まる |
 
 曲を変更する場合は、スクリプト内の構成と各セクションの音量（`SECTIONS`）、コード進行（`CHORDS`）、フック（`HOOK`）を編集してから次のコマンドで再生成します。
 
@@ -294,6 +298,29 @@ python3 tools/generate_bgm.py draft_loop.ogg camp_loop.ogg  # 指定した曲だ
 ```
 
 戦闘BGMはループ前提で循環的に書き出しており、終端のエコーやパッドの余韻が先頭につながります。Vorbisはサンプル数をそのまま保つため、インポート設定（`battle_loop.ogg.import` の `loop=true`）で継ぎ目なくループ再生されます。再生成してもこの設定はそのまま使われます。
+
+### 効果音
+
+`assets/audio/sfx/` の効果音（56種）は `tools/generate_sfx.py` で生成しています（`pip install numpy soundfile`）。雰囲気がばらけないように、全部の音を同じ作り方にそろえています。
+
+- **素材**：布・空気（フィルターしたノイズ）、木・石・鉄（打つと鳴る共鳴体）、皮の太鼓、ガラスの鈴だけを組み合わせる。音程のある音（ターン開始の鈴、妖精の登場、連撃、狼の遠吠え、包囲の角笛など）はBGMと同じDマイナーにそろえる
+- **響き**：全部の音に同じ石造りの部屋の短い残響をかける（量だけ変える）
+- **仕上げ**：40Hz以下を切り、11kHz以上をなだらかに落とし、軽く歪ませ、種類ごとに音量をそろえる（操作音 < 足音 < 攻撃・被弾 < 大きな出来事 < 監獄の王）
+- 監獄の王まわり（復活・要塞・被弾・崩壊）だけは、鉄・鎖・石を強めにして王の曲に寄せている
+
+ゲームでは `scripts/audio/sfx_player.gd` が鳴らします。同時発音は12音まで、同じ音が60ミリ秒以内に重なったら1回だけ鳴らし、毎回ピッチを±5%ずらして繰り返しでも機械的に聞こえないようにしています。どのイベントでどの音を鳴らすかは `battle_view.gd` の `EVENT_SFX`・`SUMMON_SFX`・`_event_sound` にまとめています。
+
+| 場面 | 音 |
+|---|---|
+| 基本 | 移動 `step`、剣を振る `slash`、攻撃が当たる `hit`、敵が倒れる `enemy_die`、主人公の被弾 `player_hurt`、自分のターン `turn_player`（鈴）、敵のターン `turn_enemy`（太鼓）、敵が動く `enemy_step`、できない操作 `denied`、ボタン `select` |
+| 武器・盤面 | 突進 `dash`、激突 `crash`、押し出し・引き寄せ `push`、魔法陣を描く `chalk`・発動 `circle_cast`、投げ槍 `throw`、矢 `arrow`、盾 `block`、奇襲 `ambush`、連撃 `combo`、入れ替え `swap`、ハンマー `quake`、解析 `scan`、斧 `axe`、落雷 `bolt`、大砲 `cannon`・共鳴 `resonate`・放電 `spark`/`zap`/`discharge`、爆発 `blast`、花火 `firework`、炎 `burn`、咆哮 `roar`、粉砕 `smash`、包囲の輪が縮む `siege_warn`、地雷を埋める `plant` |
+| 妖精 | 登場 `summon`、影 `shadow`、壁 `wall_rise`、大砲を置く `clank`、暴食妖精の溜め `glutton_windup`・噛みつき `glutton_bite`・丸呑み `glutton_gulp`、奈落が開く `abyss_crack`・落ちる `abyss_fall`、重力の引き寄せ `gravity_pull`・弾き `gravity_push`、狼の遠吠え `wolf_howl`・噛みつき `wolf_bite`・すねる `wolf_sulk` |
+| 監獄の王 | 兵の復活 `king_revive`、要塞が兵を出す `fortress_spawn`、王への被弾 `king_hit`、要塞にひび `fortress_crack`、要塞の崩壊 `fortress_collapse`、王が崩れ落ちる `king_collapse` |
+
+```sh
+python3 tools/generate_sfx.py
+python3 tools/generate_sfx.py hit step  # 指定した音だけ
+```
 
 ## 自動テスト
 

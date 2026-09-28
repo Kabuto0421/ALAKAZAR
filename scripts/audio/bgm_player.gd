@@ -26,6 +26,7 @@ const CROSSFADE := 0.5
 const VICTORY = preload("res://assets/audio/bgm/victory.ogg")
 const DEFEAT = preload("res://assets/audio/bgm/defeat.ogg")
 const VOLUME_DB := -10.0
+const SfxPlayer = preload("res://scripts/audio/sfx_player.gd")
 
 var player := AudioStreamPlayer.new()
 var muted := false
@@ -37,6 +38,10 @@ var layer_tween: Tween
 var king := AudioStreamSynchronized.new()
 var king_raging := false
 var king_tween: Tween
+## True while a sting plays before the fight's music (the music waits for it).
+var held := false
+var hold_token := 0
+var duck_tween: Tween
 
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
@@ -58,15 +63,38 @@ func sync(result_shown: bool, won: bool) -> void:
 	if player.stream == track:
 		return
 	player.stream = track
-	if not muted:
+	if not muted and not held:
 		player.play()
 
 func toggle_mute() -> void:
 	muted = not muted
+	SfxPlayer.muted = muted
 	if muted:
 		player.stop()
-	else:
+	elif not held:
 		player.play()
+
+## Keep the music silent for a sting (the boss intros), then start it from the top.
+func hold(seconds: float) -> void:
+	held = true
+	hold_token += 1
+	var token := hold_token
+	player.stop()
+	await get_tree().create_timer(seconds).timeout
+	if token != hold_token or not is_inside_tree():
+		return
+	held = false
+	if not muted and player.stream != null:
+		player.play()
+
+## Dip the music under a sting (the king's rage and fall) and bring it back.
+func duck(seconds: float, depth_db: float = -12.0) -> void:
+	if duck_tween and duck_tween.is_valid():
+		duck_tween.kill()
+	duck_tween = create_tween()
+	duck_tween.tween_property(player, "volume_db", VOLUME_DB + depth_db, 0.15)
+	duck_tween.tween_interval(maxf(seconds - 0.8, 0.0))
+	duck_tween.tween_property(player, "volume_db", VOLUME_DB, 0.65)
 
 func _exit_tree() -> void:
 	player.stop()
