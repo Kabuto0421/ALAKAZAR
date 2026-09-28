@@ -39,6 +39,9 @@ const MID_FAIRIES: Array[String] = ["gravity_fairy"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
 const CIRCLE_CHANCE_LATE := 0.3
+## 飛車槍・角剣 (magic circle only) are rare even after Rotorick: the chance that a
+## reward's drop slot is one of them instead of a mid-game weapon.
+const LATE_WEAPON_CHANCE := 0.2
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy"]
 
 func start(seed_value: int = -1) -> void:
@@ -130,7 +133,8 @@ func finish_battle() -> bool:
 	# The last fight before a boss pays better: only three-tile weapons.
 	var before_boss := is_before_boss()
 	for index in range(Weapons.DATA.size()):
-		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or (Weapons.is_late(index) and not late) or (Weapons.from_rotorick(index) and stage < Battle.MID_LEVELS[-1]):
+		# The late weapons only ever come through the rare drop slot below.
+		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or Weapons.is_late(index) or (Weapons.from_rotorick(index) and stage < Battle.MID_LEVELS[-1]):
 			continue
 		if before_boss:
 			if not Weapons.is_boss_reward(index):
@@ -139,10 +143,11 @@ func finish_battle() -> bool:
 			continue
 		weapons.append(index)
 	# After the first boss, one weapon slot is a mid-game drop (hammer, bow, ...) when one is
-	# left; after Rotorick it is a sliding weapon instead.
-	var drops: Array = (Weapons.late_pool() if late else Weapons.mid_pool()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
-	if late and drops.is_empty():
-		drops = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	# left; after Rotorick it is now and then (rarely) a sliding weapon instead.
+	var drops: Array = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	var late_drops: Array = Weapons.late_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	if late and not late_drops.is_empty() and rng.randf() < LATE_WEAPON_CHANCE:
+		drops = late_drops
 	if mid and not drops.is_empty():
 		var drop: int = sample(drops,1)[0]
 		offers.append({"kind":"weapon","value":drop})

@@ -1094,6 +1094,21 @@ func _mechanic_weapons() -> void:
 			else:
 				after = after or sliding
 	verify(not before and after,"Sliding weapons are offered only after Rotorick")
+	# Rare even then: most late rewards offer neither.
+	var rare_hits := 0
+	for seed_value in 100:
+		var trial := Run.new()
+		trial.start(seed_value)
+		trial.choose(0)
+		trial.choose(0)
+		trial.stage = Rules.LATE_LEVELS[0]
+		trial.start_battle()
+		trial.battle.enemies.clear()
+		trial.battle.check_outcome()
+		trial.finish_battle()
+		if trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value)):
+			rare_hits += 1
+	verify(rare_hits > 5 and rare_hits < 40,"The rook spear and bishop blade are rare late rewards (%d / 100)" % rare_hits)
 	var lance_early := false
 	var lance_late := false
 	for seed_value in 40:
