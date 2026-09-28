@@ -99,7 +99,9 @@ func _ready() -> void:
 		add_child(icon)
 		if plus:
 			_badge(icon.position+Vector2(96,-4),26)
-		_wrap_label(_label(Vector2(12,166),description.replace("\n",""),14,Color("e5dfc5")),size.x-24)
+		var text := _label(Vector2(12,166),description.replace("\n",""),14,Color("e5dfc5"))
+		_wrap_label(text,size.x-24)
+		_fit(text,y-4-166)
 		_label(Vector2(14,y),"%d AP / 毎戦闘 1回" % (0 if plus and fairy_id == "warp_fairy" else 1),15,accent)
 	if note != "":
 		_label(Vector2(14,y+22),note,16,note_color)
@@ -117,6 +119,15 @@ func _wrap_label(label: Label, width: float) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	label.custom_minimum_size = Vector2(width, 0)
 	label.size = Vector2(width, 0)
+
+## Narrow cards (five in a row): shrink a long description until it ends above the stats line.
+func _fit(label: Label, height: float) -> void:
+	# Japanese line breaking: "。" and "、" never start a line.
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var font_size := label.get_theme_font_size("font_size")
+	while font_size > 11 and label.get_line_count() * label.get_line_height() > height:
+		font_size -= 1
+		label.add_theme_font_size_override("font_size",font_size)
 
 func _label(at: Vector2, value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
