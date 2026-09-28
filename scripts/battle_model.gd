@@ -1242,7 +1242,9 @@ func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
 	var gap: Vector2i = tile - glutton.cell
 	if CARDINALS.has(gap):
 		glutton.facing = CARDINALS.find(gap)
-	events.append({"kind":"bite", "cell":tile, "id":-2})
+	# "gulp" (the player, after a wind-up) or "devour" (swallowed whole), for the show.
+	var big := int(enemy_at(tile).get("size", 1)) > 1 if tile != player.cell else false
+	events.append({"kind":"gulp" if tile == player.cell else "devour", "cell":tile, "id":-2, "by":glutton.id, "from":glutton.cell, "big":big})
 	if tile == player.cell:
 		player.hp -= 1
 		events.append({"kind":"hit", "cell":tile, "id":-1, "by":glutton.id})

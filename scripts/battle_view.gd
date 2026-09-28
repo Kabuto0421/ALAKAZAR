@@ -28,6 +28,7 @@ const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
+const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
 const HelpPanel = preload("res://scripts/ui/help_panel.gd")
 ## The manual opens by itself on the first battle after the game starts (not saved).
 static var help_seen := false
@@ -272,11 +273,14 @@ func _enemy_turn() -> void:
 	busy = true
 	var token := generation
 	model.act_allies()
+	if not await _glutton_windup(token):
+		return
 	_sync_units(true)
 	_feedback()
 	_update_controls()
 	if not model.allies.is_empty():
-		await get_tree().create_timer(0.22).timeout
+		var feast := model.events.any(func(e: Dictionary) -> bool: return e.kind in ["devour","gulp"])
+		await get_tree().create_timer(0.8 if feast else 0.22).timeout
 		if token != generation:
 			return
 	if model.terminal():
@@ -388,6 +392,9 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		# Let the magic circle play out before the turn moves on.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle"):
 			action_duration = maxf(action_duration, MagicCircleFx.BURST + 0.4)
+		# Let the abyss finish opening too.
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "summon" and e.get("fx","") == "abyss"):
+			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
 		_update_controls()
 		await get_tree().create_timer(action_duration).timeout
 	if token != generation:
@@ -553,8 +560,44 @@ func _feedback(weapon_attack: bool = false) -> void:
 		flashes.append(flash)
 		if event.kind == "circle":
 			_cast_circle_fx(event)
+		if event.kind == "summon" and event.get("fx","") == "abyss":
+			_open_abyss_fx()
+		if event.kind in ["devour","gulp"] and actors.has(int(event.by)):
+			# The glutton swells with every mouthful.
+			var eater: Node2D = actors[int(event.by)]
+			var swell := create_tween()
+			swell.tween_property(eater,"scale",Vector2.ONE*(1.35 if event.kind == "devour" else 1.2),0.12)
+			swell.tween_property(eater,"scale",Vector2.ONE,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 		if actors.has(event.id) and event.kind not in ["plant", "charge_end"]:
 			actors[event.id].flash = 0.18
+
+func _open_abyss_fx() -> void:
+	var fx := AbyssFx.new()
+	fx.tile = TILE
+	fx.origin = _center(model.player.cell)
+	for cell in model.pits:
+		fx.pits.append(BOARD + Vector2(cell) * TILE)
+	fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
+	add_child(fx)
+
+## Before a glutton bites the player it winds up: it trembles and swells, "……！"
+func _glutton_windup(token: int) -> bool:
+	var gulps: Array = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "gulp")
+	if gulps.is_empty():
+		return true
+	for event in gulps:
+		if not actors.has(int(event.by)):
+			continue
+		var eater: Node2D = actors[int(event.by)]
+		var home := eater.position
+		var windup := create_tween()
+		windup.tween_method(func(k: float):
+			eater.scale = Vector2.ONE * (1.0 + 0.3 * k)
+			eater.position = home + Vector2(sin(k * 90.0), cos(k * 70.0)) * 3.0 * k,0.0,1.0,0.65)
+		windup.tween_callback(func(): eater.position = home)
+		flashes.append({"kind":"windup", "cell":event.from, "id":-2, "life":0.7, "max_life":0.7})
+	await get_tree().create_timer(0.7).timeout
+	return token == generation
 
 func _cast_circle_fx(event: Dictionary) -> void:
 	var fx := MagicCircleFx.new()
@@ -1437,7 +1480,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1580,6 +1623,32 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"windup":
+			# A glutton gathering itself before it bites the player.
+			for k in range(2):
+				draw_arc(pos, 30 + k * 8 + sin(t * 40.0) * 3.0, 0, TAU, 24, Color(1, 0.2, 0.35, fade * 0.7), 3, true)
+			_text(pos + Vector2(-26, -44 - t * 8), "……！", 24, Color(1, 0.45, 0.55, fade))
+		"devour", "gulp":
+			# Huge jaws snap shut over the prey, then a red burst and crumbs sucked
+			# back into the glutton. "ガブッ！"
+			var span := 50.0 if effect.get("big", false) else 38.0
+			var close := minf(t / 0.3, 1.0)
+			var jaw_color := Color("d8245a") if effect.kind == "devour" else Color("ff3b4a")
+			for side in [-1.0, 1.0]:
+				var edge: float = side * lerpf(span + 14.0, 4.0, close)
+				var back: float = edge + side * 14.0
+				draw_colored_polygon(PackedVector2Array([pos + Vector2(-span, edge), pos + Vector2(span, edge), pos + Vector2(span, back), pos + Vector2(-span, back)]), Color(jaw_color.darkened(0.3), fade))
+				for k in range(5):
+					var x := -span + 8.0 + k * (span * 2.0 - 16.0) / 4.0
+					draw_colored_polygon(PackedVector2Array([pos + Vector2(x - 7, edge), pos + Vector2(x + 7, edge), pos + Vector2(x, edge - side * 14.0)]), Color(1, 0.97, 0.9, fade))
+			if t > 0.3:
+				var burst := (t - 0.3) / 0.7
+				draw_circle(pos, 10.0 + burst * 34.0, Color(jaw_color, (1.0 - burst) * 0.6))
+				var home := _center(effect.get("from", effect.cell))
+				for k in range(6):
+					var start := pos + Vector2.from_angle(k * TAU / 6.0) * 26.0
+					draw_circle(start.lerp(home, burst), 4.0 * (1.0 - burst) + 1.0, Color(jaw_color.lightened(0.2), fade))
+				_text(pos + Vector2(-44, -40 - burst * 16.0), "ガブッ！", 26, Color(1, 0.95, 0.4, fade))
 		"gravity":
 			# The fairy shows for a moment on its tile, then fades with the rings:
 			# closing in (pull) or rushing out (push).
