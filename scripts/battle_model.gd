@@ -40,8 +40,14 @@ const TYPES = {
 	"analyst": {"name": "解析兵", "hp": 2, "ap": 1},
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 	"silver": {"name": "銀将兵", "hp": 1, "ap": 2},
+	"king": {"name": "監獄の王", "hp": 10, "ap": 1, "size": 3},
+	"fortress": {"name": "要塞監獄", "hp": 3, "ap": 1, "size": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 }
+## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
+const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
+## Fixed in place: shoves, pulls, blasts and charges cannot move them.
+const IMMOVABLE = ["king", "fortress"]
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
 ## Two-by-two bosses: their cell is the top-left of the footprint.
@@ -65,11 +71,12 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_late_01.tscn"),
 	preload("res://scenes/formations/run_late_02.tscn"),
 	preload("res://scenes/formations/run_late_03.tscn"),
+	preload("res://scenes/formations/run_final.tscn"),
 ]
 const BOSS_LEVEL := 3
 ## The second boss (Rotorick) after the mid-game camp.
 const BOSS2_LEVEL := 7
-const BOSS_LEVELS = [3, 7]
+const BOSS_LEVELS = [3, 7, 11]
 ## The first boss is drawn from these rooms: three horses, or the rook and the moving prison.
 const BOSS_FORMATIONS = [
 	preload("res://scenes/formations/run_boss_01.tscn"),
@@ -87,7 +94,9 @@ var floor_cells: Array[Vector2i] = []
 const MID_LEVELS = [4, 5, 6]
 ## Late-game fights after Rotorick; a camp follows and ends the run (no boss yet).
 const LATE_LEVELS = [8, 9, 10]
-const LAST_LEVEL := 10
+## The final boss, the Prison King, on a 10x10 board after the last camp.
+const FINAL_LEVEL := 11
+const LAST_LEVEL := 11
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]
@@ -156,6 +165,8 @@ var shadow: Dictionary = {}
 ## 奈落の精霊: while abyss_turns > 0, every empty tile no carried weapon reaches is a pit.
 var abyss_turns := 0
 var pits: Array[Vector2i] = []
+## Final boss: soldiers that fell while the Prison King lived, in the order they fell.
+var fallen: Array[String] = []
 ## Optional rules, all off by default (the run's start screen turns them on).
 ## A: the siege ring closes in; B: enemy attacks also hit enemies; C: a multi-kill refunds 1 AP.
 var rule_siege := false
@@ -196,6 +207,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	shadow = {}
 	abyss_turns = 0
 	pits.clear()
+	fallen.clear()
 	siege_rings = 0
 	locked_slot = -1
 	floor_cells.clear()
@@ -209,7 +221,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -262,6 +274,11 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return [Vector2i.UP, Vector2i.DOWN]
 	if enemy.type in GENERALS:
 		return general_offsets(enemy.type)
+	if enemy.type == "king":
+		# Shown as a shogi king: he reaches every tile touching him.
+		return [Vector2i(-1,-1), Vector2i(0,-1), Vector2i(1,-1), Vector2i(-1,0), Vector2i(1,0), Vector2i(-1,1), Vector2i(0,1), Vector2i(1,1)]
+	if enemy.type == "fortress":
+		return []
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
@@ -882,6 +899,11 @@ func _cast_circle() -> void:
 ## Shove an enemy `tiles` squares. Blocked by the edge, terrain, a cannon, the
 ## player or another enemy, it slams into it: 1 damage (and 1 to an enemy it hits).
 func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
+	if enemy.type in IMMOVABLE:
+		# Rooted to the floor: the shove slams into it like a wall.
+		events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
+		damage_enemy(enemy, 1)
+		return
 	var big: bool = int(enemy.get("size", 1)) > 1
 	if direction == Vector2i.ZERO or (big and direction.x != 0 and direction.y != 0):
 		return
@@ -927,6 +949,7 @@ func trigger_mine(unit: Dictionary) -> void:
 	check_outcome()
 
 func check_outcome() -> void:
+	_note_fallen()
 	_release_prisoners()
 	_bury_allies()
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
@@ -935,6 +958,10 @@ func check_outcome() -> void:
 		floor_cells.clear()
 	if player.hp <= 0:
 		phase = Phase.LOST
+	elif level == FINAL_LEVEL and not enemies.any(func(e: Dictionary) -> bool: return e.type == "king"):
+		# The Prison King is down: the prison falls with him.
+		enemies.clear()
+		phase = Phase.WON
 	elif enemies.all(func(e: Dictionary) -> bool: return e.type == "shadow"):
 		# Shadows are traps, not foes: the fight ends with the boss.
 		enemies.clear()
@@ -1149,7 +1176,7 @@ func _gravity_pull(center: Vector2i, radius: int) -> void:
 ## a blown enemy just stops at whatever is in the way (a pit still swallows it).
 func _gravity_push(center: Vector2i, tiles: int) -> void:
 	var movers: Array = enemies.filter(func(e: Dictionary) -> bool:
-		return e.hp > 0 and footprint(e).any(func(c: Vector2i) -> bool: return maxi(absi(c.x - center.x), absi(c.y - center.y)) == 1))
+		return e.hp > 0 and not e.type in IMMOVABLE and footprint(e).any(func(c: Vector2i) -> bool: return maxi(absi(c.x - center.x), absi(c.y - center.y)) == 1))
 	# The outer ones move first so the inner ones have room.
 	movers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return distance(a.cell, center) > distance(b.cell, center))
 	for enemy in movers:
@@ -1227,7 +1254,7 @@ func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
 			result.append(tile)
 			continue
 		var other := enemy_at(tile)
-		if not other.is_empty() and other.type != "shadow":
+		if not other.is_empty() and other.type != "shadow" and not other.type in IMMOVABLE:
 			result.append(tile)
 			continue
 		var ally := ally_at(tile)
@@ -1725,6 +1752,12 @@ func strike_under(cell: Vector2i, kind: String, direction: Vector2i) -> void:
 
 ## A broken moving prison lets out two executioners on a diagonal of its footprint.
 func _release_prisoners() -> void:
+	for fortress in enemies.duplicate():
+		if fortress.type == "fortress" and fortress.hp <= 0 and not fortress.get("released", false):
+			fortress.released = true
+			for k in 2:
+				_spawn_soldier(fortress, _soldier_kind(fortress, 10 + k), false)
+			add_log("要塞監獄が崩れ、兵が溢れ出た")
 	for prison in enemies.duplicate():
 		if prison.type != "prison" or prison.hp > 0 or prison.get("released", false):
 			continue
@@ -1947,7 +1980,7 @@ func siege_tick() -> void:
 		add_log("包囲の中 / HP −1")
 		hit_any = true
 	for enemy in enemies.duplicate():
-		if enemy.hp > 0 and footprint(enemy).any(func(c: Vector2i) -> bool: return sieged(c)):
+		if enemy.hp > 0 and not enemy.type in IMMOVABLE and footprint(enemy).any(func(c: Vector2i) -> bool: return sieged(c)):
 			events.append({"kind":"burn", "cell":enemy.cell, "id":-2})
 			damage_enemy(enemy, 1)
 			hit_any = true
@@ -1995,6 +2028,87 @@ func _charge_chain(charger: Dictionary, forward: Vector2i) -> Dictionary:
 			else:
 				queue.append(next)
 	return result
+
+# --- final boss: the Prison King and his fortresses -------------------------
+
+## Tiles touching a big unit's footprint (its reach, like a king in shogi).
+func ring_of(unit: Dictionary) -> Array[Vector2i]:
+	var cells := footprint(unit)
+	var result: Array[Vector2i] = []
+	for cell in cells:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var next: Vector2i = cell + Vector2i(dx, dy)
+				if inside(next) and not cells.has(next) and not result.has(next):
+					result.append(next)
+	return result
+
+## Free tiles around a unit, nearest to the player first.
+func _free_ring(unit: Dictionary) -> Array[Vector2i]:
+	var spots: Array[Vector2i] = ring_of(unit).filter(func(c: Vector2i) -> bool:
+		return c != player.cell and not blocked(c) and enemy_at(c).is_empty() and not pits.has(c) and not mines.has(c))
+	spots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return distance(a, player.cell) < distance(b, player.cell) if distance(a, player.cell) != distance(b, player.cell) else a.y < b.y)
+	return spots
+
+## A soldier kind drawn from the fight's own seed, so look-ahead copies agree.
+func _soldier_kind(unit: Dictionary, salt: int) -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([slot_seed, round_number, int(unit.id), salt])
+	return SOLDIERS[rng.randi_range(0, SOLDIERS.size() - 1)]
+
+## Put a soldier on the free tile around `unit` nearest the player; it acts next turn.
+func _spawn_soldier(unit: Dictionary, kind: String, revived: bool) -> bool:
+	var spots := _free_ring(unit)
+	if spots.is_empty():
+		return false
+	var next_id := 0
+	for other in enemies:
+		next_id = maxi(next_id, int(other.id) + 1)
+	var soldier := make_enemy(kind, spots[0], next_id)
+	soldier.ap = 0
+	enemies.append(soldier)
+	events.append({"kind":"summon", "cell":spots[0], "id":-2, "fx":"revive" if revived else "prison"})
+	return true
+
+## Remember every soldier that fell while the king still stands.
+func _note_fallen() -> void:
+	if level != FINAL_LEVEL:
+		return
+	for enemy in enemies:
+		if enemy.hp <= 0 and enemy.type in SOLDIERS and not enemy.get("noted", false):
+			enemy.noted = true
+			fallen.append(enemy.type)
+
+## 監獄の王: never moves. If the player stands next to him he strikes (1); otherwise
+## he raises the first soldier that fell, next to himself on the tile nearest the player.
+func king_turn(king: Dictionary) -> void:
+	king.ap = 0
+	if ring_of(king).has(player.cell):
+		king.intent = "鉄槌"
+		events.append({"kind":"quake", "cell":player.cell, "id":-2, "cells":[player.cell]})
+		_hit_player(king)
+		return
+	if fallen.is_empty():
+		king.intent = "静観"
+		return
+	var kind: String = fallen[0]
+	if _spawn_soldier(king, kind, true):
+		fallen.pop_front()
+		king.intent = "復活"
+		add_log("監獄の王が%sを蘇らせた" % TYPES[kind].name)
+
+## 要塞監獄: every turn it lets out one soldier of a random kind.
+func fortress_turn(fortress: Dictionary) -> void:
+	fortress.ap = 0
+	var kind := _soldier_kind(fortress, 0)
+	if _spawn_soldier(fortress, kind, false):
+		fortress.intent = "出撃"
+		add_log("要塞監獄から%sが出てきた" % TYPES[kind].name)
+
+## The next soldier the king will raise, for the inspector.
+func next_revival() -> String:
+	return fallen[0] if not fallen.is_empty() else ""
 
 ## A charger crashing into a tile: walls, cannons, stealth fairies, the pinned
 ## shadow, allies and obstacles there are destroyed. Returns true if anything was in the way.

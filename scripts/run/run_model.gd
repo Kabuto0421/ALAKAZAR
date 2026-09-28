@@ -118,7 +118,7 @@ func finish_battle() -> bool:
 	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + win_heal())
 	battle.refill_fairies()
 	if stage == Battle.LAST_LEVEL:
-		# No boss after the late fights yet: the run ends here.
+		# The Prison King is down: the expedition is over.
 		state = State.FINISHED
 		return true
 	state = State.REWARD
@@ -222,8 +222,8 @@ func advance() -> void:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
-	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1]:
-		# Mid-game camp before Rotorick; late camp before the last late fight.
+	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
+		# Camps: before Rotorick, before the last late fight, and before the Prison King.
 		state = State.CAMP
 	else:
 		stage += 1
@@ -286,8 +286,8 @@ func camp_back() -> void:
 
 func _leave_camp() -> void:
 	offers.clear()
-	if stage == Battle.LATE_LEVELS[1]:
-		stage = Battle.LATE_LEVELS[2]
+	if stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
+		stage = Battle.LATE_LEVELS[2] if stage == Battle.LATE_LEVELS[1] else Battle.FINAL_LEVEL
 		start_battle()
 		return
 	stage = Battle.BOSS_LEVEL if stage == LAST_NORMAL_STAGE else Battle.BOSS2_LEVEL

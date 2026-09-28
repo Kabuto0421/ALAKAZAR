@@ -149,7 +149,16 @@ func _initialize() -> void:
 		if k == 1:
 			verify(run.state==Run.State.CAMP,"A late camp comes before the last late fight")
 			run.camp_rest()
-	verify(run.state==Run.State.FINISHED,"Beating the last late fight completes the expedition")
+	verify(run.state==Run.State.REWARD,"The last late fight gives a reward")
+	run.skip_reward()
+	verify(run.state==Run.State.CAMP,"A last camp comes before the Prison King")
+	run.camp_rest()
+	verify(run.state==Run.State.BATTLE and m.level==Rules.FINAL_LEVEL and m.board_size==10 and m.enemies.any(func(e): return e.type=="king"),"The Prison King waits on a 10x10 board")
+	verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Final placements are valid")
+	m.enemies = m.enemies.filter(func(e): return e.type != "king")
+	m.check_outcome()
+	verify(m.phase == Rules.Phase.WON,"Felling the king wins the fight whatever is left")
+	verify(run.finish_battle() and run.state==Run.State.FINISHED,"Beating the Prison King completes the expedition")
 
 	# Forging adds 1 damage to the chosen weapon.
 	run = Run.new()
@@ -275,6 +284,7 @@ func _initialize() -> void:
 	_abyss()
 	_gravity()
 	_glutton()
+	_prison_king()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1659,3 +1669,45 @@ func _glutton() -> void:
 	m.summon_glutton(Vector2i(2,1))
 	verify(ThreatPreview.attackers(m).has(m.allies[0].id),"A glutton about to bite the player is flagged like an attacker")
 	verify(Run.new().reward_fairy_pool.has("glutton_fairy") and not Run.LATE_FAIRIES.has("glutton_fairy") and not Run.MID_FAIRIES.has("glutton_fairy"),"The glutton is offered from the early rewards")
+
+func _prison_king() -> void:
+	var m := Rules.new()
+	m.reset(Rules.FINAL_LEVEL)
+	m.phase = Rules.Phase.PLAYER
+	var king: Dictionary = m.enemies.filter(func(e): return e.type == "king")[0]
+	var forts: Array = m.enemies.filter(func(e): return e.type == "fortress")
+	verify(king.size == 3 and king.hp == 10 and forts.size() == 2 and forts.all(func(f): return f.hp == 3),"The final room: a 3x3 king (HP10) and two fortresses (HP3)")
+	# The pawn wall: a full column of soldiers stands in front of the king.
+	var wall_x := 5
+	verify(range(10).all(func(y): return not m.enemy_at(Vector2i(wall_x, y)).is_empty()),"A full wall of soldiers blocks the way to the king")
+	# Fallen soldiers are remembered in order and raised one a turn, next to the king, nearest the player.
+	var first: Dictionary = m.enemy_at(Vector2i(5,0))
+	var second: Dictionary = m.enemy_at(Vector2i(5,3))
+	first.hp = 0
+	m.check_outcome()
+	second.hp = 0
+	m.check_outcome()
+	verify(m.fallen == [first.type, second.type],"The king remembers the fallen in order")
+	var before: int = m.enemies.size()
+	m.phase = Rules.Phase.ENEMY
+	m.king_turn(king)
+	verify(m.enemies.size() == before + 1 and m.fallen == [second.type],"He raises one a turn, the first to fall")
+	var raised: Dictionary = m.enemies[-1]
+	verify(raised.type == first.type and m.ring_of(king).has(raised.cell),"It rises right next to the king")
+	# Fortresses send one soldier a turn and burst into two when broken.
+	before = m.enemies.size()
+	m.fortress_turn(forts[0])
+	verify(m.enemies.size() == before + 1 and Rules.SOLDIERS.has(m.enemies[-1].type),"A fortress sends out one random soldier")
+	before = m.enemies.size()
+	forts[1].hp = 0
+	m.check_outcome()
+	verify(m.enemies.size() == before + 1 and not m.enemies.has(forts[1]),"A broken fortress lets out two soldiers")
+	# Rooted: shoves and blasts do not move them.
+	var cell: Vector2i = king.cell
+	m.knock_back(king, Vector2i.RIGHT, 1)
+	verify(king.cell == cell and king.hp == 9,"The king cannot be shoved; the shove slams into him instead")
+	# Next to the king, the player is struck.
+	m.player.cell = king.cell + Vector2i(-1, 1)
+	m.player.hp = 5
+	m.king_turn(king)
+	verify(m.player.hp == 4,"The king strikes a player who stands next to him")

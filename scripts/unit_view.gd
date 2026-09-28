@@ -1,6 +1,8 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
+const PRISON_KING = preload("res://assets/sprites/enemies/prison_king.png")
+const PRISON_FORTRESS = preload("res://assets/sprites/enemies/prison_fortress.png")
 const GLUTTON = preload("res://assets/sprites/spirits/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
@@ -119,7 +121,9 @@ static func draw_general(canvas: CanvasItem, kind: String, tint: Color = Color.W
 	canvas.draw_string(BADGE_FONT, Vector2(-7,9) * factor, "金" if gold else "銀", HORIZONTAL_ALIGNMENT_LEFT, -1, int(26 * factor), ink)
 
 func _draw() -> void:
-	if span > 1:
+	if span > 2:
+		draw_circle(Vector2(0,76),52,Color(0,0,0,0.3))
+	elif span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
 	elif kind == "wolf":
 		# The wolf is long and low: a flat shadow under its paws.
@@ -175,6 +179,19 @@ func _draw() -> void:
 		draw_soldier(self, kind, facing, alt_row, tint)
 	elif kind in ["gold", "silver"]:
 		draw_general(self, kind, tint)
+	elif kind == "king":
+		# The Prison King breathes slowly on his throne; his cell glows.
+		var breath := sin(Time.get_ticks_msec() / 1000.0 * 1.6) * 2.0
+		draw_texture_rect(PRISON_KING,Rect2(-96,-104+breath,192,192),false,tint)
+	elif kind == "fortress":
+		draw_texture_rect(PRISON_FORTRESS,Rect2(-64,-70,128,128),false,tint)
+		# Cracks as it loses HP (3 → 1).
+		if hp <= 2:
+			draw_line(Vector2(-20,-40),Vector2(-4,-10),Color("1a1c24"),3)
+			draw_line(Vector2(-4,-10),Vector2(10,-20),Color("1a1c24"),3)
+		if hp <= 1:
+			draw_line(Vector2(24,-30),Vector2(12,10),Color("1a1c24"),3)
+			draw_line(Vector2(12,10),Vector2(28,30),Color("1a1c24"),3)
 	elif kind == "glutton":
 		# A slight chewing bob.
 		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0
@@ -220,14 +237,14 @@ static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, al
 	canvas.draw_texture_rect_region(sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
+	var max_hp := 5 if kind == "player" else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
 	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
 	max_hp = maxi(max_hp, hp)
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	if kind == "slot":
 		_draw_rotorick_arrows()
-	var heart_y := -98.0 if kind == "slot" else 29+grow
+	var heart_y := -98.0 if kind == "slot" else -112.0 if kind == "king" else 29+grow
 	for i in range(max_hp):
 		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
 	if attack_target:

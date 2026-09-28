@@ -43,8 +43,9 @@ const GADGET = preload("res://assets/sprites/editor_ui/part_gadget_editor_icon.p
 const EFFECTS = preload("res://assets/sprites/effects/element_connection_atlas_24.png")
 var BOARD := Vector2(384,176)
 ## Largest board the grid buttons cover (the boss stage is 7x7).
-const MAX_BOARD := 8
-const TILE = 64
+const MAX_BOARD := 10
+## Tile size: 64, or smaller so a 10x10 board fits the same space as an 8x8.
+var TILE := 64.0
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
 const MUTED = Color("92b3ae")
@@ -197,14 +198,16 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
-	bgm.theme = "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
+	bgm.theme = "boss" if model.level == Rules.BOSS_LEVEL or model.level == Rules.FINAL_LEVEL or Rules.LATE_LEVELS.has(model.level) else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
+	TILE = 64.0 if model.board_size <= 8 else floorf(512.0/model.board_size)
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
-	# 8x8 fills the full height between the header and the weapon cards.
+	# 8x8 (and the shrunk 10x10) fill the full height between the header and the weapon cards.
 	if model.board_size >= 8:
 		BOARD = Vector2(316,96)
 	for i in range(grid_buttons.size()):
 		var cell := Vector2i(i%MAX_BOARD,i/MAX_BOARD)
 		grid_buttons[i].position = BOARD+Vector2(cell)*TILE
+		grid_buttons[i].size = Vector2(TILE,TILE)
 		grid_buttons[i].visible = model.inside(cell)
 	selected_item = ""
 	selected_weapon = -1
@@ -514,6 +517,7 @@ func _sync_units(animate: bool) -> void:
 			actor.kind = unit.type
 			actor.span = int(unit.get("size",1))
 			actor.position = _unit_center(unit)
+			actor.scale = Vector2.ONE*TILE/64.0
 			actor.z_index = 2
 			add_child(actor)
 			actors[id] = actor
@@ -566,8 +570,9 @@ func _feedback(weapon_attack: bool = false) -> void:
 			# The glutton swells with every mouthful.
 			var eater: Node2D = actors[int(event.by)]
 			var swell := create_tween()
-			swell.tween_property(eater,"scale",Vector2.ONE*(1.35 if event.kind == "devour" else 1.2),0.12)
-			swell.tween_property(eater,"scale",Vector2.ONE,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+			var base := TILE/64.0
+			swell.tween_property(eater,"scale",Vector2.ONE*base*(1.35 if event.kind == "devour" else 1.2),0.12)
+			swell.tween_property(eater,"scale",Vector2.ONE*base,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 		if actors.has(event.id) and event.kind not in ["plant", "charge_end"]:
 			actors[event.id].flash = 0.18
 
@@ -592,7 +597,7 @@ func _glutton_windup(token: int) -> bool:
 		var home := eater.position
 		var windup := create_tween()
 		windup.tween_method(func(k: float):
-			eater.scale = Vector2.ONE * (1.0 + 0.3 * k)
+			eater.scale = Vector2.ONE * TILE / 64.0 * (1.0 + 0.3 * k)
 			eater.position = home + Vector2(sin(k * 90.0), cos(k * 70.0)) * 3.0 * k,0.0,1.0,0.65)
 		windup.tween_callback(func(): eater.position = home)
 		flashes.append({"kind":"windup", "cell":event.from, "id":-2, "life":0.7, "max_life":0.7})
@@ -771,7 +776,7 @@ func _draw() -> void:
 	for y in range(0,720,24):
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
-	var stage_title := "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "終盤 %d / 3" % (Rules.LATE_LEVELS.find(model.level)+1) if Rules.LATE_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
+	var stage_title := "最終決戦" if model.level == Rules.FINAL_LEVEL else "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "終盤 %d / 3" % (Rules.LATE_LEVELS.find(model.level)+1) if Rules.LATE_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
 	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if Rules.BOSS_LEVELS.has(model.level) else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
@@ -845,7 +850,10 @@ func _draw_board() -> void:
 	for y in range(model.board_size):
 		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
-			var pos := BOARD+Vector2(cell)*TILE
+			# Each tile is drawn in its own 64-unit space, scaled down on big boards.
+			draw_set_transform(BOARD+Vector2(cell)*TILE,0,Vector2.ONE*TILE/64.0)
+			var pos := Vector2.ZERO
+			var mid := Vector2(32,32)
 			var base := Color("665b48")
 			var shade := 0.88+float((x*13+y*7)%5)*0.025
 			draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),base*shade)
@@ -875,15 +883,15 @@ func _draw_board() -> void:
 			if model.pits.has(cell):
 				# 奈落の精霊: connected pits read as one dark rift (no repeated holes),
 				# with a crumbling stone lip only where the rift meets solid floor.
-				draw_rect(Rect2(pos,Vector2(TILE,TILE)),Color("08060f"))
-				draw_rect(Rect2(pos,Vector2(TILE,TILE)),Color(0.32,0.24,0.62,0.07+0.04*sin(clock*1.3+x*0.8+y*0.6)))
+				draw_rect(Rect2(pos,Vector2(64,64)),Color("08060f"))
+				draw_rect(Rect2(pos,Vector2(64,64)),Color(0.32,0.24,0.62,0.07+0.04*sin(clock*1.3+x*0.8+y*0.6)))
 				for side in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
 					if model.pits.has(cell+side):
 						continue
-					var lip := Rect2(pos,Vector2(TILE,6)) if side == Vector2i.UP else Rect2(pos+Vector2(0,TILE-6),Vector2(TILE,6)) if side == Vector2i.DOWN else Rect2(pos,Vector2(6,TILE)) if side == Vector2i.LEFT else Rect2(pos+Vector2(TILE-6,0),Vector2(6,TILE))
+					var lip := Rect2(pos,Vector2(64,6)) if side == Vector2i.UP else Rect2(pos+Vector2(0,58),Vector2(64,6)) if side == Vector2i.DOWN else Rect2(pos,Vector2(6,64)) if side == Vector2i.LEFT else Rect2(pos+Vector2(58,0),Vector2(6,64))
 					draw_rect(lip,Color("4a4233"))
 					var edge_a := lip.position if side != Vector2i.RIGHT else lip.position+Vector2(6,0)
-					var edge_b := edge_a+(Vector2(TILE,0) if side.y != 0 else Vector2(0,TILE))
+					var edge_b := edge_a+(Vector2(64,0) if side.y != 0 else Vector2(0,64))
 					if side == Vector2i.DOWN:
 						edge_a += Vector2(0,6)
 						edge_b += Vector2(0,6)
@@ -928,21 +936,21 @@ func _draw_board() -> void:
 			if model.obstacles.has(cell):
 				draw_rect(Rect2(pos+Vector2(8,8),Vector2(48,48)),Color("263b3d"))
 			if model.fairies.has(cell):
-				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
+				SpiritIcon.paint(self,mid,model.item_definition("stealth_fairy").icon,1.1)
 				_turn_badge(pos,int(model.fairy_turns.get(cell,0)))
 				if model.is_plus("stealth_fairy"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.shadow.get("cell",Vector2i(-1,-1)) == cell:
 				# The pinned shadow; a red ring pulses while a swap is available.
 				if model.shadow.ready:
-					draw_arc(_center(cell),27,0,TAU,28,Color(model.item_definition("shadow_stitch").color,0.55+0.3*sin(clock*5.0)),3,true)
-				SpiritIcon.paint(self,_center(cell),model.item_definition("shadow_stitch").icon if model.shadow.ready else SHADOW_SPENT,1.1)
+					draw_arc(mid,27,0,TAU,28,Color(model.item_definition("shadow_stitch").color,0.55+0.3*sin(clock*5.0)),3,true)
+				SpiritIcon.paint(self,mid,model.item_definition("shadow_stitch").icon if model.shadow.ready else SHADOW_SPENT,1.1)
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.walls.has(cell):
 				# The wall fills its whole tile; the countdown sits in a corner badge.
-				SpiritIcon.paint(self,_center(cell),model.item_definition("wall_fairy").icon,1.12)
+				SpiritIcon.paint(self,mid,model.item_definition("wall_fairy").icon,1.12)
 				_turn_badge(pos,int(model.walls[cell]))
 				if model.is_plus("wall_fairy"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
@@ -952,13 +960,13 @@ func _draw_board() -> void:
 				# Directional art shows the facing itself; the plain icon gets an arrow.
 				if cannon.kind == "capacitor":
 					# Crackling art once any charge is stored.
-					SpiritIcon.paint(self,_center(cell),CAPACITOR_CHARGED if int(cannon.get("charge",0)) > 0 else model.item_definition(cannon_id).icon,0.95)
-				elif not DirectionSheet.paint(self,_center(cell),cannon_id,cannon.dir,0.95):
-					SpiritIcon.paint(self,_center(cell),model.item_definition(cannon_id).icon,0.95)
+					SpiritIcon.paint(self,mid,CAPACITOR_CHARGED if int(cannon.get("charge",0)) > 0 else model.item_definition(cannon_id).icon,0.95)
+				elif not DirectionSheet.paint(self,mid,cannon_id,cannon.dir,0.95):
+					SpiritIcon.paint(self,mid,model.item_definition(cannon_id).icon,0.95)
 					if cannon.dir != Vector2i.ZERO:
-						_draw_arrow(_center(cell)+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
+						_draw_arrow(mid+Vector2(cannon.dir)*18,Vector2(cannon.dir),model.item_definition(cannon_id).color)
 				if cannon.kind == "vane":
-					_draw_turn_hint(_center(cell),cannon.dir)
+					_draw_turn_hint(mid,cannon.dir)
 				_turn_badge(pos,int(cannon.get("turns",0)))
 				if cannon.kind == "capacitor":
 					# Stored charge: three pips across the top, lit as it fills.
@@ -974,8 +982,9 @@ func _draw_board() -> void:
 				SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if cell == item_origin and Rules.BIG_FAIRIES.has(selected_item):
 				pass
-			elif cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
-				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
+			elif cell == item_origin and not DirectionSheet.paint(self,mid,selected_item,aim,1.1):
+				SpiritIcon.paint(self,mid,model.item_definition(selected_item).icon,1.1)
+	draw_set_transform(Vector2.ZERO)
 	# Gravity fairy: arrows show where each enemy would be pulled or blown.
 	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell):
 		if hover_cell != gravity_hover:
@@ -1248,6 +1257,10 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		UnitView.draw_soldier(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "aim" or int(enemy.get("learned",-1)) >= 0,Color.WHITE,0.9)
 	elif enemy.type in Rules.GENERALS:
 		UnitView.draw_general(self,enemy.type)
+	elif enemy.type == "king":
+		draw_texture_rect(UnitView.PRISON_KING,Rect2(-30,-30,60,60),false)
+	elif enemy.type == "fortress":
+		draw_texture_rect(UnitView.PRISON_FORTRESS,Rect2(-28,-28,56,56),false)
 	elif enemy.type in UnitView.BOSS_KINDS:
 		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:
@@ -1398,10 +1411,11 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	# Big HP pools (Rotorick's 7) use smaller hearts so AP still fits on the line.
 	var hearts: int = maxi(int(type.hp), int(enemy.hp))
 	var many: bool = hearts > 3
+	var huge: bool = hearts > 7
 	for i in range(hearts):
-		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),i<int(enemy.hp))
+		_draw_heart(Vector2(909+i*(12 if huge else 16 if many else 30),167),11 if huge else 14 if many else 25,Color("ff5b62"),i<int(enemy.hp))
 	# Three hearts reach further right, so AP moves over for them.
-	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
+	var ap_x := 1040.0 if huge else 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
 	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 	for i in range(ap_boxes):
@@ -1433,6 +1447,11 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
 	elif enemy.type == "shield":
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
+	elif enemy.type == "king":
+		var next := model.next_revival()
+		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "隣に来た者を叩き潰す",18,Color("ff6b8a"))
+	elif enemy.type == "fortress":
+		_text(Vector2(852,450),"毎ターン兵を1体出す。壊すと2体",18,Color("9ab8c8"))
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
@@ -1440,7 +1459,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "analyst":
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
-	var intent := "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
+	var intent := "死者を蘇らせる" if enemy.type == "king" else "兵を送り出す" if enemy.type == "fortress" else "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
@@ -1700,6 +1719,13 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 						draw_line(spark - Vector2(0, 4), spark + Vector2(0, 4), Color("ffd98a", fade), 2)
 				"stealth":
 					draw_arc(pos, 16 + t * 8, t * 3, t * 3 + 4.5, 18, Color("aa8cff", fade * 0.8), 3, true)
+				"revive":
+					# The king raises the dead: cyan chains haul a pale soul up from the floor.
+					for i in range(3):
+						var x := -14.0 + i * 14.0
+						draw_line(pos + Vector2(x, 30), pos + Vector2(x, 30 - t * 60), Color("6fe8ff", fade), 2)
+					draw_circle(pos + Vector2(0, 10 - t * 24), 12 * (1.0 - t * 0.5), Color(0.8, 0.95, 1.0, fade * 0.7))
+					draw_arc(pos, 10 + t * 20, 0, TAU, 24, Color("6fe8ff", fade), 3, true)
 				"prison":
 					# The prison doors burst open: cyan shards around the new executioner.
 					for i in range(6):

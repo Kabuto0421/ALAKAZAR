@@ -90,6 +90,12 @@ func beat(model: RefCounted, index: int) -> void:
 		if enemy.type == "prison":
 			_prison_action(model, enemy)
 			continue
+		if enemy.type == "king":
+			model.king_turn(enemy)
+			continue
+		if enemy.type == "fortress":
+			model.fortress_turn(enemy)
+			continue
 		if enemy.type == "javelin":
 			_javelin_action(model, enemy)
 			continue
