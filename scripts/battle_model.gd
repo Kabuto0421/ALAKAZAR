@@ -597,6 +597,10 @@ func targets() -> Array[Vector2i]:
 					break
 				result.append(cell)
 				cell += direction
+		for offset in Catalog.steps(weapon):
+			var step: Vector2i = player.cell + offset
+			if inside(step) and not result.has(step):
+				result.append(step)
 		return result
 	for offset in Catalog.offsets(weapon):
 		var cell: Vector2i = player.cell + offset

@@ -1038,7 +1038,13 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.mid_pool().has(ids.find("rook_spear")) and W.mid_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 39,"The catalogue is trimmed to 39 weapons")
+	verify(W.DATA.size() == 45,"39 weapons plus six wide-reach late ones")
+	# 竜王槍 / 竜馬剣: slide lines plus single steps; 八方桂剣 and 王将剣 are late drops.
+	m = _weapon_room("dragon_spear",[Vector2i(1,0)])
+	verify(m.targets().has(Vector2i(0,1)) and m.targets().has(Vector2i(2,3)) and m.targets().has(Vector2i(m.board_size-1,2)) and not m.targets().has(Vector2i(3,4)),"The dragon spear slides along lines and steps one tile diagonally")
+	m = _weapon_room("horse_blade",[])
+	verify(m.targets().has(Vector2i(1,1)) and m.targets().has(Vector2i(3,4)) and not m.targets().has(Vector2i(1,0)),"The dragon horse slides diagonally and steps one tile straight")
+	verify(["dragon_spear","horse_blade","eight_knight","gold","silver","king"].all(func(id): return W.mid_pool().has(ids.find(id))),"The wide-reach weapons are late drops")
 
 func _capacitor() -> void:
 	var m := fixture()
@@ -1286,3 +1292,23 @@ func _loner_fairies() -> void:
 	verify(m.all_reach().has(wolf.cell),"The player can stand where a weapon reaches the wolf")
 	m.act_allies()
 	verify(prey.hp == 2 and wolf.sulking,"Within any weapon's reach, the wolf sulks and skips its turn")
+	# Both are late fairies: never offered before the first boss, offered after it.
+	var early_seen := false
+	var late_seen := false
+	for seed_value in 40:
+		for stage in [0, 1, Rules.BOSS_LEVEL, Rules.MID_LEVELS[0]]:
+			var trial := Run.new()
+			trial.start(seed_value)
+			trial.choose(0)
+			trial.choose(0)
+			trial.stage = stage
+			trial.start_battle()
+			trial.battle.enemies.clear()
+			trial.battle.check_outcome()
+			trial.finish_battle()
+			var late: bool = trial.offers.any(func(o): return Run.LATE_FAIRIES.has(o.value))
+			if stage < Rules.BOSS_LEVEL:
+				early_seen = early_seen or late
+			else:
+				late_seen = late_seen or late
+	verify(not early_seen and late_seen,"The loner fairies only turn up after the first boss")

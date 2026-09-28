@@ -31,6 +31,9 @@ var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fa
 ## Rare 2x2 fairies: one of the two fairy offers after the first boss may be one.
 const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
 const RARE_CHANCE := 0.3
+## Late fairies: placed only where no carried weapon reaches, so they only turn
+## up after the first boss, next to the wide-reach late weapons.
+const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
 const CIRCLE_CHANCE_LATE := 0.3
@@ -149,10 +152,11 @@ func finish_battle() -> bool:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
 		pick.rare = true
-	var fairy_candidates: Array = reward_fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
+	var fairy_pool: Array = reward_fairy_pool.filter(func(id: String) -> bool: return mid or not LATE_FAIRIES.has(id))
+	var fairy_candidates: Array = fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:
-		fairy_candidates = reward_fairy_pool.duplicate()
+		fairy_candidates = fairy_pool.duplicate()
 	for id in sample(fairy_candidates,FAIRY_OFFERS):
 		offers.append({"kind":"fairy","value":id})
 	# Beating the first boss can turn the last fairy offer into a rare one.

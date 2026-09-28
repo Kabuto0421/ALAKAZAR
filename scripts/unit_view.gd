@@ -100,6 +100,11 @@ func play_hit_reaction(direction: Vector2) -> void:
 func _draw() -> void:
 	if span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
+	elif kind == "wolf":
+		# The wolf is long and low: a flat shadow under its paws.
+		draw_set_transform(Vector2(0,26),0.0,Vector2(1,0.3))
+		draw_circle(Vector2.ZERO,27,Color(0,0,0,0.35))
+		draw_set_transform(Vector2.ZERO)
 	else:
 		draw_circle(Vector2(0,22),19,Color(0,0,0,0.35))
 	if hit_elapsed >= 0.0:
