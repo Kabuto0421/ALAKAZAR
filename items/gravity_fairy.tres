@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/gravity_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/gravity_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "gravity_fairy"
+title = "重力妖精"
+description = "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲2マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n1マス弾く。ダメージなし。"
+summary = "引き寄せる／弾く"
+color = Color(0.62, 0.52, 1, 1)
+target = 1
+effect = ExtResource("2")
+icon = ExtResource("3")

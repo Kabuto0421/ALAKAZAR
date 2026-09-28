@@ -170,6 +170,14 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			if progress < 0.55:
 				_enemy(canvas,Vector2(1026,268))
 			canvas._text(Vector2(900,236),"届かない所が奈落",17,item.color)
+		"gravity_fairy":
+			# Left: pulled in inside the weapon's range. Right: blown away outside it.
+			for x in range(5):
+				_tile(canvas,Vector2(876+x*50,268),item.color,40)
+			Icon.paint(canvas,Vector2(976,268),item.icon,0.55)
+			var offset := minf(progress*2.0,1.0)*50.0
+			_enemy(canvas,Vector2(876+offset,268) if progress < 0.5 else Vector2(926,268))
+			canvas._text(Vector2(880,236),"範囲内→引き寄せ　範囲外→弾く",15,item.color)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):

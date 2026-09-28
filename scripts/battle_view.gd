@@ -11,6 +11,11 @@ const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SHADOW_SPENT = preload("res://assets/sprites/spirits/shadow_stitch_spent.png")
 const ABYSS_PIT = preload("res://assets/sprites/spirits/abyss_pit.png")
+const GRAVITY_PULL = Color("5fd4ff")
+const GRAVITY_PUSH = Color("ff9a4a")
+## Hover preview for the gravity fairy: [from, to] per enemy it would move (cached per tile).
+var gravity_hover := Vector2i(-9, -9)
+var gravity_moves: Array = []
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
 const CAPACITOR_CHARGED = preload("res://assets/sprites/spirits/capacitor_fairy_charged.png")
@@ -434,6 +439,7 @@ func _select_item(id: String, slot: int = -1) -> void:
 
 func _cancel_item() -> void:
 	selected_item = ""
+	gravity_hover = Vector2i(-9, -9)
 	item_origin = Vector2i(-1,-1)
 	_update_controls()
 
@@ -743,7 +749,9 @@ func _draw() -> void:
 		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
 		_text(Vector2(40,236) if model.board_size >= 8 else Vector2(560,126),siege_text,18,Color("ff8b8f") if countdown == 0 else MUTED)
 
-	if model.can_swap_shadow(hover_cell) and selected_item.is_empty() and not busy:
+	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell) and not busy:
+		_text(Vector2(36,673),"引き寄せる（攻撃範囲）" if model.gravity_pulls(hover_cell) else "弾く（攻撃範囲外）",23,GRAVITY_PULL if model.gravity_pulls(hover_cell) else GRAVITY_PUSH)
+	elif model.can_swap_shadow(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"影と入れ替わる 0 AP",23,CYAN)
 	elif model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
@@ -859,6 +867,9 @@ func _draw_board() -> void:
 			if legal.has(cell):
 				var color := GOLD if model.enemy_at(cell).is_empty() and model.cannon_at(cell).is_empty() else Color("ff805a")
 				if not selected_item.is_empty(): color = model.item_definition(selected_item).color
+				if selected_item == "gravity_fairy":
+					# Pull inside the weapon's range (cyan), push outside it (orange).
+					color = GRAVITY_PULL if model.gravity_pulls(cell) else GRAVITY_PUSH
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.18))
 				draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(color,0.7),false,2)
 			if cell == hover_cell and model.inside(cell) and not show_rules:
@@ -921,6 +932,33 @@ func _draw_board() -> void:
 				pass
 			elif cell == item_origin and not DirectionSheet.paint(self,_center(cell),selected_item,aim,1.1):
 				SpiritIcon.paint(self,_center(cell),model.item_definition(selected_item).icon,1.1)
+	# Gravity fairy: arrows show where each enemy would be pulled or blown.
+	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell):
+		if hover_cell != gravity_hover:
+			gravity_hover = hover_cell
+			gravity_moves.clear()
+			var sim: RefCounted = model.clone()
+			sim.gravity(hover_cell)
+			for enemy in model.enemies:
+				var after: Dictionary = {}
+				for other in sim.enemies:
+					if other.id == enemy.id:
+						after = other
+				if after.is_empty():
+					gravity_moves.append([enemy, null])
+				elif after.cell != enemy.cell:
+					gravity_moves.append([enemy, after.cell])
+		var tint := GRAVITY_PULL if model.gravity_pulls(hover_cell) else GRAVITY_PUSH
+		for move in gravity_moves:
+			var from := _unit_center(move[0])
+			if move[1] == null:
+				draw_arc(from,20,0,TAU,20,Color("b8a8ff"),3,true)
+				continue
+			var to := _unit_center({"cell":move[1], "size":int(move[0].get("size",1))})
+			draw_line(from,to,tint,4)
+			_draw_arrow(to,(to-from).normalized(),tint)
+	else:
+		gravity_hover = Vector2i(-9, -9)
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
 	if Rules.BIG_FAIRIES.has(selected_item):
@@ -1397,7 +1435,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1540,6 +1578,13 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"gravity":
+			# Rings closing in (pull) or rushing out (push).
+			var pulling: bool = effect.get("pull", true)
+			for k in range(3):
+				var r := (1.0 - t) * 60.0 - k * 14.0 if pulling else t * 60.0 + k * 14.0
+				if r > 2.0:
+					draw_arc(pos, r, 0, TAU, 32, Color(GRAVITY_PULL if pulling else GRAVITY_PUSH, fade * 0.8), 3, true)
 		"fall":
 			# Swallowed by the abyss: a closing dark mouth with a violet rim.
 			var mouth := 26.0 * (1.0 - t * 0.7)

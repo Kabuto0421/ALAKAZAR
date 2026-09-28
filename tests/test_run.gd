@@ -273,6 +273,7 @@ func _initialize() -> void:
 	_optional_rules()
 	_generals()
 	_abyss()
+	_gravity()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1568,3 +1569,44 @@ func _abyss() -> void:
 	m.tick_walls()
 	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and closes on the third")
 	verify(Run.LATE_FAIRIES.has("abyss_spirit"),"The abyss spirit is a late fairy")
+
+func _gravity() -> void:
+	# In the weapon's range it pulls enemies within 2 tiles one step in, without damage.
+	var m := fixture()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.fairy_loadout.assign(["gravity_fairy"])
+	m.refill_fairies()
+	m.enemies.clear()
+	var far: Dictionary = m.make_enemy("heavy",Vector2i(4,2),0)
+	var corner: Dictionary = m.make_enemy("heavy",Vector2i(4,4),1)
+	var outside: Dictionary = m.make_enemy("heavy",Vector2i(5,5),2)
+	m.enemies.append_array([far, corner, outside])
+	verify(m.item_targets("gravity_fairy").has(Vector2i(4,0)) and m.gravity_pulls(Vector2i(2,2)) and not m.gravity_pulls(Vector2i(4,0)),"It goes on any empty tile; inside the weapon's range it pulls, outside it pushes")
+	verify(m.use_item("gravity_fairy",Vector2i(2,2)) and far.cell == Vector2i(3,2) and corner.cell == Vector2i(3,3) and outside.cell == Vector2i(5,5),"Pull: enemies within 2 tiles step one tile in; farther ones stay")
+	verify(far.hp == 2 and corner.hp == 2,"Pulling deals no damage")
+	# Outside the range it blows the eight neighbours one tile away, also without damage.
+	m = fixture()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.fairy_loadout.assign(["gravity_fairy"])
+	m.refill_fairies()
+	m.enemies.clear()
+	var east: Dictionary = m.make_enemy("heavy",Vector2i(4,3),0)
+	var south: Dictionary = m.make_enemy("heavy",Vector2i(3,4),1)
+	var wall: Dictionary = m.make_enemy("heavy",Vector2i(5,2),2)
+	m.enemies.append_array([east, south, wall])
+	verify(m.use_item("gravity_fairy",Vector2i(3,3)) and east.cell == Vector2i(5,3) and south.cell == Vector2i(3,5),"Push: the neighbours are blown a tile away")
+	var blocked_one: Dictionary = m.enemies.filter(func(e): return e.id == 2)[0]
+	verify(east.hp == 2 and south.hp == 2 and blocked_one.hp == 2,"Blowing deals no damage, even when something is in the way")
+	# A pull into the abyss still drops the enemy.
+	m = fixture()
+	m.weapon = 0
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	var faller: Dictionary = m.make_enemy("heavy",Vector2i(4,2),0)
+	m.enemies.append_array([faller, m.make_enemy("heavy",Vector2i(0,5),1)])
+	m.pits.append(Vector2i(3,2))
+	m.gravity(Vector2i(2,2))
+	verify(m.enemies.size() == 1,"Pulled over a pit, an enemy falls in")
+	verify(Run.MID_FAIRIES.has("gravity_fairy"),"The gravity fairy is a mid-game fairy")

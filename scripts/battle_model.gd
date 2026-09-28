@@ -6,7 +6,8 @@ const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
 	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
-	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres")]
+	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
+	preload("res://items/gravity_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
@@ -117,6 +118,7 @@ const PLUS_TEXT := {
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["HP2・倒すと連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["5ターン続く奈落", "自分のマスを押して呼ぶ。\n5ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
@@ -1098,6 +1100,80 @@ func swap_shadow() -> void:
 				damage_enemy(enemy, 1, direction)
 		strike_guard = false
 	check_outcome()
+
+## 重力妖精: in the equipped weapon's range it pulls, outside it pushes.
+func gravity_pulls(cell: Vector2i) -> bool:
+	return targets().has(cell)
+
+func gravity(cell: Vector2i) -> void:
+	var plus := is_plus("gravity_fairy")
+	events.append({"kind":"gravity", "cell":cell, "id":-2, "pull":gravity_pulls(cell)})
+	if gravity_pulls(cell):
+		_gravity_pull(cell, 3 if plus else 2)
+		add_log("重力妖精が敵を引き寄せた")
+	else:
+		_gravity_push(cell, 2 if plus else 1)
+		add_log("重力妖精が敵を弾き飛ばした")
+	check_outcome()
+
+## Enemies within `radius` (not already touching) take one step towards the centre,
+## nearest first. No damage, but mines and pits along the way still count.
+func _gravity_pull(center: Vector2i, radius: int) -> void:
+	var movers: Array = enemies.filter(func(e: Dictionary) -> bool:
+		var gap: Vector2i = (e.cell - center).abs()
+		return e.hp > 0 and int(e.get("size", 1)) == 1 and maxi(gap.x, gap.y) >= 2 and maxi(gap.x, gap.y) <= radius)
+	movers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return distance(a.cell, center) < distance(b.cell, center))
+	for enemy in movers:
+		if enemy.hp <= 0 or terminal():
+			continue
+		var toward := Vector2i(signi(center.x - enemy.cell.x), signi(center.y - enemy.cell.y))
+		var tries: Array = [toward]
+		if toward.x != 0 and toward.y != 0:
+			tries.append_array([Vector2i(toward.x, 0), Vector2i(0, toward.y)])
+		for step in tries:
+			var next: Vector2i = enemy.cell + step
+			if next == center or not inside(next) or next == player.cell or not enemy_at(next).is_empty():
+				continue
+			if pits.has(next):
+				_fall(enemy, next)
+				break
+			if blocked(next):
+				continue
+			events.append({"kind":"pull", "cell":next, "id":-2, "from":enemy.cell})
+			enemy.cell = next
+			trigger_mine(enemy)
+			break
+
+## Enemies on the eight tiles around the centre are blown `tiles` away. No damage:
+## a blown enemy just stops at whatever is in the way (a pit still swallows it).
+func _gravity_push(center: Vector2i, tiles: int) -> void:
+	var movers: Array = enemies.filter(func(e: Dictionary) -> bool:
+		return e.hp > 0 and footprint(e).any(func(c: Vector2i) -> bool: return maxi(absi(c.x - center.x), absi(c.y - center.y)) == 1))
+	# The outer ones move first so the inner ones have room.
+	movers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return distance(a.cell, center) > distance(b.cell, center))
+	for enemy in movers:
+		if enemy.hp <= 0 or terminal():
+			continue
+		var big := int(enemy.get("size", 1)) > 1
+		var near := footprint(enemy).filter(func(c: Vector2i) -> bool: return maxi(absi(c.x - center.x), absi(c.y - center.y)) == 1)
+		var away: Vector2i = near[0] - center
+		if big:
+			# A 2x2 can only be blown straight.
+			away = Vector2i(signi(away.x), 0) if absi(away.x) >= absi(away.y) else Vector2i(0, signi(away.y))
+		for step in tiles:
+			var front: Array[Vector2i] = [enemy.cell + away]
+			if big:
+				front = _front_cells(enemy, away)
+			if not big and pits.has(front[0]):
+				_fall(enemy, front[0])
+				break
+			if front.any(func(c: Vector2i) -> bool: return not inside(c) or blocked(c) or c == player.cell or c == center or (not enemy_at(c).is_empty() and enemy_at(c).id != enemy.id)):
+				break
+			enemy.cell += away
+			events.append({"kind":"push", "cell":enemy.cell, "id":-2, "dir":away})
+			trigger_mine(enemy)
+			if enemy.hp <= 0:
+				break
 
 ## 奈落の精霊: for WALL_TURNS turns (5 upgraded) the tiles no weapon reaches become pits.
 func summon_abyss() -> void:
