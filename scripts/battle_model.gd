@@ -7,11 +7,12 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
 	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
-	preload("res://items/gravity_fairy.tres")]
+	preload("res://items/gravity_fairy.tres"),
+	preload("res://items/glutton_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
-const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精"}
+const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精"}
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -40,7 +41,6 @@ const TYPES = {
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 	"silver": {"name": "銀将兵", "hp": 1, "ap": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
-	"glutton": {"name": "暴食妖精", "hp": 1, "ap": 2},
 }
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
@@ -119,6 +119,7 @@ const PLUS_TEXT := {
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["HP2・倒すと連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲の空きマスに召喚。\nHP3・AP2・金の動き（前は右）\n一番近い相手に噛みつく。\n同じ距離ならあなたを優先。\n敵も味方も即死、噛むとHP+1"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["5ターン続く奈落", "自分のマスを押して呼ぶ。\n5ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
@@ -208,7 +209,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","glutton"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -234,49 +235,6 @@ func refill_fairies() -> void:
 func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
 	var state := "idle" if kind in CHARGERS else "approach"
 	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0, "learned": -1}
-
-## 暴食妖精: what it may bite from `cell` — the player, any other single-tile enemy, or an ally.
-func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	for offset in enemy_offsets(glutton):
-		var tile: Vector2i = cell + offset
-		if tile == player.cell:
-			result.append(tile)
-			continue
-		var other := enemy_at(tile)
-		if not other.is_empty() and other.id != glutton.id and other.type != "shadow":
-			result.append(tile)
-			continue
-		var ally := ally_at(tile)
-		if not ally.is_empty() and int(ally.get("size", 1)) == 1:
-			result.append(tile)
-	return result
-
-## One bite: the player takes 1; an enemy (even a 2x2 boss) or an ally is swallowed
-## whole. Every bite feeds it: +1 HP.
-func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
-	glutton.ap -= 1
-	glutton.hp += 1
-	glutton.intent = "捕食"
-	events.append({"kind":"bite", "cell":tile, "id":-2})
-	if tile == player.cell:
-		_hit_player(glutton)
-		return
-	var other := enemy_at(tile)
-	if not other.is_empty():
-		other.hp = 0
-		kills += 1
-		events.append({"kind":"hit", "cell":tile, "id":other.id})
-		add_log("暴食妖精が%sを喰らった" % TYPES[other.type].name)
-		check_outcome()
-		return
-	var ally := ally_at(tile)
-	if not ally.is_empty():
-		ally.hp = 0
-		events.append({"kind":"hit", "cell":tile, "id":ally.id})
-		add_log("暴食妖精が%sを喰らった" % ALLY_NAMES.get(ally.type, "味方"))
-		_bury_allies()
-		check_outcome()
 
 ## Shogi moves with the front to the left: gold everywhere but the back diagonals,
 ## silver the three front tiles and the two back diagonals.
@@ -304,9 +262,6 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return [Vector2i.UP, Vector2i.DOWN]
 	if enemy.type in GENERALS:
 		return general_offsets(enemy.type)
-	if enemy.type == "glutton":
-		# A fairy: its front is the player's side of the fight (right).
-		return general_offsets("gold", Vector2i.RIGHT)
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
@@ -1252,6 +1207,108 @@ func _fall(enemy: Dictionary, cell: Vector2i) -> void:
 	add_log("%sが奈落に落ちた" % TYPES[enemy.type].name)
 	check_outcome()
 
+# --- 暴食妖精 -------------------------------------------------------------------
+
+## Gold moves with the front to the right (the player's side of the fight).
+const GLUTTON_MOVES = [Vector2i(1,0), Vector2i(1,-1), Vector2i(1,1), Vector2i(0,-1), Vector2i(0,1), Vector2i(-1,0)]
+
+func summon_glutton(cell: Vector2i) -> void:
+	var plus := is_plus("glutton_fairy")
+	allies.append({"id":next_ally_id, "type":"glutton", "cell":cell, "hp":3 if plus else 1, "ap":2, "facing":1, "plus":plus})
+	next_ally_id -= 1
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
+
+## What it may bite from `cell`: the player, any enemy (2x2 bosses too) or another ally.
+func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in GLUTTON_MOVES:
+		var tile: Vector2i = cell + offset
+		if tile == player.cell:
+			result.append(tile)
+			continue
+		var other := enemy_at(tile)
+		if not other.is_empty() and other.type != "shadow":
+			result.append(tile)
+			continue
+		var ally := ally_at(tile)
+		if not ally.is_empty() and ally.id != glutton.id:
+			result.append(tile)
+	return result
+
+## One bite: the player takes 1; an enemy or an ally is swallowed whole. Every bite adds 1 HP.
+func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
+	glutton.ap -= 1
+	glutton.hp += 1
+	var gap: Vector2i = tile - glutton.cell
+	if CARDINALS.has(gap):
+		glutton.facing = CARDINALS.find(gap)
+	events.append({"kind":"bite", "cell":tile, "id":-2})
+	if tile == player.cell:
+		player.hp -= 1
+		events.append({"kind":"hit", "cell":tile, "id":-1, "by":glutton.id})
+		add_log("暴食妖精があなたに噛みついた / HP −1")
+		check_outcome()
+		return
+	var other := enemy_at(tile)
+	if not other.is_empty():
+		other.hp = 0
+		kills += 1
+		events.append({"kind":"hit", "cell":tile, "id":other.id})
+		add_log("暴食妖精が%sを喰らった" % TYPES[other.type].name)
+		check_outcome()
+		return
+	var ally := ally_at(tile)
+	if not ally.is_empty():
+		ally.hp = 0
+		events.append({"kind":"hit", "cell":tile, "id":ally.id})
+		add_log("暴食妖精が%sを喰らった" % ALLY_NAMES.get(ally.type, "味方"))
+		_bury_allies()
+		check_outcome()
+
+## Two actions: bite whatever is in reach (the player first); otherwise step along the
+## shortest route over its own moves to a tile with prey in reach, the player's first.
+func _glutton_action(glutton: Dictionary) -> void:
+	glutton.ap = 2
+	while glutton.ap > 0 and glutton.hp > 0 and not terminal():
+		var prey := glutton_prey(glutton, glutton.cell)
+		if not prey.is_empty():
+			glutton_bite(glutton, player.cell if prey.has(player.cell) else prey[0])
+			continue
+		var start: Vector2i = glutton.cell
+		var first := {start: start}
+		var layer: Array[Vector2i] = [start]
+		var step := start
+		while not layer.is_empty() and step == start:
+			var next_layer: Array[Vector2i] = []
+			var found_other := start
+			for current in layer:
+				for offset in GLUTTON_MOVES:
+					var next: Vector2i = current + offset
+					if first.has(next) or not inside(next) or blocked(next) or next == player.cell or not enemy_at(next).is_empty():
+						continue
+					first[next] = next if current == start else first[current]
+					var reach := glutton_prey(glutton, next)
+					if reach.has(player.cell):
+						step = first[next]
+						break
+					if not reach.is_empty() and found_other == start:
+						found_other = first[next]
+					next_layer.append(next)
+				if step != start:
+					break
+			if step == start and found_other != start:
+				step = found_other
+			layer = next_layer
+		if step == start:
+			break
+		glutton.ap -= 1
+		var moved: Vector2i = step - glutton.cell
+		if CARDINALS.has(moved):
+			glutton.facing = CARDINALS.find(moved)
+		glutton.cell = step
+		trigger_mine(glutton)
+	glutton.ap = 0
+
 ## 一匹狼の妖精: a lone ally that hunts on its own until it falls.
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
@@ -1324,6 +1381,9 @@ func act_allies() -> void:
 			continue
 		if ally.type == "wolf":
 			_wolf_action(ally)
+			continue
+		if ally.type == "glutton":
+			_glutton_action(ally)
 			continue
 		var adjacent: Array[Dictionary] = []
 		for enemy in enemies:

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/glutton_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/glutton_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "glutton_fairy"
+title = "暴食妖精"
+description = "攻撃範囲の空きマスに召喚。\nHP1・AP2・金の動き（前は右）\n一番近い相手に噛みつく。\n同じ距離ならあなたを優先。\n敵も味方も即死、噛むとHP+1"
+summary = "何でも喰らう危険な味方"
+color = Color(0.86, 0.36, 0.6, 1)
+effect = ExtResource("2")
+icon = ExtResource("3")

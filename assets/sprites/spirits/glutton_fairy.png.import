@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://br3vkyi0wx5av"
-path="res://.godot/imported/glutton_fairy.png-54c8864e38049c84ad42eba2557ade46.ctex"
+uid="uid://3bew32ei2mg6"
+path="res://.godot/imported/glutton_fairy.png-faf8038a8866076f2682110edda9f7e0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/enemies/glutton_fairy.png"
-dest_files=["res://.godot/imported/glutton_fairy.png-54c8864e38049c84ad42eba2557ade46.ctex"]
+source_file="res://assets/sprites/spirits/glutton_fairy.png"
+dest_files=["res://.godot/imported/glutton_fairy.png-faf8038a8866076f2682110edda9f7e0.ctex"]
 
 [params]
 

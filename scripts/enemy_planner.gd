@@ -90,9 +90,6 @@ func beat(model: RefCounted, index: int) -> void:
 		if enemy.type == "prison":
 			_prison_action(model, enemy)
 			continue
-		if enemy.type == "glutton":
-			_glutton_action(model, enemy)
-			continue
 		if enemy.type == "javelin":
 			_javelin_action(model, enemy)
 			continue
@@ -221,43 +218,6 @@ func _general_action(model: RefCounted, enemy: Dictionary) -> void:
 			if model.inside(next) and not model.blocked(next) and next != model.player.cell and model.enemy_at(next).is_empty() and model.distance(next, model.player.cell) < model.distance(best, model.player.cell):
 				best = next
 		step = best
-	if step == start or not model.enemy_step(enemy, step):
-		enemy.ap = 0
-
-## 暴食妖精: bite whatever is in reach (the player first); otherwise take the first step
-## of the shortest route, over its gold moves, to any tile with prey in reach. On a tie
-## the player's side wins: routes that reach the player are preferred at equal length.
-func _glutton_action(model: RefCounted, enemy: Dictionary) -> void:
-	var prey: Array[Vector2i] = model.glutton_prey(enemy, enemy.cell)
-	if not prey.is_empty():
-		model.glutton_bite(enemy, model.player.cell if prey.has(model.player.cell) else prey[0])
-		return
-	var moves: Array = model.enemy_offsets(enemy)
-	var start: Vector2i = enemy.cell
-	var first := {start: start}
-	var layer: Array[Vector2i] = [start]
-	var step := start
-	while not layer.is_empty() and step == start:
-		var next_layer: Array[Vector2i] = []
-		var found_other := start
-		for current in layer:
-			for offset in moves:
-				var next: Vector2i = current + offset
-				if first.has(next) or not model.inside(next) or model.blocked(next) or next == model.player.cell or not model.enemy_at(next).is_empty():
-					continue
-				first[next] = next if current == start else first[current]
-				var reach: Array[Vector2i] = model.glutton_prey(enemy, next)
-				if reach.has(model.player.cell):
-					step = first[next]
-					break
-				if not reach.is_empty() and found_other == start:
-					found_other = first[next]
-				next_layer.append(next)
-			if step != start:
-				break
-		if step == start and found_other != start:
-			step = found_other
-		layer = next_layer
 	if step == start or not model.enemy_step(enemy, step):
 		enemy.ap = 0
 

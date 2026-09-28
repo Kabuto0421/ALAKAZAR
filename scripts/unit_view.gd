@@ -1,7 +1,7 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
-const GLUTTON = preload("res://assets/sprites/enemies/glutton_fairy.png")
+const GLUTTON = preload("res://assets/sprites/spirits/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
 const PLAYER_ATLAS = preload("res://assets/sprites/adventurer_weapon_directions_64.png")
@@ -176,7 +176,7 @@ func _draw() -> void:
 	elif kind in ["gold", "silver"]:
 		draw_general(self, kind, tint)
 	elif kind == "glutton":
-		# A slight chewing bob; the art faces left like the other enemies.
+		# A slight chewing bob.
 		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0
 		draw_texture_rect(GLUTTON,Rect2(-31,-37+chew,62,62),false,tint)
 	else:

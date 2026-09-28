@@ -10,6 +10,10 @@ static func attackers(model: RefCounted) -> Array[int]:
 		return result
 	var sim: RefCounted = model.clone()
 	sim.act_allies()
+	# A glutton ally may bite the player before the enemies move.
+	for event in sim.events:
+		if event.kind == "hit" and event.id == -1 and event.has("by") and not result.has(int(event.by)):
+			result.append(int(event.by))
 	if sim.terminal():
 		return result
 	var planner := Planner.new()

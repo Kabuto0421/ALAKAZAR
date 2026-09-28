@@ -178,6 +178,16 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			var offset := minf(progress*2.0,1.0)*50.0
 			_enemy(canvas,Vector2(876+offset,268) if progress < 0.5 else Vector2(926,268))
 			canvas._text(Vector2(880,236),"範囲内→引き寄せ　範囲外→弾く",15,item.color)
+		"glutton_fairy":
+			# It runs at the nearest thing and swallows it — enemy or not.
+			for x in range(4):
+				_tile(canvas,Vector2(884+x*58,270),item.color)
+			Icon.paint(canvas,Vector2(884+minf(progress*2,1.0)*58,268),item.icon,0.75)
+			if progress < 0.55:
+				_enemy(canvas,Vector2(1000,268))
+			else:
+				canvas._text(Vector2(978,236),"ごくん",18,item.color)
+			canvas._text(Vector2(856,306),"あなたも食べられる",18,item.color)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):
