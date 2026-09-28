@@ -1341,6 +1341,33 @@ func _loner_fairies() -> void:
 	m.phase = Rules.Phase.ENEMY
 	verify(m.rook_charge(rook) and m.shadow.is_empty() and rook.cell == Vector2i(3,2),"The charge smashes the shadow and stops in front of it")
 	verify(m.events.any(func(e): return e.kind == "charge_end" and e.cell == rook.cell),"Each charge marks where it ended")
+	# Charging at the player, the rook drives enemies in the way ahead of it along with the player.
+	m = fixture()
+	m.enemies.clear()
+	rook = m.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	m.enemies.append(rook)
+	var wedge: Dictionary = m.make_enemy("heavy",Vector2i(3,2),1)
+	m.enemies.append(wedge)
+	m.player.cell = Vector2i(1,2)
+	m.player.hp = 5
+	m.phase = Rules.Phase.ENEMY
+	m.rook_charge(rook)
+	verify(rook.cell == Vector2i(2,2) and wedge.cell == Vector2i(1,2) and m.player.cell == Vector2i(0,2) and m.player.hp == 4,"The rook plows the enemy and the player to the wall, hitting the player once")
+	# Not charging at the player (a dodge), an enemy in the way still stops it.
+	m = fixture()
+	m.enemies.clear()
+	rook = m.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	m.enemies.append(rook)
+	wedge = m.make_enemy("heavy",Vector2i(2,2),1)
+	m.enemies.append(wedge)
+	m.player.cell = Vector2i(0,5)
+	m.phase = Rules.Phase.ENEMY
+	m.rook_charge(rook)
+	verify(rook.cell == Vector2i(3,2) and wedge.cell == Vector2i(2,2),"Without the player in the lane, enemies still block the charge")
 	# Both are late fairies: never offered before the first boss, offered after it.
 	var early_seen := false
 	var late_seen := false

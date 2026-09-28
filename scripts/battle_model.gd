@@ -1544,6 +1544,7 @@ func rook_charge(enemy: Dictionary) -> bool:
 	var ramming: bool = in_lane.call()
 	var hit := false
 	var pushed := false
+	var shoved: Array = []
 	var steps := 0
 	while steps < board_size * 2:
 		steps += 1
@@ -1555,10 +1556,30 @@ func rook_charge(enemy: Dictionary) -> bool:
 			elif _smash(cell):
 				# Placed things in the lane are smashed, and the charge stops there.
 				stop = true
-			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
+			elif not ramming and not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stop = true
 		if stop:
 			break
+		if ramming:
+			# Charging at the player: enemies in the way are driven ahead along with them.
+			var chain := _charge_chain(enemy, forward)
+			if chain.player and not hit:
+				hit = true
+				_hit_player(enemy)
+				if terminal():
+					break
+			if not chain.ok:
+				break
+			for other in chain.enemies:
+				other.cell += forward
+				if not shoved.has(other):
+					shoved.append(other)
+			if chain.player:
+				player.cell += forward
+				pushed = true
+			events.append({"kind":"dash", "cell":enemy.cell, "id":-2, "dir":forward})
+			enemy.cell += forward
+			continue
 		if front.has(player.cell):
 			if not hit:
 				hit = true
@@ -1576,6 +1597,9 @@ func rook_charge(enemy: Dictionary) -> bool:
 			break
 	if pushed and not terminal():
 		trigger_mine(player)
+	for other in shoved:
+		if other.hp > 0 and not terminal():
+			trigger_mine(other)
 	# Where this charge ended, so several charges in one turn can be shown one by one.
 	events.append({"kind":"charge_end", "cell":enemy.cell, "id":enemy.id, "player":player.cell})
 	add_log("%sの突進" % TYPES[enemy.type].name + ("！ 壁まで押し込まれた" if hit else ""))
@@ -1583,6 +1607,38 @@ func rook_charge(enemy: Dictionary) -> bool:
 	if not terminal() and enemy.hp > 0:
 		rook_brace(enemy)
 	return true
+
+## What a ramming charge shoves one tile this step: the player and every enemy
+## packed in front of the charger. ok is false when something in that chain is
+## up against the edge or terrain (the charge stops; a player in it is still hit).
+func _charge_chain(charger: Dictionary, forward: Vector2i) -> Dictionary:
+	var result := {"ok":true, "enemies":[], "player":false}
+	var queue: Array[Vector2i] = _front_cells(charger, forward)
+	var seen := {}
+	while not queue.is_empty():
+		var cell: Vector2i = queue.pop_front()
+		if seen.has(cell):
+			continue
+		seen[cell] = true
+		var cells: Array[Vector2i] = []
+		if cell == player.cell:
+			result.player = true
+			cells.append(cell)
+		else:
+			var other := enemy_at(cell)
+			if other.is_empty() or other.id == charger.id or result.enemies.has(other):
+				continue
+			result.enemies.append(other)
+			cells = footprint(other)
+		for tile in cells:
+			var next: Vector2i = tile + forward
+			if cells.has(next):
+				continue
+			if not inside(next) or blocked(next):
+				result.ok = false
+			else:
+				queue.append(next)
+	return result
 
 ## A charger crashing into a tile: walls, cannons, stealth fairies, the pinned
 ## shadow, allies and obstacles there are destroyed. Returns true if anything was in the way.
