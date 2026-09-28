@@ -2,9 +2,8 @@ extends Node2D
 ## 奈落の精霊 opening the abyss: the screen darkens and violet light gathers
 ## under the player, a crack wave runs outward and every pit tile collapses in
 ## turn (floor shards tumbling into the dark), then a shockwave, a rumble and
-## the word 奈落 rising out of it. Drawn above the board, below nothing else.
+## the dust settling. Drawn above the board.
 
-const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const VIOLET := Color("9b7bff")
 const DEEP := Color("08060f")
 const FLOOR := Color("5f5442")
@@ -132,19 +131,9 @@ func _draw_shards() -> void:
 		draw_rect(Rect2(-Vector2.ONE * side / 2, Vector2.ONE * side), Color(FLOOR.lightened(0.15), 1.0 - k))
 		draw_set_transform(Vector2.ZERO)
 
-## The shockwave and the word 奈落 once the last tile has fallen.
+## The shockwave once the last tile has fallen.
 func _draw_finale() -> void:
 	var since := time - last_collapse
-	if since < 0.0:
+	if since < 0.0 or since >= 0.6:
 		return
-	if since < 0.6:
-		draw_arc(origin, 40 + since * 700.0, 0, TAU, 64, Color(VIOLET, 1.0 - since / 0.6), 6, true)
-	var alpha := clampf(since / 0.2, 0.0, 1.0) * clampf(1.0 - (since - 0.6) / 0.5, 0.0, 1.0)
-	if alpha > 0.0:
-		var size := 96
-		var text := "奈落"
-		var width := FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
-		var at := screen.get_center() + Vector2(-width / 2, 30 - since * 20.0)
-		for offset in [Vector2(-3, 0), Vector2(3, 0), Vector2(0, -3), Vector2(0, 3)]:
-			draw_string(FONT, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(DEEP, alpha))
-		draw_string(FONT, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(VIOLET.lightened(0.3), alpha))
+	draw_arc(origin, 40 + since * 700.0, 0, TAU, 64, Color(VIOLET, 1.0 - since / 0.6), 6, true)
