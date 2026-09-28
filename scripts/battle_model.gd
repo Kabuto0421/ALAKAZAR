@@ -863,20 +863,17 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 		var front: Array[Vector2i] = [enemy.cell + direction]
 		if big:
 			front = _front_cells(enemy, direction)
-		var obstacle := {}
 		var stopped := false
 		for cell in front:
 			if not inside(cell) or blocked(cell) or cell == player.cell:
 				stopped = true
 			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stopped = true
-				obstacle = enemy_at(cell)
 		if stopped:
+			# Only the shoved enemy takes the bump: whatever stopped it is unhurt.
 			events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
 			add_log("%sが叩きつけられた" % TYPES[enemy.type].name)
 			damage_enemy(enemy, 1)
-			if not obstacle.is_empty():
-				damage_enemy(obstacle, 1)
 			return
 		enemy.cell += direction
 		events.append({"kind":"push", "cell":enemy.cell, "id":-2, "dir":direction})

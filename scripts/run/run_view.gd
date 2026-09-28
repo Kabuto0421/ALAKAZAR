@@ -68,7 +68,7 @@ func _render() -> void:
 	else:
 		# Optional rules, off by default: the plain game stays as it is.
 		_rule_toggle(Vector2(292,12),"rule_siege","包囲の輪","4ターンごとに外周から1周ずつ包囲される。\n包囲の中にいると敵ターン開始時に1ダメージ（敵も）。\n次に狭まる輪は赤く点滅する。")
-		_rule_toggle(Vector2(492,12),"rule_friendly","同士討ち","投げ槍は範囲の敵にも当たる。\n突進は、止められた敵・壁に挟まれた敵にも1ダメージ。\n（弓の矢と押し出しの衝突は元から敵にも当たる）")
+		_rule_toggle(Vector2(492,12),"rule_friendly","同士討ち","投げ槍は範囲の敵にも当たる。\n突進は、止められた敵・壁に挟まれた敵にも1ダメージ。\n（弓の矢は元から敵にも当たる）")
 		_rule_toggle(Vector2(692,12),"rule_combo","連撃","1回の行動で2体以上倒すとAPが1戻る。")
 	var sub := Color("9aafa9")
 	match run.state:
