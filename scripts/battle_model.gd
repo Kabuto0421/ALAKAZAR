@@ -111,8 +111,8 @@ const PLUS_TEXT := {
 	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
-	"shadow_stitch": ["入れ替わると隣の敵すべてに1", "武器のどれも届かない空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横に\n隣接した敵すべてに1。"],
-	"lone_wolf": ["HP2・倒すと隣の敵にも噛みつく", "武器のどれも届かない空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
+	"lone_wolf": ["HP2・倒すと連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -252,6 +252,10 @@ func javelin_cells(enemy: Dictionary) -> Array[Vector2i]:
 
 func arrow_stopped(cell: Vector2i) -> bool:
 	return obstacles.has(cell) or walls.has(cell) or not cannon_at(cell).is_empty()
+
+## Anything a charge crashes into and stops at (it is smashed in the process).
+func charge_stopped(cell: Vector2i) -> bool:
+	return arrow_stopped(cell) or fairies.has(cell) or not ally_at(cell).is_empty() or shadow.get("cell", Vector2i(-1, -1)) == cell
 
 ## Archer: straight line ahead (like a lance) until terrain stops it.
 func archer_lane(enemy: Dictionary) -> Array[Vector2i]:
@@ -1512,7 +1516,7 @@ func rook_lane(enemy: Dictionary) -> Array[Vector2i]:
 		if cells.has(start + forward):
 			continue
 		var cell: Vector2i = start + forward
-		while inside(cell) and not arrow_stopped(cell):
+		while inside(cell) and not charge_stopped(cell):
 			result.append(cell)
 			cell += forward
 	return result
@@ -1572,14 +1576,16 @@ func rook_charge(enemy: Dictionary) -> bool:
 			break
 	if pushed and not terminal():
 		trigger_mine(player)
+	# Where this charge ended, so several charges in one turn can be shown one by one.
+	events.append({"kind":"charge_end", "cell":enemy.cell, "id":enemy.id, "player":player.cell})
 	add_log("%sの突進" % TYPES[enemy.type].name + ("！ 壁まで押し込まれた" if hit else ""))
 	check_outcome()
 	if not terminal() and enemy.hp > 0:
 		rook_brace(enemy)
 	return true
 
-## A charger crashing into a tile: walls, cannons, stealth fairies, allies and
-## obstacles there are destroyed. Returns true if anything was in the way.
+## A charger crashing into a tile: walls, cannons, stealth fairies, the pinned
+## shadow, allies and obstacles there are destroyed. Returns true if anything was in the way.
 func _smash(cell: Vector2i) -> bool:
 	var hit := false
 	if walls.has(cell):
@@ -1595,6 +1601,9 @@ func _smash(cell: Vector2i) -> bool:
 		hit = true
 	if obstacles.has(cell):
 		obstacles.erase(cell)
+		hit = true
+	if shadow.get("cell", Vector2i(-1, -1)) == cell:
+		shadow = {}
 		hit = true
 	var ally := ally_at(cell)
 	if not ally.is_empty():

@@ -284,6 +284,8 @@ func _enemy_turn() -> void:
 		return
 	for beat in range(2):
 		planner.beat(model,beat)
+		if not await _play_charges(token):
+			return
 		_sync_units(true)
 		_feedback()
 		queue_redraw()
@@ -380,6 +382,31 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 	_update_controls()
 	if not model.terminal() and model.player.ap == 0:
 		_enemy_turn()
+
+## Several charges in one beat (Rotorick's reel 7): play them one at a time with
+## a pause, so each crash and stop reads before the next charge starts.
+func _play_charges(token: int) -> bool:
+	var marks: Array = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "charge_end")
+	if marks.size() < 2:
+		return true
+	var all_events: Array = model.events.duplicate()
+	var start := 0
+	for mark in marks.slice(0, marks.size() - 1):
+		var end: int = all_events.find(mark)
+		model.events.assign(all_events.slice(start, end))
+		_feedback()
+		var tween := create_tween().set_parallel(true)
+		if actors.has(mark.id):
+			var span: int = actors[mark.id].span
+			tween.tween_property(actors[mark.id], "position", _unit_center({"cell":mark.cell, "size":span}), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(actors[-1], "position", _center(mark.player), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		queue_redraw()
+		await get_tree().create_timer(0.5).timeout
+		if token != generation:
+			return false
+		start = end + 1
+	model.events.assign(all_events.slice(start))
+	return true
 
 func _select_item(id: String, slot: int = -1) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
@@ -510,7 +537,7 @@ func _feedback(weapon_attack: bool = false) -> void:
 		flashes.append(flash)
 		if event.kind == "circle":
 			_cast_circle_fx(event)
-		if actors.has(event.id) and event.kind != "plant":
+		if actors.has(event.id) and event.kind not in ["plant", "charge_end"]:
 			actors[event.id].flash = 0.18
 
 func _cast_circle_fx(event: Dictionary) -> void:

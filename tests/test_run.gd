@@ -146,9 +146,10 @@ func _initialize() -> void:
 		if k < 2:
 			verify(run.state==Run.State.REWARD,"Each late fight but the last gives a reward")
 			run.skip_reward()
-	verify(run.state==Run.State.CAMP,"The last late fight leads to a final camp")
-	run.camp_rest()
-	verify(run.state==Run.State.FINISHED,"Leaving the final camp completes the expedition")
+		if k == 1:
+			verify(run.state==Run.State.CAMP,"A late camp comes before the last late fight")
+			run.camp_rest()
+	verify(run.state==Run.State.FINISHED,"Beating the last late fight completes the expedition")
 
 	# Forging adds 1 damage to the chosen weapon.
 	run = Run.new()
@@ -1326,6 +1327,20 @@ func _loner_fairies() -> void:
 	verify(m.all_reach().has(wolf.cell),"The player can stand where a weapon reaches the wolf")
 	m.act_allies()
 	verify(prey.hp == 2 and wolf.sulking,"Within any weapon's reach, the wolf sulks and skips its turn")
+	# A charge crashes into the pinned shadow like any placed thing: smashed, and it stops there.
+	m = fixture()
+	m.enemies.clear()
+	var rook: Dictionary = m.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	m.enemies.append(rook)
+	m.player.cell = Vector2i(0,5)
+	m.place_shadow(Vector2i(2,2))
+	var lane: Array = m.rook_lane(rook)
+	verify(lane.has(Vector2i(3,2)) and not lane.has(Vector2i(2,2)) and not lane.has(Vector2i(1,2)),"The charge lane stops at the shadow")
+	m.phase = Rules.Phase.ENEMY
+	verify(m.rook_charge(rook) and m.shadow.is_empty() and rook.cell == Vector2i(3,2),"The charge smashes the shadow and stops in front of it")
+	verify(m.events.any(func(e): return e.kind == "charge_end" and e.cell == rook.cell),"Each charge marks where it ended")
 	# Both are late fairies: never offered before the first boss, offered after it.
 	var early_seen := false
 	var late_seen := false

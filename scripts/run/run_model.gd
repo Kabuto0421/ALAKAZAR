@@ -116,8 +116,8 @@ func finish_battle() -> bool:
 	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + win_heal())
 	battle.refill_fairies()
 	if stage == Battle.LAST_LEVEL:
-		# No boss after the late fights yet: the camp is the end of the road.
-		state = State.CAMP
+		# No boss after the late fights yet: the run ends here.
+		state = State.FINISHED
 		return true
 	state = State.REWARD
 	offers.clear()
@@ -164,9 +164,9 @@ func finish_battle() -> bool:
 		fairy_candidates = fairy_pool.duplicate()
 	for id in sample(fairy_candidates,FAIRY_OFFERS):
 		offers.append({"kind":"fairy","value":id})
-	# Beating the first boss can turn the last fairy offer into a rare one.
+	# Beating a boss (the first one or Rotorick) can turn the last fairy offer into a rare one.
 	var rares: Array = RARE_FAIRIES.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
-	if stage == Battle.BOSS_LEVEL and not rares.is_empty() and rng.randf() < RARE_CHANCE:
+	if Battle.BOSS_LEVELS.has(stage) and not rares.is_empty() and rng.randf() < RARE_CHANCE:
 		offers[offers.size()-1] = {"kind":"fairy","value":sample(rares,1)[0], "rare":true}
 	return true
 
@@ -215,8 +215,8 @@ func advance() -> void:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
-	elif stage == Battle.MID_LEVELS[-1]:
-		# Mid-game camp before Rotorick.
+	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1]:
+		# Mid-game camp before Rotorick; late camp before the last late fight.
 		state = State.CAMP
 	else:
 		stage += 1
@@ -279,8 +279,9 @@ func camp_back() -> void:
 
 func _leave_camp() -> void:
 	offers.clear()
-	if stage == Battle.LAST_LEVEL:
-		state = State.FINISHED
+	if stage == Battle.LATE_LEVELS[1]:
+		stage = Battle.LATE_LEVELS[2]
+		start_battle()
 		return
 	stage = Battle.BOSS_LEVEL if stage == LAST_NORMAL_STAGE else Battle.BOSS2_LEVEL
 	start_battle()
