@@ -301,25 +301,13 @@ python3 tools/generate_bgm.py draft_loop.ogg camp_loop.ogg  # 指定した曲だ
 
 ### 効果音
 
-`assets/audio/sfx/` の効果音（56種）は `tools/generate_sfx.py` で生成しています（`pip install numpy soundfile`）。雰囲気がばらけないように、全部の音を同じ作り方にそろえています。
+効果音はうるさくならないよう最小限で、**足音**（主人公 `step`・敵 `enemy_step`）と**監獄の王戦**の音だけです：兵の復活 `king_revive`、要塞が兵を出す `fortress_spawn`、王への被弾 `king_hit`、要塞にひび `fortress_crack`、要塞の崩壊 `fortress_collapse`、王が崩れ落ちる `king_collapse`。ほかにボス戦のジングル（王の登場・怒り・陥落、ロトリックの登場）があります。
 
-- **素材**：布・空気（フィルターしたノイズ）、木・石・鉄（打つと鳴る共鳴体）、皮の太鼓、ガラスの鈴だけを組み合わせる。音程のある音（ターン開始の鈴、妖精の登場、連撃、狼の遠吠え、包囲の角笛など）はBGMと同じDマイナーにそろえる
-- **響き**：全部の音に同じ石造りの部屋の短い残響をかける（量だけ変える）
-- **仕上げ**：40Hz以下を切り、11kHz以上をなだらかに落とし、軽く歪ませ、種類ごとに音量をそろえる（操作音 < 足音 < 攻撃・被弾 < 大きな出来事 < 監獄の王）
-- 監獄の王まわり（復活・要塞・被弾・崩壊）だけは、鉄・鎖・石を強めにして王の曲に寄せている
-
-ゲームでは `scripts/audio/sfx_player.gd` が鳴らします。同時発音は12音まで、同じ音が60ミリ秒以内に重なったら1回だけ鳴らし、毎回ピッチを±5%ずらして繰り返しでも機械的に聞こえないようにしています。どのイベントでどの音を鳴らすかは `battle_view.gd` の `EVENT_SFX`・`SUMMON_SFX`・`_event_sound` にまとめています。
-
-| 場面 | 音 |
-|---|---|
-| 基本 | 移動 `step`、剣を振る `slash`、攻撃が当たる `hit`、敵が倒れる `enemy_die`、主人公の被弾 `player_hurt`、自分のターン `turn_player`（鈴）、敵のターン `turn_enemy`（太鼓）、敵が動く `enemy_step`、できない操作 `denied`、ボタン `select` |
-| 武器・盤面 | 突進 `dash`、激突 `crash`、押し出し・引き寄せ `push`、魔法陣を描く `chalk`・発動 `circle_cast`、投げ槍 `throw`、矢 `arrow`、盾 `block`、奇襲 `ambush`、連撃 `combo`、入れ替え `swap`、ハンマー `quake`、解析 `scan`、斧 `axe`、落雷 `bolt`、大砲 `cannon`・共鳴 `resonate`・放電 `spark`/`zap`/`discharge`、爆発 `blast`、花火 `firework`、炎 `burn`、咆哮 `roar`、粉砕 `smash`、包囲の輪が縮む `siege_warn`、地雷を埋める `plant` |
-| 妖精 | 登場 `summon`、影 `shadow`、壁 `wall_rise`、大砲を置く `clank`、暴食妖精の溜め `glutton_windup`・噛みつき `glutton_bite`・丸呑み `glutton_gulp`、奈落が開く `abyss_crack`・落ちる `abyss_fall`、重力の引き寄せ `gravity_pull`・弾き `gravity_push`、狼の遠吠え `wolf_howl`・噛みつき `wolf_bite`・すねる `wolf_sulk` |
-| 監獄の王 | 兵の復活 `king_revive`、要塞が兵を出す `fortress_spawn`、王への被弾 `king_hit`、要塞にひび `fortress_crack`、要塞の崩壊 `fortress_collapse`、王が崩れ落ちる `king_collapse` |
+`assets/audio/sfx/` の音は `tools/generate_sfx.py` で生成しています（`pip install numpy soundfile`）。全部の音を同じ作り方（布・木・石・鉄などの素材、同じ石造りの部屋の残響、同じ仕上げと音量の基準）にそろえています。ゲームでは `scripts/audio/sfx_player.gd` が鳴らし、毎回ピッチを少しずらします。どのイベントで鳴らすかは `battle_view.gd` の `_event_sound` にあります。
 
 ```sh
 python3 tools/generate_sfx.py
-python3 tools/generate_sfx.py hit step  # 指定した音だけ
+python3 tools/generate_sfx.py king_hit step  # 指定した音だけ
 ```
 
 ## 自動テスト

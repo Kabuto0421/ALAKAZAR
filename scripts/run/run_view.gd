@@ -13,19 +13,15 @@ const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
 const CYAN = Color("2bdcc8")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
-const SfxPlayer = preload("res://scripts/audio/sfx_player.gd")
 var run := Run.new()
 var screen: Control
 var battle_view: Node2D
 ## Music for the screens between fights (the battle view brings its own).
 var bgm: Node
-var sfx: Node
 
 func _ready() -> void:
 	bgm = BgmPlayer.new()
 	add_child(bgm)
-	sfx = SfxPlayer.new()
-	add_child(sfx)
 	run.start()
 	_render()
 
@@ -52,7 +48,6 @@ func _render() -> void:
 	bgm.sync(false, false)
 	screen = Control.new()
 	screen.name = "DraftScreen"
-	_wire_clicks.call_deferred(screen)
 	screen.size = Vector2(1152,720)
 	screen.scale = Vector2.ONE*1.5
 	screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -368,13 +363,6 @@ func _label(at: Vector2,value: String,font_size: int,color: Color) -> Label:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(label)
 	return label
-
-## Every button and card on the screen clicks when pressed.
-func _wire_clicks(on: Control) -> void:
-	if not is_instance_valid(on) or sfx == null:
-		return
-	for button in on.find_children("*", "BaseButton", true, false):
-		button.pressed.connect(func(): sfx.play("select"))
 
 func _button(at: Vector2,extent: Vector2,value: String,callback: Callable) -> Button:
 	var button := Button.new()

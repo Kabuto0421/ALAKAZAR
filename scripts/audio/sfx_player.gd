@@ -1,15 +1,10 @@
 extends Node
-## One-shot sound effects and the boss stings.
+## One-shot sound effects and the boss stings. Kept sparse on purpose: footsteps
+## and the boss fights only.
 ## Effects are rendered by tools/generate_sfx.py, stings by tools/generate_bgm.py.
 
 const SFX_DIR := "res://assets/audio/sfx/"
-const NAMES := ["step", "enemy_step", "slash", "hit", "enemy_die", "player_hurt", "turn_player",
-	"turn_enemy", "denied", "select", "dash", "crash", "push", "chalk", "circle_cast", "throw",
-	"arrow", "block", "ambush", "combo", "swap", "quake", "scan", "axe", "bolt", "cannon", "blast",
-	"firework", "zap", "discharge", "resonate", "burn", "roar", "smash", "siege_warn", "plant",
-	"summon", "shadow", "wall_rise", "clank", "glutton_windup", "glutton_bite", "glutton_gulp",
-	"abyss_crack", "abyss_fall", "gravity_pull", "gravity_push", "wolf_howl", "wolf_bite",
-	"wolf_sulk", "king_revive", "fortress_spawn", "king_hit", "fortress_crack",
+const NAMES := ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack",
 	"fortress_collapse", "king_collapse"]
 ## Played at the music's level, never pitch-shifted.
 const STINGS := {
@@ -21,7 +16,7 @@ const STINGS := {
 const VOLUME_DB := -4.0
 const STING_DB := -10.0
 const VOICES := 12
-## The same sound twice within this many ms plays once (a sweep hitting five enemies).
+## The same sound twice within this many ms plays once.
 const REPEAT_MS := 60
 
 ## Shared with the music's mute (M).
