@@ -98,6 +98,9 @@ func _turn(step: int) -> void:
 	_show()
 
 func _show() -> void:
+	# Opened before it entered the tree: _ready builds the page itself.
+	if body == null:
+		return
 	for child in body.get_children():
 		child.queue_free()
 	var data: Dictionary = PAGES[page]
