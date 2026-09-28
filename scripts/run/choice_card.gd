@@ -70,7 +70,7 @@ func _ready() -> void:
 			_badge(diagram.position+Vector2(side+32,0),26)
 		_wrap_label(_label(Vector2(14,72+side),description,15,Color("e5dfc5")),size.x-28)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
-		var stats := "1 AP / 攻撃 %d" % damage
+		var stats := "1 AP / 無傷で入替" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / 攻撃 %d" % damage
 		if circle:
 			# The enchantment replaces the attack: say so plainly.
 			stats = "魔法陣・攻撃不可"

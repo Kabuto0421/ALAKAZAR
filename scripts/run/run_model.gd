@@ -128,7 +128,7 @@ func finish_battle() -> bool:
 	# The last fight before a boss pays better: only three-tile weapons.
 	var before_boss := is_before_boss()
 	for index in range(Weapons.DATA.size()):
-		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or (Weapons.is_late(index) and not late):
+		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or (Weapons.is_late(index) and not late) or (Weapons.from_rotorick(index) and stage < Battle.MID_LEVELS[-1]):
 			continue
 		if before_boss:
 			if not Weapons.is_boss_reward(index):

@@ -989,15 +989,15 @@ func _draw_weapons() -> void:
 			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
 		var circle: bool = model.is_circle(index)
 		var extras: Array[String] = []
-		extras.assign(["魔法陣","攻撃不可"] if circle else ["攻撃%d" % model.weapon_damage(index)])
+		# Swap weapons trade places instead of dealing damage.
+		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
 		if weapon.has("slide"):
 			extras.append("滑る")
 		if weapon.get("pull",false):
 			extras.append("引寄")
-		if weapon.get("swap",false):
-			extras.append("入替")
+
 		if weapon.has("charge"):
 			extras.append("溜め%d/%d" % [model.blade_charge, Rules.BLADE_MAX])
 		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):

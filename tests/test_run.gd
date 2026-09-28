@@ -1053,7 +1053,10 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 42,"39 weapons plus the three late generals")
+	verify(W.DATA.size() == 43,"39 weapons plus the three generals and the king staff")
+	verify(W.mid_pool().has(ids.find("king_staff")) and W.DATA[ids.find("king_staff")].swap,"The king staff (swap on all 8 neighbours) drops after the first boss")
+	m = _weapon_room("king_staff",[Vector2i(2,3)])
+	verify(m.player_action(Vector2i(2,3)) and m.player.cell == Vector2i(2,3) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The king staff trades places diagonally without damage")
 	verify(["eight_knight","gold","silver"].all(func(id): return W.mid_pool().has(ids.find(id))),"The generals drop after the first boss")
 	verify(W.late_pool().size() == 2 and ["rook_spear","bishop_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The rook spear and bishop blade are the late drops")
 	# Sliding weapons never turn up before Rotorick, and do after it.
@@ -1077,6 +1080,25 @@ func _mechanic_weapons() -> void:
 			else:
 				after = after or sliding
 	verify(not before and after,"Sliding weapons are offered only after Rotorick")
+	var lance_early := false
+	var lance_late := false
+	for seed_value in 40:
+		for stage in [Run.LAST_NORMAL_STAGE, Rules.MID_LEVELS[2]]:
+			var trial := Run.new()
+			trial.start(seed_value)
+			trial.choose(0)
+			trial.choose(0)
+			trial.stage = stage
+			trial.start_battle()
+			trial.battle.enemies.clear()
+			trial.battle.check_outcome()
+			trial.finish_battle()
+			var has_lance: bool = trial.offers.any(func(o): return o.kind == "weapon" and int(o.value) == ids.find("lance"))
+			if stage == Run.LAST_NORMAL_STAGE:
+				lance_early = lance_early or has_lance
+			else:
+				lance_late = lance_late or has_lance
+	verify(not lance_early and lance_late,"The lance waits for the reward right before Rotorick")
 
 func _capacitor() -> void:
 	var m := fixture()
@@ -1257,8 +1279,8 @@ func _loner_fairies() -> void:
 	verify(not spots.is_empty() and spots.all(func(c): return not reach.has(c) and c != m.player.cell),"The shadow only goes where no carried weapon reaches")
 	var spot: Vector2i = spots[0]
 	var start: Vector2i = m.player.cell
-	verify(m.use_item("shadow_stitch",spot) and m.player.ap == 1 and m.blocked(spot),"Pinning the shadow costs 1 AP and takes the tile")
-	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 1,"Clicking the shadow swaps places for 0 AP")
+	verify(m.use_item("shadow_stitch",spot) and m.player.ap == 2 and m.blocked(spot),"Pinning the shadow costs no AP and takes the tile")
+	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 2,"Clicking the shadow swaps places for 0 AP")
 	verify(not m.can_swap_shadow(start) and not m.player_action(start),"Only one swap a turn")
 	m.tick_walls()
 	verify(m.can_swap_shadow(start) and m.shadow.turns == 2,"The swap comes back next turn while the shadow counts down")

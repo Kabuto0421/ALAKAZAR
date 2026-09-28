@@ -12,5 +12,6 @@ description = "全武器の範囲外の空きマスに\n影を縫い止める。
 summary = "影と0 APで入れ替わる"
 color = Color(0.62, 0.68, 0.95, 1)
 target = 3
+ap_cost = 0
 effect = ExtResource("2")
 icon = ExtResource("3")
