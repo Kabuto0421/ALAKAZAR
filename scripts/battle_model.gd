@@ -6,7 +6,7 @@ const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
 	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
-	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres")]
+	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
@@ -117,6 +117,7 @@ const PLUS_TEXT := {
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["HP2・倒すと連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"abyss_spirit": ["5ターン続く奈落", "自分のマスを押して呼ぶ。\n5ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -148,6 +149,9 @@ var walls: Dictionary = {}
 var cannons: Array[Dictionary] = []
 ## 影縫い精霊: {cell, turns, ready}. The player may swap onto it for 0 AP once a turn.
 var shadow: Dictionary = {}
+## 奈落の精霊: while abyss_turns > 0, every empty tile no carried weapon reaches is a pit.
+var abyss_turns := 0
+var pits: Array[Vector2i] = []
 ## Optional rules, all off by default (the run's start screen turns them on).
 ## A: the siege ring closes in; B: enemy attacks also hit enemies; C: a multi-kill refunds 1 AP.
 var rule_siege := false
@@ -186,6 +190,8 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	walls.clear()
 	cannons.clear()
 	shadow = {}
+	abyss_turns = 0
+	pits.clear()
 	siege_rings = 0
 	locked_slot = -1
 	floor_cells.clear()
@@ -430,7 +436,7 @@ func is_directional(id: String) -> bool:
 	return item_definition(id).directional or (id == "wall_fairy" and is_plus(id))
 
 func blocked(cell: Vector2i) -> bool:
-	return shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
+	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
 
 func item_targets(id: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -439,6 +445,9 @@ func item_targets(id: String) -> Array[Vector2i]:
 		return result
 	# The bow cannot move, but fairies may be placed anywhere along its diagonal lines.
 	var weapon_cells: Array[Vector2i] = bow_lines() if WEAPONS[weapon].get("ranged","") == "bishop" else targets()
+	if item.target == ItemDefinition.Target.SELF:
+		result.append(player.cell)
+		return result
 	var reach: Array[Vector2i] = []
 	if item.target == ItemDefinition.Target.UNREACHED:
 		reach = all_reach()
@@ -450,6 +459,8 @@ func item_targets(id: String) -> Array[Vector2i]:
 			if not enemy_at(cell).is_empty() and item.target != ItemDefinition.Target.WEAPON_ANY:
 				continue
 			if BIG_FAIRIES.has(id) and big_anchor(cell) == Vector2i(-1, -1):
+				continue
+			if item.target == ItemDefinition.Target.SELF:
 				continue
 			if item.target == ItemDefinition.Target.UNREACHED:
 				if not reach.has(cell):
@@ -511,6 +522,7 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	add_log("%sを使用" % fairy_title(id))
 	check_outcome()
 	_combo_check(kills_before)
+	dig_abyss()
 	return true
 
 func hand_size() -> int:
@@ -667,6 +679,7 @@ func player_action(cell: Vector2i) -> bool:
 	var done := _player_action(cell)
 	if done:
 		_combo_check(before)
+		dig_abyss()
 	return done
 
 ## Rule C: one action that fells two or more enemies gives 1 AP back.
@@ -873,6 +886,9 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 		var front: Array[Vector2i] = [enemy.cell + direction]
 		if big:
 			front = _front_cells(enemy, direction)
+		if not big and pits.has(enemy.cell + direction):
+			_fall(enemy, enemy.cell + direction)
+			return
 		var stopped := false
 		for cell in front:
 			if not inside(cell) or blocked(cell) or cell == player.cell:
@@ -1083,6 +1099,37 @@ func swap_shadow() -> void:
 		strike_guard = false
 	check_outcome()
 
+## 奈落の精霊: for WALL_TURNS turns (5 upgraded) the tiles no weapon reaches become pits.
+func summon_abyss() -> void:
+	abyss_turns = 5 if is_plus("abyss_spirit") else WALL_TURNS
+	events.append({"kind":"summon", "cell":player.cell, "id":-2, "fx":"abyss"})
+	add_log("奈落が口を開けた")
+	dig_abyss()
+
+## Re-dig: every empty tile outside all weapons' reach is a pit (occupied tiles are spared).
+func dig_abyss() -> void:
+	if abyss_turns <= 0:
+		return
+	pits.clear()
+	var reach := all_reach()
+	for y in board_size:
+		for x in board_size:
+			var cell := Vector2i(x, y)
+			if cell == player.cell or reach.has(cell) or blocked(cell) or not enemy_at(cell).is_empty() or mines.has(cell):
+				continue
+			pits.append(cell)
+
+## A single-tile enemy shoved into a pit is gone, whatever its HP.
+func _fall(enemy: Dictionary, cell: Vector2i) -> void:
+	enemy.cell = cell
+	enemy.hp = 0
+	kills += 1
+	pits.erase(cell)
+	events.append({"kind":"fall", "cell":cell, "id":-2})
+	events.append({"kind":"hit", "cell":cell, "id":enemy.id})
+	add_log("%sが奈落に落ちた" % TYPES[enemy.type].name)
+	check_outcome()
+
 ## 一匹狼の妖精: a lone ally that hunts on its own until it falls.
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
@@ -1279,6 +1326,13 @@ func tick_walls() -> void:
 		if cannon.turns <= 0:
 			cannons.erase(cannon)
 			add_log("%sが消えた" % CANNON_TITLES[cannon.kind])
+	if abyss_turns > 0:
+		abyss_turns -= 1
+		if abyss_turns <= 0:
+			pits.clear()
+			add_log("奈落が閉じた")
+		else:
+			dig_abyss()
 	if not shadow.is_empty():
 		shadow.turns -= 1
 		shadow.ready = true
@@ -1594,6 +1648,13 @@ func rook_charge(enemy: Dictionary) -> bool:
 		for cell in front:
 			if not inside(cell):
 				stop = true
+			elif pits.has(cell):
+				# Too big to fall: stumbling over the abyss costs 2 and fills it.
+				pits.erase(cell)
+				events.append({"kind":"fall", "cell":cell, "id":-2})
+				damage_enemy(enemy, 2)
+				if enemy.hp <= 0:
+					stop = true
 			elif _smash(cell):
 				# Placed things in the lane are smashed, and the charge stops there.
 				stop = true
@@ -1623,6 +1684,9 @@ func rook_charge(enemy: Dictionary) -> bool:
 				break
 			for other in chain.enemies:
 				other.cell += forward
+				if pits.has(other.cell) and int(other.get("size", 1)) == 1:
+					_fall(other, other.cell)
+					continue
 				if not shoved.has(other):
 					shoved.append(other)
 			if chain.player:
@@ -1738,6 +1802,9 @@ func _charge_chain(charger: Dictionary, forward: Vector2i) -> Dictionary:
 		for tile in cells:
 			var next: Vector2i = tile + forward
 			if cells.has(next):
+				continue
+			if cell != player.cell and cells.size() == 1 and pits.has(next):
+				# Shoved into the abyss: this enemy falls (see rook_charge).
 				continue
 			if not inside(next) or blocked(next):
 				result.ok = false

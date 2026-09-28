@@ -10,6 +10,7 @@ const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SHADOW_SPENT = preload("res://assets/sprites/spirits/shadow_stitch_spent.png")
+const ABYSS_PIT = preload("res://assets/sprites/spirits/abyss_pit.png")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
 const CAPACITOR_CHARGED = preload("res://assets/sprites/spirits/capacitor_fairy_charged.png")
@@ -735,6 +736,8 @@ func _draw() -> void:
 		_text(Vector2(40,208),turn_text,22,CYAN if not busy else GOLD)
 	else:
 		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
+	if model.abyss_turns > 0:
+		_text(Vector2(40,262) if model.board_size >= 8 else Vector2(352,156),"奈落 あと%dターン" % model.abyss_turns,18,Color("b8a8ff"))
 	var countdown := model.siege_countdown()
 	if model.rule_siege:
 		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
@@ -817,6 +820,9 @@ func _draw_board() -> void:
 				var pulse := 0.5 + 0.5 * sin(clock * 8.0)
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.95,0.7,0.2+0.15*pulse))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),GOLD,false,2)
+			if model.pits.has(cell):
+				# 奈落の精霊: a pit where no weapon reaches.
+				draw_texture_rect(ABYSS_PIT,Rect2(pos+Vector2(1,1),Vector2(62,62)),false)
 			if model.sieged(cell):
 				# Rule A: the closed siege ring, dark red with a hatch.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.35,0.02,0.05,0.55))
@@ -1081,7 +1087,7 @@ func _draw_intel() -> void:
 		var lines: PackedStringArray = model.fairy_description(selected_item).split("\n")
 		for i in range(lines.size()):
 			_text(Vector2(850,335+i*25),lines[i],18,INK)
-		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "配置先を選択",23,item.color)
+		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	if not enemy.is_empty():
@@ -1378,7 +1384,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1521,6 +1527,11 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"fall":
+			# Swallowed by the abyss: a closing dark mouth with a violet rim.
+			var mouth := 26.0 * (1.0 - t * 0.7)
+			draw_circle(pos, mouth, Color(0.02, 0.0, 0.06, fade))
+			draw_arc(pos, mouth + 4, 0, TAU, 24, Color(0.62, 0.5, 1.0, fade), 3, true)
 		"combo":
 			# Rule C: the refund, rising over the player.
 			_text(pos + Vector2(-58, -40 - t * 24), "連撃！ AP+1", 24, Color(GOLD, fade))

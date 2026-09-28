@@ -161,6 +161,15 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			if progress > 0.5:
 				canvas._text(Vector2(988,236),"−2",20,Color("ff8a7a"))
 			canvas._text(Vector2(856,306),"ひとりなら2・群れると1",18,item.color)
+		"abyss_spirit":
+			# Tiles out of reach sink into the abyss; a shove drops the enemy in.
+			for x in range(5):
+				_tile(canvas,Vector2(876+x*50,268),item.color,40)
+			canvas.draw_texture_rect(canvas.ABYSS_PIT,Rect2(Vector2(1056,248),Vector2(40,40)),false)
+			canvas._draw_player_portrait(model.weapon,Vector2(976,268),40)
+			if progress < 0.55:
+				_enemy(canvas,Vector2(1026,268))
+			canvas._text(Vector2(900,236),"届かない所が奈落",17,item.color)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/abyss_spirit.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/abyss_spirit.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "abyss_spirit"
+title = "奈落の精霊"
+description = "自分のマスを押して呼ぶ。\n3ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"
+summary = "届かない所が奈落に"
+color = Color(0.55, 0.45, 1, 1)
+target = 4
+effect = ExtResource("2")
+icon = ExtResource("3")

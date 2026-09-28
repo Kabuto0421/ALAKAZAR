@@ -33,11 +33,11 @@ const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
 const RARE_CHANCE := 0.3
 ## Late fairies: placed only where no carried weapon reaches; they only turn
 ## up after Rotorick.
-const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf"]
+const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf", "abyss_spirit"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
 const CIRCLE_CHANCE_LATE := 0.3
-var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf"]
+var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit"]
 
 func start(seed_value: int = -1) -> void:
 	if seed_value < 0:

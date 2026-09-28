@@ -2,7 +2,8 @@ extends Resource
 
 ## WEAPON_ANY: any tile in weapon range, including one an enemy stands on.
 ## UNREACHED: an empty tile none of the carried weapons reaches.
-enum Target { WEAPON_EMPTY, ANY_EMPTY, WEAPON_ANY, UNREACHED }
+## SELF: the player's own tile (the fairy is simply called).
+enum Target { WEAPON_EMPTY, ANY_EMPTY, WEAPON_ANY, UNREACHED, SELF }
 @export var id: String
 @export var title: String
 @export_multiline var description: String

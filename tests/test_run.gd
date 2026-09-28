@@ -272,6 +272,7 @@ func _initialize() -> void:
 	_loner_fairies()
 	_optional_rules()
 	_generals()
+	_abyss()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1519,3 +1520,51 @@ func _generals() -> void:
 				seen.append(e.type)
 		verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Placements with generals stay valid (level %d)" % level)
 	verify(seen.has("gold") and seen.has("silver"),"Gold and silver generals appear in the mid and late fights")
+
+func _abyss() -> void:
+	# 奈落の精霊: called on the player's own tile; every empty tile out of reach becomes a pit.
+	var m := fixture()
+	var ids: Array = Run.Weapons.DATA.map(func(w): return w.id)
+	var shield: int = ids.find("shield")
+	m.owned_weapons.assign([shield, 1, 2])
+	m.weapon = shield
+	m.fairy_loadout.assign(["abyss_spirit"])
+	m.refill_fairies()
+	m.enemies.clear()
+	var foe: Dictionary = m.make_enemy("heavy",Vector2i(2,2),0)
+	foe.hp = 5
+	m.enemies.append(foe)
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),1))
+	verify(m.item_targets("abyss_spirit") == [m.player.cell],"The abyss is called on the player's own tile")
+	verify(m.use_item("abyss_spirit",m.player.cell) and m.player.ap == 1 and m.abyss_turns == 3,"Calling it costs 1 AP and lasts three turns")
+	var reach: Array = m.all_reach()
+	verify(not m.pits.is_empty() and m.pits.all(func(c): return not reach.has(c)) and not m.pits.has(foe.cell) and m.pits.has(Vector2i(3,2)),"Every empty tile out of reach is a pit; enemies' tiles are spared")
+	verify(m.blocked(Vector2i(3,2)),"Pits block walking")
+	# Shoved into a pit, a small enemy falls whatever its HP.
+	verify(m.player_action(Vector2i(2,2)) and m.enemy_at(Vector2i(2,2)).is_empty() and m.enemy_at(Vector2i(3,2)).is_empty() and m.enemies.size() == 1,"A shield shove drops the enemy into the abyss")
+	# Moving re-digs around the new position.
+	m.player.ap = 2
+	m.player_action(Vector2i(2,2))
+	reach = m.all_reach()
+	verify(m.pits.all(func(c): return not reach.has(c)) and not m.pits.has(m.player.cell),"Pits follow the player's reach after a move")
+	# A 2x2 charger does not fall: stumbling over a pit costs it 2.
+	var rm := fixture()
+	rm.enemies.clear()
+	var rook: Dictionary = rm.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	rook.hp = 5
+	rm.enemies.append(rook)
+	rm.player.cell = Vector2i(0,5)
+	rm.abyss_turns = 3
+	rm.pits.append(Vector2i(3,2))
+	rm.phase = Rules.Phase.ENEMY
+	rm.rook_charge(rook)
+	verify(rook.hp == 3 and not rm.pits.has(Vector2i(3,2)),"A charging rook stumbles over the pit for 2 and fills it")
+	# The abyss closes after three turns.
+	m.tick_walls()
+	m.tick_walls()
+	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open through two turn changes")
+	m.tick_walls()
+	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and closes on the third")
+	verify(Run.LATE_FAIRIES.has("abyss_spirit"),"The abyss spirit is a late fairy")
