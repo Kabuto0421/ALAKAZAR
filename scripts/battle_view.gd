@@ -9,6 +9,7 @@ const WeaponEffect = preload("res://scripts/weapon_effect.gd")
 const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
+const SHADOW_SPENT = preload("res://assets/sprites/spirits/shadow_stitch_spent.png")
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
 const CAPACITOR_CHARGED = preload("res://assets/sprites/spirits/capacitor_fairy_charged.png")
@@ -604,6 +605,7 @@ func _process(delta: float) -> void:
 		for wolf in model.allies:
 			if wolf.type == "wolf" and actors.has(wolf.id):
 				actors[wolf.id].sulking = wolf.hp > 0 and reach.has(wolf.cell)
+				actors[wolf.id].sulk_flip = model.player.cell.x > wolf.cell.x
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
@@ -812,7 +814,7 @@ func _draw_board() -> void:
 				# The pinned shadow; a red ring pulses while a swap is available.
 				if model.shadow.ready:
 					draw_arc(_center(cell),27,0,TAU,28,Color(model.item_definition("shadow_stitch").color,0.55+0.3*sin(clock*5.0)),3,true)
-				SpiritIcon.paint(self,_center(cell),model.item_definition("shadow_stitch").icon,1.0)
+				SpiritIcon.paint(self,_center(cell),model.item_definition("shadow_stitch").icon if model.shadow.ready else SHADOW_SPENT,1.1)
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
