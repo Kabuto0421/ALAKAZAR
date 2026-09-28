@@ -1706,8 +1706,9 @@ func _prison_king() -> void:
 	var cell: Vector2i = king.cell
 	m.knock_back(king, Vector2i.RIGHT, 1)
 	verify(king.cell == cell and king.hp == 9,"The king cannot be shoved; the shove slams into him instead")
-	# Next to the king, the player is struck.
+	# He never attacks: standing right next to him is safe from the king himself.
 	m.player.cell = king.cell + Vector2i(-1, 1)
 	m.player.hp = 5
+	m.fallen.clear()
 	m.king_turn(king)
-	verify(m.player.hp == 4,"The king strikes a player who stands next to him")
+	verify(m.player.hp == 5 and king.cell == cell,"The king neither attacks nor moves")

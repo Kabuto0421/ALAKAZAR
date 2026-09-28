@@ -1449,7 +1449,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
 	elif enemy.type == "king":
 		var next := model.next_revival()
-		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "隣に来た者を叩き潰す",18,Color("ff6b8a"))
+		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
 	elif enemy.type == "fortress":
 		_text(Vector2(852,450),"毎ターン兵を1体出す。壊すと2体",18,Color("9ab8c8"))
 	elif enemy.type == "gold":

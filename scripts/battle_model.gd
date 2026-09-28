@@ -2080,15 +2080,11 @@ func _note_fallen() -> void:
 			enemy.noted = true
 			fallen.append(enemy.type)
 
-## 監獄の王: never moves. If the player stands next to him he strikes (1); otherwise
-## he raises the first soldier that fell, next to himself on the tile nearest the player.
+## 監獄の王: never moves and never attacks. His reach (a shogi king's: every tile
+## touching him) is only where he raises the first soldier that fell, on the free tile
+## nearest the player.
 func king_turn(king: Dictionary) -> void:
 	king.ap = 0
-	if ring_of(king).has(player.cell):
-		king.intent = "鉄槌"
-		events.append({"kind":"quake", "cell":player.cell, "id":-2, "cells":[player.cell]})
-		_hit_player(king)
-		return
 	if fallen.is_empty():
 		king.intent = "静観"
 		return
