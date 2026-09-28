@@ -1145,6 +1145,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		actor._draw_cavalry(Color.WHITE,self)
 	elif UnitView.SOLDIER_SHEETS.has(enemy.type):
 		UnitView.draw_soldier(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "aim" or int(enemy.get("learned",-1)) >= 0,Color.WHITE,0.9)
+	elif enemy.type in Rules.GENERALS:
+		UnitView.draw_general(self,enemy.type)
 	elif enemy.type in UnitView.BOSS_KINDS:
 		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:
@@ -1329,10 +1331,14 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
 	elif enemy.type == "shield":
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
+	elif enemy.type == "gold":
+		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
+	elif enemy.type == "silver":
+		_text(Vector2(852,450),"左が前。上下と真右には動けない",18,Color("d8e2ee"))
 	elif enemy.type == "analyst":
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
-	var intent := "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
+	var intent := "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)

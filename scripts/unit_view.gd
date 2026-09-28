@@ -97,6 +97,26 @@ func play_hit_reaction(direction: Vector2) -> void:
 	hit_elapsed = 0.0
 	flash = 0.12
 
+## 金将兵・銀将兵: a living shogi piece, its point towards its front (left).
+static func draw_general(canvas: CanvasItem, kind: String, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
+	var gold := kind == "gold"
+	var metal := Color("f2c14e") if gold else Color("d6dfe9")
+	var shade := Color("b0801c") if gold else Color("8e9aa8")
+	var ink := Color("2a1a06") if gold else Color("1b2530")
+	var outline := PackedVector2Array([Vector2(-30,-3), Vector2(-13,-27), Vector2(24,-30), Vector2(24,25), Vector2(-13,21)])
+	var face := PackedVector2Array([Vector2(-26,-3), Vector2(-11,-24), Vector2(21,-27), Vector2(21,22), Vector2(-11,18)])
+	var lower := PackedVector2Array([Vector2(-26,-3), Vector2(21,-3), Vector2(21,22), Vector2(-11,18)])
+	for points in [outline, face, lower]:
+		for i in points.size():
+			points[i] *= factor
+	canvas.draw_colored_polygon(outline, ink * tint)
+	canvas.draw_colored_polygon(face, metal * tint)
+	canvas.draw_colored_polygon(lower, shade.lerp(metal, 0.45) * tint)
+	# Two glowing eyes on the point side, then the character.
+	canvas.draw_circle(Vector2(-14,-9) * factor, 2.4 * factor, Color("ff4a4a"))
+	canvas.draw_circle(Vector2(-14,3) * factor, 2.4 * factor, Color("ff4a4a"))
+	canvas.draw_string(BADGE_FONT, Vector2(-7,9) * factor, "金" if gold else "銀", HORIZONTAL_ALIGNMENT_LEFT, -1, int(26 * factor), ink)
+
 func _draw() -> void:
 	if span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
@@ -152,6 +172,8 @@ func _draw() -> void:
 		draw_boss(self, kind, facing, braced, tint, 1.0, reel)
 	elif SOLDIER_SHEETS.has(kind):
 		draw_soldier(self, kind, facing, alt_row, tint)
+	elif kind in ["gold", "silver"]:
+		draw_general(self, kind, tint)
 	else:
 		var side := 64.0 if kind == "heavy" else 56.0
 		draw_texture_rect_region(ENEMY_ATLAS,Rect2(-side/2,-side/2-4,side,side),Rect2(facing*28,0,28,28),tint)

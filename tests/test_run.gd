@@ -271,6 +271,7 @@ func _initialize() -> void:
 	_analyst()
 	_loner_fairies()
 	_optional_rules()
+	_generals()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1476,3 +1477,45 @@ func _optional_rules() -> void:
 		m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),2))
 		verify(m.use_item("magic_bolt",Vector2i(2,1),Vector2i.DOWN) and m.enemies.size() == 1,"The bolt fells both enemies (combo %s)" % combo)
 		verify(m.player.ap == (2 if combo else 1),"Rule C refunds 1 AP only when it is on (combo %s)" % combo)
+
+func _generals() -> void:
+	# Gold: every neighbour but the two back diagonals (front = left). Silver: front three and back diagonals.
+	var m := fixture()
+	m.enemies.clear()
+	var gold: Dictionary = m.make_enemy("gold",Vector2i(3,2),0)
+	var silver: Dictionary = m.make_enemy("silver",Vector2i(3,4),1)
+	m.enemies.append_array([gold, silver])
+	verify(m.enemy_offsets(gold).size() == 6 and not m.enemy_offsets(gold).has(Vector2i(1,-1)) and not m.enemy_offsets(gold).has(Vector2i(1,1)) and m.enemy_offsets(gold).has(Vector2i(1,0)),"Gold moves like a shogi gold facing left")
+	verify(m.enemy_offsets(silver).size() == 5 and not m.enemy_offsets(silver).has(Vector2i(0,1)) and not m.enemy_offsets(silver).has(Vector2i(1,0)) and m.enemy_offsets(silver).has(Vector2i(1,1)),"Silver moves like a shogi silver facing left")
+	verify(gold.hp == 2 and gold.ap == 1 and silver.hp == 1 and silver.ap == 2,"Gold is sturdy (HP2 AP1), silver quick (HP1 AP2)")
+	# Standing on a back diagonal of the gold is safe; standing in front of it is not.
+	m.player.cell = Vector2i(4,1)
+	m.player.hp = 5
+	_enemy_turn(m)
+	verify(m.player.hp == 5,"The gold cannot strike its back diagonal")
+	m = fixture()
+	m.enemies.clear()
+	gold = m.make_enemy("gold",Vector2i(3,2),0)
+	m.enemies.append(gold)
+	m.player.cell = Vector2i(2,1)
+	m.player.hp = 5
+	_enemy_turn(m)
+	verify(m.player.hp == 4,"The gold strikes its front diagonal")
+	# The silver closes in over its own moves and strikes.
+	m = fixture()
+	m.enemies.clear()
+	silver = m.make_enemy("silver",Vector2i(4,4),0)
+	m.enemies.append(silver)
+	m.player.cell = Vector2i(1,2)
+	m.player.hp = 5
+	_enemy_turn(m)
+	verify(m.distance(silver.cell, m.player.cell) < 5,"The silver advances using its own moves")
+	# Placed in the mid and late fights.
+	var seen: Array = []
+	for level in Rules.MID_LEVELS + Rules.LATE_LEVELS:
+		m.reset(level)
+		for e in m.enemies:
+			if e.type in Rules.GENERALS and not seen.has(e.type):
+				seen.append(e.type)
+		verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Placements with generals stay valid (level %d)" % level)
+	verify(seen.has("gold") and seen.has("silver"),"Gold and silver generals appear in the mid and late fights")

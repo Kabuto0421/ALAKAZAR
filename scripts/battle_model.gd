@@ -37,7 +37,11 @@ const TYPES = {
 	"shield": {"name": "盾兵", "hp": 1, "ap": 1},
 	"analyst": {"name": "解析兵", "hp": 2, "ap": 1},
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
+	"silver": {"name": "銀将兵", "hp": 1, "ap": 2},
+	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 }
+## Shogi generals: they always face left (towards where the player starts).
+const GENERALS = ["gold", "silver"]
 ## Two-by-two bosses: their cell is the top-left of the footprint.
 const BIG = ["rook", "prison", "slot", "shadow"]
 ## Chargers that move like a rook (飛車) with a braced direction.
@@ -195,7 +199,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -222,6 +226,14 @@ func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
 	var state := "idle" if kind in CHARGERS else "approach"
 	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0, "learned": -1}
 
+## Shogi moves with the front to the left: gold everywhere but the back diagonals,
+## silver the three front tiles and the two back diagonals.
+func general_offsets(kind: String) -> Array:
+	var f := Vector2i.LEFT
+	if kind == "gold":
+		return [f, f + Vector2i.UP, f + Vector2i.DOWN, Vector2i.UP, Vector2i.DOWN, -f]
+	return [f, f + Vector2i.UP, f + Vector2i.DOWN, -f + Vector2i.UP, -f + Vector2i.DOWN]
+
 ## Every tile a unit covers (four for the two-by-two bosses).
 func footprint(enemy: Dictionary) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -239,6 +251,8 @@ func cavalry_jumps(direction: int) -> Array[Vector2i]:
 func enemy_offsets(enemy: Dictionary) -> Array:
 	if enemy.type == "archer":
 		return [Vector2i.UP, Vector2i.DOWN]
+	if enemy.type in GENERALS:
+		return general_offsets(enemy.type)
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.

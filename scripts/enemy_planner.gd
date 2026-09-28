@@ -121,6 +121,8 @@ func beat(model: RefCounted, index: int) -> void:
 				enemy.ap = 0
 		elif enemy.type in Rules.JUMPERS:
 			_cavalry_action(model, enemy)
+		elif enemy.type in Rules.GENERALS:
+			_general_action(model, enemy)
 		elif enemy.type in ["heavy", "executioner", "shield", "analyst"]:
 			var action: Dictionary = heavy_behavior.decide(model,enemy)
 			if action.kind == "step":
@@ -179,6 +181,44 @@ func _cavalry_action(model: RefCounted, enemy: Dictionary) -> void:
 	if not options.is_empty():
 		model.enemy_step(enemy,options[0])
 	else:
+		enemy.ap = 0
+
+## 金将兵・銀将兵: strike when the player sits on one of its move tiles; otherwise take
+## the first step of the shortest route (over its own moves) to a tile that threatens them.
+func _general_action(model: RefCounted, enemy: Dictionary) -> void:
+	var moves: Array = model.enemy_offsets(enemy)
+	if moves.has(model.player.cell - enemy.cell):
+		model.enemy_step(enemy, model.player.cell)
+		return
+	var start: Vector2i = enemy.cell
+	var first := {start: start}
+	var queue: Array[Vector2i] = [start]
+	var head := 0
+	var step := start
+	while head < queue.size() and step == start:
+		var current: Vector2i = queue[head]
+		head += 1
+		for offset in moves:
+			var next: Vector2i = current + offset
+			if first.has(next) or not model.inside(next) or model.blocked(next) or next == model.player.cell or model.mines.has(next):
+				continue
+			var other: Dictionary = model.enemy_at(next)
+			if not other.is_empty() and other.id != enemy.id:
+				continue
+			first[next] = next if current == start else first[current]
+			if moves.has(model.player.cell - next):
+				step = first[next]
+				break
+			queue.append(next)
+	if step == start:
+		# No route to a striking tile: close the distance with whatever move it has.
+		var best := start
+		for offset in moves:
+			var next: Vector2i = start + offset
+			if model.inside(next) and not model.blocked(next) and next != model.player.cell and model.enemy_at(next).is_empty() and model.distance(next, model.player.cell) < model.distance(best, model.player.cell):
+				best = next
+		step = best
+	if step == start or not model.enemy_step(enemy, step):
 		enemy.ap = 0
 
 func _move(model: RefCounted, enemy: Dictionary, cell: Vector2i) -> void:
