@@ -1050,14 +1050,35 @@ func _mechanic_weapons() -> void:
 	# Pools: the lance is a pre-boss reward, the rook and bishop mid-game drops, the staff an early reward.
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
-	verify(W.is_boss_reward(ids.find("lance")) and W.mid_pool().has(ids.find("rook_spear")) and W.mid_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
+	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
 	verify(W.DATA.size() == 45,"39 weapons plus six wide-reach late ones")
 	# 竜王槍 / 竜馬剣: slide lines plus single steps; 八方桂剣 and 王将剣 are late drops.
 	m = _weapon_room("dragon_spear",[Vector2i(1,0)])
 	verify(m.targets().has(Vector2i(0,1)) and m.targets().has(Vector2i(2,3)) and m.targets().has(Vector2i(m.board_size-1,2)) and not m.targets().has(Vector2i(3,4)),"The dragon spear slides along lines and steps one tile diagonally")
 	m = _weapon_room("horse_blade",[])
 	verify(m.targets().has(Vector2i(1,1)) and m.targets().has(Vector2i(3,4)) and not m.targets().has(Vector2i(1,0)),"The dragon horse slides diagonally and steps one tile straight")
-	verify(["dragon_spear","horse_blade","eight_knight","gold","silver","king"].all(func(id): return W.mid_pool().has(ids.find(id))),"The wide-reach weapons are late drops")
+	verify(["eight_knight","gold","silver","king"].all(func(id): return W.mid_pool().has(ids.find(id))),"The wide-reach generals drop after the first boss")
+	verify(["rook_spear","bishop_blade","dragon_spear","horse_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The sliding weapons are late drops")
+	# Sliding weapons never turn up before Rotorick, and do after it.
+	var before := false
+	var after := false
+	for seed_value in 30:
+		for stage in [Rules.BOSS_LEVEL, Rules.MID_LEVELS[0], Rules.MID_LEVELS[2], Rules.BOSS2_LEVEL, Rules.LATE_LEVELS[0]]:
+			var trial := Run.new()
+			trial.start(seed_value)
+			trial.choose(0)
+			trial.choose(0)
+			trial.stage = stage
+			trial.start_battle()
+			trial.battle.enemies.clear()
+			trial.battle.check_outcome()
+			trial.finish_battle()
+			var sliding: bool = trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value))
+			if stage < Rules.BOSS2_LEVEL:
+				before = before or sliding
+			else:
+				after = after or sliding
+	verify(not before and after,"Sliding weapons are offered only after Rotorick")
 
 func _capacitor() -> void:
 	var m := fixture()

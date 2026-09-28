@@ -43,13 +43,13 @@ const DATA = [
 	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 # Weapons with their own mechanics (not just a shape).
 	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "slide":[Vector2i.RIGHT], "detail":"右へ一直線に滑る。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
-	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"mid", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横に滑る。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
-	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"mid", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜めに滑る。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
+	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横に滑る。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
+	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"late", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜めに滑る。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
 	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
 	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
-	# Late weapons with wide reach: strong, but they leave no tile for the loner fairies.
-	{"id":"dragon_spear", "name":"竜王槍", "short":"竜王", "row":2, "color":"ff9a5a", "tier":"mid", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "steps":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"縦横に滑り、斜めにも1マス。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)]},
-	{"id":"horse_blade", "name":"竜馬剣", "short":"竜馬", "row":2, "color":"6fb4ff", "tier":"mid", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "steps":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"斜めに滑り、縦横にも1マス。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2),Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1),Vector2i(-1,0)]},
+	# Wide reach: strong, but they leave few tiles for the loner fairies.
+	{"id":"dragon_spear", "name":"竜王槍", "short":"竜王", "row":2, "color":"ff9a5a", "tier":"late", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "steps":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"縦横に滑り、斜めにも1マス。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)]},
+	{"id":"horse_blade", "name":"竜馬剣", "short":"竜馬", "row":2, "color":"6fb4ff", "tier":"late", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "steps":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"斜めに滑り、縦横にも1マス。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2),Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1),Vector2i(-1,0)]},
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"gold", "name":"金将剣", "short":"金将", "row":2, "color":"ffd35b", "tier":"mid", "detail":"右3マス・上下・左（斜め後ろ以外の6マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,-1),Vector2i(0,1),Vector2i(-1,0)]},
@@ -67,6 +67,13 @@ static func is_mid(index: int) -> bool:
 
 static func mid_pool() -> Array:
 	return range(DATA.size()).filter(func(index: int) -> bool: return is_mid(index))
+
+## Sliding weapons (飛車槍・角剣・竜王槍・竜馬剣): offered only after Rotorick.
+static func is_late(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "late"
+
+static func late_pool() -> Array:
+	return range(DATA.size()).filter(func(index: int) -> bool: return is_late(index))
 
 static func base_damage(index: int) -> int:
 	return int(DATA[index].get("damage",1)) if index >= 0 and index < DATA.size() else 1
@@ -107,7 +114,7 @@ static func slides(index: int) -> Array:
 
 ## The pre-boss reward: three-tile weapons plus the ones marked for it.
 static func is_boss_reward(index: int) -> bool:
-	return (offsets(index).size() == 3 and not is_mid(index)) or DATA[index].get("tier", "") == "boss"
+	return (offsets(index).size() == 3 and not is_mid(index) and not is_late(index)) or DATA[index].get("tier", "") == "boss"
 
 ## Only moves left/right: the starting forward/backward pair already covers that
 ## (knockback weapons earn their place by the shove).

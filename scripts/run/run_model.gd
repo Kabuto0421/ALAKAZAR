@@ -124,10 +124,11 @@ func finish_battle() -> bool:
 	var weapons: Array = []
 	var single_only := stage < Weapons.SINGLE_TILE_STAGES
 	var mid := stage >= Battle.BOSS_LEVEL
+	var late := stage >= Battle.BOSS2_LEVEL
 	# The last fight before a boss pays better: only three-tile weapons.
 	var before_boss := is_before_boss()
 	for index in range(Weapons.DATA.size()):
-		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid):
+		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or (Weapons.is_late(index) and not late):
 			continue
 		if before_boss:
 			if not Weapons.is_boss_reward(index):
@@ -135,8 +136,11 @@ func finish_battle() -> bool:
 		elif single_only and not Weapons.early_reward_pool().has(index):
 			continue
 		weapons.append(index)
-	# After the first boss, one weapon slot is a mid-game drop (hammer, bow) when one is left.
-	var drops: Array = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	# After the first boss, one weapon slot is a mid-game drop (hammer, bow, ...) when one is
+	# left; after Rotorick it is a sliding weapon instead.
+	var drops: Array = (Weapons.late_pool() if late else Weapons.mid_pool()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
+	if late and drops.is_empty():
+		drops = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
 	if mid and not drops.is_empty():
 		var drop: int = sample(drops,1)[0]
 		offers.append({"kind":"weapon","value":drop})
@@ -153,7 +157,6 @@ func finish_battle() -> bool:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
 		pick.rare = true
-	var late := stage >= Battle.BOSS2_LEVEL
 	var fairy_pool: Array = reward_fairy_pool.filter(func(id: String) -> bool: return late or not LATE_FAIRIES.has(id))
 	var fairy_candidates: Array = fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.

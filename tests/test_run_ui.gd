@@ -86,7 +86,7 @@ func run() -> void:
 	# Every movement pattern shares the existing sword animation, including backward attacks.
 	for weapon in range(Rules.WEAPONS.size()):
 		# Mid-game weapons and the swap staff (no damage, it trades places) have their own tests.
-		if Rules.WEAPONS[weapon].get("tier","") == "mid" or Rules.WEAPONS[weapon].get("swap", false):
+		if Rules.WEAPONS[weapon].get("tier","") in ["mid","late"] or Rules.WEAPONS[weapon].get("swap", false):
 			continue
 		view.model.phase=Rules.Phase.PLAYER
 		view.model.player.ap=2
