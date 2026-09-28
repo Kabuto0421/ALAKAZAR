@@ -821,8 +821,21 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.95,0.7,0.2+0.15*pulse))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),GOLD,false,2)
 			if model.pits.has(cell):
-				# 奈落の精霊: a pit where no weapon reaches.
-				draw_texture_rect(ABYSS_PIT,Rect2(pos+Vector2(1,1),Vector2(62,62)),false)
+				# 奈落の精霊: connected pits read as one dark rift (no repeated holes),
+				# with a crumbling stone lip only where the rift meets solid floor.
+				draw_rect(Rect2(pos,Vector2(TILE,TILE)),Color("08060f"))
+				draw_rect(Rect2(pos,Vector2(TILE,TILE)),Color(0.32,0.24,0.62,0.07+0.04*sin(clock*1.3+x*0.8+y*0.6)))
+				for side in [Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]:
+					if model.pits.has(cell+side):
+						continue
+					var lip := Rect2(pos,Vector2(TILE,6)) if side == Vector2i.UP else Rect2(pos+Vector2(0,TILE-6),Vector2(TILE,6)) if side == Vector2i.DOWN else Rect2(pos,Vector2(6,TILE)) if side == Vector2i.LEFT else Rect2(pos+Vector2(TILE-6,0),Vector2(6,TILE))
+					draw_rect(lip,Color("4a4233"))
+					var edge_a := lip.position if side != Vector2i.RIGHT else lip.position+Vector2(6,0)
+					var edge_b := edge_a+(Vector2(TILE,0) if side.y != 0 else Vector2(0,TILE))
+					if side == Vector2i.DOWN:
+						edge_a += Vector2(0,6)
+						edge_b += Vector2(0,6)
+					draw_line(edge_a,edge_b,Color("1a1610"),2)
 			if model.sieged(cell):
 				# Rule A: the closed siege ring, dark red with a hatch.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.35,0.02,0.05,0.55))
