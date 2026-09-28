@@ -279,9 +279,10 @@ def step(k):
 
 
 def enemy_step(k):
-    # Armoured boots: heavier, with a jingle of plates.
-    return mix(0.3, (0, k.thump(0.14, 95, 50, 0.04), 1.0), (0, k.burst(0.08, 100, 1400, 0.02), 0.7),
-               (0.01, k.iron(0.2, 1700, 0.06, 0.25), 1.0), (0.03, k.iron(0.15, 2300, 0.04, 0.15), 1.0)), "step", 0.08
+    # Soldiers' heavy boots on stone: a low, dull thud, no metal (it plays every
+    # time the enemies move, so it stays soft and out of the way).
+    return mix(0.3, (0, k.thump(0.16, 85, 42, 0.05), 1.0), (0, k.burst(0.08, 80, 700, 0.02), 0.6),
+               (0.015, k.grit(0.08, 300, 1200, 300, 0.02), 0.15)), "step", 0.08
 
 
 # --- The Prison King -------------------------------------------------------

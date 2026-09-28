@@ -367,7 +367,7 @@ func _enemy_turn() -> void:
 			cells[enemy.id] = enemy.cell
 		planner.beat(model,beat)
 		if model.enemies.any(func(e: Dictionary) -> bool: return cells.has(e.id) and cells[e.id] != e.cell):
-			_sound("enemy_step")
+			_sound("enemy_step", -3.0)
 		if not await _play_charges(token):
 			return
 		_sync_units(true)
