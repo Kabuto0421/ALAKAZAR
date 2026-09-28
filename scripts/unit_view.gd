@@ -1,8 +1,23 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
-const PRISON_KING = preload("res://assets/sprites/enemies/prison_king.png")
-const PRISON_FORTRESS = preload("res://assets/sprites/enemies/prison_fortress.png")
+## The Prison King and his fortresses: 256px sprite-sheet frames in one row.
+const KING_SHEETS = {
+	"idle": [preload("res://assets/sprites/boss/prison_king_idle.png"), 6, 5.0],
+	"rage": [preload("res://assets/sprites/boss/prison_king_rage_idle.png"), 6, 8.0],
+	"revive": [preload("res://assets/sprites/boss/prison_king_revive.png"), 6, 7.0],
+	"hurt": [preload("res://assets/sprites/boss/prison_king_hurt.png"), 3, 10.0],
+	"death": [preload("res://assets/sprites/boss/prison_king_death.png"), 8, 5.0],
+}
+const FORTRESS_SHEETS = {
+	"idle": [preload("res://assets/sprites/boss/prison_fortress_idle.png"), 4, 4.0],
+	"spawn": [preload("res://assets/sprites/boss/prison_fortress_spawn.png"), 6, 9.0],
+}
+const FORTRESS_DAMAGED = {
+	2: preload("res://assets/sprites/boss/prison_fortress_hp2.png"),
+	1: preload("res://assets/sprites/boss/prison_fortress_hp1.png"),
+}
+const KING_PORTRAIT = preload("res://assets/sprites/boss/prison_king_portrait.png")
 const GLUTTON = preload("res://assets/sprites/spirits/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
@@ -59,6 +74,9 @@ var reel := 0
 ## Analyst: the weapon it has learned ("" = none) and its colour.
 var learned_text := ""
 var learned_color := Color.WHITE
+## A one-shot sheet animation (the king's revive/hurt/death, a fortress's spawn); "" = idle loop.
+var anim := ""
+var anim_time := 0.0
 const BADGE_FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 
 func _ready() -> void:
@@ -80,8 +98,36 @@ func _process(delta: float) -> void:
 		hit_elapsed += delta
 		if hit_elapsed >= 0.16:
 			hit_elapsed = -1.0
+	if anim != "":
+		anim_time += delta
+		# Death holds its last frame; the others drop back to the idle loop.
+		if anim_time >= anim_length(anim) and anim != "death":
+			anim = ""
 	queue_redraw()
 	status_layer.queue_redraw()
+
+func _sheets() -> Dictionary:
+	return KING_SHEETS if kind == "king" else FORTRESS_SHEETS
+
+## Start a one-shot sheet animation; a death is never interrupted.
+func play_anim(name: String) -> void:
+	if anim == "death" or not _sheets().has(name):
+		return
+	anim = name
+	anim_time = 0.0
+
+func anim_length(name: String) -> float:
+	var sheet: Array = _sheets().get(name, [null, 1, 1.0])
+	return sheet[1] / sheet[2]
+
+func anim_done() -> bool:
+	return anim == "" or anim_time >= anim_length(anim)
+
+## One frame of a sheet: a one-shot plays once, the idle loops.
+func _sheet_frame(sheet: Array, time: float, once: bool) -> Rect2:
+	var frame := int(time * sheet[2])
+	frame = mini(frame, sheet[1] - 1) if once else frame % int(sheet[1])
+	return Rect2(frame * 256, 0, 256, 256)
 
 func play_sword_attack(direction: int) -> void:
 	sword_attack_facing = clampi(direction, 0, 3)
@@ -180,23 +226,22 @@ func _draw() -> void:
 	elif kind in ["gold", "silver"]:
 		draw_general(self, kind, tint)
 	elif kind == "king":
-		# The Prison King breathes slowly on his throne; his cell glows.
-		var now := Time.get_ticks_msec() / 1000.0
-		var enraged := hp <= 5
-		var breath := sin(now * (4.0 if enraged else 1.6)) * (3.0 if enraged else 2.0)
+		# The Prison King on his throne: idle (or rage) loop, one-shots on top.
+		var enraged := hp <= 5 and anim != "death"
 		if enraged:
-			# Enraged (half HP or less): a pulsing red aura and a red cast.
-			draw_circle(Vector2(0,-8),92+sin(now*6.0)*6.0,Color(1,0.1,0.1,0.18))
-		draw_texture_rect(PRISON_KING,Rect2(-96,-104+breath,192,192),false,tint*(Color(1,0.62,0.62) if enraged else Color.WHITE))
+			# A red heat haze behind the enraged king.
+			draw_circle(Vector2(0,-8),98+sin(clock*6.0)*6.0,Color(1,0.1,0.1,0.14))
+		var sheet: Array = KING_SHEETS[anim] if anim != "" else KING_SHEETS["rage" if enraged else "idle"]
+		draw_texture_rect_region(sheet[0],Rect2(-116,-136,232,232),_sheet_frame(sheet,anim_time if anim != "" else clock,anim != ""),tint)
 	elif kind == "fortress":
-		draw_texture_rect(PRISON_FORTRESS,Rect2(-64,-70,128,128),false,tint)
-		# Cracks as it loses HP (3 → 1).
-		if hp <= 2:
-			draw_line(Vector2(-20,-40),Vector2(-4,-10),Color("1a1c24"),3)
-			draw_line(Vector2(-4,-10),Vector2(10,-20),Color("1a1c24"),3)
-		if hp <= 1:
-			draw_line(Vector2(24,-30),Vector2(12,10),Color("1a1c24"),3)
-			draw_line(Vector2(12,10),Vector2(28,30),Color("1a1c24"),3)
+		if anim == "spawn":
+			var sheet: Array = FORTRESS_SHEETS["spawn"]
+			draw_texture_rect_region(sheet[0],Rect2(-72,-84,144,144),_sheet_frame(sheet,anim_time,true),tint)
+		elif FORTRESS_DAMAGED.has(hp):
+			draw_texture_rect(FORTRESS_DAMAGED[hp],Rect2(-72,-84,144,144),false,tint)
+		else:
+			var sheet: Array = FORTRESS_SHEETS["idle"]
+			draw_texture_rect_region(sheet[0],Rect2(-72,-84,144,144),_sheet_frame(sheet,clock,false),tint)
 	elif kind == "glutton":
 		# A slight chewing bob.
 		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0

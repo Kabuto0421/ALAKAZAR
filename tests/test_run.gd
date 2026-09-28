@@ -1702,11 +1702,13 @@ func _prison_king() -> void:
 	forts[1].hp = 0
 	m.check_outcome()
 	verify(m.enemies.size() == before + 1 and not m.enemies.has(forts[1]),"A broken fortress lets out two soldiers")
+	verify(m.ruins.has(forts[1].cell),"A broken fortress leaves rubble behind")
 	# Enraged at half HP: each fortress sends out two a turn.
 	verify(not m.king_enraged(),"Not enraged at full health")
 	king.hp = Rules.KING_RAGE_HP
 	m.check_outcome()
 	verify(m.king_enraged() and king.enraged,"At half HP the king is enraged")
+	verify(m.events.any(func(e): return e.kind == "king_rage"),"Enraging raises the rage cinematic")
 	before = m.enemies.size()
 	m.round_number += 1
 	m.fortress_turn(forts[0])
@@ -1722,3 +1724,8 @@ func _prison_king() -> void:
 	m.fallen.clear()
 	m.king_turn(king)
 	verify(m.player.hp == 5 and king.cell == cell,"The king neither attacks nor moves")
+	# His fall is announced once, for the finale.
+	m.events.clear()
+	king.hp = 0
+	m.check_outcome()
+	verify(m.phase == Rules.Phase.WON and m.events.filter(func(e): return e.kind == "king_fall").size() == 1,"The king's fall wins and raises the finale once")

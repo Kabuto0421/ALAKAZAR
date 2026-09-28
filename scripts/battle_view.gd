@@ -29,6 +29,12 @@ const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
 const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
+const BossCinematic = preload("res://scripts/fx/boss_cinematic.gd")
+const BOSS_FLOOR = preload("res://assets/sprites/boss/boss_floor.png")
+const BOSS_THRONE = preload("res://assets/sprites/boss/boss_throne_floor.png")
+const FORTRESS_RUIN = preload("res://assets/sprites/boss/prison_fortress_ruin.png")
+## The Prison King's throne dais: the tiles under him when the fight began.
+var throne_cells: Array[Vector2i] = []
 const HelpPanel = preload("res://scripts/ui/help_panel.gd")
 ## The manual opens by itself on the first battle after the game starts (not saved).
 static var help_seen := false
@@ -220,8 +226,40 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	_sync_units(false)
 	_update_controls()
 	queue_redraw()
+	throne_cells.clear()
+	for enemy in model.enemies:
+		if enemy.type == "king":
+			throne_cells.assign(model.footprint(enemy))
 	if model.enemies.any(func(e: Dictionary) -> bool: return e.type in Rules.CHARGERS and e.state == "idle"):
 		_boss_intro()
+	if model.level == Rules.FINAL_LEVEL:
+		_final_intro()
+
+## The Prison King's entrance: black-out, the throne hall, his name, then the fight.
+func _final_intro() -> void:
+	busy = true
+	var token := generation
+	_update_controls()
+	await _cinematic("intro")
+	if token != generation:
+		return
+	busy = false
+	_update_controls()
+
+## Play one of the king's cinematics and wait for it.
+func _cinematic(mode: String, focus := Vector2(576, 360)) -> void:
+	var fx := BossCinematic.new()
+	fx.mode = mode
+	fx.focus = focus
+	fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
+	fx.shake_target = self
+	# Above the side panels and buttons too: the whole screen goes dark.
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.scale = Vector2.ONE * UI_SCALE
+	add_child(layer)
+	layer.add_child(fx)
+	await get_tree().create_timer(BossCinematic.LIFE[mode]).timeout
 
 ## The rook enters blue, pauses, then snaps into its red stance before the player moves.
 func _boss_intro() -> void:
@@ -283,7 +321,12 @@ func _enemy_turn() -> void:
 	_update_controls()
 	if not model.allies.is_empty():
 		var feast := model.events.any(func(e: Dictionary) -> bool: return e.kind in ["devour","gulp"])
-		await get_tree().create_timer(0.8 if feast else 0.22).timeout
+		var wait := 0.8 if feast else 0.22
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_rage"):
+			wait = BossCinematic.LIFE["rage"]
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_fall"):
+			wait = BossCinematic.LIFE["fall"]
+		await get_tree().create_timer(wait).timeout
 		if token != generation:
 			return
 	if model.terminal():
@@ -395,6 +438,11 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		# Let the magic circle play out before the turn moves on.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle"):
 			action_duration = maxf(action_duration, MagicCircleFx.BURST + 0.4)
+		# The king's rage and fall are cinematics: wait them out.
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_rage"):
+			action_duration = maxf(action_duration, BossCinematic.LIFE["rage"])
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_fall"):
+			action_duration = maxf(action_duration, BossCinematic.LIFE["fall"])
 		# Let the abyss finish opening too.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "summon" and e.get("fx","") == "abyss"):
 			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
@@ -547,6 +595,10 @@ func _sync_units(animate: bool) -> void:
 		if not living.has(id):
 			if clock < hold_dead_until:
 				continue
+			if actors[id].kind == "king":
+				# The king crumbles through his death frames before he is gone.
+				actors[id].play_anim("death")
+				continue
 			actors[id].queue_free()
 			actors.erase(id)
 
@@ -566,6 +618,15 @@ func _feedback(weapon_attack: bool = false) -> void:
 			_cast_circle_fx(event)
 		if event.kind == "summon" and event.get("fx","") == "abyss":
 			_open_abyss_fx()
+		# The Prison King and his fortresses act out what happened.
+		if event.kind == "summon" and event.has("by") and actors.has(int(event.by)):
+			actors[int(event.by)].play_anim("revive" if event.get("fx","") == "revive" else "spawn")
+		if event.kind == "hit" and actors.has(int(event.id)) and actors[int(event.id)].kind == "king":
+			actors[int(event.id)].play_anim("hurt")
+		if event.kind == "king_rage":
+			_cinematic("rage")
+		if event.kind == "king_fall":
+			_cinematic("fall", _center(event.cell))
 		if event.kind in ["devour","gulp"] and actors.has(int(event.by)):
 			# The glutton swells with every mouthful.
 			var eater: Node2D = actors[int(event.by)]
@@ -583,7 +644,13 @@ func _open_abyss_fx() -> void:
 	for cell in model.pits:
 		fx.pits.append(BOARD + Vector2(cell) * TILE)
 	fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
-	add_child(fx)
+	fx.shake_target = self
+	# Above the side panels and buttons too: the whole screen goes dark.
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.scale = Vector2.ONE * UI_SCALE
+	add_child(layer)
+	layer.add_child(fx)
 
 ## Before a glutton bites the player it winds up: it trembles and swells, "……！"
 func _glutton_windup(token: int) -> bool:
@@ -615,7 +682,13 @@ func _cast_circle_fx(event: Dictionary) -> void:
 		fx.targets.append(_unit_center(unit))
 	fx.damage = Rules.CIRCLE_DAMAGE
 	fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
-	add_child(fx)
+	fx.shake_target = self
+	# Above the side panels and buttons too: the whole screen goes dark.
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.scale = Vector2.ONE * UI_SCALE
+	add_child(layer)
+	layer.add_child(fx)
 
 func _update_controls() -> void:
 	weapon_effects.visible = not show_rules and not inventory_ui.opened and (not model.terminal() or busy)
@@ -858,7 +931,11 @@ func _draw_board() -> void:
 			var mid := Vector2(32,32)
 			var base := Color("665b48")
 			var shade := 0.88+float((x*13+y*7)%5)*0.025
-			draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),base*shade)
+			if model.level == Rules.FINAL_LEVEL:
+				# The prison's flagstones, and the throne dais under the king.
+				draw_texture_rect(BOSS_THRONE if throne_cells.has(cell) else BOSS_FLOOR,Rect2(pos,Vector2(64,64)),false,Color(shade,shade,shade))
+			else:
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),base*shade)
 			draw_line(pos+Vector2(3,59),pos+Vector2(59,59),Color("38362a"),2)
 			draw_line(pos+Vector2(3,3),pos+Vector2(59,3),Color("766b54"),1)
 			if (x*3+y)%4==0:
@@ -987,6 +1064,9 @@ func _draw_board() -> void:
 			elif cell == item_origin and not DirectionSheet.paint(self,mid,selected_item,aim,1.1):
 				SpiritIcon.paint(self,mid,model.item_definition(selected_item).icon,1.1)
 	draw_set_transform(Vector2.ZERO)
+	# Rubble where a fortress fell.
+	for anchor in model.ruins:
+		draw_texture_rect(FORTRESS_RUIN,Rect2(BOARD+Vector2(anchor)*TILE+Vector2(0,TILE*0.35),Vector2(TILE*2,TILE*2)*0.82),false)
 	# Gravity fairy: arrows show where each enemy would be pulled or blown.
 	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell):
 		if hover_cell != gravity_hover:
@@ -1260,9 +1340,9 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 	elif enemy.type in Rules.GENERALS:
 		UnitView.draw_general(self,enemy.type)
 	elif enemy.type == "king":
-		draw_texture_rect(UnitView.PRISON_KING,Rect2(-30,-30,60,60),false)
+		draw_texture_rect_region(UnitView.KING_SHEETS["idle"][0],Rect2(-32,-34,64,64),Rect2(0,0,256,256))
 	elif enemy.type == "fortress":
-		draw_texture_rect(UnitView.PRISON_FORTRESS,Rect2(-28,-28,56,56),false)
+		draw_texture_rect_region(UnitView.FORTRESS_SHEETS["idle"][0],Rect2(-30,-32,60,60),Rect2(0,0,256,256))
 	elif enemy.type in UnitView.BOSS_KINDS:
 		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:

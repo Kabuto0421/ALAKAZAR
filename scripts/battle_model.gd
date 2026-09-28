@@ -169,6 +169,8 @@ var abyss_turns := 0
 var pits: Array[Vector2i] = []
 ## Final boss: soldiers that fell while the Prison King lived, in the order they fell.
 var fallen: Array[String] = []
+## Where broken fortresses left their rubble (top-left of each 2x2), for the view.
+var ruins: Array[Vector2i] = []
 ## Optional rules, all off by default (the run's start screen turns them on).
 ## A: the siege ring closes in; B: enemy attacks also hit enemies; C: a multi-kill refunds 1 AP.
 var rule_siege := false
@@ -210,6 +212,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	abyss_turns = 0
 	pits.clear()
 	fallen.clear()
+	ruins.clear()
 	siege_rings = 0
 	locked_slot = -1
 	floor_cells.clear()
@@ -1758,6 +1761,7 @@ func _release_prisoners() -> void:
 	for fortress in enemies.duplicate():
 		if fortress.type == "fortress" and fortress.hp <= 0 and not fortress.get("released", false):
 			fortress.released = true
+			ruins.append(fortress.cell)
 			for k in 2:
 				_spawn_soldier(fortress, _soldier_kind(fortress, 10 + k), false)
 			add_log("要塞監獄が崩れ、兵が溢れ出た")
@@ -2071,13 +2075,17 @@ func _spawn_soldier(unit: Dictionary, kind: String, revived: bool) -> bool:
 	var soldier := make_enemy(kind, spots[0], next_id)
 	soldier.ap = 0
 	enemies.append(soldier)
-	events.append({"kind":"summon", "cell":spots[0], "id":-2, "fx":"revive" if revived else "prison"})
+	events.append({"kind":"summon", "cell":spots[0], "id":-2, "fx":"revive" if revived else "prison", "by":unit.id})
 	return true
 
 ## Remember every soldier that fell while the king still stands.
 func _note_fallen() -> void:
 	if level != FINAL_LEVEL:
 		return
+	for king in enemies:
+		if king.type == "king" and king.hp <= 0 and not king.get("fell", false):
+			king.fell = true
+			events.append({"kind":"king_fall", "cell":king.cell + Vector2i.ONE, "id":-2, "king":king.id})
 	for enemy in enemies:
 		if enemy.hp <= 0 and enemy.type in SOLDIERS and not enemy.get("noted", false):
 			enemy.noted = true
@@ -2107,6 +2115,7 @@ func _check_rage() -> void:
 		if king.type == "king" and king.hp > 0 and king.hp <= KING_RAGE_HP and not king.get("enraged", false):
 			king.enraged = true
 			events.append({"kind":"roar", "cell":king.cell + Vector2i.ONE, "id":-2})
+			events.append({"kind":"king_rage", "cell":king.cell + Vector2i.ONE, "id":-2})
 			add_log("監獄の王が怒り狂った！ 要塞監獄が兵を2体ずつ出す")
 
 ## 要塞監獄: every turn it lets out one soldier of a random kind (two once the king is enraged).

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cacxaysd5y8aq"
-path="res://.godot/imported/prison_king.png-bed0839e96260ecdc83ef10a0708a1bd.ctex"
+uid="uid://ccpb4i0egrpyt"
+path="res://.godot/imported/prison_fortress_spawn.png-815f2116d932a828c6b143ee9544747e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/enemies/prison_king.png"
-dest_files=["res://.godot/imported/prison_king.png-bed0839e96260ecdc83ef10a0708a1bd.ctex"]
+source_file="res://assets/sprites/boss/prison_fortress_spawn.png"
+dest_files=["res://.godot/imported/prison_fortress_spawn.png-815f2116d932a828c6b143ee9544747e.ctex"]
 
 [params]
 

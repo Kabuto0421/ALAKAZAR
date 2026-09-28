@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1caem6r86vnc"
-path="res://.godot/imported/prison_fortress.png-e4eb9fe47458b562737995cc1ca7b7e1.ctex"
+uid="uid://np4dgl4akkm6"
+path="res://.godot/imported/prison_king_death.png-ed7b57d1b9db3ca6fafeb96241e7be13.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/enemies/prison_fortress.png"
-dest_files=["res://.godot/imported/prison_fortress.png-e4eb9fe47458b562737995cc1ca7b7e1.ctex"]
+source_file="res://assets/sprites/boss/prison_king_death.png"
+dest_files=["res://.godot/imported/prison_king_death.png-ed7b57d1b9db3ca6fafeb96241e7be13.ctex"]
 
 [params]
 
