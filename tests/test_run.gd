@@ -1653,7 +1653,8 @@ func _glutton() -> void:
 	# The enemy (1 away) and the player (1 away) are both in reach: the player comes first.
 	m.player.hp = 5
 	m.act_allies()
-	verify(m.player.hp == 3 and glutton.hp == 3,"On a tie it bites the player — twice with AP2 — growing +1 per bite")
+	verify(m.player.hp == 0 and glutton.hp == 2 and m.phase == Rules.Phase.LOST,"On a tie it bites the player first, for 99 like the magic circle")
+	verify(m.events.any(func(e): return e.kind == "hit" and e.id == -1 and e.get("damage", 0) == Rules.CIRCLE_DAMAGE),"The bite carries its 99 for the popup")
 	# With the player out of reach it swallows enemies whole, bosses included.
 	m = fixture()
 	m.player.cell = Vector2i(0,5)

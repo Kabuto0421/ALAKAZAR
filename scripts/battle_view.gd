@@ -667,6 +667,8 @@ func _feedback(weapon_attack: bool = false) -> void:
 		var flash: Dictionary = event.duplicate()
 		flash.kind = kind
 		flash.life = FX_LIFE.get(kind,0.42)
+		if event.get("damage", 1) >= Rules.CIRCLE_DAMAGE:
+			flash.life = 1.0  # the big "99" stays up a moment
 		flash.max_life = flash.life
 		flashes.append(flash)
 		if event.kind == "circle":
@@ -1634,8 +1636,21 @@ func _draw_flashes() -> void:
 		var row := 1 if effect.kind == "mine" else 3 if effect.kind == "plant" else 0
 		if effect.kind != "weapon_hit":
 			draw_texture_rect_region(EFFECTS,Rect2(pos-Vector2(32,32),Vector2(64,64)),Rect2(16*24,row*24,24,24),Color(1,1,1,fade))
-		if effect.kind != "plant":
+		if effect.get("damage", 1) >= Rules.CIRCLE_DAMAGE:
+			_draw_big_damage(pos, fade, int(effect.damage))
+		elif effect.kind != "plant":
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
+
+## A lethal bite: a big gold "99" that pops and rises, like the magic circle's.
+func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
+	var t := 1.0 - fade
+	var size := int(46 * (1.0 + 0.6 * maxf(0.0, 1.0 - t / 0.25)))
+	# Above the bite's "ガブッ！" (the sprites draw over the board, so not on the victim).
+	var at := pos + Vector2(-size * 0.45, -50 - t * 18)
+	var text := str(amount)
+	for offset in [Vector2(-3, 0), Vector2(3, 0), Vector2(0, -3), Vector2(0, 3)]:
+		draw_string(LATIN, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.1, 0.02, 0.2, fade))
+	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
 const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7}

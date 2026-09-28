@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "glutton_fairy"
 title = "暴食妖精"
-description = "攻撃範囲に召喚。HP1・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n敵・味方は即死、HP+1。"
+description = "攻撃範囲に召喚。HP1・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"
 summary = "何でも喰らう危険な味方"
 color = Color(0.86, 0.36, 0.6, 1)
 effect = ExtResource("2")
