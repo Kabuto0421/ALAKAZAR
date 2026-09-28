@@ -1702,6 +1702,16 @@ func _prison_king() -> void:
 	forts[1].hp = 0
 	m.check_outcome()
 	verify(m.enemies.size() == before + 1 and not m.enemies.has(forts[1]),"A broken fortress lets out two soldiers")
+	# Enraged at half HP: each fortress sends out two a turn.
+	verify(not m.king_enraged(),"Not enraged at full health")
+	king.hp = Rules.KING_RAGE_HP
+	m.check_outcome()
+	verify(m.king_enraged() and king.enraged,"At half HP the king is enraged")
+	before = m.enemies.size()
+	m.round_number += 1
+	m.fortress_turn(forts[0])
+	verify(m.enemies.size() == before + 2,"An enraged king's fortress sends out two")
+	king.hp = 10
 	# Rooted: shoves and blasts do not move them.
 	var cell: Vector2i = king.cell
 	m.knock_back(king, Vector2i.RIGHT, 1)

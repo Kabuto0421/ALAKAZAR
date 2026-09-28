@@ -181,8 +181,13 @@ func _draw() -> void:
 		draw_general(self, kind, tint)
 	elif kind == "king":
 		# The Prison King breathes slowly on his throne; his cell glows.
-		var breath := sin(Time.get_ticks_msec() / 1000.0 * 1.6) * 2.0
-		draw_texture_rect(PRISON_KING,Rect2(-96,-104+breath,192,192),false,tint)
+		var now := Time.get_ticks_msec() / 1000.0
+		var enraged := hp <= 5
+		var breath := sin(now * (4.0 if enraged else 1.6)) * (3.0 if enraged else 2.0)
+		if enraged:
+			# Enraged (half HP or less): a pulsing red aura and a red cast.
+			draw_circle(Vector2(0,-8),92+sin(now*6.0)*6.0,Color(1,0.1,0.1,0.18))
+		draw_texture_rect(PRISON_KING,Rect2(-96,-104+breath,192,192),false,tint*(Color(1,0.62,0.62) if enraged else Color.WHITE))
 	elif kind == "fortress":
 		draw_texture_rect(PRISON_FORTRESS,Rect2(-64,-70,128,128),false,tint)
 		# Cracks as it loses HP (3 → 1).

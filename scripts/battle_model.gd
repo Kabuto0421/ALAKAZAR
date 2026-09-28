@@ -48,6 +48,8 @@ const TYPES = {
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
+## At this HP or below the Prison King is enraged: each fortress sends out two a turn.
+const KING_RAGE_HP := 5
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
 ## Two-by-two bosses: their cell is the top-left of the footprint.
@@ -950,6 +952,7 @@ func trigger_mine(unit: Dictionary) -> void:
 
 func check_outcome() -> void:
 	_note_fallen()
+	_check_rage()
 	_release_prisoners()
 	_bury_allies()
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
@@ -2094,13 +2097,26 @@ func king_turn(king: Dictionary) -> void:
 		king.intent = "復活"
 		add_log("監獄の王が%sを蘇らせた" % TYPES[kind].name)
 
-## 要塞監獄: every turn it lets out one soldier of a random kind.
+## True once the Prison King has fallen to half health.
+func king_enraged() -> bool:
+	return enemies.any(func(e: Dictionary) -> bool: return e.type == "king" and e.hp > 0 and e.hp <= KING_RAGE_HP)
+
+## The moment the king drops to half health he roars (once).
+func _check_rage() -> void:
+	for king in enemies:
+		if king.type == "king" and king.hp > 0 and king.hp <= KING_RAGE_HP and not king.get("enraged", false):
+			king.enraged = true
+			events.append({"kind":"roar", "cell":king.cell + Vector2i.ONE, "id":-2})
+			add_log("監獄の王が怒り狂った！ 要塞監獄が兵を2体ずつ出す")
+
+## 要塞監獄: every turn it lets out one soldier of a random kind (two once the king is enraged).
 func fortress_turn(fortress: Dictionary) -> void:
 	fortress.ap = 0
-	var kind := _soldier_kind(fortress, 0)
-	if _spawn_soldier(fortress, kind, false):
-		fortress.intent = "出撃"
-		add_log("要塞監獄から%sが出てきた" % TYPES[kind].name)
+	for k in 2 if king_enraged() else 1:
+		var kind := _soldier_kind(fortress, k)
+		if _spawn_soldier(fortress, kind, false):
+			fortress.intent = "出撃"
+			add_log("要塞監獄から%sが出てきた" % TYPES[kind].name)
 
 ## The next soldier the king will raise, for the inspector.
 func next_revival() -> String:
