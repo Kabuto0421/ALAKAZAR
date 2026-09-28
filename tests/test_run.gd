@@ -88,7 +88,7 @@ func _initialize() -> void:
 	run.finish_battle()
 	run.choose(3)
 	verify(run.stage==2 and m.fairy_loadout.size()==2 and m.board_size==6,"Fairy reward persists into six-by-six encounter")
-	verify(m.enemies.size()==6 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2,"Third encounter pairs two heavies with AP2 infantry")
+	verify(m.enemies.size()==7 and m.enemies.filter(func(e): return e.type=="heavy").size()==2 and m.enemies.filter(func(e): return e.type=="infantry").size()==2 and m.enemies.filter(func(e): return e.type=="glutton").size()==1,"Third encounter pairs two heavies with AP2 infantry, plus a glutton")
 	verify(m.enemies.filter(func(e): return e.type=="cavalry").size()==1,"Cavalry first appears in the third fight")
 	verify(m.enemies.all(func(e): return not e.type in Rules.RANGED),"The third fight has no ranged soldiers either")
 	verify(m.enemies.all(func(e): return m.inside(e.cell) and e.cell!=m.player.cell),"Rotated third-stage placements stay valid")
@@ -274,6 +274,7 @@ func _initialize() -> void:
 	_generals()
 	_abyss()
 	_gravity()
+	_glutton()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1404,7 +1405,7 @@ func _loner_fairies() -> void:
 			trial.battle.enemies.clear()
 			trial.battle.check_outcome()
 			trial.finish_battle()
-			var late: bool = trial.offers.any(func(o): return Run.LATE_FAIRIES.has(o.value))
+			var late: bool = trial.offers.any(func(o): return o.kind == "fairy" and Run.LATE_FAIRIES.has(o.value))
 			if stage < Rules.BOSS2_LEVEL:
 				early_seen = early_seen or late
 			else:
@@ -1610,3 +1611,50 @@ func _gravity() -> void:
 	m.gravity(Vector2i(2,2))
 	verify(m.enemies.size() == 1,"Pulled over a pit, an enemy falls in")
 	verify(Run.MID_FAIRIES.has("gravity_fairy"),"The gravity fairy is a mid-game fairy")
+
+func _glutton() -> void:
+	# Gold moves with its front to the right; it bites anything and grows with each bite.
+	var m := fixture()
+	m.enemies.clear()
+	var glutton: Dictionary = m.make_enemy("glutton",Vector2i(3,3),0)
+	var snack: Dictionary = m.make_enemy("heavy",Vector2i(4,2),1)
+	snack.hp = 5
+	m.enemies.append_array([glutton, snack, m.make_enemy("heavy",Vector2i(0,0),2)])
+	verify(m.enemy_offsets(glutton).has(Vector2i(1,-1)) and not m.enemy_offsets(glutton).has(Vector2i(-1,-1)),"The glutton moves like a gold facing right")
+	m.player.cell = Vector2i(0,5)
+	m.player.hp = 5
+	m.phase = Rules.Phase.ENEMY
+	var planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m,0)
+	verify(snack.hp <= 0 and glutton.hp == 2 and m.player.hp == 5,"It swallows an enemy whole (HP5 or not) and grows +1")
+	# On a tie it goes for the player; the player only loses 1.
+	m = fixture()
+	m.enemies.clear()
+	glutton = m.make_enemy("glutton",Vector2i(3,3),0)
+	var other: Dictionary = m.make_enemy("heavy",Vector2i(3,2),1)
+	m.enemies.append_array([glutton, other])
+	m.player.cell = Vector2i(3,4)
+	m.player.hp = 5
+	m.phase = Rules.Phase.ENEMY
+	planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m,0)
+	verify(m.player.hp == 4 and other.hp == 2 and glutton.hp == 2,"With the player and an enemy both in reach it bites the player (for 1)")
+	# Even a 2x2 boss is eaten.
+	m = fixture()
+	m.enemies.clear()
+	glutton = m.make_enemy("glutton",Vector2i(2,2),0)
+	var rook: Dictionary = m.make_enemy("rook",Vector2i(3,2),1)
+	m.enemies.append_array([glutton, rook, m.make_enemy("heavy",Vector2i(0,0),2)])
+	m.player.cell = Vector2i(0,5)
+	m.phase = Rules.Phase.ENEMY
+	planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m,0)
+	verify(rook.hp <= 0 and glutton.hp == 2,"It eats a 2x2 boss too")
+	var early := false
+	for level in [2, 4]:
+		m.reset(level)
+		early = early or m.enemies.any(func(e): return e.type == "glutton")
+	verify(early,"The glutton turns up from the early fights")

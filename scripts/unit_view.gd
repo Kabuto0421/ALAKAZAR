@@ -1,6 +1,7 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
+const GLUTTON = preload("res://assets/sprites/enemies/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
 const PLAYER_ATLAS = preload("res://assets/sprites/adventurer_weapon_directions_64.png")
@@ -174,6 +175,10 @@ func _draw() -> void:
 		draw_soldier(self, kind, facing, alt_row, tint)
 	elif kind in ["gold", "silver"]:
 		draw_general(self, kind, tint)
+	elif kind == "glutton":
+		# A slight chewing bob; the art faces left like the other enemies.
+		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0
+		draw_texture_rect(GLUTTON,Rect2(-31,-37+chew,62,62),false,tint)
 	else:
 		var side := 64.0 if kind == "heavy" else 56.0
 		draw_texture_rect_region(ENEMY_ATLAS,Rect2(-side/2,-side/2-4,side,side),Rect2(facing*28,0,28,28),tint)
@@ -215,7 +220,9 @@ static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, al
 	canvas.draw_texture_rect_region(sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst"] else 1
+	var max_hp := 5 if kind == "player" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
+	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
+	max_hp = maxi(max_hp, hp)
 	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	if kind == "slot":

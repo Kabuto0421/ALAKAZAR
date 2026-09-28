@@ -1204,6 +1204,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		UnitView.draw_soldier(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "aim" or int(enemy.get("learned",-1)) >= 0,Color.WHITE,0.9)
 	elif enemy.type in Rules.GENERALS:
 		UnitView.draw_general(self,enemy.type)
+	elif enemy.type == "glutton":
+		draw_texture_rect(UnitView.GLUTTON,Rect2(-28,-28,56,56),false)
 	elif enemy.type in UnitView.BOSS_KINDS:
 		UnitView.draw_boss(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "brace",Color.WHITE,0.45 if enemy.get("size",1) > 1 else 0.9,int(enemy.get("reel",0)))
 	else:
@@ -1352,11 +1354,12 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	_text(Vector2(852,133),type.name,28,INK)
 	_text(Vector2(852,175),"HP",20)
 	# Big HP pools (Rotorick's 7) use smaller hearts so AP still fits on the line.
-	var many: bool = int(type.hp) > 3
-	for i in range(int(type.hp)):
+	var hearts: int = maxi(int(type.hp), int(enemy.hp))
+	var many: bool = hearts > 3
+	for i in range(hearts):
 		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),i<int(enemy.hp))
 	# Three hearts reach further right, so AP moves over for them.
-	var ap_x := 1030.0 if many else 1004.0 if int(type.hp) >= 3 else 984.0
+	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
 	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 	for i in range(ap_boxes):
@@ -1388,6 +1391,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"赤＝投げ槍の着弾マス",18,Color("ff805a"))
 	elif enemy.type == "shield":
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
+	elif enemy.type == "glutton":
+		_text(Vector2(852,450),"右が前。噛むたびHP+1",18,Color("ff7aa8"))
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
@@ -1395,7 +1400,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "analyst":
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
-	var intent := "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
+	var intent := "一番近い獲物を喰らう" if enemy.type == "glutton" else "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)

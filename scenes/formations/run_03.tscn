@@ -37,3 +37,8 @@ enemy_kind = 3
 position = Vector2(352, 32)
 script = ExtResource("2")
 enemy_kind = 1
+
+[node name="Enemy7_glutton" type="Node2D" parent="."]
+position = Vector2(352, 352)
+script = ExtResource("2")
+enemy_kind = 16

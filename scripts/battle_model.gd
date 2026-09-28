@@ -40,6 +40,7 @@ const TYPES = {
 	"shadow": {"name": "ロトリックの残像", "hp": 1, "ap": 0, "size": 2},
 	"silver": {"name": "銀将兵", "hp": 1, "ap": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
+	"glutton": {"name": "暴食妖精", "hp": 1, "ap": 2},
 }
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
@@ -207,7 +208,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","glutton"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
@@ -234,10 +235,52 @@ func make_enemy(kind: String, cell: Vector2i, id: int) -> Dictionary:
 	var state := "idle" if kind in CHARGERS else "approach"
 	return {"id": id, "type": kind, "cell": cell, "hp": TYPES[kind].hp, "ap": TYPES[kind].ap, "facing": 3, "wait": 0, "intent": "接近", "state": state, "charge_round": -1, "size": int(TYPES[kind].get("size", 1)), "reel": 0, "last_reel": 0, "learned": -1}
 
+## 暴食妖精: what it may bite from `cell` — the player, any other single-tile enemy, or an ally.
+func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in enemy_offsets(glutton):
+		var tile: Vector2i = cell + offset
+		if tile == player.cell:
+			result.append(tile)
+			continue
+		var other := enemy_at(tile)
+		if not other.is_empty() and other.id != glutton.id and other.type != "shadow":
+			result.append(tile)
+			continue
+		var ally := ally_at(tile)
+		if not ally.is_empty() and int(ally.get("size", 1)) == 1:
+			result.append(tile)
+	return result
+
+## One bite: the player takes 1; an enemy (even a 2x2 boss) or an ally is swallowed
+## whole. Every bite feeds it: +1 HP.
+func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
+	glutton.ap -= 1
+	glutton.hp += 1
+	glutton.intent = "捕食"
+	events.append({"kind":"bite", "cell":tile, "id":-2})
+	if tile == player.cell:
+		_hit_player(glutton)
+		return
+	var other := enemy_at(tile)
+	if not other.is_empty():
+		other.hp = 0
+		kills += 1
+		events.append({"kind":"hit", "cell":tile, "id":other.id})
+		add_log("暴食妖精が%sを喰らった" % TYPES[other.type].name)
+		check_outcome()
+		return
+	var ally := ally_at(tile)
+	if not ally.is_empty():
+		ally.hp = 0
+		events.append({"kind":"hit", "cell":tile, "id":ally.id})
+		add_log("暴食妖精が%sを喰らった" % ALLY_NAMES.get(ally.type, "味方"))
+		_bury_allies()
+		check_outcome()
+
 ## Shogi moves with the front to the left: gold everywhere but the back diagonals,
 ## silver the three front tiles and the two back diagonals.
-func general_offsets(kind: String) -> Array:
-	var f := Vector2i.LEFT
+func general_offsets(kind: String, f: Vector2i = Vector2i.LEFT) -> Array:
 	if kind == "gold":
 		return [f, f + Vector2i.UP, f + Vector2i.DOWN, Vector2i.UP, Vector2i.DOWN, -f]
 	return [f, f + Vector2i.UP, f + Vector2i.DOWN, -f + Vector2i.UP, -f + Vector2i.DOWN]
@@ -261,6 +304,9 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return [Vector2i.UP, Vector2i.DOWN]
 	if enemy.type in GENERALS:
 		return general_offsets(enemy.type)
+	if enemy.type == "glutton":
+		# A fairy: its front is the player's side of the fight (right).
+		return general_offsets("gold", Vector2i.RIGHT)
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
