@@ -31,8 +31,8 @@ var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fa
 ## Rare 2x2 fairies: one of the two fairy offers after the first boss may be one.
 const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
 const RARE_CHANCE := 0.3
-## Late fairies: placed only where no carried weapon reaches, so they only turn
-## up after the first boss, next to the wide-reach late weapons.
+## Late fairies: placed only where no carried weapon reaches; they only turn
+## up after Rotorick.
 const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
@@ -116,7 +116,8 @@ func finish_battle() -> bool:
 	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + win_heal())
 	battle.refill_fairies()
 	if stage == Battle.LAST_LEVEL:
-		state = State.FINISHED
+		# No boss after the late fights yet: the camp is the end of the road.
+		state = State.CAMP
 		return true
 	state = State.REWARD
 	offers.clear()
@@ -152,7 +153,8 @@ func finish_battle() -> bool:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
 		pick.rare = true
-	var fairy_pool: Array = reward_fairy_pool.filter(func(id: String) -> bool: return mid or not LATE_FAIRIES.has(id))
+	var late := stage >= Battle.BOSS2_LEVEL
+	var fairy_pool: Array = reward_fairy_pool.filter(func(id: String) -> bool: return late or not LATE_FAIRIES.has(id))
 	var fairy_candidates: Array = fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:
@@ -274,5 +276,8 @@ func camp_back() -> void:
 
 func _leave_camp() -> void:
 	offers.clear()
+	if stage == Battle.LAST_LEVEL:
+		state = State.FINISHED
+		return
 	stage = Battle.BOSS_LEVEL if stage == LAST_NORMAL_STAGE else Battle.BOSS2_LEVEL
 	start_battle()

@@ -1,0 +1,49 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/formation_layout.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemy_placement.gd" id="2"]
+
+[node name="LateFormation2" type="Node2D"]
+script = ExtResource("1")
+board_size = 7
+player_start = Vector2i(0, 3)
+
+[node name="Enemy1_prison" type="Node2D" parent="."]
+position = Vector2(288, 160)
+script = ExtResource("2")
+enemy_kind = 9
+
+[node name="Enemy2_horse" type="Node2D" parent="."]
+position = Vector2(416, 32)
+script = ExtResource("2")
+enemy_kind = 5
+
+[node name="Enemy3_horse" type="Node2D" parent="."]
+position = Vector2(416, 416)
+script = ExtResource("2")
+enemy_kind = 5
+
+[node name="Enemy4_javelin" type="Node2D" parent="."]
+position = Vector2(224, 32)
+script = ExtResource("2")
+enemy_kind = 6
+
+[node name="Enemy5_javelin" type="Node2D" parent="."]
+position = Vector2(224, 416)
+script = ExtResource("2")
+enemy_kind = 6
+
+[node name="Enemy6_miner" type="Node2D" parent="."]
+position = Vector2(160, 96)
+script = ExtResource("2")
+enemy_kind = 1
+
+[node name="Enemy7_heavy" type="Node2D" parent="."]
+position = Vector2(160, 288)
+script = ExtResource("2")
+enemy_kind = 2
+
+[node name="Enemy8_executioner" type="Node2D" parent="."]
+position = Vector2(416, 224)
+script = ExtResource("2")
+enemy_kind = 10

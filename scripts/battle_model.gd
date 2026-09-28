@@ -56,6 +56,9 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_mid_02.tscn"),
 	preload("res://scenes/formations/run_mid_03.tscn"),
 	preload("res://scenes/formations/run_boss_03.tscn"),
+	preload("res://scenes/formations/run_late_01.tscn"),
+	preload("res://scenes/formations/run_late_02.tscn"),
+	preload("res://scenes/formations/run_late_03.tscn"),
 ]
 const BOSS_LEVEL := 3
 ## The second boss (Rotorick) after the mid-game camp.
@@ -76,7 +79,9 @@ var locked_slot := -1
 var floor_cells: Array[Vector2i] = []
 ## Mid-game fights after the first boss, then a camp and the second boss.
 const MID_LEVELS = [4, 5, 6]
-const LAST_LEVEL := 7
+## Late-game fights after Rotorick; a camp follows and ends the run (no boss yet).
+const LATE_LEVELS = [8, 9, 10]
+const LAST_LEVEL := 10
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]

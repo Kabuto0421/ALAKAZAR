@@ -135,7 +135,20 @@ func _initialize() -> void:
 	verify(run.state==Run.State.BATTLE and m.level==Rules.BOSS2_LEVEL and m.board_size==8 and m.enemies.size()==1 and m.enemies[0].type=="slot","Rotorick waits after the mid-game camp")
 	m.enemies.clear()
 	m.check_outcome()
-	verify(run.finish_battle() and run.state==Run.State.FINISHED,"Beating Rotorick completes the expedition")
+	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating Rotorick opens a reward")
+	run.skip_reward()
+	for k in 3:
+		verify(run.state==Run.State.BATTLE and m.level==Rules.LATE_LEVELS[k] and m.enemies.size() >= 7,"Late fight %d follows" % (k+1))
+		verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Late placements are valid")
+		m.enemies.clear()
+		m.check_outcome()
+		run.finish_battle()
+		if k < 2:
+			verify(run.state==Run.State.REWARD,"Each late fight but the last gives a reward")
+			run.skip_reward()
+	verify(run.state==Run.State.CAMP,"The last late fight leads to a final camp")
+	run.camp_rest()
+	verify(run.state==Run.State.FINISHED,"Leaving the final camp completes the expedition")
 
 	# Forging adds 1 damage to the chosen weapon.
 	run = Run.new()
@@ -1296,7 +1309,7 @@ func _loner_fairies() -> void:
 	var early_seen := false
 	var late_seen := false
 	for seed_value in 40:
-		for stage in [0, 1, Rules.BOSS_LEVEL, Rules.MID_LEVELS[0]]:
+		for stage in [0, 1, Rules.BOSS_LEVEL, Rules.MID_LEVELS[0], Rules.BOSS2_LEVEL, Rules.LATE_LEVELS[0]]:
 			var trial := Run.new()
 			trial.start(seed_value)
 			trial.choose(0)
@@ -1307,8 +1320,8 @@ func _loner_fairies() -> void:
 			trial.battle.check_outcome()
 			trial.finish_battle()
 			var late: bool = trial.offers.any(func(o): return Run.LATE_FAIRIES.has(o.value))
-			if stage < Rules.BOSS_LEVEL:
+			if stage < Rules.BOSS2_LEVEL:
 				early_seen = early_seen or late
 			else:
 				late_seen = late_seen or late
-	verify(not early_seen and late_seen,"The loner fairies only turn up after the first boss")
+	verify(not early_seen and late_seen,"The loner fairies only turn up after Rotorick")
