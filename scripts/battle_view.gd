@@ -279,6 +279,14 @@ func _enemy_turn() -> void:
 		return
 	planner.begin(model)
 	_update_controls()
+	if not model.events.is_empty():
+		# Rule A: the siege closing and burning shows before the enemies move.
+		_sync_units(true)
+		_feedback()
+		queue_redraw()
+		await get_tree().create_timer(0.35).timeout
+		if token != generation:
+			return
 	await get_tree().create_timer(0.12).timeout
 	if token != generation:
 		return
@@ -727,6 +735,10 @@ func _draw() -> void:
 		_text(Vector2(40,208),turn_text,22,CYAN if not busy else GOLD)
 	else:
 		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
+	var countdown := model.siege_countdown()
+	if model.rule_siege:
+		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
+		_text(Vector2(40,236) if model.board_size >= 8 else Vector2(560,126),siege_text,18,Color("ff8b8f") if countdown == 0 else MUTED)
 
 	if model.can_swap_shadow(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"影と入れ替わる 0 AP",23,CYAN)
@@ -805,6 +817,15 @@ func _draw_board() -> void:
 				var pulse := 0.5 + 0.5 * sin(clock * 8.0)
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.95,0.7,0.2+0.15*pulse))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),GOLD,false,2)
+			if model.sieged(cell):
+				# Rule A: the closed siege ring, dark red with a hatch.
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.35,0.02,0.05,0.55))
+				for k in range(3):
+					draw_line(pos+Vector2(4+k*20,60),pos+Vector2(20+k*20,4),Color(0.9,0.2,0.2,0.35),2)
+			elif model.siege_warning(cell):
+				# The ring that closes at the start of this enemy turn.
+				var blink := 0.45 + 0.35 * sin(clock * 6.0)
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(1,0.25,0.2,blink),false,2)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -1351,7 +1372,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1494,6 +1515,9 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"combo":
+			# Rule C: the refund, rising over the player.
+			_text(pos + Vector2(-58, -40 - t * 24), "連撃！ AP+1", 24, Color(GOLD, fade))
 		"bite":
 			# Two rows of fangs snapping shut on the tile.
 			var close := minf(t * 2.5, 1.0)

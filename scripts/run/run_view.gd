@@ -65,6 +65,11 @@ func _render() -> void:
 	_button(Vector2(894,12),Vector2(214,32),"遊び方 [H]",_open_help)
 	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
 		_label(Vector2(972,50),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
+	else:
+		# Optional rules, off by default: the plain game stays as it is.
+		_rule_toggle(Vector2(292,12),"rule_siege","包囲の輪","4ターンごとに外周から1周ずつ包囲される。\n包囲の中にいると敵ターン開始時に1ダメージ（敵も）。\n次に狭まる輪は赤く点滅する。")
+		_rule_toggle(Vector2(492,12),"rule_friendly","同士討ち","投げ槍は範囲の敵にも当たる。\n突進は、止められた敵・壁に挟まれた敵にも1ダメージ。\n（弓の矢と押し出しの衝突は元から敵にも当たる）")
+		_rule_toggle(Vector2(692,12),"rule_combo","連撃","1回の行動で2体以上倒すとAPが1戻る。")
 	var sub := Color("9aafa9")
 	match run.state:
 		Run.State.START_WEAPON:
@@ -369,6 +374,14 @@ func _button(at: Vector2,extent: Vector2,value: String,callback: Callable) -> Bu
 	button.pressed.connect(callback)
 	screen.add_child(button)
 	return button
+
+func _rule_toggle(at: Vector2, key: String, title: String, tip: String) -> void:
+	var on: bool = run.battle.get(key)
+	var button := _button(at,Vector2(190,32),("● " if on else "○ ") + title + ("  ON" if on else "  OFF"),func():
+		run.battle.set(key, not run.battle.get(key))
+		_render())
+	button.tooltip_text = tip
+	button.add_theme_color_override("font_color", Color("ffd35b") if on else Color("7f9591"))
 
 func _open_help() -> void:
 	if not is_instance_valid(screen):

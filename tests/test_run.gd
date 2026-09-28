@@ -270,6 +270,7 @@ func _initialize() -> void:
 	_shield_soldier()
 	_analyst()
 	_loner_fairies()
+	_optional_rules()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1388,3 +1389,72 @@ func _loner_fairies() -> void:
 			else:
 				late_seen = late_seen or late
 	verify(not early_seen and late_seen,"The loner fairies only turn up after Rotorick")
+
+func _optional_rules() -> void:
+	# All three rules are off by default.
+	var m := fixture()
+	verify(not m.rule_siege and not m.rule_friendly and not m.rule_combo,"Optional rules start off")
+	# A: every 4 rounds the next ring closes; whoever stands inside takes 1 at the enemy turn.
+	m.rule_siege = true
+	m.enemies.clear()
+	var edge: Dictionary = m.make_enemy("heavy",Vector2i(0,0),0)
+	edge.hp = 5
+	var inner: Dictionary = m.make_enemy("heavy",Vector2i(3,3),1)
+	inner.hp = 5
+	m.enemies.append_array([edge, inner])
+	m.player.cell = Vector2i(0,2)
+	m.player.hp = 5
+	m.round_number = 3
+	verify(m.siege_countdown() == 1 and not m.siege_warning(Vector2i(0,2)),"The siege counts down before it closes")
+	m.round_number = 4
+	verify(m.siege_countdown() == 0 and m.siege_warning(Vector2i(0,2)) and not m.siege_warning(Vector2i(2,2)),"The ring about to close is flagged on the edge")
+	var planner = Planner.new()
+	planner.begin(m)
+	verify(m.siege_rings == 1 and m.player.hp == 4 and edge.hp == 4 and inner.hp == 5,"The outer ring closes and burns the player and the enemy on it, not the inner one")
+	m.siege_tick()
+	verify(m.player.hp == 3,"Staying inside the siege hurts every enemy turn")
+	m.siege_rings = m.siege_max()
+	m.round_number = 8
+	m.siege_tick()
+	verify(m.siege_rings == m.siege_max(),"A centre is always left open")
+	# B: a dodged charge slams the enemy that stops it; a ramming charge crushes enemies pinned to the wall.
+	m = fixture()
+	m.rule_friendly = true
+	m.enemies.clear()
+	var rook: Dictionary = m.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	var wedge: Dictionary = m.make_enemy("heavy",Vector2i(2,2),1)
+	wedge.hp = 5
+	m.enemies.append_array([rook, wedge])
+	m.player.cell = Vector2i(0,5)
+	m.phase = Rules.Phase.ENEMY
+	m.rook_charge(rook)
+	verify(wedge.hp == 4,"Rule B: the charge slams the enemy in its way")
+	m = fixture()
+	m.rule_friendly = true
+	m.enemies.clear()
+	rook = m.make_enemy("rook",Vector2i(4,2),0)
+	rook.facing = 3
+	rook.state = "brace"
+	wedge = m.make_enemy("heavy",Vector2i(3,2),1)
+	wedge.hp = 5
+	m.enemies.append_array([rook, wedge])
+	m.player.cell = Vector2i(1,2)
+	m.phase = Rules.Phase.ENEMY
+	m.rook_charge(rook)
+	verify(wedge.hp == 4 and m.player.hp == 4,"Rule B: the enemy pinned between the rook and the player is crushed too")
+	# C: one action felling two enemies gives 1 AP back.
+	for combo in [false, true]:
+		m = fixture()
+		m.rule_combo = combo
+		m.fairy_loadout.assign(["magic_bolt"])
+		m.refill_fairies()
+		m.weapon = 0
+		m.player.cell = Vector2i(1,1)
+		m.enemies.clear()
+		m.enemies.append(m.make_enemy("recruit",Vector2i(2,2),0))
+		m.enemies.append(m.make_enemy("recruit",Vector2i(2,3),1))
+		m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),2))
+		verify(m.use_item("magic_bolt",Vector2i(2,1),Vector2i.DOWN) and m.enemies.size() == 1,"The bolt fells both enemies (combo %s)" % combo)
+		verify(m.player.ap == (2 if combo else 1),"Rule C refunds 1 AP only when it is on (combo %s)" % combo)
