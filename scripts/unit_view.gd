@@ -1,6 +1,7 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
+const WOLF = preload("res://assets/sprites/spirits/lone_wolf.png")
 const PLAYER_ATLAS = preload("res://assets/sprites/adventurer_weapon_directions_64.png")
 const SWORD_ATTACK_ATLAS = preload("res://assets/sprites/attacks/sword-attack-directions.png")
 const SwordMotion = preload("res://scripts/animation/sword_motion.gd")
@@ -28,6 +29,8 @@ var alt_row := false
 const PLAYER_ATLAS_CELL := 362.0
 const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
+## Lone wolf inside the player's reach: it will skip its turn.
+var sulking := false
 var hp := 5
 var weapon_row := 0
 var facing := 0
@@ -114,6 +117,16 @@ func _draw() -> void:
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)
 	elif kind == "acorn":
 		draw_texture_rect(ACORN,Rect2(-30,-35,60,60),false,tint)
+	elif kind == "wolf":
+		# Facing left flips the head so it looks where it bites.
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(-1 if facing == 3 else 1, 1))
+		draw_texture_rect(WOLF,Rect2(-29,-34,58,58),false,tint.darkened(0.3) if sulking else tint)
+		draw_set_transform(Vector2.ZERO)
+		if sulking:
+			draw_rect(Rect2(8,-46,28,17),Color(0.05,0.07,0.08,0.92))
+			draw_rect(Rect2(8,-46,28,17),Color("b8bcd0"),false,1)
+			for k in range(3):
+				draw_circle(Vector2(15+k*7,-37),1.8,Color("e5e7f0"))
 	elif kind == "holy":
 		# A gentle bob, since the box has no facing of its own.
 		var bob := sin(Time.get_ticks_msec() / 1000.0 * 2.4) * 2.0

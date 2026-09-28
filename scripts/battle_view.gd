@@ -307,6 +307,12 @@ func _act(cell: Vector2i) -> void:
 		return
 	selected_weapon = -1
 	_update_controls()
+	if model.can_swap_shadow(cell):
+		# 影縫い精霊: trade places with the pinned shadow, 0 AP.
+		selected_enemy_id = -2
+		model.player_action(cell)
+		_finish_player_action(true)
+		return
 	var enemy := model.enemy_at(cell)
 	if not enemy.is_empty():
 		# Attackable enemies resolve immediately. Out-of-range enemies are
@@ -592,6 +598,12 @@ func _process(delta: float) -> void:
 		var actor = actors[id]
 		var cells: Array = actor.get_meta("cells", [Vector2i((actor.position-BOARD)/TILE)])
 		actor.attack_target = id >= 0 and cells.any(func(c: Vector2i) -> bool: return attack_cells.has(c))
+	# A lone wolf inside any weapon's reach will sulk on its turn: it shows "…".
+	if model.allies.any(func(a: Dictionary) -> bool: return a.type == "wolf"):
+		var reach: Array[Vector2i] = model.all_reach()
+		for wolf in model.allies:
+			if wolf.type == "wolf" and actors.has(wolf.id):
+				actors[wolf.id].sulking = wolf.hp > 0 and reach.has(wolf.cell)
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
@@ -687,7 +699,9 @@ func _draw() -> void:
 	else:
 		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
 
-	if model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
+	if model.can_swap_shadow(hover_cell) and selected_item.is_empty() and not busy:
+		_text(Vector2(36,673),"影と入れ替わる 0 AP",23,CYAN)
+	elif model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
 	if model.terminal() and not busy:
 		_draw_result()
@@ -706,6 +720,8 @@ func _draw_board() -> void:
 			legal = legal.filter(func(cell: Vector2i) -> bool: return model.enemy_at(cell).is_empty() and model.cannon_at(cell).is_empty())
 		if item_origin != Vector2i(-1,-1):
 			legal = model.directional_preview(selected_item,item_origin,aim)
+		if selected_item.is_empty() and model.can_swap_shadow(model.shadow.get("cell",Vector2i(-1,-1))):
+			legal.append(model.shadow.cell)
 	# Hammer: hovering a target shows the whole area it will shake. Bow: its diagonal lines.
 	var hammer_zone: Array[Vector2i] = []
 	var bow_zone: Array[Vector2i] = []
@@ -791,6 +807,14 @@ func _draw_board() -> void:
 				SpiritIcon.paint(self,_center(cell),model.item_definition("stealth_fairy").icon,1.1)
 				_turn_badge(pos,int(model.fairy_turns.get(cell,0)))
 				if model.is_plus("stealth_fairy"):
+					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
+			if model.shadow.get("cell",Vector2i(-1,-1)) == cell:
+				# The pinned shadow; a red ring pulses while a swap is available.
+				if model.shadow.ready:
+					draw_arc(_center(cell),27,0,TAU,28,Color(model.item_definition("shadow_stitch").color,0.55+0.3*sin(clock*5.0)),3,true)
+				SpiritIcon.paint(self,_center(cell),model.item_definition("shadow_stitch").icon,1.0)
+				_turn_badge(pos,int(model.shadow.turns))
+				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.walls.has(cell):
 				# The wall fills its whole tile; the countdown sits in a corner badge.
@@ -1298,7 +1322,7 @@ func _draw_flashes() -> void:
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -1441,6 +1465,16 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"bite":
+			# Two rows of fangs snapping shut on the tile.
+			var close := minf(t * 2.5, 1.0)
+			for side in [-1.0, 1.0]:
+				var y: float = side * (20.0 - close * 14.0)
+				for k in range(4):
+					var x := -15.0 + k * 10.0
+					draw_colored_polygon(PackedVector2Array([pos + Vector2(x - 4, y), pos + Vector2(x + 4, y), pos + Vector2(x, y - side * 9)]), Color(1, 0.96, 0.9, fade))
+			if t > 0.35:
+				draw_arc(pos, 8 + t * 16, 0, TAU, 18, Color(1, 0.3, 0.3, fade * 0.8), 3, true)
 		"summon":
 			match effect.get("fx", ""):
 				"wall":

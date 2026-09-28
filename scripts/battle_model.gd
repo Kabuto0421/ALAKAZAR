@@ -5,11 +5,12 @@ enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
 	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
-	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres")]
+	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
+	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
-const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士"}
+const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精"}
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -105,6 +106,8 @@ const PLUS_TEXT := {
 	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
+	"shadow_stitch": ["入れ替わると隣の敵すべてに1", "武器のどれも届かない空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横に\n隣接した敵すべてに1。"],
+	"lone_wolf": ["HP2・倒すと隣の敵にも噛みつく", "武器のどれも届かない空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -134,6 +137,8 @@ var obstacles: Array[Vector2i] = []
 var walls: Dictionary = {}
 ## Placed cannons: {cell, dir, kind}. They fire when the player attacks their tile.
 var cannons: Array[Dictionary] = []
+## 影縫い精霊: {cell, turns, ready}. The player may swap onto it for 0 AP once a turn.
+var shadow: Dictionary = {}
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
@@ -163,6 +168,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	obstacles.clear()
 	walls.clear()
 	cannons.clear()
+	shadow = {}
 	locked_slot = -1
 	floor_cells.clear()
 	circle_tiles.clear()
@@ -385,7 +391,7 @@ func is_directional(id: String) -> bool:
 	return item_definition(id).directional or (id == "wall_fairy" and is_plus(id))
 
 func blocked(cell: Vector2i) -> bool:
-	return obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
+	return shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
 
 func item_targets(id: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -394,6 +400,9 @@ func item_targets(id: String) -> Array[Vector2i]:
 		return result
 	# The bow cannot move, but fairies may be placed anywhere along its diagonal lines.
 	var weapon_cells: Array[Vector2i] = bow_lines() if WEAPONS[weapon].get("ranged","") == "bishop" else targets()
+	var reach: Array[Vector2i] = []
+	if item.target == ItemDefinition.Target.UNREACHED:
+		reach = all_reach()
 	for y in range(board_size):
 		for x in range(board_size):
 			var cell := Vector2i(x,y)
@@ -403,7 +412,28 @@ func item_targets(id: String) -> Array[Vector2i]:
 				continue
 			if BIG_FAIRIES.has(id) and big_anchor(cell) == Vector2i(-1, -1):
 				continue
-			if item.target == ItemDefinition.Target.ANY_EMPTY or weapon_cells.has(cell):
+			if item.target == ItemDefinition.Target.UNREACHED:
+				if not reach.has(cell):
+					result.append(cell)
+			elif item.target == ItemDefinition.Target.ANY_EMPTY or weapon_cells.has(cell):
+				result.append(cell)
+	return result
+
+## Tiles one weapon reaches from where the player stands (the bow: its diagonal lines).
+func weapon_reach(index: int) -> Array[Vector2i]:
+	var held := weapon
+	weapon = index
+	var result: Array[Vector2i] = []
+	result.assign(bow_lines() if WEAPONS[index].get("ranged","") == "bishop" else targets())
+	weapon = held
+	return result
+
+## Every tile any carried weapon reaches: switching is free, so this is what counts.
+func all_reach() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for index in owned_weapons:
+		for cell in weapon_reach(index):
+			if not result.has(cell):
 				result.append(cell)
 	return result
 
@@ -592,6 +622,9 @@ func equip(index: int) -> bool:
 	return true
 
 func player_action(cell: Vector2i) -> bool:
+	if can_swap_shadow(cell):
+		swap_shadow()
+		return true
 	if phase != Phase.PLAYER or player.ap <= 0 or not targets().has(cell):
 		return false
 	var cannon := cannon_at(cell)
@@ -966,6 +999,95 @@ func summon_acorn(cell: Vector2i) -> void:
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
+## 影縫い精霊: pin the player's shadow on a tile no weapon reaches.
+func place_shadow(cell: Vector2i) -> void:
+	shadow = {"cell":cell, "turns":WALL_TURNS, "ready":true}
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"shadow"})
+
+## Clicking the shadow swaps with it: 0 AP, once a player turn.
+func can_swap_shadow(cell: Vector2i) -> bool:
+	return phase == Phase.PLAYER and not shadow.is_empty() and shadow.cell == cell and shadow.ready
+
+func swap_shadow() -> void:
+	events.clear()
+	var from: Vector2i = player.cell
+	player.cell = shadow.cell
+	shadow.cell = from
+	shadow.ready = false
+	events.append({"kind":"warp", "cell":from, "id":-2})
+	events.append({"kind":"warp", "cell":player.cell, "id":-2})
+	add_log("影縫い精霊と入れ替わった")
+	trigger_mine(player)
+	if is_plus("shadow_stitch") and not terminal():
+		strike_guard = true
+		struck_ids.clear()
+		for direction in CARDINALS:
+			var enemy := enemy_at(player.cell + direction)
+			if not enemy.is_empty():
+				events.append({"kind":"bolt", "cell":enemy.cell, "id":-2})
+				damage_enemy(enemy, 1, direction)
+		strike_guard = false
+	check_outcome()
+
+## 一匹狼の妖精: a lone ally that hunts on its own until it falls.
+func summon_wolf(cell: Vector2i) -> void:
+	var plus := is_plus("lone_wolf")
+	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":2 if plus else 1, "ap":2, "facing":1, "plus":plus})
+	next_ally_id -= 1
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
+
+## True when someone (the player or another ally) stands right next to the wolf.
+func wolf_crowded(wolf: Dictionary) -> bool:
+	for direction in CARDINALS:
+		var cell: Vector2i = wolf.cell + direction
+		if cell == player.cell:
+			return true
+		var other := ally_at(cell)
+		if not other.is_empty() and other.id != wolf.id:
+			return true
+	return false
+
+## Within any weapon's reach the wolf sulks. Otherwise it runs up to two
+## tiles and then bites once: 2 alone, 1 with company. The upgraded wolf
+## bites a second neighbour after a kill.
+func _wolf_action(wolf: Dictionary) -> void:
+	wolf.sulking = all_reach().has(wolf.cell)
+	if wolf.sulking:
+		add_log("一匹狼の妖精はそっぽを向いた")
+		wolf.ap = 0
+		return
+	var bites := 2 if wolf.get("plus", false) else 1
+	for step in 3:
+		var prey := _wolf_prey(wolf)
+		if prey.is_empty():
+			if step == 2 or not _step_toward_enemy(wolf):
+				break
+			continue
+		while not prey.is_empty() and bites > 0:
+			bites -= 1
+			var target: Dictionary = prey.enemy
+			wolf.facing = CARDINALS.find(prey.dir)
+			events.append({"kind":"bite", "cell":wolf.cell + prey.dir, "id":-2})
+			damage_enemy(target, 1 if wolf_crowded(wolf) else 2, prey.dir)
+			add_log("一匹狼の妖精が噛みついた")
+			check_outcome()
+			if target.hp > 0 or terminal():
+				break
+			prey = _wolf_prey(wolf)
+		break
+	wolf.ap = 0
+
+## The weakest enemy next to the wolf, as {enemy, dir}; empty when none.
+func _wolf_prey(wolf: Dictionary) -> Dictionary:
+	var best: Dictionary = {}
+	for direction in CARDINALS:
+		var enemy := enemy_at(wolf.cell + direction)
+		if enemy.is_empty():
+			continue
+		if best.is_empty() or enemy.hp < best.enemy.hp or (enemy.hp == best.enemy.hp and enemy.id < best.enemy.id):
+			best = {"enemy":enemy, "dir":direction}
+	return best
+
 func act_allies() -> void:
 	if terminal():
 		return
@@ -976,6 +1098,9 @@ func act_allies() -> void:
 		ally.ap = 1
 		if ally.type == "holy":
 			_holy_action(ally)
+			continue
+		if ally.type == "wolf":
+			_wolf_action(ally)
 			continue
 		var adjacent: Array[Dictionary] = []
 		for enemy in enemies:
@@ -994,30 +1119,36 @@ func act_allies() -> void:
 			add_log("%sが攻撃" % ALLY_NAMES[ally.type])
 			check_outcome()
 			continue
-		# Breadth-first search finds the nearest reachable enemy without crossing allies.
-		var start: Vector2i = ally.cell
-		var queue: Array[Vector2i] = [start]
-		var first: Dictionary = {start:start}
-		var destination := start
-		var head := 0
-		while head < queue.size() and destination == start:
-			var current := queue[head]
-			head += 1
-			for direction in CARDINALS:
-				var next: Vector2i = current + direction
-				if first.has(next) or not inside(next) or blocked(next) or next == player.cell or mines.has(next):
-					continue
-				first[next] = next if current == start else first[current]
-				if not enemy_at(next).is_empty():
-					destination = first[next]
-					break
-				queue.append(next)
-		if destination != start and enemy_at(destination).is_empty():
-			ally.facing = CARDINALS.find(destination - start)
-			ally.cell = destination
-			trigger_mine(ally)
+		_step_toward_enemy(ally)
 		ally.ap = 0
 	check_outcome()
+
+## One step toward the nearest reachable enemy (breadth-first, never crossing
+## allies or mines). False when no enemy can be reached or none is left.
+func _step_toward_enemy(ally: Dictionary) -> bool:
+	var start: Vector2i = ally.cell
+	var queue: Array[Vector2i] = [start]
+	var first: Dictionary = {start:start}
+	var destination := start
+	var head := 0
+	while head < queue.size() and destination == start:
+		var current := queue[head]
+		head += 1
+		for direction in CARDINALS:
+			var next: Vector2i = current + direction
+			if first.has(next) or not inside(next) or blocked(next) or next == player.cell or mines.has(next):
+				continue
+			first[next] = next if current == start else first[current]
+			if not enemy_at(next).is_empty():
+				destination = first[next]
+				break
+			queue.append(next)
+	if destination != start and enemy_at(destination).is_empty():
+		ally.facing = CARDINALS.find(destination - start)
+		ally.cell = destination
+		trigger_mine(ally)
+		return true
+	return false
 
 
 ## 聖精霊: like the moving prison, but on the player's side. It strikes an enemy
@@ -1094,6 +1225,12 @@ func tick_walls() -> void:
 		if cannon.turns <= 0:
 			cannons.erase(cannon)
 			add_log("%sが消えた" % CANNON_TITLES[cannon.kind])
+	if not shadow.is_empty():
+		shadow.turns -= 1
+		shadow.ready = true
+		if shadow.turns <= 0:
+			shadow = {}
+			add_log("影縫い精霊が消えた")
 	for cell in fairy_turns.keys():
 		fairy_turns[cell] -= 1
 		if fairy_turns[cell] <= 0:

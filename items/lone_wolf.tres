@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/lone_wolf.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/lone_wolf.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "lone_wolf"
+title = "一匹狼の妖精"
+description = "武器のどれも届かない空きマスに\n召喚。HP1、倒されるまで残る。\n自分で2マス駆けて噛みつく。\nひとりなら2、隣に誰かいると1。\n武器が届く所ではすねる。"
+summary = "ひとりで狩る。群れるとすねる"
+color = Color(0.72, 0.74, 0.82, 1)
+target = 3
+effect = ExtResource("2")
+icon = ExtResource("3")

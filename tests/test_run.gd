@@ -255,6 +255,7 @@ func _initialize() -> void:
 	_difficulty()
 	_shield_soldier()
 	_analyst()
+	_loner_fairies()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -1207,3 +1208,81 @@ func _analyst() -> void:
 		m = Rules.new()
 		m.reset(level)
 		verify(m.enemies.any(func(e): return e.type == "analyst"),"Mid-game fight %d has an analyst" % level)
+
+func _loner_fairies() -> void:
+	# 影縫い精霊: only on tiles no carried weapon reaches; clicking it swaps for 0 AP, once a turn.
+	var m := fixture()
+	m.fairy_loadout.assign(["shadow_stitch"])
+	m.refill_fairies()
+	var reach: Array = m.all_reach()
+	var spots: Array = m.item_targets("shadow_stitch")
+	verify(not spots.is_empty() and spots.all(func(c): return not reach.has(c) and c != m.player.cell),"The shadow only goes where no carried weapon reaches")
+	var spot: Vector2i = spots[0]
+	var start: Vector2i = m.player.cell
+	verify(m.use_item("shadow_stitch",spot) and m.player.ap == 1 and m.blocked(spot),"Pinning the shadow costs 1 AP and takes the tile")
+	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 1,"Clicking the shadow swaps places for 0 AP")
+	verify(not m.can_swap_shadow(start) and not m.player_action(start),"Only one swap a turn")
+	m.tick_walls()
+	verify(m.can_swap_shadow(start) and m.shadow.turns == 2,"The swap comes back next turn while the shadow counts down")
+	m.tick_walls()
+	m.tick_walls()
+	verify(m.shadow.is_empty() and not m.blocked(start),"The shadow fades after three turns")
+	# Class-up: arriving hits every enemy beside the landing tile.
+	m = fixture()
+	m.fairy_plus["shadow_stitch"] = true
+	m.place_shadow(spot)
+	var foe: Dictionary = {}
+	for direction in Rules.CARDINALS:
+		var cell: Vector2i = spot + direction
+		if m.inside(cell) and cell != m.player.cell and not m.blocked(cell) and m.enemy_at(cell).is_empty():
+			m.enemies.clear()
+			foe = m.make_enemy("heavy",cell,0)
+			foe.hp = 5
+			m.enemies.append(foe)
+			break
+	verify(not foe.is_empty() and m.player_action(spot) and foe.hp == 4,"The upgraded shadow hits its neighbours on arrival")
+	# 一匹狼の妖精: a lasting ally placed out of reach; it hunts alone and sulks within reach.
+	m = fixture()
+	m.fairy_loadout.assign(["lone_wolf"])
+	m.refill_fairies()
+	m.enemies.clear()
+	reach = m.all_reach()
+	var wolf_spots: Array = m.item_targets("lone_wolf")
+	verify(not wolf_spots.is_empty() and wolf_spots.all(func(c): return not reach.has(c)),"The wolf is placed only where no weapon reaches")
+	var setup: Array = []
+	for cell in wolf_spots:
+		for direction in Rules.CARDINALS:
+			# Three tiles away: two running steps, then the bite.
+			var mid: Vector2i = cell + direction * 2
+			var far: Vector2i = cell + direction * 3
+			var lane := [cell + direction, mid, far]
+			if setup.is_empty() and m.inside(far) and not lane.has(m.player.cell) and m.distance(mid, m.player.cell) > 1:
+				setup = [cell, mid, far]
+	verify(not setup.is_empty(),"Found a clear lane for the wolf")
+	if setup.is_empty():
+		return
+	var prey: Dictionary = m.make_enemy("heavy",setup[2],0)
+	prey.hp = 5
+	m.enemies.append(prey)
+	verify(m.use_item("lone_wolf",setup[0]) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
+	var wolf: Dictionary = m.allies[0]
+	m.act_allies()
+	verify(wolf.cell == setup[1] and prey.hp == 3,"Alone, it runs in and bites for 2 in one turn")
+	m.tick_walls()
+	verify(m.allies.size() == 1,"The wolf does not fade with the turn count")
+	var crowd: Vector2i = Vector2i(-1,-1)
+	for direction in Rules.CARDINALS:
+		var cell: Vector2i = wolf.cell + direction
+		if crowd == Vector2i(-1,-1) and m.inside(cell) and not m.blocked(cell) and cell != m.player.cell and m.enemy_at(cell).is_empty() and m.distance(cell, prey.cell) > 1:
+			crowd = cell
+	m.allies.append({"id":-50, "type":"holy_knight", "cell":crowd, "hp":1, "ap":0, "facing":2})
+	m.act_allies()
+	verify(prey.hp == 2,"With company beside it, the bite drops to 1")
+	m.allies = m.allies.filter(func(a): return a.type == "wolf")
+	for y in m.board_size:
+		for x in m.board_size:
+			if not m.all_reach().has(wolf.cell) and Vector2i(x,y) != wolf.cell and not m.blocked(Vector2i(x,y)) and m.enemy_at(Vector2i(x,y)).is_empty():
+				m.player.cell = Vector2i(x,y)
+	verify(m.all_reach().has(wolf.cell),"The player can stand where a weapon reaches the wolf")
+	m.act_allies()
+	verify(prey.hp == 2 and wolf.sulking,"Within any weapon's reach, the wolf sulks and skips its turn")

@@ -1,7 +1,8 @@
 extends Resource
 
 ## WEAPON_ANY: any tile in weapon range, including one an enemy stands on.
-enum Target { WEAPON_EMPTY, ANY_EMPTY, WEAPON_ANY }
+## UNREACHED: an empty tile none of the carried weapons reaches.
+enum Target { WEAPON_EMPTY, ANY_EMPTY, WEAPON_ANY, UNREACHED }
 @export var id: String
 @export var title: String
 @export_multiline var description: String

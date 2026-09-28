@@ -142,6 +142,25 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			_enemy(canvas,Vector2(1080,297))
 			var front := 900+progress*190
 			canvas.draw_line(Vector2(front,226),Vector2(front,312),item.color,4)
+		"shadow_stitch":
+			# The shadow waits where no weapon reaches; one click and you trade places.
+			for x in range(5):
+				_tile(canvas,Vector2(876+x*50,268),item.color,40)
+			var here := Vector2(876,268)
+			var there := Vector2(1076,268)
+			var swapped := progress >= 0.5
+			Icon.paint(canvas,here if swapped else there,item.icon,0.6)
+			canvas._draw_player_portrait(model.weapon,there if swapped else here,40)
+			canvas._text(Vector2(930,236),"0 AP で入れ替わる",17,item.color)
+		"lone_wolf":
+			# Alone it closes in and bites for 2.
+			for x in range(4):
+				_tile(canvas,Vector2(884+x*58,270),item.color)
+			Icon.paint(canvas,Vector2(884+minf(progress*2,1.0)*58,268),item.icon,0.75)
+			_enemy(canvas,Vector2(1000,268))
+			if progress > 0.5:
+				canvas._text(Vector2(988,236),"−2",20,Color("ff8a7a"))
+			canvas._text(Vector2(856,306),"ひとりなら2・群れると1",18,item.color)
 		"warp_fairy":
 			for y in range(2):
 				for x in range(5):
