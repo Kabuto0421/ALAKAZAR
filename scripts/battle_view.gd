@@ -1770,6 +1770,55 @@ func _draw_flashes() -> void:
 		elif effect.kind != "plant":
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
 
+## 隕石妖精, in the fairy's own colours: a charcoal rock veined with lava streaks in
+## from the upper left on a red-orange-cream flame, then the 3x3 turns to molten
+## cracks with a shockwave and embers.
+const METEOR_ROCK = Color("3b3431")
+const METEOR_LAVA = Color("ff7a1a")
+const METEOR_GOLD = Color("ffd23a")
+const METEOR_RED = Color("c8261a")
+const METEOR_CREAM = Color("fff0a0")
+func _draw_meteor(effect: Dictionary, pos: Vector2, t: float) -> void:
+	var fall := clampf(t / 0.35, 0.0, 1.0)
+	if fall < 1.0:
+		var from := pos + Vector2(-300, -340)
+		var rock := from.lerp(pos, fall * fall)
+		var back := (from - rock).normalized()
+		# The flame trail: red outside, orange, then a cream core.
+		for layer in [[METEOR_RED, 26.0, 150.0], [METEOR_LAVA, 17.0, 120.0], [METEOR_CREAM, 7.0, 80.0]]:
+			draw_line(rock, rock + back * layer[2], layer[0], layer[1])
+		for k in 5:
+			var ember := rock + back * (40 + k * 24) + Vector2(-back.y, back.x) * (sin(k * 2.3 + t * 30.0) * 14)
+			draw_rect(Rect2(ember - Vector2(3, 3), Vector2(6, 6)), METEOR_GOLD if k % 2 == 0 else METEOR_LAVA)
+		draw_circle(rock, 17, Color("140c0a"))
+		draw_circle(rock, 14, METEOR_ROCK)
+		for k in 3:
+			draw_line(rock + Vector2.from_angle(k * 2.1) * 3, rock + Vector2.from_angle(k * 2.1 + 0.4) * 12, METEOR_LAVA, 2)
+		return
+	var burst := clampf((t - 0.35) / 0.65, 0.0, 1.0)
+	var fade := 1.0 - burst
+	for tile in effect.get("cells", []):
+		var at := _center(tile)
+		var half := Vector2.ONE * TILE * 0.5
+		# Scorched ground glowing through molten cracks.
+		draw_rect(Rect2(at - half, half * 2), Color(METEOR_ROCK, 0.75 * fade))
+		draw_rect(Rect2(at - half, half * 2), Color(METEOR_LAVA, 0.35 * fade * (0.6 + 0.4 * sin(burst * 20.0))))
+		var mark: int = int(tile.x) * 7 + int(tile.y) * 13
+		for k in 3:
+			var a := at + Vector2(sin(mark + k), cos(mark * 1.3 + k)) * TILE * 0.35
+			var b := at + Vector2(cos(mark * 0.7 + k * 2.0), sin(mark + k * 1.7)) * TILE * 0.4
+			draw_line(a, at, Color(METEOR_GOLD, fade), 3)
+			draw_line(at, b, Color(METEOR_LAVA, fade), 2)
+	# Flash, shockwave and embers thrown out.
+	if burst < 0.15:
+		draw_circle(pos, TILE * 1.6, Color(METEOR_CREAM, 0.8 * (1.0 - burst / 0.15)))
+	draw_arc(pos, TILE * (0.7 + burst * 1.6), 0, TAU, 48, Color(METEOR_LAVA, fade), 6, true)
+	draw_arc(pos, TILE * (0.5 + burst * 1.2), 0, TAU, 48, Color(METEOR_GOLD, fade * 0.8), 3, true)
+	for k in 10:
+		var dir := Vector2.from_angle(k * TAU / 10 + 0.3)
+		var ember := pos + dir * TILE * (0.6 + burst * 1.8) + Vector2(0, burst * burst * 30)
+		draw_rect(Rect2(ember - Vector2(3, 3), Vector2(6, 6)), Color(METEOR_GOLD if k % 2 == 0 else METEOR_LAVA, fade))
+
 ## A lethal bite: a big gold "99" that pops and rises, like the magic circle's.
 func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	var t := 1.0 - fade
@@ -1798,20 +1847,7 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 					var arm := Vector2.from_angle(k*PI/3+t)*TILE*0.3*(0.4+t)
 					draw_line(at-arm,at+arm,Color(1,1,1,0.8*fade),2)
 		"meteor":
-			# A rock streaks in from the upper right, then the 3x3 bursts.
-			var fall := clampf(t/0.35,0.0,1.0)
-			if fall < 1.0:
-				var from := pos+Vector2(260,-320)
-				var rock := from.lerp(pos,fall)
-				draw_line(rock,rock+(from-rock).normalized()*90,Color(1,0.6,0.2,0.8),10)
-				draw_circle(rock,14,Color("7a4c3c"))
-				draw_circle(rock,9,Color("ffb24a"))
-			else:
-				var burst := clampf((t-0.35)/0.65,0.0,1.0)
-				for tile in effect.get("cells", []):
-					var at := _center(tile)
-					draw_rect(Rect2(at-Vector2.ONE*TILE*0.5,Vector2.ONE*TILE),Color(1,0.45+0.4*(1.0-burst),0.15,0.6*(1.0-burst)))
-				draw_arc(pos,TILE*(0.6+burst*1.4),0,TAU,40,Color(1,0.85,0.5,1.0-burst),5,true)
+			_draw_meteor(effect, pos, t)
 		"zap":
 			# The provided lightning tile, stretched across the tile and flickering.
 			var vertical: bool = dir.x == 0

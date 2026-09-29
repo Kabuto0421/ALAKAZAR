@@ -18,6 +18,7 @@ const FORTRESS_DAMAGED = {
 	1: preload("res://assets/sprites/boss/prison_fortress_hp1.png"),
 }
 const KING_PORTRAIT = preload("res://assets/sprites/boss/prison_king_portrait.png")
+const FROZEN_OVERLAY = preload("res://assets/sprites/spirits/frozen_overlay.png")
 const GLUTTON = preload("res://assets/sprites/spirits/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
@@ -312,10 +313,9 @@ func _draw_status() -> void:
 		status_layer.draw_rect(Rect2(at, Vector2(width, 20)), Color("7fffd0"), false, 2)
 		status_layer.draw_string(BADGE_FONT, at + Vector2(6, 16), learned_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, learned_color)
 	if frozen > 0:
-		# 氷結: an icy sheen over the body and a snowflake badge with the turns left.
-		var half := 30.0 + grow
-		status_layer.draw_rect(Rect2(Vector2(-half,-half-4),Vector2(half*2,half*2)),Color(0.6,0.88,1.0,0.28))
-		status_layer.draw_rect(Rect2(Vector2(-half,-half-4),Vector2(half*2,half*2)),Color(0.8,0.95,1.0,0.7),false,2)
+		# 氷結: encased in a block of ice, with a snowflake badge and the turns left.
+		var half := 32.0 + grow
+		status_layer.draw_texture_rect(FROZEN_OVERLAY,Rect2(Vector2(-half,-half-6),Vector2(half*2,half*2)),false,Color(1,1,1,0.62))
 		var badge := Vector2(-half+2,-half-2)
 		status_layer.draw_rect(Rect2(badge,Vector2(26,20)),Color(0.05,0.12,0.2,0.92))
 		for k in 3:

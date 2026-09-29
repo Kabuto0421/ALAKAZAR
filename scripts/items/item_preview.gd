@@ -211,11 +211,13 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			var fall := clampf(progress/0.4,0.0,1.0)
 			var target := Vector2(1028,269)
 			if fall < 1.0:
-				var rock := Vector2(1120,150).lerp(target,fall)
-				canvas.draw_line(rock,rock+Vector2(40,-45),Color(1,0.6,0.2,0.8),6)
-				canvas.draw_circle(rock,10,Color("ffb24a"))
+				var rock := Vector2(880,150).lerp(target,fall)
+				canvas.draw_line(rock,rock+Vector2(-50,-45),Color("c8261a"),12)
+				canvas.draw_line(rock,rock+Vector2(-40,-36),Color("ff7a1a"),8)
+				canvas.draw_line(rock,rock+Vector2(-24,-22),Color("fff0a0"),3)
+				canvas.draw_circle(rock,10,Color("3b3431"))
 			else:
-				canvas.draw_rect(Rect2(target-Vector2(78,72),Vector2(156,144)),Color(1,0.5,0.2,0.35*(1.0-progress)))
+				canvas.draw_rect(Rect2(target-Vector2(78,72),Vector2(156,144)),Color(1,0.48,0.1,0.4*(1.0-progress)))
 				canvas._text(Vector2(1000,275),"99",26,Color("ffd35b"))
 			canvas._text(Vector2(872,352),"隕石 %d個（3×3・99）" % model.meteor_count(),18,item.color)
 		"glutton_fairy":
