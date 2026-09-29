@@ -67,6 +67,8 @@ var hop_height := 0.0
 var sword_attack_elapsed := -1.0
 var sword_attack_facing := 0
 var hit_elapsed := -1.0
+## A blessing (守護神: HP+1): three twinkles by the hearts and the new heart popping in.
+var sparkle_elapsed := -1.0
 var hit_direction := Vector2.ZERO
 var status_layer: Node2D
 ## Tiles per side (2 for the rook and the moving prison).
@@ -90,9 +92,16 @@ func _ready() -> void:
 	status_layer.draw.connect(_draw_status)
 	add_child(status_layer)
 
+func sparkle() -> void:
+	sparkle_elapsed = 0.0
+
 func _process(delta: float) -> void:
 	flash = maxf(0.0, flash-delta)
 	clock += delta
+	if sparkle_elapsed >= 0.0:
+		sparkle_elapsed += delta
+		if sparkle_elapsed > 1.0:
+			sparkle_elapsed = -1.0
 	if sword_attack_elapsed >= 0.0:
 		sword_attack_elapsed += delta
 		if sword_attack_elapsed >= SwordMotion.duration(sword_attack_facing):
@@ -305,7 +314,13 @@ func _draw_status() -> void:
 		_draw_rotorick_arrows()
 	var heart_y := -98.0 if kind == "slot" else -112.0 if kind == "king" else 29+grow
 	for i in range(max_hp):
-		_draw_heart(Vector2(-total/2+i*11+5,heart_y),11.0,Color("ff5b62"),i < hp)
+		var size := 11.0
+		if sparkle_elapsed >= 0.0 and i == hp - 1:
+			# The new heart pops in.
+			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
+		_draw_heart(Vector2(-total/2+i*11+5,heart_y),size,Color("ff5b62"),i < hp)
+	if sparkle_elapsed >= 0.0:
+		_draw_sparkles(Vector2(-total/2+(hp-1)*11+5,heart_y))
 	if attack_target:
 		for corner in [Vector2(-28-grow,-27-grow),Vector2(28+grow,-27-grow),Vector2(-28-grow,24+grow),Vector2(28+grow,24+grow)]:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))
@@ -334,6 +349,25 @@ func _draw_status() -> void:
 		status_layer.draw_rect(Rect2(at+Vector2(2,2),Vector2(18,24)), Color("ffbd59"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,5),Vector2(6,12)), Color("351e20"))
 		status_layer.draw_rect(Rect2(at+Vector2(8,20),Vector2(6,4)), Color("351e20"))
+
+## キラン・キラン・キラン: three four-pointed stars flash in turn around the new heart,
+## and "HP+1" floats up.
+func _draw_sparkles(heart: Vector2) -> void:
+	var gold := Color("fff2a8")
+	for k in 3:
+		var t := sparkle_elapsed - k * 0.13
+		if t < 0.0 or t > 0.3:
+			continue
+		var size := sin(t / 0.3 * PI) * 9.0
+		var at: Vector2 = heart + [Vector2(-12, -9), Vector2(11, -13), Vector2(15, 5)][k]
+		status_layer.draw_line(at - Vector2(size, 0), at + Vector2(size, 0), gold, 2)
+		status_layer.draw_line(at - Vector2(0, size * 1.3), at + Vector2(0, size * 1.3), gold, 2)
+		status_layer.draw_circle(at, size * 0.35, Color.WHITE)
+	var rise := clampf(sparkle_elapsed / 1.0, 0.0, 1.0)
+	var alpha := 1.0 - maxf(0.0, (rise - 0.6) / 0.4)
+	for offset in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
+		status_layer.draw_string(BADGE_FONT, heart + Vector2(-16, -14 - rise * 18) + offset, "HP+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.2, 0.08, 0, alpha))
+	status_layer.draw_string(BADGE_FONT, heart + Vector2(-16, -14 - rise * 18), "HP+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(gold, alpha))
 
 ## Rotorick: red chevrons outside the body point where the next charge goes.
 ## Jammed (reel 5, state "stun"): yellow arrows crowd in from all around instead.

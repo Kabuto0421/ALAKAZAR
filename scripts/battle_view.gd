@@ -772,8 +772,18 @@ func _guardian_entrance(event: Dictionary) -> void:
 	for call in event.calls:
 		var at := _center(call.cell)
 		if actors.has(int(call.ally)):
-			at = actors[int(call.ally)].position
-			_fade_in(actors[int(call.ally)], float(call.delay))
+			var actor: Node2D = actors[int(call.ally)]
+			at = actor.position
+			_fade_in(actor, float(call.delay))
+			# It arrives with its usual hearts; a beat later the guardian's blessing
+			# adds one with a twinkle (キラン・キラン・キラン).
+			var bless_at := float(call.delay) + 0.3
+			var hp := int(actor.hp)
+			hp_timeline[int(call.ally)] = [[clock - 1.0, hp - 1], [clock + bless_at, hp]]
+			actor.hp = hp - 1
+			get_tree().create_timer(bless_at).timeout.connect(func():
+				if is_instance_valid(actor):
+					actor.sparkle())
 		calls.append({"pos": at, "delay": float(call.delay)})
 	var origin := _center(event.cell) + Vector2.ONE * TILE / 2
 	if actors.has(int(event.ally)):
@@ -937,9 +947,9 @@ func _process(delta: float) -> void:
 	for id in hp_timeline.keys():
 		if actors.has(id):
 			var unit: Dictionary = {}
-			for enemy in model.enemies:
-				if int(enemy.id) == id:
-					unit = enemy
+			for other in model.enemies + model.allies:
+				if int(other.id) == id:
+					unit = other
 			actors[id].hp = _shown_hp(id, int(unit.get("hp", 0)))
 		else:
 			hp_timeline.erase(id)
