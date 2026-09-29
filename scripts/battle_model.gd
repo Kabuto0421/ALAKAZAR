@@ -1742,7 +1742,7 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 		if not events[i].has("delay"):
 			events[i].delay = at
 
-const CHAIN_BEAT := 0.3
+const CHAIN_BEAT := 0.18
 ## The second volley follows the first volley's whole chain after a clear beat.
 const VOLLEY_GAP := 0.3
 ## Timeline of the chain being resolved (seconds from its first shot).

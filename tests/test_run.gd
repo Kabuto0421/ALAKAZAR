@@ -871,7 +871,7 @@ func _expiring_and_rewards() -> void:
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
 	var muzzles: Array = ch.events.filter(func(e): return e.kind == "muzzle")
 	var beats: Array = muzzles.map(func(e): return snappedf(e.delay, 0.01))
-	verify(beats == [0.0, 0.3, 0.6, 0.9],"First volley, the cannon it sets off (both volleys), then the first cannon's second volley")
+	verify(beats == [0.0, 0.18, 0.48, 0.78],"First volley, the cannon it sets off (both volleys), then the first cannon's second volley")
 	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"The chain link is counted for the combo")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
