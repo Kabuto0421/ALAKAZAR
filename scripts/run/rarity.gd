@@ -10,8 +10,8 @@ const COLORS := [Color("dfe8ea"), Color("5fe08a"), Color("4fb4ff"), Color("ffc93
 
 ## Mid and late fairies.
 const UNCOMMON_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "freeze_fairy", "blessing_fairy"]
-const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit", "meteor_fairy", "guardian_fairy"]
-const SUPER_RARE_FAIRIES: Array[String] = ["glutton_fairy"]
+const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit", "meteor_fairy"]
+const SUPER_RARE_FAIRIES: Array[String] = ["glutton_fairy", "guardian_fairy"]
 
 static func tier(offer: Dictionary) -> int:
 	if offer.get("kind", "") == "weapon":
