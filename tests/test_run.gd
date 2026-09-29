@@ -811,6 +811,56 @@ func _expiring_and_rewards() -> void:
 	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.UNCOMMON,"Rook spear super rare, hammer uncommon")
 	var weigher := Run.new()
 	verify(weigher.fairy_weight("gravity_fairy") > weigher.fairy_weight("magic_bolt") and weigher.fairy_weight("glutton_fairy") < weigher.fairy_weight("magic_bolt"),"New fairies are weighted up, the super rare glutton down")
+	# 氷結妖精: the 3x3 around it is frozen for three enemy turns.
+	var fz := fixture()
+	fz.enemies.clear()
+	fz.player.cell = Vector2i(0,2)
+	fz.owned_weapons.assign([0])
+	fz.weapon = 0
+	var icy: Dictionary = fz.make_enemy("heavy", Vector2i(2,2), 0)
+	var far_one: Dictionary = fz.make_enemy("heavy", Vector2i(5,5), 1)
+	fz.enemies.append_array([icy, far_one])
+	fz.fairy_loadout.assign(["freeze_fairy"])
+	fz.refill_fairies()
+	verify(fz.use_item("freeze_fairy", Vector2i(1,2)) and fz.frozen(icy) and not fz.frozen(far_one),"Freezing catches the 3x3 only")
+	var fplanner := Planner.new()
+	for turn in 3:
+		var before_cell: Vector2i = icy.cell
+		fplanner.begin(fz)
+		fplanner.beat(fz,0)
+		fplanner.beat(fz,1)
+		fplanner.finish(fz)
+		verify(icy.cell == before_cell and fz.player.hp == 5,"A frozen enemy neither moves nor strikes (turn %d)" % (turn + 1))
+	verify(not fz.frozen(icy),"...and thaws after three turns")
+	# 加護の妖精: standing in it, a hit also lands on the tiles above and below.
+	var bl := fixture()
+	bl.enemies.clear()
+	bl.player.cell = Vector2i(1,2)
+	bl.owned_weapons.assign([0])
+	bl.weapon = 0
+	var mid_foe: Dictionary = bl.make_enemy("heavy", Vector2i(2,2), 0)
+	var top_foe: Dictionary = bl.make_enemy("heavy", Vector2i(2,1), 1)
+	var low_foe: Dictionary = bl.make_enemy("heavy", Vector2i(2,3), 2)
+	bl.enemies.append_array([mid_foe, top_foe, low_foe, bl.make_enemy("heavy", Vector2i(5,5), 3)])
+	bl.fairy_loadout.assign(["blessing_fairy"])
+	bl.refill_fairies()
+	bl.place_blessing(Vector2i(1,1))
+	verify(bl.blessed(bl.player.cell) and bl.player_action(Vector2i(2,2)) and mid_foe.hp == 1 and top_foe.hp == 1 and low_foe.hp == 1,"Blessed, the hit also lands above and below")
+	# 隕石妖精: meteors land in weapon reach, 99 to enemies in the 3x3; more with each class-up.
+	var mt := fixture()
+	mt.enemies.clear()
+	mt.player.cell = Vector2i(0,2)
+	mt.owned_weapons.assign([0])
+	mt.weapon = 0
+	var crushed: Dictionary = mt.make_enemy("heavy", Vector2i(1,1), 0)
+	mt.enemies.append_array([crushed, mt.make_enemy("heavy", Vector2i(5,5), 1)])
+	mt.fairy_loadout.assign(["meteor_fairy"])
+	mt.refill_fairies()
+	verify(mt.use_item("meteor_fairy", mt.player.cell) and crushed.hp <= 0 and mt.player.hp == 5,"A meteor on the only tile in reach crushes the 3x3, sparing the player")
+	verify(mt.meteor_count() == 1 and mt.can_class_up("meteor_fairy"),"One meteor to start; it can be upgraded")
+	for k in 4:
+		mt.class_up(0)
+	verify(mt.meteor_count() == 5 and not mt.can_class_up("meteor_fairy") and mt.fairy_title("meteor_fairy") == "隕石妖精+4","Four class-ups: five meteors, and no more")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")

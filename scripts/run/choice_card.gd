@@ -44,6 +44,9 @@ func _ready() -> void:
 		title = item.title
 		plus = model.is_plus(fairy_id) or (preview_plus and model.PLUS_TEXT.has(fairy_id) and fairy_id == str(offer.value))
 		description = model.PLUS_TEXT[fairy_id][1] if plus else item.description
+		if fairy_id == "meteor_fairy" and plus:
+			# Each class-up adds a meteor: preview the next count.
+			description = model.meteor_text(model.meteor_count() + (1 if preview_plus else 0))
 		# Class-up preview: the parts that change are shown in green.
 		if preview_plus and plus and fairy_id == str(offer.value):
 			base_description = item.description

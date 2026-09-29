@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/meteor_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/meteor_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "meteor_fairy"
+title = "隕石妖精"
+description = "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな1マスに\n3×3の隕石が落ちる。\n敵に99ダメージ。自分と味方は無事。"
+summary = "攻撃範囲に隕石を落とす"
+color = Color(1, 0.5, 0.25, 1)
+target = 4
+effect = ExtResource("2")
+icon = ExtResource("3")

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/freeze_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/freeze_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "freeze_fairy"
+title = "氷結妖精"
+description = "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n3ターン動けず攻撃もしない。"
+summary = "3×3を3ターン凍結"
+color = Color(0.55, 0.85, 1, 1)
+target = 2
+effect = ExtResource("2")
+icon = ExtResource("3")

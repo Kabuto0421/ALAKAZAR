@@ -8,11 +8,17 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
-	preload("res://items/glutton_fairy.tres")]
+	preload("res://items/glutton_fairy.tres"), preload("res://items/freeze_fairy.tres"), preload("res://items/blessing_fairy.tres"),
+	preload("res://items/meteor_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
 const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精"}
+## Class-ups beyond one: the meteor fairy can be upgraded four times.
+const MAX_PLUS = {"meteor_fairy": 4}
+## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
+const FREEZE_TURNS := 3
+const METEOR_DAMAGE := 99
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 5
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -132,6 +138,9 @@ const PLUS_TEXT := {
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
+	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
+	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"],
+	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
@@ -167,6 +176,8 @@ var cannons: Array[Dictionary] = []
 var shadow: Dictionary = {}
 ## 奈落の精霊: while abyss_turns > 0, every empty tile no carried weapon reaches is a pit.
 var abyss_turns := 0
+## 加護の妖精: {cell, turns, radius}. While the player stands in it, attacks also hit up and down.
+var blessing: Dictionary = {}
 var pits: Array[Vector2i] = []
 ## Final boss: soldiers that fell while the Prison King lived, in the order they fell.
 var fallen: Array[String] = []
@@ -210,6 +221,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	walls.clear()
 	cannons.clear()
 	shadow = {}
+	blessing = {}
 	abyss_turns = 0
 	pits.clear()
 	fallen.clear()
@@ -428,9 +440,13 @@ func item_definition(id: String) -> Resource:
 func is_plus(id: String) -> bool:
 	return fairy_plus.has(id)
 
+## Class-up level (0 = none). Most fairies stop at 1; the meteor fairy goes to 4.
+func plus_level(id: String) -> int:
+	return int(fairy_plus.get(id, 0))
+
 ## Fairies that can still take a class-up (or evolve).
 func can_class_up(id: String) -> bool:
-	return not is_plus(id) and (PLUS_TEXT.has(id) or EVOLUTIONS.has(id))
+	return plus_level(id) < int(MAX_PLUS.get(id, 1)) and (PLUS_TEXT.has(id) or EVOLUTIONS.has(id))
 
 ## Upgrade the fairy in a loadout slot: a "+" for most, an evolution for the slash.
 func class_up(slot: int) -> bool:
@@ -440,19 +456,30 @@ func class_up(slot: int) -> bool:
 	if EVOLUTIONS.has(id):
 		fairy_loadout[slot] = EVOLUTIONS[id]
 	else:
-		fairy_plus[id] = true
+		fairy_plus[id] = plus_level(id) + 1
 	refill_fairies()
 	return true
 
 func fairy_title(id: String) -> String:
 	var item := item_definition(id)
-	return "" if item == null else item.title + ("+" if is_plus(id) else "")
+	if item == null:
+		return ""
+	var level := plus_level(id)
+	return item.title + ("" if level == 0 else "+" if level == 1 else "+%d" % level)
 
 func fairy_summary(id: String) -> String:
+	if id == "meteor_fairy" and is_plus(id):
+		return "隕石が%d個落ちる" % meteor_count()
 	return PLUS_TEXT[id][0] if is_plus(id) else item_definition(id).summary
 
 func fairy_description(id: String) -> String:
+	if id == "meteor_fairy" and is_plus(id):
+		return meteor_text(meteor_count())
 	return PLUS_TEXT[id][1] if is_plus(id) else item_definition(id).description
+
+## The meteor fairy's text for n meteors (the class-up only changes the count).
+static func meteor_text(n: int) -> String:
+	return "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に99ダメージ。自分と味方は無事。" % n
 
 ## A class-up also makes a fairy cheaper (1 AP less, never below 0) and usable once more per battle.
 func fairy_ap_cost(id: String) -> int:
@@ -780,6 +807,13 @@ func _player_action(cell: Vector2i) -> bool:
 					struck.append(other)
 		elif WEAPONS[weapon].get("ranged","") == "bishop":
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
+		# 加護: standing in the blessed ground, the blow also lands above and below.
+		if blessed(player.cell):
+			for side in [Vector2i.UP, Vector2i.DOWN]:
+				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.DOWN})
+				var other := enemy_at(cell + side)
+				if not other.is_empty() and not struck.has(other):
+					struck.append(other)
 		for target in struck:
 			if shield_blocks(target, player.cell):
 				_block(target)
@@ -1229,6 +1263,78 @@ func summon_abyss() -> void:
 	add_log("奈落が口を開けた")
 	dig_abyss()
 
+## 氷結妖精: every enemy in the 3x3 around the cell is frozen for FREEZE_TURNS enemy turns.
+func freeze(cell: Vector2i) -> void:
+	var turns := FREEZE_TURNS + (1 if is_plus("freeze_fairy") else 0)
+	var area := square_around(cell, 1)
+	events.append({"kind":"freeze", "cell":cell, "id":-2, "cells":area})
+	var frozen := 0
+	for tile in area:
+		var enemy := enemy_at(tile)
+		if not enemy.is_empty() and int(enemy.get("frozen", 0)) < turns:
+			if int(enemy.get("frozen", 0)) == 0:
+				frozen += 1
+			enemy.frozen = turns
+	add_log("氷結妖精が%d体を凍らせた" % frozen)
+
+func frozen(enemy: Dictionary) -> bool:
+	return int(enemy.get("frozen", 0)) > 0
+
+## Tiles of the (2r+1)x(2r+1) square around a cell, on the board.
+func square_around(cell: Vector2i, radius: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var tile := cell + Vector2i(dx, dy)
+			if inside(tile):
+				result.append(tile)
+	return result
+
+## 加護の妖精: blessed ground around the cell for WALL_TURNS turns (5x5 upgraded).
+func place_blessing(cell: Vector2i) -> void:
+	blessing = {"cell":cell, "turns":WALL_TURNS, "radius":2 if is_plus("blessing_fairy") else 1}
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
+	add_log("加護の地が生まれた")
+
+func blessed(cell: Vector2i) -> bool:
+	if blessing.is_empty():
+		return false
+	var gap: Vector2i = (cell - blessing.cell).abs()
+	return gap.x <= int(blessing.radius) and gap.y <= int(blessing.radius)
+
+## 隕石妖精: how many meteors fall (1, plus one per class-up level).
+func meteor_count() -> int:
+	return 1 + plus_level("meteor_fairy")
+
+## 隕石妖精: meteors fall on random tiles of the current weapon's reach; each crushes the
+## 3x3 around it for 99. The player and allies are spared. The pick is seeded, so the
+## threat preview (a clone) sees the same tiles.
+func meteor_strike() -> void:
+	var pool: Array[Vector2i] = []
+	pool.assign(bow_lines() if WEAPONS[weapon].get("ranged","") == "bishop" else targets())
+	var picks: Array[Vector2i] = []
+	var salt := 0
+	while picks.size() < meteor_count() and not pool.is_empty():
+		var index: int = absi(hash([slot_seed, round_number, player.cell, salt, "meteor"])) % pool.size()
+		picks.append(pool.pop_at(index))
+		salt += 1
+	for center in picks:
+		var area := square_around(center, 1)
+		events.append({"kind":"meteor", "cell":center, "id":-2, "cells":area})
+		var struck: Array = []
+		for tile in area:
+			var enemy := enemy_at(tile)
+			if enemy.is_empty() or struck.has(enemy):
+				continue
+			struck.append(enemy)
+			enemy.hp -= METEOR_DAMAGE
+			events.append({"kind":"hit", "cell":enemy.cell, "id":enemy.id, "damage":METEOR_DAMAGE})
+			if enemy.hp <= 0:
+				kills += 1
+				add_log("隕石が%sを押し潰した" % TYPES[enemy.type].name)
+	add_log("隕石が%d個落ちた" % picks.size())
+	check_outcome()
+
 ## Re-dig: every empty tile outside all weapons' reach is a pit (occupied tiles are spared).
 func dig_abyss() -> void:
 	if abyss_turns <= 0:
@@ -1579,6 +1685,14 @@ func tick_walls() -> void:
 			add_log("奈落が閉じた")
 		else:
 			dig_abyss()
+	if not blessing.is_empty():
+		blessing.turns -= 1
+		if blessing.turns <= 0:
+			blessing = {}
+			add_log("加護が消えた")
+	for enemy in enemies:
+		if int(enemy.get("frozen", 0)) > 0:
+			enemy.frozen -= 1
 	if not shadow.is_empty():
 		shadow.turns -= 1
 		shadow.ready = true

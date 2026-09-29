@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/blessing_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/blessing_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "blessing_fairy"
+title = "加護の妖精"
+description = "攻撃範囲の空きマスに置く。\n周囲3×3が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"
+summary = "中だと攻撃が上下にも"
+color = Color(1, 0.86, 0.45, 1)
+target = 0
+effect = ExtResource("2")
+icon = ExtResource("3")

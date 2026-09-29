@@ -179,6 +179,45 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			var offset := minf(progress*2.0,1.0)*50.0
 			_enemy(canvas,Vector2(876+offset,268) if progress < 0.5 else Vector2(926,268))
 			canvas._text(Vector2(880,236),"範囲内→引き寄せ　範囲外→弾く",15,item.color)
+		"freeze_fairy":
+			# The 3x3 around it frosts over; the enemies inside stop moving.
+			for y in range(3):
+				for x in range(3):
+					_tile(canvas,Vector2(924+x*52,221+y*48),item.color,34)
+			Icon.paint(canvas,Vector2(976,269),item.icon,0.5)
+			_enemy(canvas,Vector2(924,221))
+			_enemy(canvas,Vector2(1028,317))
+			if progress > 0.4:
+				for at in [Vector2(924,221), Vector2(1028,317)]:
+					canvas.draw_rect(Rect2(at-Vector2(18,18),Vector2(36,36)),Color(0.7,0.92,1.0,0.45))
+				canvas._text(Vector2(880,352),"3ターン動けない",18,item.color)
+		"blessing_fairy":
+			# Standing in the blessed ground, a hit also lands above and below.
+			for y in range(3):
+				for x in range(3):
+					_tile(canvas,Vector2(884+x*44,225+y*44),item.color,30)
+			Icon.paint(canvas,Vector2(928,269),item.icon,0.45)
+			for y in range(3):
+				_tile(canvas,Vector2(1060,225+y*44),Color("ff805a"),30)
+				_enemy(canvas,Vector2(1060,225+y*44))
+			if progress > 0.4:
+				canvas.draw_line(Vector2(1060,205),Vector2(1060,333),item.color,4)
+			canvas._text(Vector2(872,352),"加護の中なら攻撃が上下にも",16,item.color)
+		"meteor_fairy":
+			# Random tiles in reach take a 3x3 meteor each.
+			for y in range(3):
+				for x in range(5):
+					_tile(canvas,Vector2(872+x*52,221+y*48),item.color,34)
+			var fall := clampf(progress/0.4,0.0,1.0)
+			var target := Vector2(1028,269)
+			if fall < 1.0:
+				var rock := Vector2(1120,150).lerp(target,fall)
+				canvas.draw_line(rock,rock+Vector2(40,-45),Color(1,0.6,0.2,0.8),6)
+				canvas.draw_circle(rock,10,Color("ffb24a"))
+			else:
+				canvas.draw_rect(Rect2(target-Vector2(78,72),Vector2(156,144)),Color(1,0.5,0.2,0.35*(1.0-progress)))
+				canvas._text(Vector2(1000,275),"99",26,Color("ffd35b"))
+			canvas._text(Vector2(872,352),"隕石 %d個（3×3・99）" % model.meteor_count(),18,item.color)
 		"glutton_fairy":
 			# It runs at the nearest thing and swallows it — enemy or not.
 			for x in range(4):

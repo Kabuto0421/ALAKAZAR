@@ -50,6 +50,8 @@ const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
 ## Lone wolf inside the player's reach: it will skip its turn.
 var sulking := false
+## 氷結妖精: enemy turns this unit stays frozen (0 = not frozen).
+var frozen := 0
 ## A sulking wolf turns its back on the player: true when the player is to its right.
 var sulk_flip := false
 var hp := 5
@@ -309,6 +311,17 @@ func _draw_status() -> void:
 		status_layer.draw_rect(Rect2(at, Vector2(width, 20)), Color(0.02, 0.08, 0.08, 0.92))
 		status_layer.draw_rect(Rect2(at, Vector2(width, 20)), Color("7fffd0"), false, 2)
 		status_layer.draw_string(BADGE_FONT, at + Vector2(6, 16), learned_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, learned_color)
+	if frozen > 0:
+		# 氷結: an icy sheen over the body and a snowflake badge with the turns left.
+		var half := 30.0 + grow
+		status_layer.draw_rect(Rect2(Vector2(-half,-half-4),Vector2(half*2,half*2)),Color(0.6,0.88,1.0,0.28))
+		status_layer.draw_rect(Rect2(Vector2(-half,-half-4),Vector2(half*2,half*2)),Color(0.8,0.95,1.0,0.7),false,2)
+		var badge := Vector2(-half+2,-half-2)
+		status_layer.draw_rect(Rect2(badge,Vector2(26,20)),Color(0.05,0.12,0.2,0.92))
+		for k in 3:
+			var arm := Vector2.from_angle(k*PI/3)*6
+			status_layer.draw_line(badge+Vector2(8,10)-arm,badge+Vector2(8,10)+arm,Color("bff0ff"),2)
+		status_layer.draw_string(BADGE_FONT,badge+Vector2(15,16),str(frozen),HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color("e8fbff"))
 	if charge_warning:
 		var at := Vector2(10+grow,-32-grow)
 		status_layer.draw_rect(Rect2(at,Vector2(22,28)), Color("191e29"))

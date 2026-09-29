@@ -72,6 +72,10 @@ func beat(model: RefCounted, index: int) -> void:
 			continue
 		if enemy.type == "shadow":
 			continue
+		# 氷結妖精: a frozen enemy does nothing this turn.
+		if model.frozen(enemy):
+			enemy.ap = 0
+			continue
 		if enemy.type == "slot":
 			if enemy.state == "idle":
 				model.rook_brace(enemy)

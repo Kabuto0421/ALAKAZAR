@@ -467,6 +467,8 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			action_duration = maxf(action_duration, BossCinematic.LIFE["rage"])
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_fall"):
 			action_duration = maxf(action_duration, BossCinematic.LIFE["fall"])
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "meteor"):
+			action_duration = maxf(action_duration, FX_LIFE["meteor"])
 		# Let the abyss finish opening too.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "summon" and e.get("fx","") == "abyss"):
 			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
@@ -601,6 +603,7 @@ func _sync_units(animate: bool) -> void:
 		var target := _unit_center(unit)
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
+		view.frozen = int(unit.get("frozen",0))
 		view.reel = int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
@@ -984,6 +987,10 @@ func _draw_board() -> void:
 		slash_zone = model.side_slash_cells(hover_cell)
 		if not model.enemy_at(hover_cell).is_empty():
 			slash_zone.append(hover_cell)
+	# 氷結妖精 / 加護の妖精: hovering a legal tile shows the square they cover.
+	if selected_item in ["freeze_fairy", "blessing_fairy"] and model.item_targets(selected_item).has(hover_cell):
+		var radius := 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
+		slash_zone = model.square_around(hover_cell, radius)
 	# Magic circle: hovering a move shows the area it would close.
 	var circle_zone: Array[Vector2i] = []
 	if model.is_circle(model.weapon) and model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty() and model.targets().has(hover_cell) and model.enemy_at(hover_cell).is_empty() and not model.blocked(hover_cell):
@@ -1015,8 +1022,14 @@ func _draw_board() -> void:
 			if bow_zone.has(cell):
 				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
 			if slash_zone.has(cell):
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(model.item_definition("slash_fairy").color,0.3))
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),model.item_definition("slash_fairy").color,false,3)
+				var zone_color: Color = model.item_definition(selected_item if selected_item != "" else "slash_fairy").color
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(zone_color,0.3))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),zone_color,false,3)
+			if model.blessed(cell):
+				# 加護の地: warm gold ground, brighter while the player stands in it.
+				var lit := 0.16 + (0.08 if model.blessed(model.player.cell) else 0.0) + 0.04 * sin(clock * 2.5 + x + y)
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,lit))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,0.5),false,1)
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
@@ -1099,6 +1112,9 @@ func _draw_board() -> void:
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
+			if model.blessing.get("cell",Vector2i(-1,-1)) == cell:
+				SpiritIcon.paint(self,mid,model.item_definition("blessing_fairy").icon,0.9)
+				_turn_badge(pos,int(model.blessing.turns))
 			if model.walls.has(cell):
 				# The wall fills its whole tile; the countdown sits in a corner badge.
 				SpiritIcon.paint(self,mid,model.item_definition("wall_fairy").icon,1.12)
@@ -1713,6 +1729,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "analyst":
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
+	if int(enemy.get("frozen",0)) > 0:
+		_text(Vector2(852,520),"凍結中：あと%dターン動けない" % int(enemy.frozen),19,Color("9fe4ff"))
 	var intent := "死者を蘇らせる" if enemy.type == "king" else "兵を送り出す" if enemy.type == "fortress" else "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
 	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
 	if enemy.type == "miner":
@@ -1766,13 +1784,36 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"freeze":
+			# Frost spreading over the 3x3.
+			for tile in effect.get("cells", []):
+				var at := _center(tile)
+				draw_rect(Rect2(at-Vector2.ONE*TILE*0.45,Vector2.ONE*TILE*0.9),Color(0.7,0.92,1.0,0.45*fade))
+				for k in 3:
+					var arm := Vector2.from_angle(k*PI/3+t)*TILE*0.3*(0.4+t)
+					draw_line(at-arm,at+arm,Color(1,1,1,0.8*fade),2)
+		"meteor":
+			# A rock streaks in from the upper right, then the 3x3 bursts.
+			var fall := clampf(t/0.35,0.0,1.0)
+			if fall < 1.0:
+				var from := pos+Vector2(260,-320)
+				var rock := from.lerp(pos,fall)
+				draw_line(rock,rock+(from-rock).normalized()*90,Color(1,0.6,0.2,0.8),10)
+				draw_circle(rock,14,Color("7a4c3c"))
+				draw_circle(rock,9,Color("ffb24a"))
+			else:
+				var burst := clampf((t-0.35)/0.65,0.0,1.0)
+				for tile in effect.get("cells", []):
+					var at := _center(tile)
+					draw_rect(Rect2(at-Vector2.ONE*TILE*0.5,Vector2.ONE*TILE),Color(1,0.45+0.4*(1.0-burst),0.15,0.6*(1.0-burst)))
+				draw_arc(pos,TILE*(0.6+burst*1.4),0,TAU,40,Color(1,0.85,0.5,1.0-burst),5,true)
 		"zap":
 			# The provided lightning tile, stretched across the tile and flickering.
 			var vertical: bool = dir.x == 0
