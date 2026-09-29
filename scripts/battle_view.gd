@@ -75,6 +75,8 @@ var weapon_buttons: Array[Button] = []
 ## Magic circle: enemies it kills stay on screen until the burst of light.
 var hold_dead_until := 0.0
 var last_chain: Dictionary = {}
+## Hearts in a cannon chain drop as each shot lands: id -> [[clock time, hp], ...].
+var hp_timeline: Dictionary = {}
 var last_circle: Dictionary = {}
 var grid_buttons: Array[Button] = []
 var busy := false
@@ -586,6 +588,15 @@ func _sync_units(animate: bool) -> void:
 	var chain := _chain_time()
 	if chain > 0.0 and not model.events.is_empty() and not is_same(model.events[-1], last_chain):
 		last_chain = model.events[-1]
+		hp_timeline.clear()
+		for event in model.events:
+			if event.kind != "hit" or not event.has("hp_before"):
+				continue
+			var steps: Array = hp_timeline.get(int(event.id), [])
+			if steps.is_empty():
+				steps.append([clock - 1.0, int(event.hp_before)])
+			steps.append([clock + float(event.get("delay", 0.0)), int(event.hp)])
+			hp_timeline[int(event.id)] = steps
 		hold_dead_until = maxf(hold_dead_until, clock + chain + 0.15)
 		get_tree().create_timer(chain + 0.2).timeout.connect(func(): _sync_units(false))
 	for event in model.events:
@@ -616,7 +627,7 @@ func _sync_units(animate: bool) -> void:
 			add_child(actor)
 			actors[id] = actor
 		var view: Node2D = actors[id]
-		view.hp = unit.hp
+		view.hp = _shown_hp(id, unit.hp)
 		# "!" on enemies about to hit the player, and on a glutton about to bite them.
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
@@ -841,8 +852,31 @@ func _enemy_moves(enemy: Dictionary) -> Array[Vector2i]:
 			result.append(cell)
 	return result
 
+## HP to show: during a cannon chain, the hearts left after the shots that have landed.
+func _shown_hp(id: int, hp: int) -> int:
+	if not hp_timeline.has(id):
+		return hp
+	var shown := hp
+	var steps: Array = hp_timeline[id]
+	if clock >= float(steps[-1][0]):
+		hp_timeline.erase(id)
+		return hp
+	for step in steps:
+		if clock >= float(step[0]):
+			shown = int(step[1])
+	return shown
+
 func _process(delta: float) -> void:
 	clock += delta
+	for id in hp_timeline.keys():
+		if actors.has(id):
+			var unit: Dictionary = {}
+			for enemy in model.enemies:
+				if int(enemy.id) == id:
+					unit = enemy
+			actors[id].hp = _shown_hp(id, int(unit.get("hp", 0)))
+		else:
+			hp_timeline.erase(id)
 	for i in range(flashes.size()-1,-1,-1):
 		if flashes[i].get("delay", 0.0) > 0.0:
 			# A later link in a cannon chain waits its turn.

@@ -629,7 +629,8 @@ func damage_enemy(enemy: Dictionary, amount: int, travel: Vector2i = Vector2i.ZE
 			return
 		struck_ids.append(enemy.id)
 	enemy.hp -= amount
-	events.append({"kind": "hit", "cell": enemy.cell, "id": enemy.id})
+	# HP before and after, so a delayed chain hit can take its hearts when it lands.
+	events.append({"kind": "hit", "cell": enemy.cell, "id": enemy.id, "hp_before": enemy.hp + amount, "hp": enemy.hp})
 	if enemy.hp <= 0:
 		kills += 1
 
