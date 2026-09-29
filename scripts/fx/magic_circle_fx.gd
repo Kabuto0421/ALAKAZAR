@@ -21,6 +21,8 @@ var targets: Array[Vector2] = []
 var damage := 99
 ## The screen area to flash (the battle view's own coordinates).
 var screen := Rect2(0, 0, 1152, 720)
+## What the effect shakes (the battle board); it is drawn on its own canvas layer.
+var shake_target: Node2D
 var time := 0.0
 var center := Vector2.ZERO
 var radius := 80.0
@@ -53,17 +55,22 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	time += delta
-	var parent := get_parent() as Node2D
-	if parent != null:
+	var parent := shake_target
+	if is_instance_valid(parent):
 		# A heavy shake at the burst, dying away.
 		var shake := 0.0
 		if time > BURST and time < BURST + 0.6:
 			shake = 12.0 * (1.0 - (time - BURST) / 0.6)
 		parent.position = Vector2(sin(time * 91.0), cos(time * 77.0)) * shake
 	if time >= LIFE:
-		if parent != null:
+		if is_instance_valid(parent):
 			parent.position = Vector2.ZERO
-		queue_free()
+		# Its canvas layer goes with it.
+		var layer := get_parent()
+		if layer is CanvasLayer:
+			layer.queue_free()
+		else:
+			queue_free()
 		return
 	queue_redraw()
 

@@ -134,6 +134,14 @@ func run() -> void:
 	var sounds: Array = ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse"]
 	verify(sounds.all(func(n): return battle.sfx.has(n) and ResourceLoader.exists("res://assets/audio/sfx/%s.ogg" % n)),"Every remaining sound effect has its file")
 	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
+	# The abyss and magic circle effects open over the whole screen (they once crashed).
+	battle._open_abyss_fx()
+	battle._cast_circle_fx({"cells": [Vector2i(1,1)], "line": [Vector2i(1,1)], "targets": []})
+	var layers: Array = battle.get_children().filter(func(n): return n is CanvasLayer and n.get_child_count() == 1)
+	verify(layers.any(func(l): return l.get_child(0).get_script() == load("res://scripts/fx/abyss_fx.gd")),"The abyss effect opens on its own layer")
+	verify(layers.any(func(l): return l.get_child(0).get_script() == load("res://scripts/fx/magic_circle_fx.gd")),"The magic circle effect opens on its own layer")
+	await create_timer(3.0).timeout
+	verify(battle.position == Vector2.ZERO and not battle.get_children().any(func(n): return n is CanvasLayer and n.get_child_count() == 1 and n.get_child(0).get_script() == load("res://scripts/fx/abyss_fx.gd")),"They clean up and leave the board steady")
 	battle.bgm.toggle_mute()
 	verify(battle.sfx.muted,"Muting the music mutes the sound effects too")
 	battle.bgm.toggle_mute()

@@ -18,6 +18,8 @@ var origin := Vector2.ZERO
 ## Top-left corners of the pit tiles, nearest first.
 var pits: Array[Vector2] = []
 var screen := Rect2(0, 0, 1152, 720)
+## What the effect shakes (the battle board); it is drawn on its own canvas layer.
+var shake_target: Node2D
 var time := 0.0
 var shards: Array[Dictionary] = []
 var cracks: Array[PackedVector2Array] = []
@@ -51,8 +53,8 @@ func _collapse_time(pit: Vector2) -> float:
 
 func _process(delta: float) -> void:
 	time += delta
-	var parent := get_parent() as Node2D
-	if parent != null:
+	var parent := shake_target
+	if is_instance_valid(parent):
 		var shake := 0.0
 		if time > GATHER and time < RUMBLE_END:
 			shake = 5.0 + 7.0 * clampf((time - GATHER) / (last_collapse - GATHER + 0.01), 0.0, 1.0)
@@ -60,9 +62,14 @@ func _process(delta: float) -> void:
 				shake *= clampf(1.0 - (time - last_collapse) / (RUMBLE_END - last_collapse), 0.0, 1.0)
 		parent.position = Vector2(sin(time * 83.0), cos(time * 71.0)) * shake
 	if time >= LIFE:
-		if parent != null:
+		if is_instance_valid(parent):
 			parent.position = Vector2.ZERO
-		queue_free()
+		# Its canvas layer goes with it.
+		var layer := get_parent()
+		if layer is CanvasLayer:
+			layer.queue_free()
+		else:
+			queue_free()
 		return
 	queue_redraw()
 
