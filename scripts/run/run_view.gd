@@ -74,7 +74,7 @@ func _render() -> void:
 	match run.state:
 		Run.State.START_WEAPON:
 			_label(Vector2(44,48),"最初の武器を選ぶ",30,INK)
-			_label(Vector2(44,94),"1 / 2   前進剣 → と 後退剣 ← に3本目を追加。明るいマスが新しく届くマス、暗いマスは今の武器で届くマス。",17,sub)
+			_label(Vector2(44,94),"1 / 2   前進剣 → と 後退剣 ← に3本目を追加。小さな盤面はその武器で動けるマス。",17,sub)
 			_cards(run.offers)
 			_loadout()
 		Run.State.START_FAIRY:
@@ -199,7 +199,6 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			card.note = "攻撃 %d → %d" % [damage, damage+1]
 			card.note_color = Color("ffd35b")
 			return
-		card.context = coverage
 		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
 		card.note = "新しく届く +%dマス" % added if added > 0 else "届く範囲は増えない"
 		card.note_color = GOOD if added > 0 else Color("92b3ae")
@@ -208,7 +207,7 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			card.note = "囲むと99ダメージ"
 			card.note_color = Color("f4f2ea")
 		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
-			card.tag = ("魔法陣" if offer.get("enchant", "") == "circle" else "武器") + " ・ 交換"
+			card.action_text = "選んで交換"  # the loadout is full
 	else:
 		var id := str(offer.value)
 		if offer.get("rare", false):
@@ -219,7 +218,7 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			card.note = "同じ妖精を所持中"
 			card.note_color = Color("ffd35b")
 		if run.state == Run.State.REWARD and run.battle.fairy_loadout.size() >= run.battle.HAND_LIMIT:
-			card.tag = ("レア妖精" if offer.get("rare", false) else "妖精") + " ・ 交換"
+			card.action_text = "選んで交換"
 
 ## Replacement: the incoming item on the left, the owned ones to give up on the right.
 func _replace_cards() -> void:

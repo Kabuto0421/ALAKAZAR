@@ -3,6 +3,7 @@ extends Button
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
+const Rarity = preload("res://scripts/run/rarity.gd")
 var offer: Dictionary
 var model: RefCounted
 var action_text := "選ぶ"
@@ -46,14 +47,34 @@ func _ready() -> void:
 		# Class-up preview: the parts that change are shown in green.
 		if preview_plus and plus and fairy_id == str(offer.value):
 			base_description = item.description
+	# The frame shows the rarity: white, green, blue or gold, and thick enough to read.
+	var tier := Rarity.tier(offer)
+	var frame: Color = Rarity.COLORS[tier]
 	for state in ["normal","hover","pressed","disabled"]:
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color("172b2b") if state in ["hover","pressed"] else Color("0c181b")
-		style.border_color = accent
-		style.set_border_width_all(3 if state in ["hover","pressed","disabled"] else 1)
+		style.bg_color = Color("172b2b") if state in ["hover","pressed"] else Color(frame.darkened(0.88), 1.0) if tier >= Rarity.RARE else Color("0c181b")
+		style.border_color = frame if state in ["hover","pressed"] or tier > Rarity.COMMON else Color(frame, 0.75)
+		style.set_border_width_all((5 if state in ["hover","pressed"] else 3) + (1 if tier == Rarity.SUPER_RARE else 0))
+		if tier == Rarity.SUPER_RARE:
+			style.shadow_color = Color(frame, 0.55)
+			style.shadow_size = 10
 		style.set_corner_radius_all(8)
 		add_theme_stylebox_override(state,style)
 	_label(Vector2(14,10),tag if tag != "" else "武器" if offer.kind == "weapon" else "妖精",15,accent)
+	# The rarity sits on a badge in the top-right corner, in the frame colour.
+	var badge := Label.new()
+	badge.text = " %s " % Rarity.NAMES[tier]
+	badge.add_theme_font_size_override("font_size",12)
+	badge.add_theme_color_override("font_color",Color("0c181b"))
+	var pill := StyleBoxFlat.new()
+	pill.bg_color = frame
+	pill.set_corner_radius_all(6)
+	pill.content_margin_left = 6
+	pill.content_margin_right = 6
+	badge.add_theme_stylebox_override("normal",pill)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(badge)
+	badge.position = Vector2(size.x-badge.get_minimum_size().x-10,9)
 	var title_label := _label(Vector2(14,30),title,23,Color("eee7d2"))
 	if plus:
 		var font: Font = title_label.get_theme_font("font")
@@ -72,7 +93,9 @@ func _ready() -> void:
 		add_child(diagram)
 		if plus:
 			_badge(diagram.position+Vector2(side+32,0),26)
-		_wrap_label(_label(Vector2(14,72+side),description,15,Color("e5dfc5")),size.x-28)
+		var detail := _label(Vector2(14,72+side),description,15,Color("e5dfc5"))
+		_wrap_label(detail,size.x-28)
+		_fit(detail,y-4-(72+side))
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
 		var stats := "1 AP / 無傷で入替" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / 攻撃 %d" % damage
 		if circle:

@@ -212,7 +212,7 @@ func _draw() -> void:
 	elif kind == "holy":
 		# A gentle bob, since the box has no facing of its own.
 		var bob := sin(Time.get_ticks_msec() / 1000.0 * 2.4) * 2.0
-		draw_texture_rect(HOLY_SPIRIT,Rect2(Vector2(-62,-68+bob),Vector2.ONE*124),false,tint)
+		draw_texture_rect(HOLY_SPIRIT,Rect2(Vector2(-76,-84+bob),Vector2.ONE*152),false,tint)
 	elif kind == "holy_knight":
 		draw_texture_rect_region(HOLY_KNIGHT,Rect2(-32,-36,64,64),Rect2(facing*128,0,128,128),tint)
 	elif kind == "miner":
@@ -262,20 +262,20 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 		"slot":
 			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
 			var frame: int = 7 if reel_value <= 0 else reel_value - 1
-			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-77,-82)*factor, Vector2.ONE*154*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
+			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-86,-94)*factor, Vector2.ONE*172*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
 		"shadow":
 			# A flickering purple hologram: translucent, with scan lines.
 			var t: float = Time.get_ticks_msec() / 1000.0
 			var alpha := 0.5 + 0.12 * sin(t * 9.0)
 			var jitter := Vector2(2.0 * sin(t * 23.0), 0) if int(t * 7) % 5 == 0 else Vector2.ZERO
-			var rect := Rect2((Vector2(-77,-82) + jitter) * factor, Vector2.ONE * 154 * factor)
+			var rect := Rect2((Vector2(-86,-94) + jitter) * factor, Vector2.ONE * 172 * factor)
 			canvas.draw_texture_rect_region(ROTORICK_SHADOW, rect, Rect2(224, 0, 112, 112), Color(0.85, 0.6, 1.0, alpha))
 			for k in range(0, int(rect.size.y), 6):
 				canvas.draw_line(Vector2(rect.position.x + 20 * factor, rect.position.y + k), Vector2(rect.end.x - 20 * factor, rect.position.y + k), Color(0.75, 0.45, 1.0, 0.12), 1)
 		"rook":
-			canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-62,-68)*factor, Vector2.ONE*124*factor), Rect2(direction*56, (56 if red else 0), 56, 56), tint)
+			canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-76,-84)*factor, Vector2.ONE*152*factor), Rect2(direction*56, (56 if red else 0), 56, 56), tint)
 		"prison":
-			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-62,-66)*factor, Vector2.ONE*124*factor), Rect2(direction*224, 0, 224, 224), tint)
+			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-76,-82)*factor, Vector2.ONE*152*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
 

@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Battle = preload("res://scripts/battle_model.gd")
+const Rarity = preload("res://scripts/run/rarity.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST }
 ## Normal fights before the camp; the boss follows the camp.
@@ -73,6 +74,32 @@ func back_to_weapon() -> void:
 	battle.owned_weapons.assign([0,1])
 	state = State.START_WEAPON
 	offers.assign(start_weapon_offers)
+
+## Newly added fairies turn up more often; the rarer tiers less often.
+const NEW_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "glutton_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy"]
+const NEW_FAIRY_WEIGHT := 2.5
+const TIER_WEIGHTS := [1.0, 1.0, 0.5, 0.2]
+
+func fairy_weight(id: String) -> float:
+	return TIER_WEIGHTS[Rarity.tier({"kind":"fairy", "value":id})] * (NEW_FAIRY_WEIGHT if NEW_FAIRIES.has(id) else 1.0)
+
+## Draw `count` without repeats, each pick proportional to its weight.
+func weighted_sample(pool: Array, count: int, weight: Callable) -> Array:
+	var candidates := pool.duplicate()
+	var result: Array = []
+	while result.size() < count and not candidates.is_empty():
+		var total := 0.0
+		for item in candidates:
+			total += float(weight.call(item))
+		var roll := rng.randf() * total
+		var pick := candidates.size() - 1
+		for i in candidates.size():
+			roll -= float(weight.call(candidates[i]))
+			if roll <= 0.0:
+				pick = i
+				break
+		result.append(candidates.pop_at(pick))
+	return result
 
 func sample(pool: Array, count: int) -> Array:
 	var candidates := pool.duplicate()
@@ -174,7 +201,7 @@ func finish_battle() -> bool:
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
 	if fairy_candidates.size() < 2:
 		fairy_candidates = fairy_pool.duplicate()
-	for id in sample(fairy_candidates,FAIRY_OFFERS):
+	for id in weighted_sample(fairy_candidates,FAIRY_OFFERS,fairy_weight):
 		offers.append({"kind":"fairy","value":id})
 	# Beating a boss (the first one or Rotorick) can turn the last fairy offer into a rare one.
 	var rares: Array = RARE_FAIRIES.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))

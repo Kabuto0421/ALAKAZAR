@@ -804,6 +804,13 @@ func _expiring_and_rewards() -> void:
 	bm.summon_acorn(Vector2i(3,3))
 	bm.act_allies()
 	verify(target.hp == 5,"The acorn next to the cannon fires it instead of walking")
+	# Rarity: four tiers; the glutton is super rare, new fairies come up more often.
+	var Rarity = load("res://scripts/run/rarity.gd")
+	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton super rare, meteor rare, magic bolt common")
+	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
+	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.UNCOMMON,"Rook spear super rare, hammer uncommon")
+	var weigher := Run.new()
+	verify(weigher.fairy_weight("gravity_fairy") > weigher.fairy_weight("magic_bolt") and weigher.fairy_weight("glutton_fairy") < weigher.fairy_weight("magic_bolt"),"New fairies are weighted up, the super rare glutton down")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")
