@@ -782,6 +782,7 @@ func _guardian_entrance(event: Dictionary) -> void:
 		var fx := GuardianFx.new()
 		fx.dark = dark
 		fx.origin = origin
+		fx.tile = TILE
 		fx.calls = calls
 		fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
 		add_child(fx)
