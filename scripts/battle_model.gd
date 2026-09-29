@@ -485,7 +485,7 @@ func fairy_description(id: String) -> String:
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
+	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
 
 ## A class-up also makes a fairy cheaper (1 AP less, never below 0) and usable once more per battle.
 func fairy_ap_cost(id: String) -> int:
@@ -962,7 +962,7 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 	if enemy.type in IMMOVABLE:
 		# Rooted to the floor: the shove slams into it like a wall.
 		events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
-		damage_enemy(enemy, 1)
+		_bump_damage(enemy)
 		return
 	var big: bool = int(enemy.get("size", 1)) > 1
 	if direction == Vector2i.ZERO or (big and direction.x != 0 and direction.y != 0):
@@ -975,22 +975,41 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 			_fall(enemy, enemy.cell + direction)
 			return
 		var stopped := false
+		var struck: Array[Dictionary] = []
 		for cell in front:
 			if not inside(cell) or blocked(cell) or cell == player.cell:
 				stopped = true
 			elif not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stopped = true
+				if not struck.has(enemy_at(cell)):
+					struck.append(enemy_at(cell))
 		if stopped:
-			# Only the shoved enemy takes the bump: whatever stopped it is unhurt.
+			# The shoved enemy takes 1; an enemy it is slammed into takes 1 too.
+			# (Walls, the player, allies and objects are unhurt.)
 			events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
 			add_log("%sが叩きつけられた" % TYPES[enemy.type].name)
-			damage_enemy(enemy, 1)
+			_bump_damage(enemy)
+			for other in struck:
+				_bump_damage(other)
 			return
 		enemy.cell += direction
 		events.append({"kind":"push", "cell":enemy.cell, "id":-2, "dir":direction})
 		trigger_mine(enemy)
 		if enemy.hp <= 0:
 			return
+
+## 1 damage from a collision, marked so the board shows it apart from the attack
+## (it lands a beat later, in its own colour). It counts even if the attack
+## already hit this enemy.
+func _bump_damage(enemy: Dictionary) -> void:
+	var guard := strike_guard
+	strike_guard = false
+	var before := events.size()
+	damage_enemy(enemy, 1)
+	strike_guard = guard
+	for k in range(before, events.size()):
+		if events[k].kind == "hit":
+			events[k].bump = true
 
 func weapon_damage(index: int) -> int:
 	var bonus: int = blade_charge if WEAPONS[index].has("charge") else 0

@@ -1329,7 +1329,8 @@ func _knockback() -> void:
 	m.enemies.append(front)
 	m.enemies.append(back)
 	m.player_action(Vector2i(2,2))
-	verify(front.cell == Vector2i(2,2) and front.hp == 0 and back.hp == 2,"Slamming into another enemy hurts only the shoved one")
+	verify(front.cell == Vector2i(2,2) and front.hp == 0 and back.hp == 1,"Slamming into another enemy hurts both: the shoved one and the one it hits")
+	verify(m.events.filter(func(e: Dictionary) -> bool: return e.kind == "hit" and e.get("bump", false)).size() == 2,"Both collision hits are marked as bumps for the board")
 	m = fixture()
 	m.weapon = shield
 	m.owned_weapons.assign([0,1,shield])

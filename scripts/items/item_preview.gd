@@ -21,6 +21,8 @@ const GREEN := Color("7dff9a")
 const SILVER := Color("d8e2ee")
 const PULL := Color("7ac8ff")
 const PUSH := Color("ffa04a")
+## A collision's burst and "−1" (as on the board).
+const BUMP := Color("ffe14a")
 ## The examples about "where no weapon reaches" assume the player holds the silver
 ## general's sword (facing right): the three front tiles and the two back diagonals.
 const SILVER_REACH := [Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1), Vector2i(-1,-1), Vector2i(-1,1)]
@@ -67,15 +69,19 @@ static func grid(id: String, plus: bool) -> Vector2i:
 ## Draws the example for `id` fitted into `rect` (centred, at most twice its size).
 ## `plus`: 1 shows the class-up version, 0 the base one, -1 whatever the model has.
 static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float, rect: Rect2 = Rect2(848,228,268,100), plus: int = -1) -> void:
+	if id == "knockback":
+		board = Vector2i(4,1)
+		_fit(canvas, rect)
+		_board(Color("b8d7c5"))
+		_knockback(time)
+		canvas.draw_set_transform(Vector2.ZERO)
+		return
 	var item: Resource = model.item_definition(id)
 	if item == null:
 		return
 	var upgraded: bool = model.is_plus(id) if plus < 0 else plus == 1
 	board = grid(id, upgraded)
-	var size := Vector2(board) * C
-	var zoom := minf(minf(rect.size.x / size.x, rect.size.y / size.y), 2.0)
-	canvas.draw_set_transform(rect.position + (rect.size - size * zoom) / 2.0, 0.0, Vector2.ONE * zoom)
-	cv = canvas
+	_fit(canvas, rect)
 	_board(item.color)
 	var accent: Color = item.color
 	var art: Texture2D = item.icon
@@ -143,6 +149,8 @@ static func _acorn(time: float, art: Texture2D) -> void:
 	var p := _cycle(time, 2.8)
 	var at := Vector2(1,1).lerp(Vector2(2,1), _ph(p, 0.1, 0.35))
 	var lunge := sin(_ph(p, 0.45, 0.6) * PI) * 0.25
+	# Where it can step or strike: the four tiles beside it.
+	_ally_reach(at.round(), [Vector2(1,0), Vector2(-1,0), Vector2(0,1), Vector2(0,-1)])
 	_enemy(Vector2(3,1), 1.0 - _ph(p, 0.6, 0.75))
 	_art(art, at + Vector2(lunge, 0))
 	_pop(Vector2(3,1), "−1", _ph(p, 0.5, 0.85))
@@ -308,26 +316,68 @@ static func _flying_slash(time: float, accent: Color) -> void:
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.08, hit + 0.2))
 		_pop(enemy, "−1", _ph(p, hit, hit + 0.3))
 
-## 2x2: rushes one way, shoving what it hits (1, and 1 more against a wall).
+## 2x2: rushes one way, shoving what it hits (1; slammed into a wall 1 more, and into
+## another enemy 1 more for each).
 static func _axe(time: float, accent: Color) -> void:
-	var p := _cycle(time, 2.8)
-	_art(WALL, Vector2(5,0))
-	var sweep := _ph(p, 0.1, 0.5)
+	var p := _cycle(time, 5.6)
+	var into_enemy := p >= 0.5
+	var q := fmod(p * 2, 1.0)
+	# First into a wall, then into another enemy (which takes 1 too).
+	if into_enemy:
+		_enemy(Vector2(5,0), 1.0 - _ph(q, 0.72, 0.85))
+	else:
+		_art(WALL, Vector2(5,0))
+	var sweep := _ph(q, 0.1, 0.45)
 	var x := sweep * 2.0
-	_enemy(Vector2(minf(maxf(3.0, x + 2.0), 4.0), 0), 1.0 - _ph(p, 0.58, 0.72))
-	cv.draw_texture_rect_region(Units.AXE_DASH, Rect2(Vector2(x * C + 2, 2), Vector2.ONE * (C * 2 - 4)), Rect2(224,0,224,224), Color(1,1,1,1.0 - _ph(p, 0.6, 0.75)))
+	_enemy(Vector2(minf(maxf(3.0, x + 2.0), 4.0), 0), 1.0 - _ph(q, 0.72, 0.85))
+	cv.draw_texture_rect_region(Units.AXE_DASH, Rect2(Vector2(x * C + 2, 2), Vector2.ONE * (C * 2 - 4)), Rect2(224,0,224,224), Color(1,1,1,1.0 - _ph(q, 0.7, 0.85)))
 	if sweep > 0.0 and sweep < 1.0:
 		for k in 3:
 			cv.draw_line(Vector2(x * C - 6 - k * 10, 14 + k * 24), Vector2(x * C - 20 - k * 10, 14 + k * 24), Color(accent, 0.8), 2)
-	_pop(Vector2(3,0), "−1", _ph(p, 0.2, 0.5))
-	_pop(Vector2(4,0), "−1", _ph(p, 0.5, 0.8))
-	if p > 0.48 and p < 0.6:
-		cv.draw_rect(Rect2(Vector2(5,0) * C, Vector2.ONE * C), Color(1,1,1,0.5))
+	_pop(Vector2(3,0), "−1", _ph(q, 0.2, 0.5))
+	_bump(Vector2(4,0), Vector2(5,0), q, 0.45, into_enemy)
+	_steps(1 if into_enemy else 0, 2)
+
+## A shove, as the shield weapons do it: hit for 1, pushed one tile; slammed into
+## something it takes 1 more, and an enemy it is slammed into takes 1 too.
+static func _knockback(time: float) -> void:
+	var p := _cycle(time, 5.0)
+	var into_enemy := p < 0.5
+	var q := fmod(p * 2, 1.0)
+	_player(Vector2(0,0))
+	var swing := _ph(q, 0.1, 0.25)
+	if swing > 0.0 and swing < 1.0:
+		cv.draw_line(_center(Vector2(1,0)) + Vector2(-14, -14), _center(Vector2(1,0)) + Vector2(14, 14), Color.WHITE, 4)
+	if into_enemy:
+		_enemy(Vector2(2,0), 1.0 - _ph(q, 0.75, 0.88))
+	else:
+		_art(WALL, Vector2(2,0))
+	var shake := sin(_ph(q, 0.3, 0.42) * PI) * 0.15
+	_enemy(Vector2(1,0) + Vector2(shake, 0), 1.0 - _ph(q, 0.75, 0.88))
+	_pop(Vector2(1,0), "−1", _ph(q, 0.15, 0.45))
+	_bump(Vector2(1,0), Vector2(2,0), q, 0.38, into_enemy)
+	_steps(0 if into_enemy else 1, 2)
+
+## The collision between two tiles at `at` (0..1 of the cycle): a burst, "ドン", and a
+## "−1" in the collision colour on the shoved enemy (and on the one it hit).
+static func _bump(shoved: Vector2, hit: Vector2, q: float, at: float, hurts_other: bool) -> void:
+	var k := _ph(q, at, at + 0.2)
+	var contact := (_center(shoved) + _center(hit)) / 2.0
+	if k > 0.0 and k < 1.0:
+		for n in 8:
+			var ray := Vector2.from_angle(n * TAU / 8 + 0.2) * (6 + k * 12) * (1.0 if n % 2 == 0 else 0.6)
+			cv.draw_line(contact, contact + ray, BUMP, 3)
+		_say(contact + Vector2(0, -C * (0.3 if board.y == 1 else 0.55)), "ドン", 13, BUMP)
+	_pop(shoved, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
+	if hurts_other:
+		_pop(hit, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
 
 ## A 2x2 ally that strikes what touches it; broken, two holy knights step out.
 static func _holy(time: float, accent: Color) -> void:
 	var p := _cycle(time, 3.4)
 	if p < 0.62:
+		# It strikes (or steps towards) the tiles along its edges.
+		_ally_reach(Vector2(1,0), [Vector2(-1,0), Vector2(-1,1), Vector2(2,0), Vector2(2,1), Vector2(0,2), Vector2(1,2), Vector2(0,-1), Vector2(1,-1)])
 		_art(Units.HOLY_SPIRIT, Vector2(1,0), 1.0, 2.0)
 		_flash(Vector2(1,0), RED, _ph(p, 0.52, 0.62), 2.0)
 	else:
@@ -379,55 +429,81 @@ static func _wolf(time: float) -> void:
 			_say(_center(Vector2(2,1)) + Vector2(10,-12), "…", 20, Color.WHITE)
 	_steps(phase)
 
-## Called from your own tile: for five turns every empty tile no weapon reaches is a
-## pit (here: holding silver). Enemies cannot walk on pits; one shoved in is gone.
-## The pits follow you as you move. Pits are drawn as on the board: connected ones
-## read as one dark rift with a stone lip where it meets the floor.
+## Called from your own tile: for five turns every empty tile (no enemy, no
+## obstacle) that no weapon reaches is a pit (here: holding silver). Enemies cannot
+## walk on pits; one shoved in is gone. When you move, your reach moves and the
+## pits move with it: tiles you now reach close up, tiles you left open.
 static func _abyss(time: float, accent: Color, art: Texture2D) -> void:
-	var p := _cycle(time, 7.0)
-	var moved := _ph(p, 0.82, 0.9)
-	var here := Vector2i(1,1) if moved < 0.5 else Vector2i(2,1)
-	var shove := _ph(p, 0.6, 0.68)
-	var occupied: Array[Vector2i] = [here, Vector2i(4,1)]
+	var p := _cycle(time, 8.0)
+	var step := 0 if p < 0.26 else 1 if p < 0.44 else 2 if p < 0.66 else 3
+	var moved := _ph(p, 0.7, 0.8)
+	var shift := _ph(p, 0.8, 0.9)
+	var shove := _ph(p, 0.46, 0.54)
+	var obstacle := Vector2i(4,0)
+	# The pits before and after the player steps right (the obstacle and enemies stay floor).
+	var taken: Array[Vector2i] = [obstacle, Vector2i(4,1)]
 	if shove <= 0.0:
-		occupied.append(Vector2i(2,1))
-	var pits: Array[Vector2i] = []
+		taken.append(Vector2i(2,1))
+	var before := _pits(Vector2i(1,1), taken)
+	var after := _pits(Vector2i(2,1), taken)
 	for y in board.y:
 		for x in board.x:
 			var cell := Vector2i(x, y)
-			if not occupied.has(cell) and not _reaches(here, cell):
-				pits.append(cell)
-	# The rift opens outwards from the player, nearest tiles first.
-	for cell in pits:
-		var delay := Vector2(cell - Vector2i(1,1)).length() * 0.03
-		_rift(cell, pits, _ph(p, 0.2 + delay, 0.26 + delay) if p < 0.8 else 1.0)
-	_reach(here)
+			var delay := Vector2(cell - Vector2i(1,1)).length() * 0.025
+			var open := _ph(p, 0.14 + delay, 0.2 + delay)
+			var k := 0.0
+			if before.has(cell) and after.has(cell):
+				k = open
+			elif before.has(cell):
+				k = open * (1.0 - shift)
+			elif after.has(cell):
+				k = shift
+			_rift(cell, before if shift < 0.5 else after, k)
+			# Tiles that change when the reach moves blink.
+			if before.has(cell) != after.has(cell) and shift > 0.0 and p < 0.96:
+				var blink := 0.5 + 0.5 * sin(p * 90.0)
+				cv.draw_rect(Rect2(Vector2(cell) * C + Vector2.ONE * 3, Vector2.ONE * (C - 6)), Color(accent, blink), false, 3)
+	_art(WALL, Vector2(obstacle))
+	_reach(Vector2i(1,1) if moved < 0.5 else Vector2i(2,1))
 	_player(Vector2(1,1).lerp(Vector2(2,1), moved))
+	if moved > 0.0 and moved < 1.0:
+		_arrow(_center(Vector2(1,1)) + Vector2(0, 14), _center(Vector2(2,1)) + Vector2(0, 14), Color.WHITE, 3)
 	# Pressing your own tile calls the spirit up out of it...
-	if p < 0.1:
+	if p < 0.08:
 		_cursor(Vector2(1,1), true)
-	var rise := _ph(p, 0.06, 0.14)
-	if rise > 0.0 and p < 0.3:
-		cv.draw_arc(_center(Vector2(1,1)), 10 + rise * 30, 0, TAU, 32, Color(accent, 0.8 * (1.0 - _ph(p, 0.2, 0.3))), 3)
+	var rise := _ph(p, 0.05, 0.12)
+	if rise > 0.0 and p < 0.26:
+		cv.draw_arc(_center(Vector2(1,1)), 10 + rise * 30, 0, TAU, 32, Color(accent, 0.8 * (1.0 - _ph(p, 0.18, 0.26))), 3)
 		_art(art, Vector2(1,1), rise, 1.0, 1.0 + rise * 0.3)
-	elif p >= 0.3:
+	elif p >= 0.26:
 		# ...and it stays by you (on your tile's corner, glowing) while the pits last.
 		var at := Vector2(1,1).lerp(Vector2(2,1), moved) * C + Vector2(-6, -8)
 		cv.draw_circle(at + Vector2.ONE * 15, 16, Color(accent, 0.35))
 		cv.draw_texture_rect_region(art, Rect2(at, Vector2.ONE * 30), _crop(art))
 	# An enemy cannot step onto a pit.
-	_enemy(Vector2(4,1) - Vector2(sin(_ph(p, 0.4, 0.52) * PI) * 0.2, 0))
-	if p > 0.46 and p < 0.58:
+	_enemy(Vector2(4,1) - Vector2(sin(_ph(p, 0.28, 0.38) * PI) * 0.2, 0))
+	if p > 0.33 and p < 0.44:
 		_cross(_center(Vector2(3,1)), 9)
 	# A shove drops another one in: gone, whatever its HP.
 	if shove <= 0.0:
 		_enemy(Vector2(2,1))
 	else:
-		var sink := _ph(p, 0.66, 0.72)
+		var sink := _ph(p, 0.52, 0.58)
 		_enemy(Vector2(2,1).lerp(Vector2(3,1), shove), 1.0 - sink, 1.0 - sink * 0.6)
 	if shove > 0.0 and shove < 1.0:
 		_arrow(_center(Vector2(1.6,1)), _center(Vector2(2.4,1)), Color.WHITE, 4)
-	_pop(Vector2(3,1), "撃破", _ph(p, 0.68, 0.86), GOLD)
+	_pop(Vector2(3,1), "撃破", _ph(p, 0.54, 0.68), GOLD)
+	_steps(step, 4)
+
+## Empty tiles (not the player's, not `taken`) the silver sword does not reach from `player`.
+static func _pits(player: Vector2i, taken: Array[Vector2i]) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for y in board.y:
+		for x in board.x:
+			var cell := Vector2i(x, y)
+			if cell != player and not taken.has(cell) and not _reaches(player, cell):
+				result.append(cell)
+	return result
 
 ## One pit tile: dark, with a crumbling stone lip on the sides that meet solid floor.
 static func _rift(cell: Vector2i, pits: Array[Vector2i], k: float) -> void:
@@ -546,6 +622,8 @@ static func _meteor(time: float, art: Texture2D, count: int) -> void:
 static func _guardian(time: float) -> void:
 	var p := _cycle(time, 3.6)
 	var land := _ph(p, 0.05, 0.2)
+	# Like the holy spirit: the tiles along its edges.
+	_ally_reach(Vector2(2,1), [Vector2(-1,0), Vector2(-1,1), Vector2(2,0), Vector2(2,1), Vector2(0,2), Vector2(1,2), Vector2(0,-1), Vector2(1,-1)], land)
 	if land > 0.0 and land < 1.0:
 		cv.draw_rect(Rect2(Vector2(2 * C + 18, 0), Vector2(C * 2 - 36, C * 3 * land)), Color(1, 0.95, 0.7, 0.7))
 	_art(Units.GUARDIAN, Vector2(2,1) - Vector2(0, (1.0 - land) * 0.6), land, 2.0)
@@ -580,6 +658,8 @@ static func _glutton(time: float) -> void:
 	var phase := mini(int(p * 3), 2)
 	var q := fmod(p * 3, 1.0)
 	var lunge := sin(_ph(q, 0.2, 0.45) * PI) * 0.35
+	# The gold general's moves, facing right: where it can step and bite.
+	_ally_reach(Vector2(1,1), [Vector2(1,-1), Vector2(1,0), Vector2(1,1), Vector2(0,-1), Vector2(0,1), Vector2(-1,0)])
 	match phase:
 		0:
 			_enemy(Vector2(2,1), 1.0 - _ph(q, 0.32, 0.4))
@@ -598,6 +678,13 @@ static func _glutton(time: float) -> void:
 	_steps(phase)
 
 # --- Pieces --------------------------------------------------------------------
+
+## Scale the board into `rect`, centred, at most twice its size.
+static func _fit(canvas: CanvasItem, rect: Rect2) -> void:
+	var size := Vector2(board) * C
+	var zoom := minf(minf(rect.size.x / size.x, rect.size.y / size.y), 2.0)
+	canvas.draw_set_transform(rect.position + (rect.size - size * zoom) / 2.0, 0.0, Vector2.ONE * zoom)
+	cv = canvas
 
 static func _cycle(time: float, length: float) -> float:
 	return fmod(time, length) / length
@@ -626,6 +713,24 @@ static func _steps(current: int, count: int = 3) -> void:
 
 static func _reaches(player: Vector2i, cell: Vector2i) -> bool:
 	return SILVER_REACH.has(cell - player)
+
+## A summoned ally's reach: the tiles (offsets from `origin`) it can step to or strike,
+## in the ally green, dashed.
+static func _ally_reach(origin: Vector2, offsets: Array, alpha: float = 1.0) -> void:
+	for offset: Vector2 in offsets:
+		var cell := origin + offset
+		if cell.x < 0 or cell.y < 0 or cell.x >= board.x or cell.y >= board.y:
+			continue
+		var rect := Rect2(cell * C + Vector2.ONE * 3, Vector2.ONE * (C - 6))
+		cv.draw_rect(rect, Color(GREEN, 0.13 * alpha))
+		var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
+		for k in 4:
+			var a: Vector2 = corners[k]
+			var b: Vector2 = corners[(k + 1) % 4]
+			var t := 0.0
+			while t < 1.0:
+				cv.draw_line(a.lerp(b, t), a.lerp(b, minf(t + 0.22, 1.0)), Color(GREEN, 0.85 * alpha), 2)
+				t += 0.36
 
 ## The silver sword's reach from the player: the tiles a weapon reaches.
 static func _reach(player: Vector2i) -> void:
@@ -684,7 +789,9 @@ static func _flash(cell: Vector2, color: Color, k: float, span: float = 1.0) -> 
 static func _pop(cell: Vector2, text: String, k: float, color: Color = RED, lift: float = 0.0, font_size: int = 18) -> void:
 	if k <= 0.0 or k >= 1.0:
 		return
-	_say(_center(cell) - Vector2(0, 8 + k * 8 + lift), text, font_size, color)
+	# On a one-row board there is no room above: numbers rise inside the tile.
+	var room := 18.0 if board.y == 1 else 0.0
+	_say(_center(cell) - Vector2(0, 8 + k * 8 + lift - room), text, font_size, color)
 
 ## Centred text with a dark outline so it reads over anything.
 static func _say(center: Vector2, text: String, font_size: int, color: Color) -> void:

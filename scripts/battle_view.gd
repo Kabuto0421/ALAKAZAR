@@ -12,9 +12,16 @@ const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SHADOW_SPENT = preload("res://assets/sprites/spirits/shadow_stitch_spent.png")
 const GRAVITY_PULL = Color("5fd4ff")
 const GRAVITY_PUSH = Color("ff9a4a")
+## Collisions from a shove (盾打ち・薙ぎ払い・突風剣・風斧精霊): their star, "ドンッ" and
+## the extra "−1", which lands BUMP_LAG after the attack's own.
+const BUMP = Color("ffe14a")
+const BUMP_LAG := 0.28
 ## Hover preview for the gravity fairy: [from, to] per enemy it would move (cached per tile).
 var gravity_hover := Vector2i(-9, -9)
 var gravity_moves: Array = []
+## Hover preview for a shoving weapon: where each enemy goes and what it slams into
+## (cached per tile and weapon). {"key", "moves": [[unit, cell]], "bumps": [[cell, dir]], "hurt": [unit]}.
+var shove_preview := {}
 const SpiritIcon = preload("res://scripts/items/spirit_icon.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
 const CAPACITOR_CHARGED = preload("res://assets/sprites/spirits/capacitor_fairy_charged.png")
@@ -737,6 +744,12 @@ func _feedback(weapon_attack: bool = false) -> void:
 		flash.life = FX_LIFE.get(kind,0.42)
 		if event.get("damage", 1) >= Rules.CIRCLE_DAMAGE:
 			flash.life = 1.0  # the big "99" stays up a moment
+		if event.get("bump", false):
+			flash.life = 0.85  # its "−1" waits a beat, then rises
+		if event.kind == "bump" and chain_shake < 0.12:
+			# A collision jolts the board a little.
+			chain_shake = 0.12
+			chain_shake_power = 5.0
 		flash.max_life = flash.life
 		flashes.append(flash)
 		if event.kind == "circle":
@@ -1317,6 +1330,7 @@ func _draw_board() -> void:
 			_draw_arrow(to,(to-from).normalized(),tint)
 	else:
 		gravity_hover = Vector2i(-9, -9)
+	_draw_shove_preview()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
 	if Rules.BIG_FAIRIES.has(selected_item):
@@ -1360,6 +1374,51 @@ func _turn_badge(pos: Vector2, turns: int) -> void:
 		return
 	draw_rect(Rect2(pos+Vector2(44,42),Vector2(18,20)),Color(0.03,0.06,0.07,0.85))
 	_text(pos+Vector2(47,59),str(turns),20,INK)
+
+## Before a shoving attack: arrows to where each enemy would be pushed, a red burst
+## where it would slam into something, and "+1" over every enemy the collision hurts.
+func _draw_shove_preview() -> void:
+	var busy := not model.events.is_empty() and _chain_time() > 0.0
+	if not selected_item.is_empty() or busy or Catalog.knockback(model.weapon) <= 0 or not model.targets().has(hover_cell) or model.enemy_at(hover_cell).is_empty():
+		shove_preview = {}
+		return
+	var key := str([hover_cell, model.weapon, model.player.cell, model.enemies.map(func(e: Dictionary) -> Array: return [e.cell, e.hp]), model.walls.keys()])
+	if shove_preview.get("key", "") != key:
+		var sim: RefCounted = model.clone()
+		sim.events.clear()
+		sim.player_action(hover_cell)
+		var moves: Array = []
+		var hurt: Array = []
+		for enemy in model.enemies:
+			for other in sim.enemies:
+				if other.id == enemy.id and other.cell != enemy.cell:
+					moves.append([enemy, other.cell])
+		var bumps: Array = []
+		for event in sim.events:
+			if event.kind == "bump":
+				bumps.append([event.cell, event.dir])
+			if event.kind == "hit" and event.get("bump", false):
+				for enemy in model.enemies:
+					if enemy.id == event.id and not hurt.has(enemy):
+						hurt.append(enemy)
+		shove_preview = {"key": key, "moves": moves, "bumps": bumps, "hurt": hurt}
+	for move in shove_preview.moves:
+		var from := _unit_center(move[0])
+		var to := _unit_center({"cell": move[1], "size": int(move[0].get("size", 1))})
+		draw_line(from, to, Color(1, 1, 1, 0.85), 4)
+		_draw_arrow(to, (to - from).normalized(), Color.WHITE)
+	var pulse := 0.7 + 0.3 * sin(clock * 9.0)
+	for bump in shove_preview.bumps:
+		var at := _center(bump[0]) + Vector2(bump[1]) * TILE * 0.5
+		draw_circle(at, 15, Color(0.1, 0.02, 0.02, 0.7))
+		for k in 10:
+			var ray := Vector2.from_angle(k * TAU / 10 + 0.2) * (20.0 if k % 2 == 0 else 11.0) * (0.85 + 0.15 * pulse)
+			draw_line(at, at + ray, Color(1, 0.22, 0.18, pulse), 4)
+		draw_circle(at, 6, Color(1, 0.92, 0.85, pulse))
+	for enemy in shove_preview.hurt:
+		var over := _unit_center(enemy) + Vector2(-30, -16)
+		draw_string_outline(ui_font, over, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, 6, Color("140806"))
+		draw_string(ui_font, over, "+1", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1, 0.35, 0.3))
 
 func _draw_arrow(tip: Vector2, dir: Vector2, color: Color) -> void:
 	var side := Vector2(-dir.y,dir.x)*6
@@ -1415,7 +1474,7 @@ func _draw_weapons() -> void:
 			extras.append("溜め%d/%d" % [model.blade_charge, Rules.BLADE_MAX])
 		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
-		_text(pos+Vector2(28,72),"・".join(extras),16,Color("f4f2ea") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
+		_text(pos+Vector2(28,72),"・".join(extras),16,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
 		if circle:
 			# A white inner frame marks the enchantment.
 			draw_rect(rect.grow(-3),Color(CIRCLE_WHITE,0.6),false,1)
@@ -1907,6 +1966,14 @@ func _draw_flashes() -> void:
 			_draw_fx(effect,pos,fade)
 			continue
 		var row := 1 if effect.kind == "mine" else 3 if effect.kind == "plant" else 0
+		if effect.get("bump", false):
+			# A collision's damage: a beat after the attack, in the collision's colour.
+			var age: float = effect.max_life - effect.life
+			if age >= BUMP_LAG:
+				var rise: float = (age - BUMP_LAG) / (float(effect.max_life) - BUMP_LAG)
+				draw_string_outline(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, 6, Color(0.05, 0.03, 0.02, 1.0 - rise))
+				draw_string(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(BUMP, 1.0 - rise))
+			continue
 		if effect.kind != "weapon_hit":
 			draw_texture_rect_region(EFFECTS,Rect2(pos-Vector2(32,32),Vector2(64,64)),Rect2(16*24,row*24,24,24),Color(1,1,1,fade))
 		if effect.get("damage", 1) >= Rules.CIRCLE_DAMAGE:
@@ -1975,7 +2042,7 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2011,11 +2078,18 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			for k in range(3):
 				draw_line(pos - dir * (14 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, pos - dir * (24 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, Color("e5dfc5", fade * 0.7), 3)
 		"bump":
-			# Impact star where the enemy slams into something.
-			var at := pos + dir * 26
-			for k in range(6):
-				var ray := Vector2.from_angle(k * TAU / 6) * (6 + t * 14)
-				draw_line(at, at + ray, Color("ffd35b", fade), 3)
+			# Impact star where the enemy slams into something, and a big "ドンッ".
+			var at := pos + dir * 30
+			for k in range(8):
+				var ray := Vector2.from_angle(k * TAU / 8 + 0.2) * (8 + t * 22) * (1.0 if k % 2 == 0 else 0.6)
+				draw_line(at, at + ray, Color(BUMP, fade), 4)
+			draw_circle(at, 7 * (1.0 - t) + 2, Color(1, 1, 1, fade))
+			# The word clears before the collision's "−1"s rise in the same place.
+			if t < 0.5:
+				var word_at := at + Vector2(-30, -30 - t * 10)
+				var word := 1.0 - t * 2.0
+				draw_string_outline(ui_font, word_at, "ドンッ", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, 6, Color(0.05, 0.03, 0.02, word))
+				draw_string(ui_font, word_at, "ドンッ", HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(BUMP, word))
 		"smash":
 			# Debris flying out of a smashed tile.
 			for k in range(7):

@@ -22,17 +22,25 @@ const SUMMONS := {
 }
 ## The trickier fairies get a fuller line than their summary.
 const CARD_TEXT := {
-	"abyss_spirit": "自分のマスで使う。武器の届かない空きマスが奈落に。敵は歩けず、押し込むと即撃破",
+	"abyss_spirit": "武器の届かない空きマス（敵・障害物なし）が奈落に。動くと変わる",
 	"lone_wolf": "届かないマスに召喚。単独で2、隣に仲間で1、届くとすねる",
 	"shadow_stitch": "届かないマスに影を置き、0 APで入れ替わる",
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（99ダメージ）",
-	"meteor_fairy": "自分の攻撃範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
+	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
 	"blessing_fairy": "3×3の中にいれば、攻撃が上下のマスにも当たる",
 	"capacitor_fairy": "ターン終了時と攻撃されると1溜まり、3溜まると4方向に放電",
 }
 ## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.
 const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
+## Where each fairy is placed (shown under its name); 武器の範囲 unless listed.
+const PLACES := {
+	"shadow_stitch": "届かない所", "lone_wolf": "届かない所",
+	"gravity_fairy": "どこでも", "warp_fairy": "どこでも",
+	"abyss_spirit": "自分のマス", "meteor_fairy": "自分のマス",
+}
+## Summons whose example outlines where they can step and strike.
+const RANGED_SUMMONS := ["acorn_fairy", "holy_spirit", "glutton_fairy", "guardian_fairy"]
 ## Examples drawn with the silver general's sword (they are about weapon reach).
 const SILVER_EXAMPLES := ["shadow_stitch", "lone_wolf", "abyss_spirit", "gravity_fairy", "meteor_fairy"]
 var offer: Dictionary
@@ -116,7 +124,9 @@ func _ready() -> void:
 	var y := size.y-(86 if note != "" else 62) if action_text != "" else size.y-(58 if note != "" else 34)
 	if offer.kind == "weapon":
 		var diagram := Diagram.new()
-		var side := minf(140, size.x-40)
+		var shove := Weapons.knockback(int(offer.value)) > 0
+		# A shoving weapon makes room under its reach for the collision example.
+		var side := minf(112 if shove else 140, size.x-40)
 		diagram.position = Vector2((size.x-side)/2,66)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
@@ -126,9 +136,19 @@ func _ready() -> void:
 		add_child(diagram)
 		if plus:
 			_badge(diagram.position+Vector2(side+32,0),26)
-		var detail := _label(Vector2(14,72+side),description,15,Color("e5dfc5"))
+		var detail_top := 72+side
+		if shove:
+			var demo := FairyDemo.new()
+			demo.model = model
+			demo.id = "knockback"
+			demo.position = Vector2(10,70+side)
+			demo.size = Vector2(size.x-20,54)
+			add_child(demo)
+			detail_top += 58
+			description = "押出（%s）" % SHOVE_TEXT
+		var detail := _label(Vector2(14,detail_top),description,15,Color("e5dfc5"))
 		_wrap_label(detail,size.x-28)
-		_fit(detail,y-4-(72+side))
+		_fit(detail,y-4-detail_top)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
 		var stats := "1 AP / 無傷で入替" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / 攻撃 %d" % damage
 		if circle:
@@ -147,7 +167,7 @@ func _ready() -> void:
 			add_child(ring)
 		if Weapons.knockback(int(offer.value)) > 0:
 			stats += " / 押し出し"
-		_label(Vector2(14,y),stats,15,GREEN if preview_plus else Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		# Under the name: what kind of fairy it is.
 		var kind: String = KINDS.get(fairy_id, "使い切り")
@@ -159,6 +179,9 @@ func _ready() -> void:
 		pill_style.content_margin_left = 6
 		pill_style.content_margin_right = 6
 		kind_label.add_theme_stylebox_override("normal",pill_style)
+		# Where it goes.
+		var place := _label(Vector2(14,84),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),12,Color("c9d4cc"))
+		place.add_theme_font_override("font",label_font())
 		# An animated example of what it does, as large as the card allows, then the
 		# summon's HP / AP, the guardian's calls and one short line of text.
 		var stats: Array = SUMMONS.get(fairy_id, [])
@@ -173,14 +196,16 @@ func _ready() -> void:
 		demo.model = model
 		demo.id = fairy_id
 		demo.plus = 1 if plus else 0
-		demo.position = Vector2(10,86)
-		demo.size = Vector2(size.x-20,clampf(y-86-marks_height-text_room-6,70.0,200.0))
+		demo.position = Vector2(10,104)
+		demo.size = Vector2(size.x-20,clampf(y-104-marks_height-text_room-6,64.0,200.0))
 		add_child(demo)
 		if plus:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
-		if fairy_id in SILVER_EXAMPLES:
-			# These examples assume the silver general's sword, whose reach is outlined.
-			var hint := _label(Vector2(0,62),"例：銀将剣",12,Color("d8e2ee"))
+		if fairy_id in SILVER_EXAMPLES or fairy_id in RANGED_SUMMONS:
+			# Silver examples: the sword's reach is outlined white. Summons: their own
+			# reach is outlined green.
+			var silver: bool = fairy_id in SILVER_EXAMPLES
+			var hint := _label(Vector2(0,84),"例：銀将剣" if silver else "緑枠：動く・攻撃",12,Color("d8e2ee") if silver else GREEN)
 			hint.add_theme_font_override("font",label_font())
 			hint.position.x = size.x-14-hint.get_minimum_size().x
 		var marks_top := demo.position.y+demo.size.y+6
@@ -230,6 +255,10 @@ func _wrap_label(label: Label, width: float) -> void:
 	label.size = Vector2(width, 0)
 
 const GREEN := Color("7dff9a")
+## Text about a weapon's enchantment (the magic circle), in a colour nothing else uses.
+const ENCHANT := Color("ff7ae6")
+## Shoving weapons: what a collision does.
+const SHOVE_TEXT := "敵や壁にぶつけると、ぶつけた敵とぶつかった敵に1ずつ"
 
 static var _label_font: Font
 ## Small labels (the fairy's kind, the chain note) in a plain bold gothic from the
