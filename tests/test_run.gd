@@ -357,14 +357,14 @@ func _new_fairies() -> void:
 	m.refill_fairies()
 	m.weapon = 0
 	m.enemies.clear()
-	m.enemies.append(m.make_enemy("recruit",Vector2i(3,2),0))
-	m.enemies.append(m.make_enemy("heavy",Vector2i(2,1),1))
-	m.enemies.append(m.make_enemy("recruit",Vector2i(4,2),2))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(2,1),0))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(3,2),1))
+	m.enemies.append(m.make_enemy("recruit",Vector2i(2,4),2))
 	verify(not m.item_definition("slash_fairy").directional,"The slash needs no direction")
 	verify(m.use_item("slash_fairy",Vector2i(2,2)),"Slash spirit is placed in weapon range")
-	verify(m.enemy_at(Vector2i(3,2)).is_empty() and m.enemy_at(Vector2i(2,1)).hp == 2,"Slash hits the tiles beside it, not above")
-	verify(not m.enemy_at(Vector2i(4,2)).is_empty(),"Slash reaches only one tile to each side")
-	verify(m.side_slash_cells(Vector2i(2,2)) == [Vector2i(1,2),Vector2i(3,2)],"Slash area is left and right")
+	verify(m.enemy_at(Vector2i(2,1)).is_empty() and m.enemy_at(Vector2i(3,2)).hp == 2,"Slash hits the tiles above and below, not beside")
+	verify(not m.enemy_at(Vector2i(2,4)).is_empty(),"Slash reaches only one tile up and down")
+	verify(m.side_slash_cells(Vector2i(2,2)) == [Vector2i(2,1),Vector2i(2,3)],"Slash area is up and down")
 
 	# Flying slash (class-up): a three-wide wave, each lane stops at blockers.
 	m = fixture()

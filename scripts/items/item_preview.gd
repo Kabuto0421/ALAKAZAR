@@ -126,13 +126,14 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 				for dir in [Vector2.UP,Vector2.DOWN,Vector2.LEFT,Vector2.RIGHT]:
 					canvas.draw_line(center+dir*12,center+dir*Vector2(66,50),item.color,3)
 		"slash_fairy":
-			for x in range(3):
-				_tile(canvas,Vector2(924+x*52,269),item.color,34)
+			# Up and down from where it is placed.
+			for y in range(3):
+				_tile(canvas,Vector2(976,221+y*48),item.color,34)
 			Icon.paint(canvas,Vector2(976,269),item.icon,0.45)
-			_enemy(canvas,Vector2(924,269))
-			_enemy(canvas,Vector2(1028,269))
+			_enemy(canvas,Vector2(976,221))
+			_enemy(canvas,Vector2(976,317))
 			if progress > 0.4:
-				canvas.draw_line(Vector2(904,269),Vector2(1048,269),item.color,4)
+				canvas.draw_line(Vector2(976,201),Vector2(976,337),item.color,4)
 		"flying_slash":
 			for y in range(3):
 				for x in range(5):

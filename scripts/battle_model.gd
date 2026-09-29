@@ -1738,16 +1738,16 @@ func front_slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]
 			result.append(cell)
 	return result
 
-## 斬撃精霊: the two tiles to the left and right of where it is placed.
+## 斬撃精霊: the two tiles above and below where it is placed.
 func side_slash_cells(origin: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for side in [Vector2i.LEFT, Vector2i.RIGHT]:
+	for side in [Vector2i.UP, Vector2i.DOWN]:
 		if inside(origin + side):
 			result.append(origin + side)
 	return result
 
 func side_slash(origin: Vector2i) -> void:
-	_slash_hit(side_slash_cells(origin), Vector2i.RIGHT)
+	_slash_hit(side_slash_cells(origin), Vector2i.DOWN)
 
 func front_slash(origin: Vector2i, direction: Vector2i) -> void:
 	_slash_hit(front_slash_cells(origin, direction), direction)
