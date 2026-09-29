@@ -770,6 +770,7 @@ func _player_action(cell: Vector2i) -> bool:
 		player.ap -= 1
 		strike_guard = true
 		struck_ids.clear()
+		start_chain()
 		fire_cannon(cannon)
 		strike_guard = false
 		check_outcome()
@@ -1553,6 +1554,7 @@ func act_allies() -> void:
 			ally.ap = 0
 			events.append({"kind":"bump", "cell":ally.cell, "id":-2, "dir":touch_dir})
 			add_log("%sが%sを叩いた" % [ALLY_NAMES[ally.type], CANNON_TITLES[touched.kind]])
+			start_chain()
 			fire_cannon(touched)
 			check_outcome()
 			continue
@@ -1729,15 +1731,34 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	if fired.has(cannon.cell):
 		return
 	fired.append(cannon.cell)
-	# Each cannon in a chain goes off one beat after the last, so the chain reads.
+	# Each cannon in a chain goes off one beat after the last (chain_clock), so the
+	# chain reads; its events are stamped with the moment it fires.
 	var first_event := events.size()
-	var delay := CHAIN_BEAT * (fired.size() - 1)
+	var at := chain_clock
+	if fired.size() >= 2:
+		events.append({"kind":"chain", "cell":cannon.cell, "id":-2, "count":fired.size(), "delay":at})
 	_fire_cannon(cannon, fired)
 	for i in range(first_event, events.size()):
 		if not events[i].has("delay"):
-			events[i].delay = delay
+			events[i].delay = at
 
 const CHAIN_BEAT := 0.3
+## The second volley follows the first volley's whole chain almost at once.
+const VOLLEY_GAP := 0.12
+## Timeline of the chain being resolved (seconds from its first shot).
+var chain_clock := 0.0
+
+## Start a new chain's timeline (a strike, a bolt, an acorn, the turn-end charge).
+func start_chain() -> void:
+	chain_clock = 0.0
+
+## The next link: one beat later, another cannon goes off.
+func _chain_to(other: Dictionary, fired: Array) -> void:
+	if fired.has(other.cell) or not cannons.has(other):
+		return
+	chain_clock += CHAIN_BEAT
+	events.append({"kind":"resonate", "cell":other.cell, "id":-2, "delay":chain_clock})
+	fire_cannon(other, fired)
 
 func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	if cannon.kind == "capacitor":
@@ -1769,14 +1790,16 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 					events.append({"kind":"hit", "cell":cell, "id":ally.id})
 				var other := cannon_at(cell)
 				if not other.is_empty():
-					fire_cannon(other, fired)
+					_chain_to(other, fired)
 		return
 	var passed: Array = []
 	# Lance and vane cannons fire straight ahead twice (the vane turns after the pair).
 	var shot_dir: Vector2i = cannon.dir
+	# The first volley, then everything it sets off, then the second volley at once.
 	for volley in CANNON_VOLLEYS:
 		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
 		struck_ids.clear()
+		var first_event := events.size()
 		var cells := cannon_line(cannon.cell, shot_dir, passed)
 		events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
 		for cell in cells:
@@ -1784,9 +1807,14 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 			var enemy := enemy_at(cell)
 			if not enemy.is_empty():
 				damage_enemy(enemy, 1, shot_dir)
+		if volley > 0:
+			chain_clock += VOLLEY_GAP
+			for i in range(first_event, events.size()):
+				events[i].delay = chain_clock
+		else:
+			_resonate(passed, fired)
 	if cannon.kind == "vane":
 		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
-	_resonate(passed, fired)
 
 ## A cannon shot's path: it flies through other cannons (collected in `passed`,
 ## which then resonate) and stops only at walls, obstacles, allies or the edge.
@@ -1808,12 +1836,11 @@ func cannon_line(origin: Vector2i, direction: Vector2i, passed: Array) -> Array[
 ## Cannons a shot passed through fire too, each in its own way.
 func _resonate(passed: Array, fired: Array) -> void:
 	for other in passed:
-		if cannons.has(other) and not fired.has(other.cell):
-			events.append({"kind":"resonate", "cell":other.cell, "id":-2})
-			fire_cannon(other, fired)
+		_chain_to(other, fired)
 
 ## End of the player's turn: every capacitor stores 1 on its own.
 func charge_capacitors() -> void:
+	start_chain()
 	for cannon in cannons.duplicate():
 		if cannon.kind == "capacitor" and cannons.has(cannon):
 			_charge_capacitor(cannon, [])

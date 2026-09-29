@@ -867,9 +867,12 @@ func _expiring_and_rewards() -> void:
 	ch.enemies.append(ch.make_enemy("heavy", Vector2i(5,5), 0))
 	ch.place_cannon(Vector2i(1,1), Vector2i.RIGHT, "lance")
 	ch.place_cannon(Vector2i(3,1), Vector2i.DOWN, "lance")
+	ch.start_chain()
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
 	var muzzles: Array = ch.events.filter(func(e): return e.kind == "muzzle")
-	verify(muzzles.size() == 4 and muzzles[0].delay == 0.0 and muzzles[-1].delay == Rules.CHAIN_BEAT,"The second cannon fires one beat later")
+	var beats: Array = muzzles.map(func(e): return snappedf(e.delay, 0.01))
+	verify(beats == [0.0, 0.3, 0.42, 0.54],"First volley, the cannon it sets off (both volleys), then the first cannon's second volley")
+	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"The chain link is counted for the combo")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")

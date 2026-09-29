@@ -29,6 +29,7 @@ const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
 const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
+const ChainFx = preload("res://scripts/fx/chain_fx.gd")
 const BossCinematic = preload("res://scripts/fx/boss_cinematic.gd")
 const BOSS_FLOOR = preload("res://assets/sprites/boss/boss_floor.png")
 const BOSS_THRONE = preload("res://assets/sprites/boss/boss_throne_floor.png")
@@ -75,6 +76,8 @@ var weapon_buttons: Array[Button] = []
 ## Magic circle: enemies it kills stay on screen until the burst of light.
 var hold_dead_until := 0.0
 var last_chain: Dictionary = {}
+var chain_shake := 0.0
+var chain_shake_power := 0.0
 ## Hearts in a cannon chain drop as each shot lands: id -> [[clock time, hp], ...].
 var hp_timeline: Dictionary = {}
 var last_circle: Dictionary = {}
@@ -479,10 +482,11 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
 		_update_controls()
 		await get_tree().create_timer(action_duration).timeout
-	# Let a cannon chain play out, link by link.
+	# Let a cannon chain play out, link by link (and its closing banner).
 	var chain := _chain_time()
 	if chain > 0.0:
-		await get_tree().create_timer(chain + 0.3).timeout
+		var banner := model.events.any(func(e: Dictionary) -> bool: return e.kind == "chain")
+		await get_tree().create_timer(chain + (1.0 if banner else 0.3)).timeout
 	if token != generation:
 		return
 	busy = false
@@ -575,6 +579,30 @@ func _maybe_first_help() -> void:
 		return
 	help_seen = true
 	_toggle_rules()
+
+func _exit_tree() -> void:
+	Engine.time_scale = 1.0  # never leave a hit-stop behind
+
+## A chain link lands: CHAIN ×n pops over the cannon, the screen shakes, and time
+## stops for a heartbeat (a hit-stop). The last link also shows the chain's total.
+func _chain_burst(event: Dictionary) -> void:
+	var fx := ChainFx.new()
+	fx.count = int(event.count)
+	fx.position = _center(event.cell)
+	fx.board = Rect2(BOARD, Vector2.ONE * TILE * model.board_size)
+	var top := 0
+	for other in model.events:
+		if other.kind == "chain":
+			top = maxi(top, int(other.count))
+	if int(event.count) == top:
+		fx.banner = true
+		fx.hits = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0).size()
+	add_child(fx)
+	chain_shake = 0.22
+	chain_shake_power = 5.0 + 2.0 * mini(int(event.count), 6)
+	# Hit-stop: freeze for a beat (longer on the last link), then carry on.
+	Engine.time_scale = 0.03
+	get_tree().create_timer(0.16 if fx.banner else 0.09, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 
 ## The last beat of a cannon chain (0 when nothing waits).
 func _chain_time() -> float:
@@ -868,6 +896,9 @@ func _shown_hp(id: int, hp: int) -> int:
 
 func _process(delta: float) -> void:
 	clock += delta
+	if chain_shake > 0.0:
+		chain_shake -= delta
+		position = Vector2(sin(clock * 97.0), cos(clock * 83.0)) * chain_shake_power * maxf(chain_shake, 0.0) / 0.22 if chain_shake > 0.0 else Vector2.ZERO
 	for id in hp_timeline.keys():
 		if actors.has(id):
 			var unit: Dictionary = {}
@@ -881,6 +912,8 @@ func _process(delta: float) -> void:
 		if flashes[i].get("delay", 0.0) > 0.0:
 			# A later link in a cannon chain waits its turn.
 			flashes[i].delay -= delta
+			if flashes[i].delay <= 0.0 and flashes[i].kind == "chain":
+				_chain_burst(flashes[i])
 			continue
 		flashes[i].life -= delta
 		if flashes[i].life <= 0:
@@ -1891,7 +1924,7 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.45, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
