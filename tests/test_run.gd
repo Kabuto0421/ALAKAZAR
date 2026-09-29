@@ -314,7 +314,7 @@ func _new_fairies() -> void:
 	m.enemies.append(m.make_enemy("recruit",Vector2i(2,4),1))
 	verify(m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP) and m.blocked(Vector2i(2,2)),"Lance cannon occupies its tile")
 	verify(m.player_action(Vector2i(2,2)) and m.player.ap == 0,"Attacking the cannon costs 1 AP")
-	verify(m.enemy_at(Vector2i(2,0)).hp == 1 and not m.enemy_at(Vector2i(2,4)).is_empty(),"Shot hits only its line")
+	verify(m.enemy_at(Vector2i(2,0)).is_empty() and not m.enemy_at(Vector2i(2,4)).is_empty(),"Two volleys down its line (HP2 falls), nothing behind")
 	verify(not m.cannon_at(Vector2i(2,2)).is_empty(),"Lance cannon stays after firing")
 
 	# Vane cannon rotates clockwise after each shot.
@@ -340,7 +340,7 @@ func _new_fairies() -> void:
 	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
 	verify(m.enemy_at(Vector2i(1,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Firework hits every neighbour")
 	verify(m.cannon_at(Vector2i(2,2)).is_empty(),"Firework is spent")
-	verify(m.enemy_at(Vector2i(5,2)).hp == 1,"Burst sets off the neighbouring lance cannon")
+	verify(m.enemy_at(Vector2i(5,2)).is_empty(),"Burst sets off the neighbouring lance cannon (two volleys)")
 	# The burst also hits the player and allies standing next to it.
 	m = fixture()
 	m.fairy_loadout.assign(["firework_fairy"])
@@ -788,6 +788,22 @@ func _expiring_and_rewards() -> void:
 	um.refill_fairies()
 	verify(um.fairy_ap_cost("magic_bolt") == 0 and um.fairy_charges == [2],"After it: 0 AP, twice a battle")
 	verify(um.item_definition("warp_fairy").ap_cost == 0,"The warp fairy costs 0 AP")
+	# A magic bolt flies through a cannon and sets it off; an acorn beside a cannon fires it.
+	var bm := fixture()
+	bm.enemies.clear()
+	bm.player.cell = Vector2i(0,2)
+	bm.owned_weapons.assign([0])
+	bm.weapon = 0
+	bm.place_cannon(Vector2i(3,2), Vector2i.UP, "lance")
+	var target: Dictionary = bm.make_enemy("heavy", Vector2i(3,0), 5)
+	target.hp = 9
+	bm.enemies.append_array([target, bm.make_enemy("heavy", Vector2i(5,5), 6)])
+	bm.fairy_loadout.assign(["magic_bolt"])
+	bm.refill_fairies()
+	verify(bm.use_item("magic_bolt", Vector2i(1,2), Vector2i.RIGHT) and target.hp == 7,"The bolt passes the cannon, which fires two volleys")
+	bm.summon_acorn(Vector2i(3,3))
+	bm.act_allies()
+	verify(target.hp == 5,"The acorn next to the cannon fires it instead of walking")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")
@@ -854,14 +870,13 @@ func _class_ups() -> void:
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
 	verify(m.is_directional("wall_fairy") and not m.use_item("wall_fairy",Vector2i(2,2)),"Wall+ asks for a direction")
 	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)) and m.walls.has(Vector2i(2,4)) and m.walls.size() == 3,"Wall+ builds a three-tile line")
-	# Lance cannon+: fires both ways.
+	# Lance cannon+: the same two volleys ahead, 0 AP to place and two per battle.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
-	m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP)
-	verify(m.player_action(Vector2i(2,2)) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Lance cannon+ fires both ways")
-	# Vane cannon+: both ways, then turns.
+	verify(m.fairy_ap_cost("cannon_fairy") == 0 and m.fairy_charges == [2],"Lance cannon+ is free to place and comes twice")
+	# Vane cannon+: two volleys, then turns.
 	m = _plus_room("vane_cannon",[Vector2i(2,0),Vector2i(2,5)])
 	m.use_item("vane_cannon",Vector2i(2,2),Vector2i.UP)
-	verify(m.player_action(Vector2i(2,2)) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)) and m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon+ fires both ways and turns")
+	verify(m.player_action(Vector2i(2,2)) and m.enemy_at(Vector2i(2,0)).is_empty() and not _hurt(m,Vector2i(2,5)) and m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon+ fires ahead, not behind, then turns")
 	# Firework+: spares the player.
 	m = _plus_room("firework_fairy",[Vector2i(3,3)])
 	m.use_item("firework_fairy",Vector2i(2,2))

@@ -123,11 +123,11 @@ var fairy_plus: Dictionary = {}
 const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
 	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
-	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"],
+	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
-	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
-	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
+	"cannon_fairy": ["毎戦闘2回・0 APで置ける", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
+	"vane_cannon": ["毎戦闘2回・0 APで置ける", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
@@ -1434,6 +1434,21 @@ func act_allies() -> void:
 		if ally.type == "glutton":
 			_glutton_action(ally)
 			continue
+		# A cannon next to it is fair game: the acorn sets it off (a chain beats a single hit).
+		var touched := {}
+		var touch_dir := Vector2i.ZERO
+		for offset in CARDINALS + (DIAGONALS if ally.get("plus", false) else []):
+			var cannon := cannon_at(ally.cell + offset)
+			if not cannon.is_empty() and touched.is_empty():
+				touched = cannon
+				touch_dir = offset
+		if not touched.is_empty():
+			ally.ap = 0
+			events.append({"kind":"bump", "cell":ally.cell, "id":-2, "dir":touch_dir})
+			add_log("%sが%sを叩いた" % [ALLY_NAMES[ally.type], CANNON_TITLES[touched.kind]])
+			fire_cannon(touched)
+			check_outcome()
+			continue
 		var adjacent: Array[Dictionary] = []
 		for enemy in enemies:
 			var gap: Vector2i = (enemy.cell - ally.cell).abs()
@@ -1592,6 +1607,8 @@ func place_cannon(cell: Vector2i, direction: Vector2i, kind: String, plus: bool 
 	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":1 if plus and kind == "capacitor" else 0, "plus":plus})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
+const CANNON_VOLLEYS := 2
+
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
 func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	if fired.has(cannon.cell):
@@ -1604,6 +1621,7 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	if cannon.kind == "firework":
 		# The burst does not pick sides: enemies, allies and the player all take 1.
 		cannons.erase(cannon)
+		struck_ids.clear()
 		events.append({"kind":"firework", "cell":cannon.cell, "id":-2})
 		for dy in range(-1, 2):
 			for dx in range(-1, 2):
@@ -1628,9 +1646,11 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 					fire_cannon(other, fired)
 		return
 	var passed: Array = []
-	# Upgraded lance and vane cannons fire both ways along their line.
-	var shots: Array = [cannon.dir, -cannon.dir] if cannon.get("plus", false) else [cannon.dir]
-	for shot_dir: Vector2i in shots:
+	# Lance and vane cannons fire straight ahead twice (the vane turns after the pair).
+	var shot_dir: Vector2i = cannon.dir
+	for volley in CANNON_VOLLEYS:
+		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
+		struck_ids.clear()
 		var cells := cannon_line(cannon.cell, shot_dir, passed)
 		events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
 		for cell in cells:
@@ -1682,6 +1702,7 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 		add_log("蓄電の妖精に電気が溜まった（%d/%d）" % [cannon.charge, CAPACITOR_FULL])
 		return
 	cannon.charge = 0
+	struck_ids.clear()
 	events.append({"kind":"discharge", "cell":cannon.cell, "id":-2})
 	add_log("蓄電の妖精が放電！")
 	var passed: Array = []
