@@ -1728,6 +1728,17 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	if fired.has(cannon.cell):
 		return
 	fired.append(cannon.cell)
+	# Each cannon in a chain goes off one beat after the last, so the chain reads.
+	var first_event := events.size()
+	var delay := CHAIN_BEAT * (fired.size() - 1)
+	_fire_cannon(cannon, fired)
+	for i in range(first_event, events.size()):
+		if not events[i].has("delay"):
+			events[i].delay = delay
+
+const CHAIN_BEAT := 0.3
+
+func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	if cannon.kind == "capacitor":
 		_charge_capacitor(cannon, fired)
 		return

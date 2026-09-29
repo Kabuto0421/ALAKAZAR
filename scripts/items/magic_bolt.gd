@@ -12,4 +12,5 @@ func apply(model: RefCounted, cell: Vector2i, direction: Vector2i) -> void:
 			var enemy: Dictionary = model.enemy_at(target)
 			if not enemy.is_empty():
 				model.damage_enemy(enemy, 1, aim)
-	model._resonate(passed, [])
+	# The bolt's own tile counts as the first link, so the cannons go off after it.
+	model._resonate(passed, [cell])

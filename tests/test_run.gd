@@ -861,6 +861,15 @@ func _expiring_and_rewards() -> void:
 	for k in 4:
 		mt.class_up(0)
 	verify(mt.meteor_count() == 5 and not mt.can_class_up("meteor_fairy") and mt.fairy_title("meteor_fairy") == "隕石妖精+4","Four class-ups: five meteors, and no more")
+	# A chain reads link by link: each cannon set off fires one beat after the last.
+	var ch := fixture()
+	ch.enemies.clear()
+	ch.enemies.append(ch.make_enemy("heavy", Vector2i(5,5), 0))
+	ch.place_cannon(Vector2i(1,1), Vector2i.RIGHT, "lance")
+	ch.place_cannon(Vector2i(3,1), Vector2i.DOWN, "lance")
+	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
+	var muzzles: Array = ch.events.filter(func(e): return e.kind == "muzzle")
+	verify(muzzles.size() == 4 and muzzles[0].delay == 0.0 and muzzles[-1].delay == Rules.CHAIN_BEAT,"The second cannon fires one beat later")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")

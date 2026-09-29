@@ -74,6 +74,7 @@ var result_button: Button
 var weapon_buttons: Array[Button] = []
 ## Magic circle: enemies it kills stay on screen until the burst of light.
 var hold_dead_until := 0.0
+var last_chain: Dictionary = {}
 var last_circle: Dictionary = {}
 var grid_buttons: Array[Button] = []
 var busy := false
@@ -341,6 +342,7 @@ func _enemy_turn() -> void:
 			wait = BossCinematic.LIFE["rage"]
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "king_fall"):
 			wait = BossCinematic.LIFE["fall"]
+		wait = maxf(wait, _chain_time() + 0.3)  # an acorn setting off a cannon chain
 		await get_tree().create_timer(wait).timeout
 		if token != generation:
 			return
@@ -351,11 +353,12 @@ func _enemy_turn() -> void:
 	planner.begin(model)
 	_update_controls()
 	if not model.events.is_empty():
-		# Rule A: the siege closing and burning shows before the enemies move.
+		# Rule A: the siege closing and burning shows before the enemies move
+		# (and a capacitor discharging at the end of the turn).
 		_sync_units(true)
 		_feedback()
 		queue_redraw()
-		await get_tree().create_timer(0.35).timeout
+		await get_tree().create_timer(maxf(0.35, _chain_time() + 0.3)).timeout
 		if token != generation:
 			return
 	await get_tree().create_timer(0.12).timeout
@@ -474,6 +477,10 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
 		_update_controls()
 		await get_tree().create_timer(action_duration).timeout
+	# Let a cannon chain play out, link by link.
+	var chain := _chain_time()
+	if chain > 0.0:
+		await get_tree().create_timer(chain + 0.3).timeout
 	if token != generation:
 		return
 	busy = false
@@ -567,7 +574,20 @@ func _maybe_first_help() -> void:
 	help_seen = true
 	_toggle_rules()
 
+## The last beat of a cannon chain (0 when nothing waits).
+func _chain_time() -> float:
+	var longest := 0.0
+	for event in model.events:
+		longest = maxf(longest, float(event.get("delay", 0.0)))
+	return longest
+
 func _sync_units(animate: bool) -> void:
+	# A cannon chain: the fallen stay up until the shot that fells them lands.
+	var chain := _chain_time()
+	if chain > 0.0 and not model.events.is_empty() and not is_same(model.events[-1], last_chain):
+		last_chain = model.events[-1]
+		hold_dead_until = maxf(hold_dead_until, clock + chain + 0.15)
+		get_tree().create_timer(chain + 0.2).timeout.connect(func(): _sync_units(false))
 	for event in model.events:
 		if event.kind == "circle" and not is_same(event, last_circle):
 			last_circle = event
@@ -824,6 +844,10 @@ func _enemy_moves(enemy: Dictionary) -> Array[Vector2i]:
 func _process(delta: float) -> void:
 	clock += delta
 	for i in range(flashes.size()-1,-1,-1):
+		if flashes[i].get("delay", 0.0) > 0.0:
+			# A later link in a cannon chain waits its turn.
+			flashes[i].delay -= delta
+			continue
 		flashes[i].life -= delta
 		if flashes[i].life <= 0:
 			flashes.remove_at(i)
@@ -1757,6 +1781,8 @@ func _draw_heart(center: Vector2, size: float, color: Color, filled: bool) -> vo
 
 func _draw_flashes() -> void:
 	for effect in flashes:
+		if effect.get("delay", 0.0) > 0.0:
+			continue
 		var pos := _center(effect.cell)
 		var fade: float = effect.life/effect.get("max_life",0.42)
 		if FX_LIFE.has(effect.kind):
