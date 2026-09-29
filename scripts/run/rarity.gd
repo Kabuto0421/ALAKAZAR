@@ -1,12 +1,12 @@
 extends RefCounted
 ## Four rarity tiers for reward cards, each with its own frame colour:
-## コモン (white), アンコモン (green), レア (blue), 激レア (gold).
+## コモン (bronze), アンコモン (green), レア (blue), 激レア (gold).
 
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 
 enum { COMMON, UNCOMMON, RARE, SUPER_RARE }
 const NAMES := ["コモン", "アンコモン", "レア", "激レア"]
-const COLORS := [Color("dfe8ea"), Color("5fe08a"), Color("4fb4ff"), Color("ffc93c")]
+const COLORS := [Color("c98b5a"), Color("5fe08a"), Color("4fb4ff"), Color("ffc93c")]
 
 ## Mid and late fairies.
 const UNCOMMON_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "freeze_fairy", "blessing_fairy"]
