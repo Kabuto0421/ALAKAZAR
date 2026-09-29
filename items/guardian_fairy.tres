@@ -1,0 +1,15 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/guardian_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/guardian_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "guardian_fairy"
+title = "守護神の妖精"
+description = "攻撃範囲に2×2の守護神（HP3・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"
+summary = "召喚した妖精を一斉に呼ぶ"
+color = Color(0.72, 0.86, 1, 1)
+effect = ExtResource("2")
+icon = ExtResource("3")

@@ -36,14 +36,14 @@ const RARE_CHANCE := 0.3
 ## up after Rotorick.
 const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf", "abyss_spirit"]
 ## Mid fairies: offered only after the first boss.
-const MID_FAIRIES: Array[String] = ["gravity_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy"]
+const MID_FAIRIES: Array[String] = ["gravity_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy", "guardian_fairy"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
 const CIRCLE_CHANCE_LATE := 0.3
 ## 飛車槍・角剣 (magic circle only) are rare even after Rotorick: the chance that a
 ## reward's drop slot is one of them instead of a mid-game weapon.
 const LATE_WEAPON_CHANCE := 0.2
-var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy"]
+var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy","guardian_fairy"]
 
 func start(seed_value: int = -1) -> void:
 	if seed_value < 0:
@@ -76,7 +76,7 @@ func back_to_weapon() -> void:
 	offers.assign(start_weapon_offers)
 
 ## Newly added fairies turn up more often; the rarer tiers less often.
-const NEW_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "glutton_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy"]
+const NEW_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "glutton_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy", "guardian_fairy"]
 const NEW_FAIRY_WEIGHT := 2.5
 const TIER_WEIGHTS := [1.0, 1.0, 0.5, 0.2]
 

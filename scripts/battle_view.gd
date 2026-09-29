@@ -29,6 +29,7 @@ const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
 const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
+const GuardianFx = preload("res://scripts/fx/guardian_fx.gd")
 const ChainFx = preload("res://scripts/fx/chain_fx.gd")
 const BossCinematic = preload("res://scripts/fx/boss_cinematic.gd")
 const BOSS_FLOOR = preload("res://assets/sprites/boss/boss_floor.png")
@@ -477,6 +478,10 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			action_duration = maxf(action_duration, BossCinematic.LIFE["fall"])
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "meteor"):
 			action_duration = maxf(action_duration, FX_LIFE["meteor"])
+		for event in model.events:
+			if event.kind == "guardian":
+				# The guardian lands, its allies pop in one by one, then the light bursts.
+				action_duration = maxf(action_duration, GuardianFx.LAND + float(event.calls.size()) * 0.15 + 0.7)
 		# Let the abyss finish opening too.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "summon" and e.get("fx","") == "abyss"):
 			action_duration = maxf(action_duration, AbyssFx.LIFE - 0.3)
@@ -739,6 +744,8 @@ func _feedback(weapon_attack: bool = false) -> void:
 			_cast_circle_fx(event)
 		if event.kind == "summon" and event.get("fx","") == "abyss":
 			_open_abyss_fx()
+		if event.kind == "guardian":
+			_guardian_entrance(event)
 		# The Prison King and his fortresses act out what happened.
 		if event.kind == "summon" and event.has("by") and actors.has(int(event.by)):
 			actors[int(event.by)].play_anim("revive" if event.get("fx","") == "revive" else "spawn")
@@ -757,6 +764,33 @@ func _feedback(weapon_attack: bool = false) -> void:
 			swell.tween_property(eater,"scale",Vector2.ONE*base,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 		if actors.has(event.id) and event.kind not in ["plant", "charge_end"]:
 			actors[event.id].flash = 0.18
+
+## 守護神の妖精: the board dims, a pillar of light drops the guardian in, and each ally
+## it calls fades in on its beat as a streak of light reaches it.
+func _guardian_entrance(event: Dictionary) -> void:
+	var calls: Array = []
+	for call in event.calls:
+		var at := _center(call.cell)
+		if actors.has(int(call.ally)):
+			at = actors[int(call.ally)].position
+			_fade_in(actors[int(call.ally)], float(call.delay))
+		calls.append({"pos": at, "delay": float(call.delay)})
+	var origin := _center(event.cell) + Vector2.ONE * TILE / 2
+	if actors.has(int(event.ally)):
+		_fade_in(actors[int(event.ally)], GuardianFx.LAND - 0.05)
+	for dark in [true, false]:
+		var fx := GuardianFx.new()
+		fx.dark = dark
+		fx.origin = origin
+		fx.calls = calls
+		fx.screen = Rect2(Vector2(-40, -40), Vector2(1152, 720) + Vector2(80, 80))
+		add_child(fx)
+
+func _fade_in(actor: Node2D, delay: float) -> void:
+	actor.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_interval(delay)
+	tween.tween_property(actor, "modulate:a", 1.0, 0.12)
 
 func _open_abyss_fx() -> void:
 	var fx := AbyssFx.new()
@@ -1545,6 +1579,7 @@ const ALLY_PORTRAITS = {
 	"glutton": [UnitView.GLUTTON, Rect2(-28,-30,56,56)],
 	"wolf": [UnitView.WOLF_SHEET, Rect2(-32,-36,64,64), 256],
 	"holy": [UnitView.HOLY_SPIRIT, Rect2(-30,-32,60,60)],
+	"guardian": [UnitView.GUARDIAN, Rect2(-30,-34,60,60)],
 	"holy_knight": [UnitView.HOLY_KNIGHT, Rect2(-30,-32,60,60), 128],
 }
 const ALLY_GREEN = Color("8dffb0")
@@ -1599,7 +1634,11 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			_draw_ally_big_range(ally)
 			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士が2体出る"]
 			intent = "近くの敵を攻撃"
-	if ally.type != "holy":
+		"guardian":
+			_draw_ally_big_range(ally)
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "この戦闘の妖精をHP+1で呼んだ"]
+			intent = "仲間を率いて戦う"
+	if ally.type not in ["holy", "guardian"]:
 		_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
 		_draw_range(moves,ALLY_GREEN,ally,-1,0,2,false,strikes)
 	var y := 454.0

@@ -9,11 +9,11 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
 	preload("res://items/glutton_fairy.tres"), preload("res://items/freeze_fairy.tres"), preload("res://items/blessing_fairy.tres"),
-	preload("res://items/meteor_fairy.tres")]
+	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
-const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
+const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## Ally unit types, for logs (enemies use TYPES).
-const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精"}
+const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精", "guardian": "守護神"}
 ## Class-ups beyond one: the meteor fairy can be upgraded four times.
 const MAX_PLUS = {"meteor_fairy": 4}
 ## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
@@ -141,6 +141,7 @@ const PLUS_TEXT := {
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
+	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
@@ -178,6 +179,8 @@ var shadow: Dictionary = {}
 var abyss_turns := 0
 ## 加護の妖精: {cell, turns, radius}. While the player stands in it, attacks also hit up and down.
 var blessing: Dictionary = {}
+## Ally kinds summoned by fairies this battle, in order (the guardian calls them all back).
+var summoned_kinds: Array[String] = []
 var pits: Array[Vector2i] = []
 ## Final boss: soldiers that fell while the Prison King lived, in the order they fell.
 var fallen: Array[String] = []
@@ -222,6 +225,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	cannons.clear()
 	shadow = {}
 	blessing = {}
+	summoned_kinds.clear()
 	abyss_turns = 0
 	pits.clear()
 	fallen.clear()
@@ -1075,11 +1079,73 @@ func big_anchor(cell: Vector2i) -> Vector2i:
 			best_gap = gap
 	return best
 
+func _note_summon(kind: String) -> void:
+	if not summoned_kinds.has(kind):
+		summoned_kinds.append(kind)
+
+## 守護神の妖精: a 2x2 guardian (HP3, AP1) descends and, one by one, calls back one of
+## every ally kind summoned this battle (the glutton too), onto the free tiles around it.
+## Every ally it calls arrives with +1 HP. Each call is stamped with a delay for the entrance: the guardian lands, then they pop in.
+const GUARDIAN_LAND := 0.75
+const GUARDIAN_STEP := 0.15
+func summon_guardian(cell: Vector2i) -> void:
+	var anchor := big_anchor(cell)
+	if anchor == Vector2i(-1, -1):
+		return
+	var guardian := {"id":next_ally_id, "type":"guardian", "cell":anchor, "hp":4 if is_plus("guardian_fairy") else 3, "ap":1, "facing":2, "size":2}
+	allies.append(guardian)
+	next_ally_id -= 1
+	var calls: Array = []
+	for kind in summoned_kinds.duplicate():
+		var spot := _guardian_spot(anchor, kind == "holy")
+		if spot == Vector2i(-1, -1):
+			continue
+		var first := events.size()
+		match kind:
+			"acorn": summon_acorn(spot)
+			"glutton": summon_glutton(spot)
+			"wolf": summon_wolf(spot)
+			"holy": summon_holy(spot)
+		# The guardian's blessing: everyone it calls comes with 1 more HP.
+		allies[-1].hp += 1
+		var delay := GUARDIAN_LAND + GUARDIAN_STEP * calls.size()
+		for i in range(first, events.size()):
+			events[i].delay = delay
+			events[i].called = true
+		calls.append({"cell":spot, "delay":delay, "ally":int(allies[-1].id)})
+	events.append({"kind":"guardian", "cell":anchor, "id":-2, "ally":int(guardian.id), "calls":calls})
+	add_log("守護神が降臨し、%d体を呼び寄せた" % calls.size())
+
+## A free tile for a called ally: the ring around the guardian first, then further out.
+## A called holy spirit needs a free 2x2 block (its anchor is returned).
+func _guardian_spot(anchor: Vector2i, big: bool) -> Vector2i:
+	var center := Vector2(anchor) + Vector2.ONE * 0.5
+	for radius in range(1, board_size):
+		var ring: Array[Vector2i] = []
+		for y in range(anchor.y - radius, anchor.y + 2 + radius):
+			for x in range(anchor.x - radius, anchor.x + 2 + radius):
+				var tile := Vector2i(x, y)
+				var gap := maxi(maxi(anchor.x - x, x - anchor.x - 1), maxi(anchor.y - y, y - anchor.y - 1))
+				if gap == radius and inside(tile):
+					ring.append(tile)
+		ring.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return Vector2(a).distance_to(center) < Vector2(b).distance_to(center))
+		for tile in ring:
+			if tile == player.cell or blocked(tile) or not enemy_at(tile).is_empty() or mines.has(tile):
+				continue
+			if big:
+				var block := big_anchor(tile)
+				if block != Vector2i(-1, -1):
+					return block
+				continue
+			return tile
+	return Vector2i(-1, -1)
+
 func summon_holy(cell: Vector2i) -> void:
 	var anchor := big_anchor(cell)
 	if anchor == Vector2i(-1, -1):
 		return
 	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":1, "ap":1, "facing":2, "size":2})
+	_note_summon("holy")
 	next_ally_id -= 1
 	for tile in footprint({"cell":anchor, "size":2}):
 		events.append({"kind":"summon", "cell":tile, "id":-2, "fx":"holy"})
@@ -1151,6 +1217,7 @@ func axe_preview(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 func summon_acorn(cell: Vector2i) -> void:
 	var plus := is_plus("acorn_fairy")
 	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":2 if plus else 1, "ap":1, "facing":1, "plus":plus})
+	_note_summon("acorn")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
@@ -1369,6 +1436,7 @@ const GLUTTON_MOVES = [Vector2i(1,0), Vector2i(1,-1), Vector2i(1,1), Vector2i(0,
 func summon_glutton(cell: Vector2i) -> void:
 	var plus := is_plus("glutton_fairy")
 	allies.append({"id":next_ally_id, "type":"glutton", "cell":cell, "hp":3 if plus else 1, "ap":2, "facing":1, "plus":plus})
+	_note_summon("glutton")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
@@ -1470,6 +1538,7 @@ func _glutton_action(glutton: Dictionary) -> void:
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
 	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":2, "ap":2, "facing":1, "plus":plus})
+	_note_summon("wolf")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
 
@@ -1533,7 +1602,8 @@ func act_allies() -> void:
 		if ally.hp <= 0 or terminal():
 			continue
 		ally.ap = 1
-		if ally.type == "holy":
+		if ally.type in ["holy", "guardian"]:
+			# The guardian moves and strikes like the holy spirit.
 			_holy_action(ally)
 			continue
 		if ally.type == "wolf":
@@ -1617,7 +1687,7 @@ func _holy_action(holy: Dictionary) -> void:
 			if not enemy.is_empty():
 				holy.facing = CARDINALS.find(direction)
 				damage_enemy(enemy, 1, direction)
-				add_log("聖精霊が攻撃")
+				add_log("%sが攻撃" % ALLY_NAMES[holy.type])
 				check_outcome()
 				return
 	var best := Vector2i.ZERO

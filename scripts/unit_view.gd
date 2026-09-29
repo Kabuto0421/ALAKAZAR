@@ -33,6 +33,7 @@ const EXECUTIONER_ATLAS = preload("res://assets/sprites/enemies/executioner_dire
 const ROTORICK_ATLAS = preload("res://assets/sprites/enemies/rotorick_reel_112.png")
 const ROTORICK_SHADOW = preload("res://assets/sprites/enemies/rotorick_shadow_112.png")
 const HOLY_SPIRIT = preload("res://assets/sprites/spirits/holy_spirit.png")
+const GUARDIAN = preload("res://assets/sprites/spirits/guardian_fairy.png")
 const HOLY_KNIGHT = preload("res://assets/sprites/spirits/holy_knight_directions.png")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
@@ -216,6 +217,11 @@ func _draw() -> void:
 		# A gentle bob, since the box has no facing of its own.
 		var bob := sin(Time.get_ticks_msec() / 1000.0 * 2.4) * 2.0
 		draw_texture_rect(HOLY_SPIRIT,Rect2(Vector2(-76,-84+bob),Vector2.ONE*152),false,tint)
+	elif kind == "guardian":
+		# 守護神: a slow, stately float.
+		var bob := sin(Time.get_ticks_msec() / 1000.0 * 1.6) * 3.0
+		draw_circle(Vector2(0,-8),62,Color(0.75,0.88,1.0,0.12))
+		draw_texture_rect(GUARDIAN,Rect2(Vector2(-78,-92+bob),Vector2.ONE*156),false,tint)
 	elif kind == "holy_knight":
 		draw_texture_rect_region(HOLY_KNIGHT,Rect2(-32,-36,64,64),Rect2(facing*128,0,128,128),tint)
 	elif kind == "miner":
