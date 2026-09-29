@@ -126,7 +126,7 @@ func _ready() -> void:
 		var diagram := Diagram.new()
 		var shove := Weapons.knockback(int(offer.value)) > 0
 		# A shoving weapon makes room under its reach for the collision example.
-		var side := minf(112 if shove else 140, size.x-40)
+		var side := minf(96 if shove else 140, size.x-40)
 		diagram.position = Vector2((size.x-side)/2,66)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
@@ -142,10 +142,10 @@ func _ready() -> void:
 			demo.model = model
 			demo.id = "knockback"
 			demo.position = Vector2(10,70+side)
-			demo.size = Vector2(size.x-20,54)
+			demo.size = Vector2(size.x-20,50)
 			add_child(demo)
-			detail_top += 58
-			description = "押出（%s）" % SHOVE_TEXT
+			detail_top += 52
+			description = SHOVE_TEXT
 		var detail := _label(Vector2(14,detail_top),description,15,Color("e5dfc5"))
 		_wrap_label(detail,size.x-28)
 		_fit(detail,y-4-detail_top)
@@ -165,8 +165,6 @@ func _ready() -> void:
 			style.set_corner_radius_all(6)
 			ring.add_theme_stylebox_override("panel",style)
 			add_child(ring)
-		if Weapons.knockback(int(offer.value)) > 0:
-			stats += " / 押し出し"
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		# Under the name: what kind of fairy it is.
@@ -205,9 +203,8 @@ func _ready() -> void:
 			# Silver examples: the sword's reach is outlined white. Summons: their own
 			# reach is outlined green.
 			var silver: bool = fairy_id in SILVER_EXAMPLES
-			var hint := _label(Vector2(0,84),"例：銀将剣" if silver else "緑枠：動く・攻撃",12,Color("d8e2ee") if silver else GREEN)
-			hint.add_theme_font_override("font",label_font())
-			hint.position.x = size.x-14-hint.get_minimum_size().x
+			demo.legend = "例：銀将剣" if silver else "緑枠：動く・攻撃"
+			demo.legend_color = Color("d8e2ee") if silver else GREEN
 		var marks_top := demo.position.y+demo.size.y+6
 		if marks_height > 0:
 			var marks := FairyMarks.new()
@@ -258,7 +255,7 @@ const GREEN := Color("7dff9a")
 ## Text about a weapon's enchantment (the magic circle), in a colour nothing else uses.
 const ENCHANT := Color("ff7ae6")
 ## Shoving weapons: what a collision does.
-const SHOVE_TEXT := "敵や壁にぶつけると、ぶつけた敵とぶつかった敵に1ずつ"
+const SHOVE_TEXT := "押出：敵や壁にぶつけると、ぶつけた敵とぶつかった敵に1ずつ"
 
 static var _label_font: Font
 ## Small labels (the fairy's kind, the chain note) in a plain bold gothic from the
