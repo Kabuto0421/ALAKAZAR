@@ -22,11 +22,17 @@ const SUMMONS := {
 }
 ## The trickier fairies get a fuller line than their summary.
 const CARD_TEXT := {
-	"abyss_spirit": "武器の届かない空きマスが奈落に。敵は歩けず、押し込むと即撃破",
+	"abyss_spirit": "自分のマスで使う。武器の届かない空きマスが奈落に。敵は歩けず、押し込むと即撃破",
 	"lone_wolf": "届かないマスに召喚。単独で2、隣に仲間で1、届くとすねる",
 	"shadow_stitch": "届かないマスに影を置き、0 APで入れ替わる",
-	"glutton_fairy": "1×1なら敵も味方もあなたも喰う",
+	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（99ダメージ）",
+	"meteor_fairy": "自分の攻撃範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
+	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
+	"blessing_fairy": "3×3の中にいれば、攻撃が上下のマスにも当たる",
+	"capacitor_fairy": "ターン終了時と攻撃されると1溜まり、3溜まると4方向に放電",
 }
+## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.
+const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
 ## Examples drawn with the silver general's sword (they are about weapon reach).
 const SILVER_EXAMPLES := ["shadow_stitch", "lone_wolf", "abyss_spirit", "gravity_fairy", "meteor_fairy"]
 var offer: Dictionary
@@ -146,6 +152,7 @@ func _ready() -> void:
 		# Under the name: what kind of fairy it is.
 		var kind: String = KINDS.get(fairy_id, "使い切り")
 		var kind_label := _label(Vector2(14,60),kind if kind != "設置" else "設置・5ターンで消える",13,Color("0c181b"))
+		kind_label.add_theme_font_override("font",label_font())
 		var pill_style := StyleBoxFlat.new()
 		pill_style.bg_color = KIND_COLORS[kind]
 		pill_style.set_corner_radius_all(4)
@@ -156,7 +163,12 @@ func _ready() -> void:
 		# summon's HP / AP, the guardian's calls and one short line of text.
 		var stats: Array = SUMMONS.get(fairy_id, [])
 		var marks_height := (26.0 if not stats.is_empty() else 0.0) + (46.0 if fairy_id == "guardian_fairy" else 0.0)
-		var text_room := 0.0 if fairy_id == "guardian_fairy" and not plus else 50.0 if CARD_TEXT.has(fairy_id) and not plus else 36.0
+		# Room for the text: its lines at this card's width, plus the chain line of cannons.
+		var chars_per_line := maxf(1.0, floorf((size.x-24)/15.5))
+		var text_room := ceilf(description.length()/chars_per_line)*21.0+6.0
+		var chain := fairy_id in CHAIN_FAIRIES
+		if chain:
+			text_room += 24.0
 		var demo := FairyDemo.new()
 		demo.model = model
 		demo.id = fairy_id
@@ -169,6 +181,7 @@ func _ready() -> void:
 		if fairy_id in SILVER_EXAMPLES:
 			# These examples assume the silver general's sword, whose reach is outlined.
 			var hint := _label(Vector2(0,62),"例：銀将剣",12,Color("d8e2ee"))
+			hint.add_theme_font_override("font",label_font())
 			hint.position.x = size.x-14-hint.get_minimum_size().x
 		var marks_top := demo.position.y+demo.size.y+6
 		if marks_height > 0:
@@ -181,11 +194,20 @@ func _ready() -> void:
 			marks.calls = fairy_id == "guardian_fairy"
 			add_child(marks)
 		var text_top := marks_top+marks_height+(2 if marks_height > 0 else 0)
-		if text_room == 0.0:
-			description = ""
 		var text := _label(Vector2(12,text_top),description,15,GREEN if base_description != "" else Color("e5dfc5"))
 		_wrap_label(text,size.x-24)
-		_fit(text,y-4-text_top)
+		_fit(text,y-4-text_top-(24.0 if chain else 0.0))
+		if chain:
+			var chip := _label(Vector2(14,y-26),"誘爆",13,Color("0c181b"))
+			chip.add_theme_font_override("font",label_font())
+			var chip_style := StyleBoxFlat.new()
+			chip_style.bg_color = Color("ff9a5b")
+			chip_style.set_corner_radius_all(4)
+			chip_style.content_margin_left = 6
+			chip_style.content_margin_right = 6
+			chip.add_theme_stylebox_override("normal",chip_style)
+			var chained := _label(Vector2(22+chip.get_minimum_size().x,y-26),"他の大砲・魔弾でも発動",13,Color("ffc59a"))
+			chained.add_theme_font_override("font",label_font())
 		var item_def: Resource = model.item_definition(fairy_id)
 		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
 		var uses: int = item_def.initial_count + (1 if plus else 0)
@@ -208,6 +230,18 @@ func _wrap_label(label: Label, width: float) -> void:
 	label.size = Vector2(width, 0)
 
 const GREEN := Color("7dff9a")
+
+static var _label_font: Font
+## Small labels (the fairy's kind, the chain note) in a plain bold gothic from the
+## system, which reads better than the pixel font at this size.
+static func label_font() -> Font:
+	if _label_font == null:
+		var font := SystemFont.new()
+		font.font_names = PackedStringArray(["Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", "IPAGothic"])
+		font.font_weight = 700
+		font.fallbacks = [preload("res://assets/fonts/DotGothic16-Regular.ttf")]
+		_label_font = font
+	return _label_font
 
 ## Swap a plain label for rich text with the characters that differ from `base`
 ## (a longest-common-subsequence diff) in green. Same place, size and wrapping.

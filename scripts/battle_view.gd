@@ -10,7 +10,6 @@ const UnitView = preload("res://scripts/unit_view.gd")
 const InventoryView = preload("res://scripts/items/inventory_view.gd")
 const ItemPreview = preload("res://scripts/items/item_preview.gd")
 const SHADOW_SPENT = preload("res://assets/sprites/spirits/shadow_stitch_spent.png")
-const ABYSS_PIT = preload("res://assets/sprites/spirits/abyss_pit.png")
 const GRAVITY_PULL = Color("5fd4ff")
 const GRAVITY_PUSH = Color("ff9a4a")
 ## Hover preview for the gravity fairy: [from, to] per enemy it would move (cached per tile).
