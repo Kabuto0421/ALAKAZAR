@@ -129,7 +129,7 @@ const PLUS_TEXT := {
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
-	"lone_wolf": ["HP2・倒すと連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["5ターン続く奈落", "自分のマスを押して呼ぶ。\n5ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
@@ -1356,7 +1356,7 @@ func _glutton_action(glutton: Dictionary) -> void:
 ## 一匹狼の妖精: a lone ally that hunts on its own until it falls.
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
-	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":2 if plus else 1, "ap":2, "facing":1, "plus":plus})
+	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":2, "ap":2, "facing":1, "plus":plus})
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
 

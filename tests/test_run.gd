@@ -1358,6 +1358,7 @@ func _loner_fairies() -> void:
 	var wolf: Dictionary = m.allies[0]
 	m.act_allies()
 	verify(wolf.cell == setup[1] and prey.hp == 3,"Alone, it runs in and bites for 2 in one turn")
+	verify(wolf.hp == 2,"The lone wolf is summoned with HP 2")
 	m.tick_walls()
 	verify(m.allies.size() == 1,"The wolf does not fade with the turn count")
 	var crowd: Vector2i = Vector2i(-1,-1)
