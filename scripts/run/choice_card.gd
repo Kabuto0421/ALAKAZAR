@@ -5,6 +5,30 @@ const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
 const FairyDemo = preload("res://scripts/run/fairy_demo.gd")
+const FairyMarks = preload("res://scripts/run/fairy_marks.gd")
+
+## The label under a fairy's name: 召喚 (an ally with HP), 設置 (stays five turns)
+## or 使い切り (works once, right away).
+const KINDS := {
+	"acorn_fairy": "召喚", "holy_spirit": "召喚", "lone_wolf": "召喚", "glutton_fairy": "召喚", "guardian_fairy": "召喚",
+	"stealth_fairy": "設置", "wall_fairy": "設置", "cannon_fairy": "設置", "vane_cannon": "設置", "firework_fairy": "設置",
+	"capacitor_fairy": "設置", "shadow_stitch": "設置", "blessing_fairy": "設置", "abyss_spirit": "設置",
+}
+const KIND_COLORS := {"召喚": Color("7dff9a"), "設置": Color("9fd8ff"), "使い切り": Color("ffd08a")}
+## Summoned allies: [HP, AP, HP once classed up].
+const SUMMONS := {
+	"acorn_fairy": [1, 1, 2], "holy_spirit": [1, 1, 1], "lone_wolf": [2, 2, 2],
+	"glutton_fairy": [1, 2, 3], "guardian_fairy": [3, 1, 4],
+}
+## The trickier fairies get a fuller line than their summary.
+const CARD_TEXT := {
+	"abyss_spirit": "武器の届かない空きマスが奈落に。敵は歩けず、押し込むと即撃破",
+	"lone_wolf": "届かないマスに召喚。単独で2、隣に仲間で1、届くとすねる",
+	"shadow_stitch": "届かないマスに影を置き、0 APで入れ替わる",
+	"glutton_fairy": "1×1なら敵も味方もあなたも喰う",
+}
+## Examples drawn with the silver general's sword (they are about weapon reach).
+const SILVER_EXAMPLES := ["shadow_stitch", "lone_wolf", "abyss_spirit", "gravity_fairy", "meteor_fairy"]
 var offer: Dictionary
 var model: RefCounted
 var action_text := "選ぶ"
@@ -37,20 +61,19 @@ func _ready() -> void:
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)
-		# The slash spirit's class-up is an evolution: preview the new fairy itself.
-		if preview_plus and model.EVOLUTIONS.has(fairy_id):
-			fairy_id = model.EVOLUTIONS[fairy_id]
 		var item: Resource = model.item_definition(fairy_id)
 		accent = item.color
 		title = item.title
-		plus = model.is_plus(fairy_id) or (preview_plus and model.PLUS_TEXT.has(fairy_id) and fairy_id == str(offer.value))
-		description = model.PLUS_TEXT[fairy_id][1] if plus else item.description
+		plus = model.is_plus(fairy_id) or (preview_plus and model.PLUS_TEXT.has(fairy_id))
+		# One short line: what it does, or on a class-up card what the class-up adds.
+		description = CARD_TEXT.get(fairy_id, item.summary)
+		if plus:
+			description = model.PLUS_TEXT[fairy_id][0]
 		if fairy_id == "meteor_fairy" and plus:
 			# Each class-up adds a meteor: preview the next count.
-			description = model.meteor_text(model.meteor_count() + (1 if preview_plus else 0))
-		# Class-up preview: the parts that change are shown in green.
-		if preview_plus and plus and fairy_id == str(offer.value):
-			base_description = item.description
+			description = "隕石が%d個落ちる" % (model.meteor_count() + (1 if preview_plus else 0))
+		if preview_plus and plus:
+			base_description = item.summary
 	# The frame shows the rarity: white, green, blue or gold, and thick enough to read.
 	var tier := Rarity.tier(offer)
 	var frame: Color = Rarity.COLORS[tier]
@@ -120,27 +143,49 @@ func _ready() -> void:
 			stats += " / 押し出し"
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
-		# An animated example of what it does, with little text: the one-line summary
-		# (the class-up card shows the changed description instead). The full text
-		# is in the tooltip.
+		# Under the name: what kind of fairy it is.
+		var kind: String = KINDS.get(fairy_id, "使い切り")
+		var kind_label := _label(Vector2(14,60),kind if kind != "設置" else "設置・5ターンで消える",13,Color("0c181b"))
+		var pill_style := StyleBoxFlat.new()
+		pill_style.bg_color = KIND_COLORS[kind]
+		pill_style.set_corner_radius_all(4)
+		pill_style.content_margin_left = 6
+		pill_style.content_margin_right = 6
+		kind_label.add_theme_stylebox_override("normal",pill_style)
+		# An animated example of what it does, as large as the card allows, then the
+		# summon's HP / AP, the guardian's calls and one short line of text.
+		var stats: Array = SUMMONS.get(fairy_id, [])
+		var marks_height := (26.0 if not stats.is_empty() else 0.0) + (46.0 if fairy_id == "guardian_fairy" else 0.0)
+		var text_room := 0.0 if fairy_id == "guardian_fairy" and not plus else 50.0 if CARD_TEXT.has(fairy_id) and not plus else 36.0
 		var demo := FairyDemo.new()
 		demo.model = model
 		demo.id = fairy_id
-		demo.position = Vector2(10,64)
-		# As tall as the card allows above the summary (about two lines) and the stats.
-		# (The class-up card keeps room for its full, highlighted description.)
-		var text_room := 118.0 if base_description != "" else 50.0
-		demo.size = Vector2(size.x-20,clampf(y-64-text_room,70.0,190.0))
+		demo.plus = 1 if plus else 0
+		demo.position = Vector2(10,86)
+		demo.size = Vector2(size.x-20,clampf(y-86-marks_height-text_room-6,70.0,200.0))
 		add_child(demo)
 		if plus:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
-		var text_top := demo.position.y+demo.size.y+8
-		var shown: String = description.replace("\n","") if base_description != "" else model.item_definition(fairy_id).summary if not plus else model.fairy_summary(fairy_id)
-		var text := _label(Vector2(12,text_top),shown,15 if base_description == "" else 13,Color("e5dfc5"))
+		if fairy_id in SILVER_EXAMPLES:
+			# These examples assume the silver general's sword, whose reach is outlined.
+			var hint := _label(Vector2(0,62),"例：銀将剣",12,Color("d8e2ee"))
+			hint.position.x = size.x-14-hint.get_minimum_size().x
+		var marks_top := demo.position.y+demo.size.y+6
+		if marks_height > 0:
+			var marks := FairyMarks.new()
+			marks.position = Vector2(14,marks_top)
+			marks.size = Vector2(size.x-28,marks_height)
+			if not stats.is_empty():
+				marks.hp = int(stats[2]) if plus else int(stats[0])
+				marks.ap = int(stats[1])
+			marks.calls = fairy_id == "guardian_fairy"
+			add_child(marks)
+		var text_top := marks_top+marks_height+(2 if marks_height > 0 else 0)
+		if text_room == 0.0:
+			description = ""
+		var text := _label(Vector2(12,text_top),description,15,GREEN if base_description != "" else Color("e5dfc5"))
 		_wrap_label(text,size.x-24)
 		_fit(text,y-4-text_top)
-		if base_description != "":
-			_highlight(text, base_description.replace("\n",""))
 		var item_def: Resource = model.item_definition(fairy_id)
 		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
 		var uses: int = item_def.initial_count + (1 if plus else 0)
