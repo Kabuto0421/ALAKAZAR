@@ -4,6 +4,7 @@ const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
+const FairyDemo = preload("res://scripts/run/fairy_demo.gd")
 var offer: Dictionary
 var model: RefCounted
 var action_text := "選ぶ"
@@ -119,19 +120,25 @@ func _ready() -> void:
 			stats += " / 押し出し"
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
-		var icon := TextureRect.new()
-		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		icon.texture = model.item_definition(fairy_id).icon
-		icon.position = Vector2((size.x-96)/2,64)
-		icon.size = Vector2(96,96)
-		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(icon)
+		# An animated example of what it does, with little text: the one-line summary
+		# (the class-up card shows the changed description instead). The full text
+		# is in the tooltip.
+		var demo := FairyDemo.new()
+		demo.model = model
+		demo.id = fairy_id
+		demo.position = Vector2(10,64)
+		# As tall as the card allows above the summary (about two lines) and the stats.
+		# (The class-up card keeps room for its full, highlighted description.)
+		var text_room := 118.0 if base_description != "" else 50.0
+		demo.size = Vector2(size.x-20,clampf(y-64-text_room,70.0,190.0))
+		add_child(demo)
 		if plus:
-			_badge(icon.position+Vector2(96,-4),26)
-		var text := _label(Vector2(12,166),description.replace("\n",""),14,Color("e5dfc5"))
+			_badge(demo.position+Vector2(demo.size.x,-4),24)
+		var text_top := demo.position.y+demo.size.y+8
+		var shown: String = description.replace("\n","") if base_description != "" else model.item_definition(fairy_id).summary if not plus else model.fairy_summary(fairy_id)
+		var text := _label(Vector2(12,text_top),shown,15 if base_description == "" else 13,Color("e5dfc5"))
 		_wrap_label(text,size.x-24)
-		_fit(text,y-4-166)
+		_fit(text,y-4-text_top)
 		if base_description != "":
 			_highlight(text, base_description.replace("\n",""))
 		var item_def: Resource = model.item_definition(fairy_id)

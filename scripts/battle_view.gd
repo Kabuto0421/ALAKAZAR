@@ -1656,7 +1656,9 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 	for line in lines:
 		_text(Vector2(852,y),line,16,MUTED)
 		y += 22
-	_text(Vector2(852,y+10),intent,22,Color("ff5b62") if warn else ALLY_GREEN)
+	# Only a real warning is spelled out (the glutton about to bite you).
+	if warn:
+		_text(Vector2(852,y+10),intent,22,Color("ff5b62"))
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(ally.id) else "右クリックで固定",18,MUTED)
 
 ## The 2x2 holy spirit: it strikes and steps along its four sides.

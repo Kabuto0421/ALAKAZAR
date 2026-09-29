@@ -220,6 +220,27 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 				canvas.draw_rect(Rect2(target-Vector2(78,72),Vector2(156,144)),Color(1,0.48,0.1,0.4*(1.0-progress)))
 				canvas._text(Vector2(1000,275),"99",26,Color("ffd35b"))
 			canvas._text(Vector2(872,352),"隕石 %d個（3×3・99）" % model.meteor_count(),18,item.color)
+		"guardian_fairy":
+			# The guardian lands; one of each fairy summoned so far drops in around it, +1 HP.
+			var center := Vector2(976,276)
+			for offset in [Vector2(-1,-1),Vector2(1,-1),Vector2(-1,1),Vector2(1,1)]:
+				_tile(canvas,center+offset*20,item.color,38)
+			canvas.draw_texture_rect(Units.GUARDIAN,Rect2(center-Vector2(44,50),Vector2.ONE*88),false)
+			var calls := [[Vector2(900,236), Units.ACORN], [Vector2(1052,236), Units.GLUTTON], [Vector2(1052,316), Units.WOLF_SHEET]]
+			for k in calls.size():
+				var at: Vector2 = calls[k][0]
+				_tile(canvas,at,item.color,34)
+				var shown := progress - 0.25 - k * 0.12
+				if shown < 0.0:
+					continue
+				if shown < 0.1:
+					canvas.draw_rect(Rect2(at-Vector2(6,70),Vector2(12,70)),Color(1,1,1,0.8))
+				if calls[k][1] == Units.WOLF_SHEET:
+					canvas.draw_texture_rect_region(Units.WOLF_SHEET,Rect2(at-Vector2(20,22),Vector2(40,40)),Rect2(256,0,256,256))
+				else:
+					canvas.draw_texture_rect(calls[k][1],Rect2(at-Vector2(18,20),Vector2(36,36)),false)
+				if shown > 0.12:
+					canvas._text(at+Vector2(-14,-22),"+1",14,Color("fff2a8"))
 		"glutton_fairy":
 			# It runs at the nearest thing and swallows it — enemy or not.
 			for x in range(4):
