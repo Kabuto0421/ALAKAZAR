@@ -134,6 +134,21 @@ func run() -> void:
 	var sounds: Array = ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse"]
 	verify(sounds.all(func(n): return battle.sfx.has(n) and ResourceLoader.exists("res://assets/audio/sfx/%s.ogg" % n)),"Every remaining sound effect has its file")
 	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
+	# Summoned allies explain themselves under the cursor, like enemies.
+	var free_cell := Vector2i(-1,-1)
+	for y in battle.model.board_size:
+		for x in battle.model.board_size:
+			var c := Vector2i(x,y)
+			if free_cell == Vector2i(-1,-1) and c != battle.model.player.cell and battle.model.enemy_at(c).is_empty() and not battle.model.blocked(c):
+				free_cell = c
+	battle.model.summon_glutton(free_cell)
+	battle._sync_units(false)
+	battle.hover_cell = free_cell
+	verify(battle._preview_ally().get("type","") == "glutton","Hovering a summoned ally picks it for the inspector")
+	battle.queue_redraw()
+	await process_frame
+	battle.model.allies.clear()
+	battle._sync_units(false)
 	# The abyss and magic circle effects open over the whole screen (they once crashed).
 	battle._open_abyss_fx()
 	battle._cast_circle_fx({"cells": [Vector2i(1,1)], "line": [Vector2i(1,1)], "targets": []})

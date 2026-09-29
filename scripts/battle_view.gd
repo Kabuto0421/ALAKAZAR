@@ -789,6 +789,15 @@ func _selected_enemy() -> Dictionary:
 			return enemy
 	return {}
 
+## A summoned ally under the cursor (or pinned with a right click; ally ids are -100 and down).
+func _preview_ally() -> Dictionary:
+	for ally in model.allies:
+		if int(ally.id) == selected_enemy_id and ally.hp > 0:
+			return ally
+	if not _selected_enemy().is_empty():
+		return {}
+	return model.ally_at(hover_cell)
+
 func _preview_enemy() -> Dictionary:
 	var selected := _selected_enemy()
 	if not selected.is_empty():
@@ -840,6 +849,8 @@ func _input(event: InputEvent) -> void:
 			_cancel_item()
 		elif not show_rules and not busy:
 			var enemy := model.enemy_at(hover_cell)
+			if enemy.is_empty():
+				enemy = model.ally_at(hover_cell)  # allies can be pinned too
 			selected_enemy_id = int(enemy.id) if not enemy.is_empty() and selected_enemy_id != int(enemy.id) else -2
 			selected_weapon = -1
 			show_history = false
@@ -1335,7 +1346,10 @@ func _draw_intel() -> void:
 		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
-	if not enemy.is_empty():
+	var ally := _preview_ally()
+	if not ally.is_empty():
+		_draw_ally_inspector(ally)
+	elif not enemy.is_empty():
 		_draw_enemy_inspector(enemy)
 	elif selected_weapon >= 0:
 		var weapon: Dictionary = Rules.WEAPONS[selected_weapon]
@@ -1346,7 +1360,7 @@ func _draw_intel() -> void:
 		_wrapped(Vector2(852,528),Rules.WEAPONS[selected_weapon].detail,18,MUTED,14)
 	else:
 		_text(Vector2(852,133),"敵の情報",26,CYAN)
-		_text(Vector2(852,295),"敵にカーソルを",23,INK)
+		_text(Vector2(852,295),"敵や味方にカーソルを",23,INK)
 		_text(Vector2(852,330),"合わせて確認",23,INK)
 		_text(Vector2(852,540),"右クリックで固定",20,MUTED)
 
@@ -1390,7 +1404,14 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 	if actor == null:
 		return
 	draw_set_transform(center,0,Vector2.ONE*factor)
-	if enemy.type == "miner":
+	if ALLY_PORTRAITS.has(enemy.type):
+		var art: Array = ALLY_PORTRAITS[enemy.type]
+		if art.size() > 2:
+			# Direction sheets: the frame facing the way it faces now.
+			draw_texture_rect_region(art[0],art[1],Rect2(int(enemy.get("facing",1))*art[2],0,art[2],art[2]))
+		else:
+			draw_texture_rect(art[0],art[1],false)
+	elif enemy.type == "miner":
 		actor._draw_drone(Color.WHITE,self)
 	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
@@ -1410,6 +1431,94 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 			draw_rect(Rect2(-22,0,18,26),Color("78968f"))
 			draw_rect(Rect2(-18,4,10,18),Color("293d42"))
 	draw_set_transform(Vector2.ZERO)
+
+## Allies' portraits for the inspector: [texture, rect(, frame size for direction sheets)].
+const ALLY_PORTRAITS = {
+	"acorn": [UnitView.ACORN, Rect2(-28,-30,56,56)],
+	"glutton": [UnitView.GLUTTON, Rect2(-28,-30,56,56)],
+	"wolf": [UnitView.WOLF_SHEET, Rect2(-32,-36,64,64), 256],
+	"holy": [UnitView.HOLY_SPIRIT, Rect2(-30,-32,60,60)],
+	"holy_knight": [UnitView.HOLY_KNIGHT, Rect2(-30,-32,60,60), 128],
+}
+const ALLY_GREEN = Color("8dffb0")
+const CARDINAL_OFFSETS = [Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1),Vector2i(-1,0)]
+const DIAGONAL_OFFSETS = [Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)]
+
+## A summoned ally, shown like an enemy: HP/AP, its moves (green dots) and where it
+## strikes (red crosses), and what it will do.
+func _draw_ally_inspector(ally: Dictionary) -> void:
+	var title: String = Rules.ALLY_NAMES.get(ally.type, "味方")
+	_text(Vector2(852,133),title,28,INK)
+	_text(Vector2(858+_text_width(title,28),133),"味方",18,ALLY_GREEN)
+	_text(Vector2(852,175),"HP",20)
+	var hearts: int = maxi(int(ally.hp), 1)
+	var many: bool = hearts > 3
+	for i in range(hearts):
+		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),true)
+	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
+	_text(Vector2(ap_x,175),"AP",20,GOLD)
+	var ap: int = 2 if ally.type in ["glutton", "wolf"] else 1
+	for i in range(ap):
+		draw_rect(Rect2(ap_x+45+i*26,153,22,23),GOLD)
+	var moves: Array = []
+	var strikes: Array = []
+	var lines: Array = []
+	var intent := ""
+	var warn := false
+	match ally.type:
+		"acorn", "holy_knight":
+			moves = CARDINAL_OFFSETS
+			strikes = CARDINAL_OFFSETS + (DIAGONAL_OFFSETS if ally.get("plus", false) else [])
+			lines = ["敵より先に動く", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
+			intent = "近くの敵を攻撃"
+		"wolf":
+			for y in range(-2, 3):
+				for x in range(-2, 3):
+					var offset := Vector2i(x, y)
+					if offset != Vector2i.ZERO and absi(x) + absi(y) <= 2:
+						moves.append(offset)
+			strikes = CARDINAL_OFFSETS
+			lines = ["2マス駆けて隣の敵に噛む", "ひとりなら2、隣に誰かいると1", "武器が届く所ではすねる"]
+			var sulking: bool = model.all_reach().has(ally.cell)
+			intent = "すねている…（動かない）" if sulking else "群れずに噛みつく"
+		"glutton":
+			moves = Rules.GLUTTON_MOVES
+			strikes = Rules.GLUTTON_MOVES
+			lines = ["金の動き・右向き固定", "2回動いて一番近い相手を噛む", "噛むと99ダメージ", "同じ距離ならあなたを優先"]
+			# The same "!" the board shows (worked out once per turn in _sync_units).
+			warn = actors.has(int(ally.id)) and actors[int(ally.id)].charge_warning
+			intent = "次はあなたを噛む！" if warn else "何でも喰らう"
+		"holy":
+			_draw_ally_big_range(ally)
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士が2体出る"]
+			intent = "近くの敵を攻撃"
+	if ally.type != "holy":
+		_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
+		_draw_range(moves,ALLY_GREEN,ally,-1,0,2,false,strikes)
+	var y := 454.0
+	for line in lines:
+		_text(Vector2(852,y),line,16,MUTED)
+		y += 22
+	_text(Vector2(852,y+10),intent,22,Color("ff5b62") if warn else ALLY_GREEN)
+	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(ally.id) else "右クリックで固定",18,MUTED)
+
+## The 2x2 holy spirit: it strikes and steps along its four sides.
+func _draw_ally_big_range(ally: Dictionary) -> void:
+	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
+	var step := 46.0
+	var origin := Vector2(980-step*2,236)
+	for y in range(4):
+		for x in range(4):
+			var rect := Rect2(origin+Vector2(x,y)*step,Vector2.ONE*(step-5))
+			var inner: bool = x in [1,2] and y in [1,2]
+			var edge: bool = not inner and (x in [1,2] or y in [1,2])
+			var tone := Color("ff805a")
+			draw_rect(rect,Color(tone,0.3) if edge else Color("192828"))
+			draw_rect(rect,tone if edge else Color("46625e"),false,2)
+			if edge:
+				draw_line(rect.get_center()-Vector2(6,6),rect.get_center()+Vector2(6,6),tone,3)
+				draw_line(rect.get_center()-Vector2(6,-6),rect.get_center()+Vector2(6,-6),tone,3)
+	_draw_enemy_portrait(ally,origin+Vector2.ONE*step*2-Vector2.ONE*2.5,1.4)
 
 const ROOK_RANGE = [Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]
 ## Rotorick's line (short, polite) and the plain rule, per reel.
