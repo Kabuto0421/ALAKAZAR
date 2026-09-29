@@ -1155,6 +1155,7 @@ func _mechanic_weapons() -> void:
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
 	verify(W.DATA.size() == 44,"39 weapons plus the three generals, the king staff and the mallet")
+	verify(W.base_damage(ids.find("rook_spear")) == 0 and W.base_damage(ids.find("bishop_blade")) == 0 and not W.can_forge(ids.find("rook_spear")) and not W.can_forge(ids.find("bishop_blade")),"Rook spear and bishop blade: 0 damage, cannot be forged")
 	var mallet: int = ids.find("mallet")
 	verify(W.early_reward_pool().has(mallet) and W.is_hammer(mallet) and W.base_damage(mallet) == 1,"The mallet: an early hammer that hits for 1")
 	verify(W.mid_pool().has(ids.find("king_staff")) and W.DATA[ids.find("king_staff")].swap,"The king staff (swap on all 8 neighbours) drops after the first boss")

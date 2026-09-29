@@ -42,9 +42,9 @@ const DATA = [
 	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 # Weapons with their own mechanics (not just a shape).
-	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "detail":"右へ一直線に滑る。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
-	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横に滑る。最初の敵を攻撃", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
-	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"late", "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜めに滑る。最初の敵を攻撃", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
+	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "detail":"右へ、ふさがるまで一直線に進む。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
+	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横4方向へ、ふさがるまで進める", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
+	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜め4方向へ、ふさがるまで進める", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
 	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
 	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
@@ -62,6 +62,10 @@ const SINGLE_TILE_STAGES := 3
 const START_CHOICE_COUNT := 3
 
 ## Hammers (the mid-game hammer and the early mallet) strike an area.
+## 飛車槍・角剣: 0 damage and they cannot be forged.
+static func can_forge(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and not DATA[index].get("no_forge", false)
+
 static func is_hammer(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and (DATA[index].id == "hammer" or DATA[index].get("hammer", false))
 

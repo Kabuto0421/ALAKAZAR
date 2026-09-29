@@ -272,7 +272,7 @@ func camp_rest() -> bool:
 
 ## Each weapon can be forged once.
 func can_forge() -> bool:
-	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index))
+	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index) and Weapons.can_forge(index))
 
 func can_class_up() -> bool:
 	return battle.fairy_loadout.any(func(id: String) -> bool: return battle.can_class_up(id))
@@ -290,7 +290,7 @@ func camp_forge_weapon(slot: int) -> bool:
 	if state != State.CAMP_FORGE or slot < 0 or slot >= battle.owned_weapons.size():
 		return false
 	var index: int = battle.owned_weapons[slot]
-	if battle.weapon_power.has(index):
+	if battle.weapon_power.has(index) or not Weapons.can_forge(index):
 		return false
 	battle.weapon_power[index] = 1
 	_leave_camp()

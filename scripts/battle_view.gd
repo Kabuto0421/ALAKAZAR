@@ -1273,8 +1273,6 @@ func _draw_weapons() -> void:
 		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			extras.append("押出")
-		if weapon.has("slide"):
-			extras.append("滑る")
 		if weapon.get("pull",false):
 			extras.append("引寄")
 
