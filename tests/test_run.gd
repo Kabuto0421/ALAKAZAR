@@ -298,11 +298,11 @@ func _new_fairies() -> void:
 	m.weapon = 0
 	verify(m.use_item("wall_fairy",Vector2i(2,2)) and m.blocked(Vector2i(2,2)),"Wall spirit blocks its tile")
 	verify(not m.player_action(Vector2i(2,2)),"Player cannot walk into a wall")
-	for turn in range(3):
+	for turn in range(Rules.WALL_TURNS):
 		verify(m.walls.has(Vector2i(2,2)),"Wall stands on player turn %d" % (turn+1))
 		planner.begin(m)
 		planner.finish(m)
-	verify(not m.walls.has(Vector2i(2,2)),"Wall crumbles before the fourth player turn")
+	verify(not m.walls.has(Vector2i(2,2)),"Wall crumbles before the sixth player turn")
 
 	# Lance cannon fires along its set direction when its tile is attacked.
 	m = fixture()
@@ -408,7 +408,7 @@ func _threats_and_weapons() -> void:
 	verify(jump_pairs == 13,"Thirteen odd two-tile weapons are in the early pool (mirror twins removed)")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
 	verify(W.opening_pool().size() == 12,"Twelve up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 15 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield and the swap staff")
+	verify(W.early_reward_pool().size() == 16 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -779,15 +779,20 @@ func _rotorick() -> void:
 	verify(m.phase == Rules.Phase.WON,"Defeating Rotorick wins even with a shadow left")
 
 func _expiring_and_rewards() -> void:
-	# Placed spirits (cannons, stealth) vanish after three player turns, like walls.
+	# The capacitor charges by itself at the end of every player turn.
+	var cm := fixture()
+	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")
+	cm.charge_capacitors()
+	verify(int(cm.cannon_at(Vector2i(3,3)).charge) == 1,"A capacitor stores 1 at the end of the player's turn")
+	# Placed spirits (cannons, stealth) vanish after five player turns, like walls.
 	var m := fixture()
 	m.place_cannon(Vector2i(3,3), Vector2i.UP, "vane")
 	m.place_stealth(Vector2i(4,4))
+	for k in Rules.WALL_TURNS - 1:
+		m.tick_walls()
+	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through four turn changes")
 	m.tick_walls()
-	m.tick_walls()
-	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through two turn changes")
-	m.tick_walls()
-	verify(m.cannons.is_empty() and m.fairies.is_empty(),"...and vanish on the third, like the wall")
+	verify(m.cannons.is_empty() and m.fairies.is_empty(),"...and vanish on the fifth, like the wall")
 	# The reward right before a boss offers only big weapons.
 	var run := Run.new()
 	run.start(11)
@@ -1068,7 +1073,9 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 43,"39 weapons plus the three generals and the king staff")
+	verify(W.DATA.size() == 44,"39 weapons plus the three generals, the king staff and the mallet")
+	var mallet: int = ids.find("mallet")
+	verify(W.early_reward_pool().has(mallet) and W.is_hammer(mallet) and W.base_damage(mallet) == 1,"The mallet: an early hammer that hits for 1")
 	verify(W.mid_pool().has(ids.find("king_staff")) and W.DATA[ids.find("king_staff")].swap,"The king staff (swap on all 8 neighbours) drops after the first boss")
 	m = _weapon_room("king_staff",[Vector2i(2,3)])
 	verify(m.player_action(Vector2i(2,3)) and m.player.cell == Vector2i(2,3) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The king staff trades places diagonally without damage")
@@ -1313,10 +1320,10 @@ func _loner_fairies() -> void:
 	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 2,"Clicking the shadow swaps places for 0 AP")
 	verify(not m.can_swap_shadow(start) and not m.player_action(start),"Only one swap a turn")
 	m.tick_walls()
-	verify(m.can_swap_shadow(start) and m.shadow.turns == 2,"The swap comes back next turn while the shadow counts down")
-	m.tick_walls()
-	m.tick_walls()
-	verify(m.shadow.is_empty() and not m.blocked(start),"The shadow fades after three turns")
+	verify(m.can_swap_shadow(start) and m.shadow.turns == Rules.WALL_TURNS - 1,"The swap comes back next turn while the shadow counts down")
+	for k in Rules.WALL_TURNS - 1:
+		m.tick_walls()
+	verify(m.shadow.is_empty() and not m.blocked(start),"The shadow fades after five turns")
 	# Class-up: arriving hits every enemy beside the landing tile.
 	m = fixture()
 	m.fairy_plus["shadow_stitch"] = true
@@ -1565,7 +1572,7 @@ func _abyss() -> void:
 	m.enemies.append(foe)
 	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),1))
 	verify(m.item_targets("abyss_spirit") == [m.player.cell],"The abyss is called on the player's own tile")
-	verify(m.use_item("abyss_spirit",m.player.cell) and m.player.ap == 1 and m.abyss_turns == 3,"Calling it costs 1 AP and lasts three turns")
+	verify(m.use_item("abyss_spirit",m.player.cell) and m.player.ap == 1 and m.abyss_turns == Rules.WALL_TURNS,"Calling it costs 1 AP and lasts five turns")
 	var reach: Array = m.all_reach()
 	verify(not m.pits.is_empty() and m.pits.all(func(c): return not reach.has(c)) and not m.pits.has(foe.cell) and m.pits.has(Vector2i(3,2)),"Every empty tile out of reach is a pit; enemies' tiles are spared")
 	verify(m.blocked(Vector2i(3,2)),"Pits block walking")
@@ -1590,12 +1597,12 @@ func _abyss() -> void:
 	rm.phase = Rules.Phase.ENEMY
 	rm.rook_charge(rook)
 	verify(rook.hp == 3 and not rm.pits.has(Vector2i(3,2)),"A charging rook stumbles over the pit for 2 and fills it")
-	# The abyss closes after three turns.
+	# The abyss closes after five turns.
+	for k in Rules.WALL_TURNS - 1:
+		m.tick_walls()
+	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open until its last turn")
 	m.tick_walls()
-	m.tick_walls()
-	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open through two turn changes")
-	m.tick_walls()
-	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and closes on the third")
+	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and then closes")
 	verify(Run.LATE_FAIRIES.has("abyss_spirit"),"The abyss spirit is a late fairy")
 
 func _gravity() -> void:
@@ -1708,8 +1715,12 @@ func _prison_king() -> void:
 	verify(m.fallen == [first.type, second.type],"The king remembers the fallen in order")
 	var before: int = m.enemies.size()
 	m.phase = Rules.Phase.ENEMY
+	m.round_number = 1
 	m.king_turn(king)
-	verify(m.enemies.size() == before + 1 and m.fallen == [second.type],"He raises one a turn, the first to fall")
+	verify(m.enemies.size() == before and m.fallen.size() == 2,"He rests every other turn")
+	m.round_number = 2
+	m.king_turn(king)
+	verify(m.enemies.size() == before + 1 and m.fallen == [second.type],"He raises one every other turn, the first to fall")
 	var raised: Dictionary = m.enemies[-1]
 	verify(raised.type == first.type and m.ring_of(king).has(raised.cell),"It rises right next to the king")
 	# Fortresses send one soldier a turn and burst into two when broken.
@@ -1719,7 +1730,7 @@ func _prison_king() -> void:
 	before = m.enemies.size()
 	forts[1].hp = 0
 	m.check_outcome()
-	verify(m.enemies.size() == before + 1 and not m.enemies.has(forts[1]),"A broken fortress lets out two soldiers")
+	verify(m.enemies.size() == before - 1 and not m.enemies.has(forts[1]),"A broken fortress just crumbles (no soldiers)")
 	verify(m.ruins.has(forts[1].cell),"A broken fortress leaves rubble behind")
 	# Enraged at half HP: each fortress sends out two a turn.
 	verify(not m.king_enraged(),"Not enraged at full health")
@@ -1728,7 +1739,7 @@ func _prison_king() -> void:
 	verify(m.king_enraged() and king.enraged,"At half HP the king is enraged")
 	verify(m.events.any(func(e): return e.kind == "king_rage"),"Enraging raises the rage cinematic")
 	before = m.enemies.size()
-	m.round_number += 1
+	m.round_number += 2
 	m.fortress_turn(forts[0])
 	verify(m.enemies.size() == before + 2,"An enraged king's fortress sends out two")
 	king.hp = 10

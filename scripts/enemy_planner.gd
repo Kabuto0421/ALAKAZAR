@@ -15,6 +15,7 @@ func begin(model: RefCounted) -> void:
 	# Rule A: the siege closes (on schedule) and burns whoever is inside it.
 	model.events.clear()
 	model.siege_tick()
+	model.charge_capacitors()
 	model.round_number += 1
 	staging.clear()
 	var infantry: Array = model.enemies.filter(func(e: Dictionary) -> bool: return e.type == "infantry")

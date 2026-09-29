@@ -12,5 +12,6 @@ description = "敵や障害物のないマスへ\nプレイヤーが瞬間移動
 summary = "空きマスへ瞬間移動"
 color = Color(0.16, 0.86, 0.79, 1)
 target = 1
+ap_cost = 0
 effect = ExtResource("2")
 icon = ExtResource("3")

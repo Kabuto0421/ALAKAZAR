@@ -68,7 +68,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 				_tile(canvas,Vector2(872+i*52,269),item.color)
 			Icon.paint(canvas,Vector2(976,267),item.icon,0.7)
 			_enemy(canvas,Vector2(1080-minf(progress/0.6,1.0)*52,265))
-			canvas._text(Vector2(868,232),"3ターン通れない",19,item.color)
+			canvas._text(Vector2(868,232),"5ターン通れない",19,item.color)
 		"vane_cannon":
 			# Four shots in a row: after each one the aim turns 90 degrees clockwise.
 			var center := Vector2(976,276)

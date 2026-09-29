@@ -53,12 +53,17 @@ const DATA = [
 	{"id":"gold", "name":"金将剣", "short":"金将", "row":2, "color":"ffd35b", "tier":"mid", "detail":"右3マス・上下・左（斜め後ろ以外の6マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,-1),Vector2i(0,1),Vector2i(-1,0)]},
 	{"id":"silver", "name":"銀将剣", "short":"銀将", "row":2, "color":"d8e2ee", "tier":"mid", "detail":"右3マスと左斜め2マス（5マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(-1,-1),Vector2i(-1,1)]},
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
+	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "detail":"右1マス。使わないターンごとに攻撃+1（最大3）", "offsets":[Vector2i(1,0)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
 const SINGLE_TILE_STAGES := 3
 const START_CHOICE_COUNT := 3
+
+## Hammers (the mid-game hammer and the early mallet) strike an area.
+static func is_hammer(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and (DATA[index].id == "hammer" or DATA[index].get("hammer", false))
 
 static func is_mid(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "mid"
@@ -117,7 +122,7 @@ static func is_boss_reward(index: int) -> bool:
 ## Only moves left/right: the starting forward/backward pair already covers that
 ## (knockback weapons earn their place by the shove).
 static func horizontal_only(index: int) -> bool:
-	var special: bool = int(DATA[index].get("knockback", 0)) > 0 or DATA[index].has("slide") or DATA[index].has("charge")
+	var special: bool = int(DATA[index].get("knockback", 0)) > 0 or DATA[index].has("slide") or DATA[index].has("charge") or DATA[index].has("hammer")
 	return DATA[index].offsets.all(func(o: Vector2i) -> bool: return o.y == 0) and not special
 
 ## Early weapons other than the starting forward/backward pair.

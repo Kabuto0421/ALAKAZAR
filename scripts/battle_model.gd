@@ -14,7 +14,7 @@ const BIG_FAIRIES = ["axe_spirit", "holy_spirit"]
 ## Ally unit types, for logs (enemies use TYPES).
 const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精"}
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
-const WALL_TURNS := 3
+const WALL_TURNS := 5
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
 const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精", "capacitor": "蓄電の妖精"}
 ## Capacitor: hits (weapon or a chained shot) needed to discharge.
@@ -49,6 +49,7 @@ const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin",
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
 ## At this HP or below the Prison King is enraged: each fortress sends out two a turn.
+const KING_REVIVE_EVERY := 2
 const KING_RAGE_HP := 5
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
@@ -124,15 +125,15 @@ const PLUS_TEXT := {
 	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"],
 	"warp_fairy": ["0 APで空きマスへ瞬間移動", "0 APで使える。敵や障害物の\nないマスへ瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
-	"wall_fairy": ["3ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め3ターン\n完全な障害物として残る。"],
+	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
 	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
-	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。3ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
+	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
-	"abyss_spirit": ["5ターン続く奈落", "自分のマスを押して呼ぶ。\n5ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
+	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -767,7 +768,7 @@ func _player_action(cell: Vector2i) -> bool:
 		return true
 	if not enemy.is_empty():
 		var struck: Array = [enemy]
-		if WEAPONS[weapon].id == "hammer":
+		if Catalog.is_hammer(weapon):
 			events.append({"kind":"quake", "cell":cell, "id":-2, "cells":hammer_area(cell)})
 			for area_cell in hammer_area(cell):
 				var other := enemy_at(area_cell)
@@ -1217,9 +1218,9 @@ func _gravity_push(center: Vector2i, tiles: int) -> void:
 			if enemy.hp <= 0:
 				break
 
-## 奈落の精霊: for WALL_TURNS turns (5 upgraded) the tiles no weapon reaches become pits.
+## 奈落の精霊: for WALL_TURNS turns (2 more upgraded) the tiles no weapon reaches become pits.
 func summon_abyss() -> void:
-	abyss_turns = 5 if is_plus("abyss_spirit") else WALL_TURNS
+	abyss_turns = WALL_TURNS + 2 if is_plus("abyss_spirit") else WALL_TURNS
 	events.append({"kind":"summon", "cell":player.cell, "id":-2, "fx":"abyss"})
 	add_log("奈落が口を開けた")
 	dig_abyss()
@@ -1661,6 +1662,13 @@ func _resonate(passed: Array, fired: Array) -> void:
 			events.append({"kind":"resonate", "cell":other.cell, "id":-2})
 			fire_cannon(other, fired)
 
+## End of the player's turn: every capacitor stores 1 on its own.
+func charge_capacitors() -> void:
+	for cannon in cannons.duplicate():
+		if cannon.kind == "capacitor" and cannons.has(cannon):
+			_charge_capacitor(cannon, [])
+	check_outcome()
+
 ## Capacitor: every strike (a weapon or a chained cannon shot) stores 1; at 3 it
 ## discharges down all four lines, then starts charging again.
 func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
@@ -1771,9 +1779,7 @@ func _release_prisoners() -> void:
 		if fortress.type == "fortress" and fortress.hp <= 0 and not fortress.get("released", false):
 			fortress.released = true
 			ruins.append(fortress.cell)
-			for k in 2:
-				_spawn_soldier(fortress, _soldier_kind(fortress, 10 + k), false)
-			add_log("要塞監獄が崩れ、兵が溢れ出た")
+			add_log("要塞監獄が崩れた")
 	for prison in enemies.duplicate():
 		if prison.type != "prison" or prison.hp > 0 or prison.get("released", false):
 			continue
@@ -2103,8 +2109,12 @@ func _note_fallen() -> void:
 ## 監獄の王: never moves and never attacks. His reach (a shogi king's: every tile
 ## touching him) is only where he raises the first soldier that fell, on the free tile
 ## nearest the player.
+## The king raises one fallen soldier every other turn (KING_REVIVE_EVERY).
 func king_turn(king: Dictionary) -> void:
 	king.ap = 0
+	if round_number % KING_REVIVE_EVERY != 0:
+		king.intent = "力を溜めている"
+		return
 	if fallen.is_empty():
 		king.intent = "静観"
 		return

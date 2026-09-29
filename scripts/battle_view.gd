@@ -423,6 +423,8 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 	busy = true
 	var token := generation
 	var weapon_kind: String = Rules.WEAPONS[weapon_action.weapon].id if not weapon_action.is_empty() else ""
+	if not weapon_action.is_empty() and Catalog.is_hammer(weapon_action.weapon):
+		weapon_kind = "hammer"  # the mallet swings like the hammer
 	# Swords swing; the hammer uses its own sheet; the bow just looses an arrow.
 	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_kind not in ["hammer","bow"]
 	if not weapon_action.is_empty() and not weapon_action.attacking:
@@ -972,7 +974,7 @@ func _draw_board() -> void:
 	var hammer_zone: Array[Vector2i] = []
 	var bow_zone: Array[Vector2i] = []
 	if model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty():
-		if Rules.WEAPONS[model.weapon].id == "hammer" and model.targets().has(hover_cell) and not model.enemy_at(hover_cell).is_empty():
+		if Catalog.is_hammer(model.weapon) and model.targets().has(hover_cell) and not model.enemy_at(hover_cell).is_empty():
 			hammer_zone = model.hammer_area(hover_cell)
 		elif Rules.WEAPONS[model.weapon].id == "bow":
 			bow_zone = model.bow_lines()
@@ -1703,7 +1705,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		var next := model.next_revival()
 		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
 	elif enemy.type == "fortress":
-		_text(Vector2(852,450),"毎ターン兵を%d体出す。壊すと2体" % (2 if model.king_enraged() else 1),18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"))
+		_text(Vector2(852,450),"毎ターン兵を%d体出す" % (2 if model.king_enraged() else 1),18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"))
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
