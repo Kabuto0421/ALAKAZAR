@@ -124,7 +124,7 @@ const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
 	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n倒せる敵への攻撃を優先。"],
-	"warp_fairy": ["0 APで空きマスへ瞬間移動", "0 APで使える。敵や障害物の\nないマスへ瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
+	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
 	"cannon_fairy": ["叩くと前後の直線に1", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、前後\n2方向の直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと前後に撃ち、向きが回る", "設置してこのマスを攻撃すると\n前後2方向に撃つ。撃つたびに\n向きが時計回りに90度回る。\n他の大砲も誘爆。"],
@@ -245,7 +245,7 @@ func refill_fairies() -> void:
 	inventory.clear()
 	fairy_charges.clear()
 	for id in fairy_loadout:
-		var count: int = item_definition(id).initial_count
+		var count: int = fairy_uses(id)
 		fairy_charges.append(count)
 		inventory[id] = inventory.get(id,0)+count
 
@@ -454,8 +454,12 @@ func fairy_summary(id: String) -> String:
 func fairy_description(id: String) -> String:
 	return PLUS_TEXT[id][1] if is_plus(id) else item_definition(id).description
 
+## A class-up also makes a fairy cheaper (1 AP less, never below 0) and usable once more per battle.
 func fairy_ap_cost(id: String) -> int:
-	return 0 if id == "warp_fairy" and is_plus(id) else item_definition(id).ap_cost
+	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) else 0))
+
+func fairy_uses(id: String) -> int:
+	return item_definition(id).initial_count + (1 if is_plus(id) else 0)
 
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
@@ -558,7 +562,7 @@ func add_item(id: String, count: int = 1) -> int:
 	if item_definition(id) == null or count <= 0 or fairy_loadout.size() >= HAND_LIMIT:
 		return 0
 	fairy_loadout.append(id)
-	var count_per_battle: int = item_definition(id).initial_count
+	var count_per_battle: int = fairy_uses(id)
 	fairy_charges.append(count_per_battle)
 	inventory[id] = inventory.get(id,0)+count_per_battle
 	return 1

@@ -23,6 +23,7 @@ func _ready() -> void:
 	var title := ""
 	var description := ""
 	var plus := false
+	var base_description := ""
 	var circle := false
 	var fairy_id := ""
 	if offer.kind == "weapon":
@@ -42,6 +43,9 @@ func _ready() -> void:
 		title = item.title
 		plus = model.is_plus(fairy_id) or (preview_plus and model.PLUS_TEXT.has(fairy_id) and fairy_id == str(offer.value))
 		description = model.PLUS_TEXT[fairy_id][1] if plus else item.description
+		# Class-up preview: the parts that change are shown in green.
+		if preview_plus and plus and fairy_id == str(offer.value):
+			base_description = item.description
 	for state in ["normal","hover","pressed","disabled"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("172b2b") if state in ["hover","pressed"] else Color("0c181b")
@@ -87,7 +91,7 @@ func _ready() -> void:
 			add_child(ring)
 		if Weapons.knockback(int(offer.value)) > 0:
 			stats += " / 押し出し"
-		_label(Vector2(14,y),stats,15,Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(14,y),stats,15,GREEN if preview_plus else Color("f4f2ea") if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -102,7 +106,12 @@ func _ready() -> void:
 		var text := _label(Vector2(12,166),description.replace("\n",""),14,Color("e5dfc5"))
 		_wrap_label(text,size.x-24)
 		_fit(text,y-4-166)
-		_label(Vector2(14,y),"%d AP / 毎戦闘 1回" % (0 if plus and fairy_id == "warp_fairy" else 1),15,accent)
+		if base_description != "":
+			_highlight(text, base_description.replace("\n",""))
+		var item_def: Resource = model.item_definition(fairy_id)
+		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
+		var uses: int = item_def.initial_count + (1 if plus else 0)
+		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else accent)
 	if note != "":
 		_label(Vector2(14,y+22),note,16,note_color)
 	if action_text != "":
@@ -119,6 +128,61 @@ func _wrap_label(label: Label, width: float) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	label.custom_minimum_size = Vector2(width, 0)
 	label.size = Vector2(width, 0)
+
+const GREEN := Color("7dff9a")
+
+## Swap a plain label for rich text with the characters that differ from `base`
+## (a longest-common-subsequence diff) in green. Same place, size and wrapping.
+func _highlight(label: Label, base: String) -> void:
+	var text := label.text
+	var n := text.length()
+	var m := base.length()
+	var table: Array = []
+	for i in n + 1:
+		var row := PackedInt32Array()
+		row.resize(m + 1)
+		table.append(row)
+	for i in range(n - 1, -1, -1):
+		for j in range(m - 1, -1, -1):
+			table[i][j] = table[i + 1][j + 1] + 1 if text[i] == base[j] else maxi(table[i + 1][j], table[i][j + 1])
+	var kept := []
+	kept.resize(n)
+	kept.fill(false)
+	var i := 0
+	var j := 0
+	while i < n and j < m:
+		if text[i] == base[j]:
+			kept[i] = true
+			i += 1
+			j += 1
+		elif table[i + 1][j] >= table[i][j + 1]:
+			i += 1
+		else:
+			j += 1
+	var rich := RichTextLabel.new()
+	rich.bbcode_enabled = true
+	rich.scroll_active = false
+	rich.autowrap_mode = label.autowrap_mode
+	rich.position = label.position
+	rich.size = Vector2(label.size.x, size.y)
+	rich.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rich.add_theme_font_size_override("normal_font_size", label.get_theme_font_size("font_size"))
+	rich.add_theme_color_override("default_color", label.get_theme_color("font_color"))
+	var out := ""
+	var green := false
+	for k in n:
+		if not kept[k] and not green:
+			out += "[color=#%s]" % GREEN.to_html(false)
+			green = true
+		elif kept[k] and green:
+			out += "[/color]"
+			green = false
+		out += text[k].replace("[", "[lb]")
+	if green:
+		out += "[/color]"
+	rich.text = out
+	add_child(rich)
+	label.visible = false
 
 ## Narrow cards (five in a row): shrink a long description until it ends above the stats line.
 func _fit(label: Label, height: float) -> void:

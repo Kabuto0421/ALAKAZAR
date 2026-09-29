@@ -779,6 +779,15 @@ func _rotorick() -> void:
 	verify(m.phase == Rules.Phase.WON,"Defeating Rotorick wins even with a shadow left")
 
 func _expiring_and_rewards() -> void:
+	# A class-up makes a fairy 1 AP cheaper and usable once more per battle.
+	var um := fixture()
+	um.fairy_loadout.assign(["magic_bolt"])
+	um.refill_fairies()
+	verify(um.fairy_ap_cost("magic_bolt") == 1 and um.fairy_charges == [1],"Before the class-up: 1 AP, once a battle")
+	um.fairy_plus["magic_bolt"] = true
+	um.refill_fairies()
+	verify(um.fairy_ap_cost("magic_bolt") == 0 and um.fairy_charges == [2],"After it: 0 AP, twice a battle")
+	verify(um.item_definition("warp_fairy").ap_cost == 0,"The warp fairy costs 0 AP")
 	# The capacitor charges by itself at the end of every player turn.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")

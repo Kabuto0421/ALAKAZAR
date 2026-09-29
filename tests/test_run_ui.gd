@@ -85,8 +85,8 @@ func run() -> void:
 	verify(view.model.phase==Rules.Phase.PLAYER and view.model.player.ap==2,"Turn returns to player after allies and enemies")
 	# Every movement pattern shares the existing sword animation, including backward attacks.
 	for weapon in range(Rules.WEAPONS.size()):
-		# Mid-game weapons and the swap staff (no damage, it trades places) have their own tests.
-		if Rules.WEAPONS[weapon].get("tier","") in ["mid","late"] or Rules.WEAPONS[weapon].get("swap", false):
+		# Mid-game weapons, the swap staff (no damage, it trades places) and the mallet (a hammer) have their own tests.
+		if Rules.WEAPONS[weapon].get("tier","") in ["mid","late"] or Rules.WEAPONS[weapon].get("swap", false) or Rules.WEAPONS[weapon].get("hammer", false):
 			continue
 		view.model.phase=Rules.Phase.PLAYER
 		view.model.player.ap=2
