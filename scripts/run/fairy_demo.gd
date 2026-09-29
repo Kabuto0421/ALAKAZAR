@@ -24,7 +24,6 @@ const REGIONS := {
 	"firework_fairy": Rect2(919, 204, 112, 115),
 	"capacitor_fairy": Rect2(892, 214, 166, 134),
 	"slash_fairy": Rect2(951, 193, 49, 150),
-	"flying_slash": Rect2(851, 213, 252, 111),
 	"axe_spirit": Rect2(853, 209, 246, 109),
 	"holy_spirit": Rect2(870, 189, 205, 138),
 	"shadow_stitch": Rect2(847, 213, 255, 82),

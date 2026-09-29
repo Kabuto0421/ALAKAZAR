@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "meteor_fairy"
 title = "隕石妖精"
-description = "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな1マスに\n3×3の隕石が落ちる。\n敵に99ダメージ。自分と味方は無事。"
+description = "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな1マスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。"
 summary = "攻撃範囲に隕石を落とす"
 color = Color(1, 0.5, 0.25, 1)
 target = 4

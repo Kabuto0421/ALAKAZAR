@@ -314,7 +314,7 @@ func _new_fairies() -> void:
 	m.enemies.append(m.make_enemy("recruit",Vector2i(2,4),1))
 	verify(m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP) and m.blocked(Vector2i(2,2)),"Lance cannon occupies its tile")
 	verify(m.player_action(Vector2i(2,2)) and m.player.ap == 0,"Attacking the cannon costs 1 AP")
-	verify(m.enemy_at(Vector2i(2,0)).is_empty() and not m.enemy_at(Vector2i(2,4)).is_empty(),"Two volleys down its line (HP2 falls), nothing behind")
+	verify(m.enemy_at(Vector2i(2,0)).hp == 1 and not m.enemy_at(Vector2i(2,4)).is_empty(),"One shot down its line (two once upgraded), nothing behind")
 	verify(not m.cannon_at(Vector2i(2,2)).is_empty(),"Lance cannon stays after firing")
 
 	# Vane cannon rotates clockwise after each shot.
@@ -340,7 +340,7 @@ func _new_fairies() -> void:
 	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
 	verify(m.enemy_at(Vector2i(1,1)).is_empty() and m.enemy_at(Vector2i(3,3)).hp == 1,"Firework hits every neighbour")
 	verify(m.cannon_at(Vector2i(2,2)).is_empty(),"Firework is spent")
-	verify(m.enemy_at(Vector2i(5,2)).is_empty(),"Burst sets off the neighbouring lance cannon (two volleys)")
+	verify(m.enemy_at(Vector2i(5,2)).hp == 1,"Burst sets off the neighbouring lance cannon")
 	# The burst also hits the player and allies standing next to it.
 	m = fixture()
 	m.fairy_loadout.assign(["firework_fairy"])
@@ -366,7 +366,7 @@ func _new_fairies() -> void:
 	verify(not m.enemy_at(Vector2i(2,4)).is_empty(),"Slash reaches only one tile up and down")
 	verify(m.side_slash_cells(Vector2i(2,2)) == [Vector2i(2,1),Vector2i(2,3)],"Slash area is up and down")
 
-	# Flying slash (class-up): a three-wide wave, each lane stops at blockers.
+	# 斬撃精霊+ (class-up): a 3-wide, 5-long wave in the chosen direction; lanes stop at blockers.
 	m = fixture()
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("recruit",Vector2i(4,1),0))
@@ -375,11 +375,12 @@ func _new_fairies() -> void:
 	m.enemies.append(m.make_enemy("recruit",Vector2i(4,4),3))
 	m.walls[Vector2i(3,3)] = 2
 	m.slash(Vector2i(2,2),Vector2i.RIGHT)
-	verify(m.enemy_at(Vector2i(4,1)).is_empty() and m.enemy_at(Vector2i(5,2)).is_empty(),"Flying slash hits the centre and side lanes")
-	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops a flying slash lane")
-	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"Flying slash is only three lanes wide")
-	verify(m.directional_preview("flying_slash",Vector2i(2,2),Vector2i.RIGHT).size() == 6,"Flying slash preview shows the three lanes, cut by the wall")
-	verify(not Run.new().reward_fairy_pool.has("flying_slash") and m.item_definition("flying_slash") != null,"Flying slash is listed but not yet offered as a reward")
+	verify(m.enemy_at(Vector2i(4,1)).is_empty() and m.enemy_at(Vector2i(5,2)).is_empty(),"The wave hits the centre and side lanes")
+	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops a lane")
+	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"The wave is only three lanes wide")
+	verify(m.slash_cells(Vector2i(0,2),Vector2i.RIGHT).filter(func(c): return c.y == 2).size() == 5,"...and five tiles long")
+	m.fairy_plus["slash_fairy"] = 1
+	verify(m.is_directional("slash_fairy") and m.item_definition("flying_slash") == null,"斬撃精霊+ asks for a direction; the flying slash is no longer a fairy of its own")
 
 func _threats_and_weapons() -> void:
 	# "!" marks: only enemies that would really hit a player who stays put.
@@ -800,10 +801,10 @@ func _expiring_and_rewards() -> void:
 	bm.enemies.append_array([target, bm.make_enemy("heavy", Vector2i(5,5), 6)])
 	bm.fairy_loadout.assign(["magic_bolt"])
 	bm.refill_fairies()
-	verify(bm.use_item("magic_bolt", Vector2i(1,2), Vector2i.RIGHT) and target.hp == 7,"The bolt passes the cannon, which fires two volleys")
+	verify(bm.use_item("magic_bolt", Vector2i(1,2), Vector2i.RIGHT) and target.hp == 8,"The bolt passes the cannon, which fires")
 	bm.summon_acorn(Vector2i(3,3))
 	bm.act_allies()
-	verify(target.hp == 5,"The acorn next to the cannon fires it instead of walking")
+	verify(target.hp == 7,"The acorn next to the cannon fires it instead of walking")
 	# Rarity: four tiers; the glutton is super rare, new fairies come up more often.
 	var Rarity = load("res://scripts/run/rarity.gd")
 	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton super rare, meteor rare, magic bolt common")
@@ -871,7 +872,15 @@ func _expiring_and_rewards() -> void:
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
 	var muzzles: Array = ch.events.filter(func(e): return e.kind == "muzzle")
 	var beats: Array = muzzles.map(func(e): return snappedf(e.delay, 0.01))
-	verify(beats == [0.0, 0.18, 0.48, 0.78],"First volley, the cannon it sets off (both volleys), then the first cannon's second volley")
+	verify(beats == [0.0, 0.18],"The cannon it sets off fires one beat later")
+	ch.cannons.clear()
+	ch.place_cannon(Vector2i(1,1), Vector2i.RIGHT, "lance", true)
+	ch.place_cannon(Vector2i(3,1), Vector2i.DOWN, "lance", true)
+	ch.events.clear()
+	ch.start_chain()
+	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
+	beats = ch.events.filter(func(e): return e.kind == "muzzle").map(func(e): return snappedf(e.delay, 0.01))
+	verify(beats == [0.0, 0.18, 0.48, 0.78],"Upgraded: first volley, the cannon it sets off (both volleys), then the second volley")
 	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"The chain link is counted for the combo")
 	# 守護神の妖精: calls back one of each ally kind summoned this battle, with +1 HP.
 	var gd := fixture()
@@ -981,7 +990,7 @@ func _class_ups() -> void:
 	m = fixture()
 	m.fairy_loadout.assign(["slash_fairy","magic_bolt"])
 	m.refill_fairies()
-	verify(m.class_up(0) and m.fairy_loadout[0] == "flying_slash" and not m.can_class_up("flying_slash"),"The slash spirit evolves into the flying slash")
+	verify(m.class_up(0) and m.fairy_loadout[0] == "slash_fairy" and m.fairy_title("slash_fairy") == "斬撃精霊+","The slash spirit's class-up is 斬撃精霊+")
 	verify(m.class_up(1) and m.is_plus("magic_bolt") and m.fairy_title("magic_bolt") == "魔弾精霊+" and not m.class_up(1),"A fairy takes one class-up only")
 	# Camp: forging is once per weapon; class-up picks a fairy; swapping it out loses the "+".
 	var run := Run.new()
@@ -1718,10 +1727,10 @@ func _abyss() -> void:
 	verify(Run.LATE_FAIRIES.has("abyss_spirit"),"The abyss spirit is a late fairy")
 
 func _gravity() -> void:
-	# In the weapon's range it pulls enemies within 2 tiles one step in, without damage.
+	# Outside the weapon's range it pulls enemies within 2 tiles one step in, without damage.
 	var m := fixture()
 	m.weapon = 0
-	m.player.cell = Vector2i(1,2)
+	m.player.cell = Vector2i(0,0)
 	m.fairy_loadout.assign(["gravity_fairy"])
 	m.refill_fairies()
 	m.enemies.clear()
@@ -1729,13 +1738,13 @@ func _gravity() -> void:
 	var corner: Dictionary = m.make_enemy("heavy",Vector2i(4,4),1)
 	var outside: Dictionary = m.make_enemy("heavy",Vector2i(5,5),2)
 	m.enemies.append_array([far, corner, outside])
-	verify(m.item_targets("gravity_fairy").has(Vector2i(4,0)) and m.gravity_pulls(Vector2i(2,2)) and not m.gravity_pulls(Vector2i(4,0)),"It goes on any empty tile; inside the weapon's range it pulls, outside it pushes")
+	verify(m.item_targets("gravity_fairy").has(Vector2i(4,0)) and m.gravity_pulls(Vector2i(2,2)) and not m.gravity_pulls(Vector2i(1,0)),"It goes on any empty tile; outside the weapon's range it pulls, inside it pushes")
 	verify(m.use_item("gravity_fairy",Vector2i(2,2)) and far.cell == Vector2i(3,2) and corner.cell == Vector2i(3,3) and outside.cell == Vector2i(5,5),"Pull: enemies within 2 tiles step one tile in; farther ones stay")
 	verify(far.hp == 2 and corner.hp == 2,"Pulling deals no damage")
-	# Outside the range it blows the eight neighbours one tile away, also without damage.
+	# Inside the range it blows the eight neighbours one tile away, also without damage.
 	m = fixture()
 	m.weapon = 0
-	m.player.cell = Vector2i(1,2)
+	m.player.cell = Vector2i(2,3)
 	m.fairy_loadout.assign(["gravity_fairy"])
 	m.refill_fairies()
 	m.enemies.clear()
@@ -1749,7 +1758,7 @@ func _gravity() -> void:
 	# A pull into the abyss still drops the enemy.
 	m = fixture()
 	m.weapon = 0
-	m.player.cell = Vector2i(1,2)
+	m.player.cell = Vector2i(0,0)
 	m.enemies.clear()
 	var faller: Dictionary = m.make_enemy("heavy",Vector2i(4,2),0)
 	m.enemies.append_array([faller, m.make_enemy("heavy",Vector2i(0,5),1)])
@@ -1776,7 +1785,7 @@ func _glutton() -> void:
 	m.act_allies()
 	verify(m.player.hp == 0 and glutton.hp == 2 and m.phase == Rules.Phase.LOST,"On a tie it bites the player first, for 99 like the magic circle")
 	verify(m.events.any(func(e): return e.kind == "hit" and e.id == -1 and e.get("damage", 0) == Rules.CIRCLE_DAMAGE),"The bite carries its 99 for the popup")
-	# With the player out of reach it swallows enemies whole, bosses included.
+	# With the player out of reach it swallows 1x1 enemies whole (2x2 bosses do not fit).
 	m = fixture()
 	m.player.cell = Vector2i(0,5)
 	m.enemies.clear()
@@ -1787,7 +1796,7 @@ func _glutton() -> void:
 	m.summon_glutton(Vector2i(2,1))
 	glutton = m.allies[0]
 	m.act_allies()
-	verify(rook.hp <= 0 and heavy.hp <= 0 and glutton.hp == 3,"It eats an enemy and a 2x2 boss in one turn, HP 1 → 3")
+	verify(rook.hp > 0 and heavy.hp <= 0 and glutton.hp == 2,"It eats a 1x1 enemy but a 2x2 boss is too big for it")
 	# It bites other allies too.
 	m = fixture()
 	m.player.cell = Vector2i(0,5)

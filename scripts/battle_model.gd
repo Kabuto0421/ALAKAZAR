@@ -4,7 +4,7 @@ extends RefCounted
 enum Phase { ENEMY, PLAYER, WON, LOST }
 const ItemDefinition = preload("res://scripts/items/item_definition.gd")
 const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stealth_fairy.tres"), preload("res://items/warp_fairy.tres"), preload("res://items/acorn_fairy.tres"),
-	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"), preload("res://items/flying_slash.tres"),
+	preload("res://items/wall_fairy.tres"), preload("res://items/cannon_fairy.tres"), preload("res://items/vane_cannon.tres"), preload("res://items/firework_fairy.tres"), preload("res://items/slash_fairy.tres"),
 	preload("res://items/capacitor_fairy.tres"), preload("res://items/axe_spirit.tres"), preload("res://items/holy_spirit.tres"),
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
@@ -18,7 +18,7 @@ const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_kn
 const MAX_PLUS = {"meteor_fairy": 4}
 ## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
 const FREEZE_TURNS := 3
-const METEOR_DAMAGE := 99
+const METEOR_DAMAGE := 3
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 5
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -132,22 +132,24 @@ const PLUS_TEXT := {
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
-	"cannon_fairy": ["毎戦闘2回・0 APで置ける", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
+	"cannon_fairy": ["叩くと2連射になる", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
 	"vane_cannon": ["毎戦闘2回・0 APで置ける", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
-	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
+	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
-	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲に置くと、周囲3マスの\n敵を1マス引き寄せる。\n範囲外に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
+	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
+	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲の外に置くと、周囲3\nマスの敵を1マス引き寄せる。\n攻撃範囲に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
-const EVOLUTIONS := {"slash_fairy": "flying_slash"}
+## Class-ups that turn a fairy into another one (none now: the flying slash became 斬撃精霊+).
+const EVOLUTIONS := {}
 var allies: Array[Dictionary] = []
 var next_ally_id := -100
 var phase: Phase = Phase.ENEMY
@@ -483,7 +485,7 @@ func fairy_description(id: String) -> String:
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に99ダメージ。自分と味方は無事。" % n
+	return "自分のマスを押して呼ぶ。\n攻撃範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
 
 ## A class-up also makes a fairy cheaper (1 AP less, never below 0) and usable once more per battle.
 func fairy_ap_cost(id: String) -> int:
@@ -494,7 +496,7 @@ func fairy_uses(id: String) -> int:
 
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
-	return item_definition(id).directional or (id == "wall_fairy" and is_plus(id))
+	return item_definition(id).directional or (id in ["wall_fairy", "slash_fairy"] and is_plus(id))
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -1106,13 +1108,20 @@ func summon_guardian(cell: Vector2i) -> void:
 			"glutton": summon_glutton(spot)
 			"wolf": summon_wolf(spot)
 			"holy": summon_holy(spot)
-		# The guardian's blessing: everyone it calls comes with 1 more HP.
-		allies[-1].hp += 1
+			"stealth":
+				place_stealth(spot)
+				events.append({"kind":"summon", "cell":spot, "id":-2, "fx":"stealth"})
+		# The guardian's blessing: everyone it calls comes with 1 more HP (the stealth
+		# fairy has none, it just stands its five turns again).
+		var ally_id := -1
+		if kind != "stealth":
+			allies[-1].hp += 1
+			ally_id = int(allies[-1].id)
 		var delay := GUARDIAN_LAND + GUARDIAN_STEP * calls.size()
 		for i in range(first, events.size()):
 			events[i].delay = delay
 			events[i].called = true
-		calls.append({"cell":spot, "delay":delay, "ally":int(allies[-1].id)})
+		calls.append({"cell":spot, "delay":delay, "ally":ally_id})
 	events.append({"kind":"guardian", "cell":anchor, "id":-2, "ally":int(guardian.id), "calls":calls})
 	add_log("守護神が降臨し、%d体を呼び寄せた" % calls.size())
 
@@ -1252,8 +1261,9 @@ func swap_shadow() -> void:
 	check_outcome()
 
 ## 重力妖精: in the equipped weapon's range it pulls, outside it pushes.
+## Placed outside the weapon's reach it pulls enemies in; inside it, it throws them out.
 func gravity_pulls(cell: Vector2i) -> bool:
-	return targets().has(cell)
+	return not targets().has(cell)
 
 func gravity(cell: Vector2i) -> void:
 	var plus := is_plus("gravity_fairy")
@@ -1376,7 +1386,7 @@ func meteor_count() -> int:
 	return 1 + plus_level("meteor_fairy")
 
 ## 隕石妖精: meteors fall on random tiles of the current weapon's reach; each crushes the
-## 3x3 around it for 99. The player and allies are spared. The pick is seeded, so the
+## 3x3 around it for 3. The player and allies are spared. The pick is seeded, so the
 ## threat preview (a clone) sees the same tiles.
 func meteor_strike() -> void:
 	var pool: Array[Vector2i] = []
@@ -1449,7 +1459,8 @@ func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
 			result.append(tile)
 			continue
 		var other := enemy_at(tile)
-		if not other.is_empty() and other.type != "shadow" and not other.type in IMMOVABLE:
+		# Only 1x1 enemies fit in its mouth.
+		if not other.is_empty() and other.type != "shadow" and int(other.get("size", 1)) == 1:
 			result.append(tile)
 			continue
 		var ally := ally_at(tile)
@@ -1782,6 +1793,7 @@ func tick_walls() -> void:
 func place_stealth(cell: Vector2i) -> void:
 	fairies.append(cell)
 	fairy_turns[cell] = WALL_TURNS
+	_note_summon("stealth")
 
 func cannon_at(cell: Vector2i) -> Dictionary:
 	for cannon in cannons:
@@ -1866,7 +1878,9 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	# Lance and vane cannons fire straight ahead twice (the vane turns after the pair).
 	var shot_dir: Vector2i = cannon.dir
 	# The first volley, then everything it sets off, then the second volley at once.
-	for volley in CANNON_VOLLEYS:
+	# The lance fires once (twice once upgraded); the vane always twice.
+	var volleys := CANNON_VOLLEYS if cannon.kind == "vane" or cannon.get("plus", false) else 1
+	for volley in volleys:
 		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
 		struck_ids.clear()
 		var first_event := events.size()
@@ -1944,10 +1958,13 @@ func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 		return result
 	var side := Vector2i(-direction.y, direction.x)
 	for k in [-1, 0, 1]:
-		for cell in ray_cells(origin + side * k, direction):
+		for cell in ray_cells(origin + side * k, direction).slice(0, SLASH_REACH):
 			if not result.has(cell):
 				result.append(cell)
 	return result
+
+## 斬撃精霊+: the wave covers a solid 5x3 block ahead (each lane stops at a blocker).
+const SLASH_REACH := 5
 
 ## 斬撃精霊: the three tiles directly in front of the placed tile.
 func front_slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
@@ -1998,9 +2015,7 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 		result.append(origin)
 		result.append_array(wall_extension(origin, direction))
 	elif id == "slash_fairy":
-		result.append_array(front_slash_cells(origin, direction))
-	elif id == "flying_slash":
-		result.append_array(slash_cells(origin, direction))
+		result.append_array(slash_cells(origin, direction) if is_plus(id) else side_slash_cells(origin))
 	elif id in ["cannon_fairy", "vane_cannon"]:
 		result.append_array(cannon_line(origin, direction, []))
 		if is_plus(id):
