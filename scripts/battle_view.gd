@@ -793,7 +793,9 @@ func _preview_enemy() -> Dictionary:
 	var selected := _selected_enemy()
 	if not selected.is_empty():
 		return selected
-	return model.enemy_at(hover_cell)
+	var enemy := model.enemy_at(hover_cell)
+	# Rotorick's shadow can be walked through, but hovering still explains it.
+	return enemy if not enemy.is_empty() else model.shadow_at(hover_cell)
 
 func _enemy_moves(enemy: Dictionary) -> Array[Vector2i]:
 	if enemy.is_empty():
@@ -1536,7 +1538,7 @@ func _draw_big_range(enemy: Dictionary) -> void:
 	_draw_enemy_portrait(enemy,origin+Vector2.ONE*step*2-Vector2.ONE*2.5,0.9)
 	if shadow:
 		# Same wording as the stealth fairy, from the enemy's side.
-		var y := _wrapped(Vector2(852,436),"ロトリックの残像。隠密中は通行をふさぐ。",17,INK,15)
+		var y := _wrapped(Vector2(852,436),"ロトリックの残像。誰でも通り抜けられる。",17,INK,15)
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)

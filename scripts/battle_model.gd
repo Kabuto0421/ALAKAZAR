@@ -627,9 +627,17 @@ func inside(cell: Vector2i) -> bool:
 func distance(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
 
+## Rotorick's shadow (reel 6) is a hologram: it blocks nothing and cannot be hit,
+## so it is not an "enemy at" its tiles (see shadow_at).
 func enemy_at(cell: Vector2i) -> Dictionary:
 	for enemy in enemies:
-		if enemy.hp > 0 and (enemy.cell == cell or (enemy.get("size", 1) > 1 and footprint(enemy).has(cell))):
+		if enemy.hp > 0 and enemy.type != "shadow" and (enemy.cell == cell or (enemy.get("size", 1) > 1 and footprint(enemy).has(cell))):
+			return enemy
+	return {}
+
+func shadow_at(cell: Vector2i) -> Dictionary:
+	for enemy in enemies:
+		if enemy.hp > 0 and enemy.type == "shadow" and footprint(enemy).has(cell):
 			return enemy
 	return {}
 

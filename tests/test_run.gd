@@ -747,6 +747,7 @@ func _rotorick() -> void:
 	_enemy_turn(m)
 	var shadows: Array = m.enemies.filter(func(e): return e.type == "shadow")
 	verify(shadows.size() == 1 and shadows[0].cell == start and boss.cell != start,"Reel 6: a shadow stays behind and Rotorick charges")
+	verify(m.enemy_at(start).is_empty() and not m.shadow_at(start).is_empty(),"The shadow blocks nothing: its tiles hold no enemy")
 	m.phase = Rules.Phase.PLAYER
 	m.player.ap = 2
 	m.player.cell = start + Vector2i(-2,0)
