@@ -68,7 +68,13 @@ func _ready() -> void:
 		var weapon: Dictionary = Weapons.DATA[int(offer.value)]
 		accent = Color(weapon.color)
 		title = weapon.name
-		description = weapon.detail
+		# The diagram already shows where it reaches: the text keeps only what it
+		# cannot show (the part after "。": hammer echoes, the charge, swaps, pulls...).
+		# The bow's line of fire is part of what it does, so it keeps its whole line.
+		var detail: String = weapon.detail
+		description = detail if weapon.get("ranged", "") != "" else detail.get_slice("。", 1) if detail.contains("。") else ""
+		if weapon.get("swap", false):
+			description = ""  # the stats line already says 無傷で入替
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
@@ -99,7 +105,10 @@ func _ready() -> void:
 			style.shadow_size = 10
 		style.set_corner_radius_all(8)
 		add_theme_stylebox_override(state,style)
-	var tag_label := _label(Vector2(14,9),tag if tag != "" else "武器" if offer.kind == "weapon" else "妖精",15,accent)
+	# The corner only carries a special heading (クラスアップ後, 魔法陣の武器); the diagram
+	# and the kind label already say whether it is a weapon or a fairy.
+	var tag_label := _label(Vector2(14,9),tag,15,accent)
+	tag_label.visible = tag != ""
 	# The rarity sits on a badge in the top-right corner, in the frame colour.
 	var badge := Label.new()
 	badge.text = Rarity.NAMES[tier]
@@ -176,10 +185,7 @@ func _ready() -> void:
 		var row := 66.0
 		var place_x := 14.0
 		var kind_x := badge.position.x-kind_label.get_minimum_size().x-6
-		if kind_x < tag_label.position.x+tag_label.get_minimum_size().x+6 and tag == "" and kind_x >= 14:
-			# The plain "妖精" tag says nothing the kind label does not: drop it for the room.
-			tag_label.visible = false
-		if not tag_label.visible or kind_x >= tag_label.position.x+tag_label.get_minimum_size().x+6:
+		if kind_x >= 14 and (not tag_label.visible or kind_x >= tag_label.position.x+tag_label.get_minimum_size().x+6):
 			kind_label.position.x = kind_x
 		else:
 			kind_label.position = Vector2(14,row)
