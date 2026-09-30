@@ -28,6 +28,6 @@ func _draw() -> void:
 		return
 	var area := Rect2(Vector2.ZERO, size).grow(-3)
 	if legend != "":
-		draw_string(load("res://scripts/run/choice_card.gd").label_font(), Vector2(5, 14), legend, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, legend_color)
-		area = Rect2(3, 18, size.x - 6, size.y - 21)
+		draw_string(ItemPreview.FONT, Vector2(5, 18), legend, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, legend_color)
+		area = Rect2(3, 24, size.x - 6, size.y - 27)
 	ItemPreview.paint(self, model, id, time, area, plus)

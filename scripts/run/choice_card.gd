@@ -99,11 +99,11 @@ func _ready() -> void:
 			style.shadow_size = 10
 		style.set_corner_radius_all(8)
 		add_theme_stylebox_override(state,style)
-	_label(Vector2(14,10),tag if tag != "" else "武器" if offer.kind == "weapon" else "妖精",15,accent)
+	var tag_label := _label(Vector2(14,9),tag if tag != "" else "武器" if offer.kind == "weapon" else "妖精",15,accent)
 	# The rarity sits on a badge in the top-right corner, in the frame colour.
 	var badge := Label.new()
-	badge.text = " %s " % Rarity.NAMES[tier]
-	badge.add_theme_font_size_override("font_size",12)
+	badge.text = Rarity.NAMES[tier]
+	badge.add_theme_font_size_override("font_size",LABEL_SIZE)
 	badge.add_theme_color_override("font_color",Color("0c181b"))
 	var pill := StyleBoxFlat.new()
 	pill.bg_color = frame
@@ -113,11 +113,15 @@ func _ready() -> void:
 	badge.add_theme_stylebox_override("normal",pill)
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(badge)
-	badge.position = Vector2(size.x-badge.get_minimum_size().x-10,9)
-	var title_label := _label(Vector2(14,30),title,23,Color("eee7d2"))
+	badge.position = Vector2(size.x-badge.get_minimum_size().x-10,8)
+	# A long corner tag (クラスアップ後, 魔法陣の武器) must stop short of the badge.
+	_fit_width(tag_label,badge.position.x-6-tag_label.position.x)
+	var title_label := _label(Vector2(14,32),title,23,Color("eee7d2"))
+	_fit_width(title_label,size.x-40)
 	if plus:
 		var font: Font = title_label.get_theme_font("font")
-		_label(Vector2(16+font.get_string_size(title,HORIZONTAL_ALIGNMENT_LEFT,-1,23).x,30),"+",23,Color("ffd35b"))
+		var title_size := title_label.get_theme_font_size("font_size")
+		_label(Vector2(16+font.get_string_size(title,HORIZONTAL_ALIGNMENT_LEFT,-1,title_size).x,32),"+",title_size,Color("ffd35b"))
 	# Stats and the comparison note sit at the bottom so long descriptions never overlap them.
 	var y := size.y-(86 if note != "" else 62) if action_text != "" else size.y-(58 if note != "" else 34)
 	if offer.kind == "weapon":
@@ -165,21 +169,28 @@ func _ready() -> void:
 			add_child(ring)
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
-		# What kind of fairy it is: a label just left of the rarity badge.
+		# What kind of fairy it is: a label just left of the rarity badge (or, when the
+		# corner tag leaves no room there, at the start of the row under the name).
 		var kind: String = KINDS.get(fairy_id, "使い切り")
-		var kind_label := _label(Vector2(14,9),kind if kind != "設置" else "設置・5ターン",12,Color("0c181b"))
-		kind_label.add_theme_font_override("font",label_font())
-		var pill_style := StyleBoxFlat.new()
-		pill_style.bg_color = KIND_COLORS[kind]
-		pill_style.set_corner_radius_all(4)
-		pill_style.content_margin_left = 6
-		pill_style.content_margin_right = 6
-		kind_label.add_theme_stylebox_override("normal",pill_style)
-		kind_label.position.x = badge.position.x-kind_label.get_minimum_size().x-6
-		# Under the name: where it goes.
-		var place := _label(Vector2(14,60),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),13,Color("d6e0d8"))
-		place.add_theme_font_override("font",label_font())
-		var demo_top := 84.0
+		var kind_label := _pill(Vector2(14,8),kind if kind != "設置" else "設置・5ターン",KIND_COLORS[kind])
+		var row := 66.0
+		var place_x := 14.0
+		var kind_x := badge.position.x-kind_label.get_minimum_size().x-6
+		if kind_x < tag_label.position.x+tag_label.get_minimum_size().x+6 and tag == "" and kind_x >= 14:
+			# The plain "妖精" tag says nothing the kind label does not: drop it for the room.
+			tag_label.visible = false
+		if not tag_label.visible or kind_x >= tag_label.position.x+tag_label.get_minimum_size().x+6:
+			kind_label.position.x = kind_x
+		else:
+			kind_label.position = Vector2(14,row)
+			place_x = 14+kind_label.get_minimum_size().x+8
+		# Under the name: where it goes (on the next row if it does not fit beside the kind).
+		var place := _label(Vector2(place_x,row),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),LABEL_SIZE,Color("d6e0d8"))
+		if place_x > 14 and place_x+place.get_minimum_size().x > size.x-12:
+			row += 26
+			place.position = Vector2(14,row)
+		_fit_width(place,size.x-12-place.position.x)
+		var demo_top := row+26
 		# An animated example of what it does, as large as the card allows, then the
 		# summon's HP / AP, the guardian's calls and one short line of text.
 		var stats: Array = SUMMONS.get(fairy_id, [])
@@ -189,7 +200,7 @@ func _ready() -> void:
 		var text_room := ceilf(description.length()/chars_per_line)*21.0+6.0
 		var chain := fairy_id in CHAIN_FAIRIES
 		if chain:
-			text_room += 24.0
+			text_room += 28.0
 		var demo := FairyDemo.new()
 		demo.model = model
 		demo.id = fairy_id
@@ -217,18 +228,11 @@ func _ready() -> void:
 		var text_top := marks_top+marks_height+(2 if marks_height > 0 else 0)
 		var text := _label(Vector2(12,text_top),description,15,GREEN if base_description != "" else Color("e5dfc5"))
 		_wrap_label(text,size.x-24)
-		_fit(text,y-4-text_top-(24.0 if chain else 0.0))
+		_fit(text,y-4-text_top-(28.0 if chain else 0.0))
 		if chain:
-			var chip := _label(Vector2(14,y-26),"誘爆",13,Color("0c181b"))
-			chip.add_theme_font_override("font",label_font())
-			var chip_style := StyleBoxFlat.new()
-			chip_style.bg_color = Color("ff9a5b")
-			chip_style.set_corner_radius_all(4)
-			chip_style.content_margin_left = 6
-			chip_style.content_margin_right = 6
-			chip.add_theme_stylebox_override("normal",chip_style)
-			var chained := _label(Vector2(22+chip.get_minimum_size().x,y-26),"他の大砲・魔弾でも発動",13,Color("ffc59a"))
-			chained.add_theme_font_override("font",label_font())
+			var chip := _pill(Vector2(14,y-28),"誘爆",Color("ff9a5b"))
+			var chained := _label(Vector2(22+chip.get_minimum_size().x,y-28),"他の大砲・魔弾でも発動",LABEL_SIZE,Color("ffc59a"))
+			_fit_width(chained,size.x-12-chained.position.x)
 		var item_def: Resource = model.item_definition(fairy_id)
 		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
 		var uses: int = item_def.initial_count + (1 if plus else 0)
@@ -256,21 +260,27 @@ const ENCHANT := Color("ff7ae6")
 ## Shoving weapons: what a collision does.
 const SHOVE_TEXT := "押出：ぶつけた敵・ぶつかった敵に1ずつ"
 
-static var _label_font: Font
-## Small labels (the fairy's kind, where it goes, the chain note) in a bold gothic from the
-## system, which reads better than the pixel font at this size.
-static func label_font() -> Font:
-	if _label_font == null:
-		var font := SystemFont.new()
-		font.font_names = PackedStringArray(["Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", "IPAGothic"])
-		font.font_weight = 700
-		font.fallbacks = [preload("res://assets/fonts/DotGothic16-Regular.ttf")]
-		# Not every system has a bold face: thicken the strokes so it reads bold anyway.
-		var bold := FontVariation.new()
-		bold.base_font = font
-		bold.variation_embolden = 0.8
-		_label_font = bold
-	return _label_font
+## Small labels (the kind, where it goes, the chain note, the rarity) use the game's
+## pixel font at the size it is drawn for, where it is crisp.
+const LABEL_SIZE := 16
+
+## A small label on a coloured tag with dark text.
+func _pill(at: Vector2, text: String, fill: Color) -> Label:
+	var label := _label(at,text,LABEL_SIZE,Color("0c181b"))
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 6
+	style.content_margin_right = 6
+	label.add_theme_stylebox_override("normal",style)
+	return label
+
+## Shrink a one-line label until it fits `width` (a last resort for narrow cards).
+func _fit_width(label: Label, width: float) -> void:
+	var font_size := label.get_theme_font_size("font_size")
+	while font_size > 11 and label.get_minimum_size().x > width:
+		font_size -= 1
+		label.add_theme_font_size_override("font_size",font_size)
 
 ## Swap a plain label for rich text with the characters that differ from `base`
 ## (a longest-common-subsequence diff) in green. Same place, size and wrapping.
