@@ -89,6 +89,11 @@ var weapon_buttons: Array[Button] = []
 var hold_dead_until := 0.0
 var last_chain: Dictionary = {}
 var chain_shake := 0.0
+## The hammer's hit-stop ({cell, until}) and the rumble after it (seconds left).
+var hammer_stop: Dictionary = {}
+var quake_shake := 0.0
+const QUAKE_SHAKE_TIME := 0.5
+const QUAKE_SHAKE_POWER := 9.0
 var chain_shake_power := 0.0
 ## Hearts in a cannon chain drop as each shot lands: id -> [[clock time, hp], ...].
 var hp_timeline: Dictionary = {}
@@ -458,8 +463,8 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		if hammer_attack:
 			# The hammer is raised, then brought down: the blow lands with the strike.
 			player_view.play_hammer_attack(Vector2(weapon_action.destination - weapon_action.origin))
-			impact_time = UnitView.HAMMER_WINDUP
-			duration = UnitView.HAMMER_WINDUP + UnitView.HAMMER_STRIKE
+			impact_time = UnitView.hammer_contact()
+			duration = UnitView.hammer_duration()
 		else:
 			player_view.play_sword_attack(model.facing)
 			impact_time = player_view.sword_impact_time()
@@ -468,6 +473,17 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		await get_tree().create_timer(impact_time).timeout
 		if token != generation:
 			return
+		if hammer_attack:
+			# Hit-stop: the head sits on the tile, the ground flashes, nothing moves yet.
+			hammer_stop = {"cell": weapon_action.destination, "until": clock + UnitView.HAMMER_HITSTOP}
+			queue_redraw()
+			await get_tree().create_timer(UnitView.HAMMER_HITSTOP).timeout
+			if token != generation:
+				return
+			hammer_stop = {}
+			impact_time += UnitView.HAMMER_HITSTOP
+			# Then the ground heaves: a rumble, heavier up and down.
+			quake_shake = QUAKE_SHAKE_TIME
 		_sync_units(false)
 		_feedback(true)
 		var hit_direction := Vector2(weapon_action.destination - weapon_action.origin)
@@ -967,9 +983,17 @@ func _shown_hp(id: int, hp: int) -> int:
 
 func _process(delta: float) -> void:
 	clock += delta
-	if chain_shake > 0.0:
+	if chain_shake > 0.0 or quake_shake > 0.0:
 		chain_shake -= delta
-		position = Vector2(sin(clock * 97.0), cos(clock * 83.0)) * chain_shake_power * maxf(chain_shake, 0.0) / 0.22 if chain_shake > 0.0 else Vector2.ZERO
+		quake_shake -= delta
+		var offset := Vector2.ZERO
+		if chain_shake > 0.0:
+			offset += Vector2(sin(clock * 97.0), cos(clock * 83.0)) * chain_shake_power * chain_shake / 0.22
+		if quake_shake > 0.0:
+			# A ground rumble: mostly up and down, a low heave under a fast judder.
+			var left := pow(quake_shake / QUAKE_SHAKE_TIME, 1.5)
+			offset += Vector2(sin(clock * 71.0) * 0.35, sin(clock * 38.0) * 0.7 + sin(clock * 113.0) * 0.3) * QUAKE_SHAKE_POWER * left
+		position = offset
 	for id in hp_timeline.keys():
 		if actors.has(id):
 			var unit: Dictionary = {}
@@ -2076,6 +2100,12 @@ func _draw_heart(center: Vector2, size: float, color: Color, filled: bool) -> vo
 	draw_polyline(points,Color("ff8b8f") if filled else Color("70434a"),1.2,true)
 
 func _draw_flashes() -> void:
+	if not hammer_stop.is_empty():
+		# The hit-stop: the struck tile blazes white, a bright ring pins the contact.
+		var c := _center(hammer_stop.cell)
+		draw_rect(Rect2(c - Vector2.ONE * TILE / 2, Vector2.ONE * TILE), Color(1, 0.97, 0.85, 0.75))
+		draw_arc(c, TILE * 0.62, 0, TAU, 40, Color(1, 1, 1, 0.9), 5)
+		draw_arc(c, TILE * 0.8, 0, TAU, 40, Color(QUAKE_YELLOW, 0.6), 3)
 	for effect in flashes:
 		if effect.get("delay", 0.0) > 0.0:
 			continue
@@ -2168,6 +2198,20 @@ func _draw_quake(effect: Dictionary, origin: Vector2, t: float) -> void:
 				if _in_quake(stone, cells):
 					draw_rect(Rect2(stone - Vector2(3, 3), Vector2(6, 5)), Color(QUAKE_STONE, gone))
 					draw_rect(Rect2(stone - Vector2(3, 3), Vector2(6, 2)), Color(0.55, 0.45, 0.33, gone))
+	# Dust thrown up off every tile as the wave passes it, rising and spreading.
+	for cell in cells:
+		var c := _center(cell)
+		var since := (wave - origin.distance_to(c)) / maxf(reach, 1.0)
+		if since <= 0.0:
+			continue
+		var puff := clampf(since * 1.6, 0.0, 1.0)
+		for k in 3:
+			var side := float(k - 1) * TILE * 0.28
+			var at := c + Vector2(side, TILE * 0.3 - puff * TILE * 0.35 - float(k % 2) * 6.0)
+			var radius := 9.0 + puff * TILE * 0.24
+			if _in_quake(at, cells):
+				draw_circle(at, radius, Color(0.9, 0.84, 0.72, 0.55 * (1.0 - puff) * gone))
+				draw_circle(at + Vector2(-radius * 0.3, -radius * 0.3), radius * 0.45, Color(1, 0.97, 0.9, 0.35 * (1.0 - puff) * gone))
 	# A white-hot core where the head landed.
 	if t < 0.3:
 		draw_circle(origin, 12 * (1.0 - t / 0.3) + 3, Color(1, 1, 0.9, 0.9 * (1.0 - t / 0.3)))
@@ -2236,7 +2280,7 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.6, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:

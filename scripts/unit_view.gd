@@ -30,9 +30,25 @@ const HAMMER_FRAMES = [preload("res://assets/sprites/player_hammer_idle.png"), p
 const HAMMER_ANCHORS = [Vector2(235,555), Vector2(300,582), Vector2(225,545)]
 ## Scale that makes the hammer pose as tall as the other player sprites.
 const HAMMER_SCALE := 0.127
-## The swing: windup, then the strike (the hit lands as the strike frame shows).
-const HAMMER_WINDUP := 0.14
+## The swing: windup, then the strike. The head glides onto the tile (HAMMER_LUNGE),
+## everything stops dead for a beat on contact (HAMMER_HITSTOP), then the rest plays.
+const HAMMER_WINDUP := 0.2
+const HAMMER_LUNGE := 0.09
+const HAMMER_HITSTOP := 0.11
 const HAMMER_STRIKE := 0.26
+
+## When the head touches the tile, from the start of the swing.
+static func hammer_contact() -> float:
+	return HAMMER_WINDUP + HAMMER_LUNGE
+
+static func hammer_duration() -> float:
+	return HAMMER_WINDUP + HAMMER_HITSTOP + HAMMER_STRIKE
+
+## Strike time with the hit-stop taken out: it stands still through the stop.
+static func _strike_time(t: float) -> float:
+	if t < HAMMER_LUNGE:
+		return t
+	return HAMMER_LUNGE if t < HAMMER_LUNGE + HAMMER_HITSTOP else t - HAMMER_HITSTOP
 const SWORD_ATTACK_ATLAS = preload("res://assets/sprites/attacks/sword-attack-directions.png")
 const SwordMotion = preload("res://scripts/animation/sword_motion.gd")
 const ENEMY_ATLAS = preload("res://assets/sprites/enemies/police_officer_directions_28.png")
@@ -121,7 +137,7 @@ func _process(delta: float) -> void:
 			z_index = 2
 	if hammer_attack_elapsed >= 0.0:
 		hammer_attack_elapsed += delta
-		if hammer_attack_elapsed >= HAMMER_WINDUP + HAMMER_STRIKE:
+		if hammer_attack_elapsed >= hammer_duration():
 			hammer_attack_elapsed = -1.0
 			z_index = 2
 	if hit_elapsed >= 0.0:
@@ -169,7 +185,7 @@ func play_hammer_attack(toward: Vector2 = Vector2.RIGHT) -> void:
 
 ## How far along the strike's lunge is, `t` seconds into the strike (eased out).
 static func _lunge_at(t: float) -> float:
-	var k := clampf(t / 0.09, 0.0, 1.0)
+	var k := clampf(t / HAMMER_LUNGE, 0.0, 1.0)
 	return 1.0 - (1.0 - k) * (1.0 - k)
 
 func play_sword_attack(direction: int) -> void:
@@ -243,8 +259,12 @@ func _draw() -> void:
 			if frame == 2:
 				# The lunge is quick but not instant: a fast glide toward the tile, with
 				# afterimages trailing behind it (and the raised pose fading where it stood).
-				var t := hammer_attack_elapsed - HAMMER_WINDUP
+				var raw := hammer_attack_elapsed - HAMMER_WINDUP
+				var t := _strike_time(raw)
 				lunge = hammer_lunge * _lunge_at(t)
+				# The hit-stop: frozen on contact and lit up.
+				if raw >= HAMMER_LUNGE and raw < HAMMER_LUNGE + HAMMER_HITSTOP:
+					tint = Color(1.9, 1.85, 1.6, tint.a)
 				var fade := clampf(1.0 - t / 0.22, 0.0, 1.0)
 				if t < 0.12:
 					draw_hammer_pose(self, 1, base, Color(0.75, 0.95, 1.0, 0.45 * (1.0 - t / 0.12)))
