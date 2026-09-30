@@ -220,7 +220,8 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 		var index := int(offer.value)
 		if forging:
 			var damage: int = run.battle.weapon_damage(index)
-			card.note = "攻撃 %d → %d" % [damage, damage+1]
+			# Swaps deal no damage: forging makes the first swap each turn free instead.
+			card.note = "（毎ターン1回まで）" if Weapons.DATA[index].get("swap", false) else "攻撃 %d → %d" % [damage, damage+1]
 			card.note_color = Color("ffd35b")
 			return
 		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
@@ -323,7 +324,7 @@ func _loadout() -> void:
 		if run.battle.is_circle(index):
 			_label(at+Vector2(10,116),"魔法陣・攻撃不可",14,Card.ENCHANT)
 		else:
-			_summary(_label(at+Vector2(10,116),("ノックバック" if damage <= 0 else "攻撃%d・ノックバック" % damage) if Weapons.knockback(index) > 0 else "入れ替え" if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Rarity.INFO),150-20)
+			_summary(_label(at+Vector2(10,116),("ノックバック" if damage <= 0 else "攻撃%d・ノックバック" % damage) if Weapons.knockback(index) > 0 else ("入れ替え・初回0 AP" if run.battle.weapon_power.has(index) else "入れ替え") if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Rarity.INFO),150-20)
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(544+slot*184,top+30)
 		if slot >= fairies.size():

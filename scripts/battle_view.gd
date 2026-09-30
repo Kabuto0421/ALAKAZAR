@@ -1482,7 +1482,7 @@ func _draw_weapons() -> void:
 			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
 		var extras: Array[String] = []
 		# Swap weapons trade places instead of dealing damage.
-		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
+		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替・初回0AP" if forged and not model.free_swap_used else "無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			# Knockback weapons deal no damage of their own (until forged).
 			if model.weapon_damage(index) <= 0:

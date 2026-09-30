@@ -165,7 +165,7 @@ func _ready() -> void:
 			detail.position.y = detail_top
 		_fit(detail,y-4-detail_top)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
-		var stats := "1 AP / 入れ替え" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / ノックバック" if Weapons.knockback(int(offer.value)) > 0 and damage <= 0 else "1 AP / 攻撃 %d" % damage
+		var stats := ("入れ替え初回 0 AP" if plus else "1 AP / 入れ替え") if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / ノックバック" if Weapons.knockback(int(offer.value)) > 0 and damage <= 0 else "1 AP / 攻撃 %d" % damage
 		if circle:
 			# The enchantment replaces the attack: say so plainly (in the enchantment colour).
 			stats = "魔法陣・攻撃不可"

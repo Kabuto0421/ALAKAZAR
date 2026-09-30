@@ -122,6 +122,8 @@ const CIRCLE_DAMAGE := 99
 ## 溜め大剣: extra damage stored by turns it was not used (reset when it hits).
 var blade_charge := 0
 var blade_used := false
+## Forged swap weapons (入替の杖・王将の杖): the first swap each turn costs no AP.
+var free_swap_used := false
 const BLADE_MAX := 2
 ## Forged, it stores one more (its hits then run 2 up to 5).
 const BLADE_MAX_FORGED := 3
@@ -247,6 +249,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	circle_tiles.clear()
 	blade_charge = 0
 	blade_used = false
+	free_swap_used = false
 	slot_rolls = 0
 	slot_seed = randi()
 	refill_fairies()
@@ -801,10 +804,13 @@ func _player_action(cell: Vector2i) -> bool:
 	if WEAPONS[weapon].get("swap", false) and int(enemy_at(cell).get("size", 1)) > 1:
 		return false
 	events.clear()
-	player.ap -= 1
+	var enemy := enemy_at(cell)
+	if free_swap_ready() and not enemy.is_empty():
+		free_swap_used = true
+	else:
+		player.ap -= 1
 	if WEAPONS[weapon].has("charge"):
 		blade_used = true
-	var enemy := enemy_at(cell)
 	if not enemy.is_empty() and WEAPONS[weapon].get("swap", false):
 		# 入替の杖: trade places, no damage.
 		var from: Vector2i = player.cell
@@ -1780,8 +1786,13 @@ func wall_extension(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 		next += direction
 	return result
 
+## A forged swap weapon's free swap is still unused this turn.
+func free_swap_ready() -> bool:
+	return WEAPONS[weapon].get("swap", false) and weapon_power.has(weapon) and not free_swap_used
+
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
+	free_swap_used = false
 	# 溜め大剣 stores one more point for every turn it sat unused.
 	if not blade_used:
 		blade_charge = mini(blade_charge + 1, blade_max())

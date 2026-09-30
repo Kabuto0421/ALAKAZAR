@@ -1179,6 +1179,15 @@ func _mechanic_weapons() -> void:
 	# 入替の杖: trade places, no damage; not with a 2x2.
 	m = _weapon_room("swap_staff",[Vector2i(3,1)])
 	verify(m.player_action(Vector2i(3,1)) and m.player.cell == Vector2i(3,1) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The swap staff trades places without damage")
+	verify(m.player.ap == 1,"An unforged swap costs 1 AP")
+	# Forged: the first swap each turn is free, the next one costs AP again.
+	m = _weapon_room("swap_staff",[Vector2i(3,1)])
+	m.weapon_power[m.weapon] = 1
+	var ap_before: int = m.player.ap
+	verify(m.player_action(Vector2i(3,1)) and m.player.ap == ap_before,"A forged swap staff's first swap costs no AP")
+	verify(m.player_action(Vector2i(1,2)) and m.player.cell == Vector2i(1,2) and m.player.ap == ap_before - 1,"The second swap that turn costs 1 AP")
+	m.tick_walls()
+	verify(m.free_swap_ready(),"The free swap comes back next turn")
 	# 溜め大剣: +1 for each turn it sat unused, up to +2, back to normal after a hit.
 	m = _weapon_room("charge_blade",[Vector2i(2,2)])
 	m.tick_walls()
