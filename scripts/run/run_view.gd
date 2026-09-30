@@ -92,7 +92,7 @@ func _render() -> void:
 			var cleared := "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "終盤 %d クリア" % (run.battle.LATE_LEVELS.find(run.stage)+1) if run.battle.LATE_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
 			_label(Vector2(44,48),"%s — 報酬を1つ選ぶ" % cleared,30,INK)
 			if run.is_before_boss():
-				_label(Vector2(44,94),"ボス前の特別報酬：武器は3マスの強い武器から。",17,Color("ffd35b"))
+				_label(Vector2(44,94),"ボス前の特別報酬：アンコモン以上の武器が出やすい。",17,Color("ffd35b"))
 			else:
 				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器3候補・妖精2候補。",17,sub)
 				if run.battle.BOSS_LEVELS.has(run.stage):

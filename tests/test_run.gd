@@ -69,28 +69,20 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
 	verify(run.offers.size()==5 and run.offers.slice(0,3).all(func(o): return o.kind=="weapon") and run.offers.slice(3).all(func(o): return o.kind=="fairy"),"Rewards always contain three weapons and two fairies")
-	verify(run.offers.slice(0,3).filter(func(o): return Run.Weapons.early_reward_pool().has(int(o.value))).size() >= 2,"Early reward weapons are (nearly always) from the early pool")
-	# Weapons from other points in the run are not ruled out, only very unlikely.
-	var off := 0
-	var uncommon := 0
+	verify(run.offers.slice(0,3).all(func(o): return not Run.Weapons.horizontal_only(int(o.value)) and not run.battle.owned_weapons.has(int(o.value))),"Reward weapons skip owned and left-right-only weapons")
+	# Early weapon cards: mostly common, a few uncommon, rare and super rare under 1%.
+	var tiers := [0, 0, 0, 0]
 	var slots := 0
 	for seed_value in 400:
 		var trial := Run.new()
 		trial.start(seed_value)
-		trial.choose(0)
-		trial.choose(0)
-		trial.start_battle()
-		trial.battle.enemies.clear()
-		trial.battle.check_outcome()
+		trial.state = Run.State.BATTLE
+		trial.battle.phase = Rules.Phase.WON
 		trial.finish_battle()
 		for o in trial.offers.slice(0,3):
 			slots += 1
-			if Run.Rarity.UNCOMMON_WEAPONS.has(Run.Weapons.DATA[int(o.value)].id):
-				uncommon += 1
-			elif not Run.Weapons.early_reward_pool().has(int(o.value)):
-				off += 1
-	verify(off > 0 and off < slots * 0.06,"Off-timing weapons turn up rarely in the early rewards (%d/%d)" % [off, slots])
-	verify(uncommon > slots * 0.02 and uncommon < slots * 0.09,"About 5%% of early weapon cards are the uncommon 上下剣・前斜剣 (%d/%d)" % [uncommon, slots])
+			tiers[Run.Rarity.tier({"kind":"weapon","value":o.value})] += 1
+	verify(tiers[1] > slots * 0.02 and tiers[1] < slots * 0.11 and tiers[2] + tiers[3] < slots * 0.03,"Early weapon cards: about 6%% uncommon, rare ones under 1%% (%s of %d)" % [tiers, slots])
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -962,17 +954,19 @@ func _expiring_and_rewards() -> void:
 	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through four turn changes")
 	m.tick_walls()
 	verify(m.cannons.is_empty() and m.fairies.is_empty(),"...and vanish on the fifth, like the wall")
-	# The reward right before a boss offers only big weapons.
-	var run := Run.new()
-	run.start(11)
-	run.choose(0)
-	run.choose(0)
-	run.stage = 2
-	run.start_battle()
-	run.battle.enemies.clear()
-	run.battle.check_outcome()
-	run.finish_battle()
-	verify(run.is_before_boss() and run.offers.slice(0,3).all(func(o): return Run.Weapons.is_boss_reward(o.value)),"The reward before the boss offers three-tile weapons or the lance (no cross)")
+	# The reward right before a boss leans to uncommon weapons (the three-tile ones).
+	var uncommon_cards := 0
+	for seed_value in 200:
+		var run := Run.new()
+		run.start(seed_value)
+		run.stage = 2
+		run.state = Run.State.BATTLE
+		run.battle.phase = Rules.Phase.WON
+		run.finish_battle()
+		for o in run.offers.slice(0,3):
+			if Run.Rarity.tier({"kind":"weapon","value":o.value}) == Run.Rarity.UNCOMMON:
+				uncommon_cards += 1
+	verify(uncommon_cards > 600 * 0.75,"The reward before the boss is mostly uncommon weapons (%d/600)" % uncommon_cards)
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.is_boss_reward(i))
 	verify(threes.size() == 10,"Nine three-tile weapons and the lance feed the pre-boss reward")
 
@@ -1254,27 +1248,24 @@ func _mechanic_weapons() -> void:
 	verify(m.player_action(Vector2i(2,3)) and m.player.cell == Vector2i(2,3) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The king staff trades places diagonally without damage")
 	verify(["eight_knight","gold","silver"].all(func(id): return W.mid_pool().has(ids.find(id))),"The generals drop after the first boss")
 	verify(W.late_pool().size() == 2 and ["rook_spear","bishop_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The rook spear and bishop blade are the late drops")
-	# Sliding weapons never turn up before Rotorick, and do after it.
-	var before := false
-	var after := false
-	for seed_value in 30:
-		for stage in [Rules.BOSS_LEVEL, Rules.MID_LEVELS[0], Rules.MID_LEVELS[2], Rules.BOSS2_LEVEL, Rules.LATE_LEVELS[0]]:
+	# Sliding weapons are super rare: next to never before Rotorick, now and then after it.
+	var before := 0
+	var after := 0
+	for seed_value in 200:
+		for stage in [Rules.BOSS_LEVEL, Rules.LATE_LEVELS[0]]:
 			var trial := Run.new()
 			trial.start(seed_value)
-			trial.choose(0)
-			trial.choose(0)
 			trial.stage = stage
-			trial.start_battle()
-			trial.battle.enemies.clear()
-			trial.battle.check_outcome()
+			trial.state = Run.State.BATTLE
+			trial.battle.phase = Rules.Phase.WON
 			trial.finish_battle()
 			var sliding: bool = trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value))
 			verify(trial.offers.all(func(o): return o.kind != "weapon" or not W.is_late(o.value) or o.get("enchant", "") == "circle"),"Rook and bishop moves only come as magic circle weapons")
 			if stage < Rules.BOSS2_LEVEL:
-				before = before or sliding
+				before += 1 if sliding else 0
 			else:
-				after = after or sliding
-	verify(not before and after,"Sliding weapons are offered only after Rotorick")
+				after += 1 if sliding else 0
+	verify(before < after and after > 5,"Sliding weapons turn up more after Rotorick (%d before, %d after / 200)" % [before, after])
 	# Rare even then: most late rewards offer neither.
 	var rare_hits := 0
 	for seed_value in 100:
@@ -1290,25 +1281,7 @@ func _mechanic_weapons() -> void:
 		if trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value)):
 			rare_hits += 1
 	verify(rare_hits > 5 and rare_hits < 40,"The rook spear and bishop blade are rare late rewards (%d / 100)" % rare_hits)
-	var lance_early := 0
-	var lance_late := false
-	for seed_value in 40:
-		for stage in [Run.LAST_NORMAL_STAGE, Rules.MID_LEVELS[2]]:
-			var trial := Run.new()
-			trial.start(seed_value)
-			trial.choose(0)
-			trial.choose(0)
-			trial.stage = stage
-			trial.start_battle()
-			trial.battle.enemies.clear()
-			trial.battle.check_outcome()
-			trial.finish_battle()
-			var has_lance: bool = trial.offers.any(func(o): return o.kind == "weapon" and int(o.value) == ids.find("lance"))
-			if stage == Run.LAST_NORMAL_STAGE:
-				lance_early += 1 if has_lance else 0
-			else:
-				lance_late = lance_late or has_lance
-	verify(lance_early <= 3 and lance_late,"The lance normally waits for the reward right before Rotorick (%d/40 earlier)" % lance_early)
+
 
 func _capacitor() -> void:
 	var m := fixture()
