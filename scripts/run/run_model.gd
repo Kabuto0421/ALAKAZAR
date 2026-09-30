@@ -90,10 +90,22 @@ const FAIRY_TIER_ODDS := [
 	[0.32, 0.36, 0.22, 0.10],
 ]
 
+## The reward right after a boss (the first one, Rotorick) leans rarer: this is added
+## to that fight's row (taken from コモン).
+const BOSS_FAIRY_BONUS := [-0.07, 0.0, 0.05, 0.02]
+
+## The rarity odds for this reward's fairy cards.
+func fairy_tier_odds() -> Array:
+	var odds: Array = FAIRY_TIER_ODDS[clampi(stage, 0, FAIRY_TIER_ODDS.size() - 1)].duplicate()
+	if Battle.BOSS_LEVELS.has(stage):
+		for t in odds.size():
+			odds[t] += BOSS_FAIRY_BONUS[t]
+	return odds
+
 ## One fairy for a reward card: a rarity from the odds, then one of the candidates
 ## of that rarity (the nearest rarity with any left when that one has none).
 func draw_fairy(candidates: Array) -> String:
-	var odds: Array = FAIRY_TIER_ODDS[clampi(stage, 0, FAIRY_TIER_ODDS.size() - 1)]
+	var odds := fairy_tier_odds()
 	var roll := rng.randf()
 	var tier := odds.size() - 1
 	for t in odds.size():

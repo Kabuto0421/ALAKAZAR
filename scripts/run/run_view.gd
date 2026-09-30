@@ -95,6 +95,11 @@ func _render() -> void:
 				_label(Vector2(44,94),"ボス前の特別報酬：武器は3マスの強い武器から。",17,Color("ffd35b"))
 			else:
 				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器3候補・妖精2候補。",17,sub)
+				if run.battle.BOSS_LEVELS.has(run.stage):
+					# The boss reward's fairy cards lean rarer (Run.BOSS_FAIRY_BONUS): said
+					# beside the heading.
+					var heading: float = FONT.get_string_size("%s — 報酬を1つ選ぶ" % cleared,HORIZONTAL_ALIGNMENT_LEFT,-1,30).x
+					_label(Vector2(44+heading+20,60),"ボーナス：レア・激レアの妖精が出やすい",17,Color("ffd35b"))
 			_cards(run.offers)
 			_loadout()
 			# A plain light-blue border so it reads as a choice of its own.

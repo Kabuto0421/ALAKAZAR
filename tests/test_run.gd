@@ -835,6 +835,11 @@ func _expiring_and_rewards() -> void:
 	for k in range(1, odds.size()):
 		rising = rising and odds[k][3] >= odds[k-1][3] and odds[k][0] <= odds[k-1][0]
 	verify(rising and is_equal_approx(odds[0][3], 0.01) and is_equal_approx(odds[-1][3], 0.10),"Super rare fairies climb from 1% to 10%, commons shrink")
+	var boss_odds := Run.new()
+	boss_odds.stage = Rules.BOSS_LEVEL
+	var boosted: Array = boss_odds.fairy_tier_odds()
+	boss_odds.stage = Rules.MID_LEVELS[0]
+	verify(boosted[2] > odds[Rules.BOSS_LEVEL][2] and boosted[3] > odds[Rules.BOSS_LEVEL][3] and absf(boosted.reduce(func(a, b): return a + b, 0.0) - 1.0) < 0.001 and boss_odds.fairy_tier_odds() == odds[Rules.MID_LEVELS[0]],"The reward right after a boss leans rarer, the next one does not")
 	var drawer := Run.new()
 	drawer.start(3)
 	var super_early := 0
