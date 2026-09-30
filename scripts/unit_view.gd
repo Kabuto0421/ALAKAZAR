@@ -167,6 +167,11 @@ func play_hammer_attack(toward: Vector2 = Vector2.RIGHT) -> void:
 	z_index = 3
 	queue_redraw()
 
+## How far along the strike's lunge is, `t` seconds into the strike (eased out).
+static func _lunge_at(t: float) -> float:
+	var k := clampf(t / 0.09, 0.0, 1.0)
+	return 1.0 - (1.0 - k) * (1.0 - k)
+
 func play_sword_attack(direction: int) -> void:
 	sword_attack_facing = clampi(direction, 0, 3)
 	sword_attack_elapsed = 0.0
@@ -231,9 +236,23 @@ func _draw() -> void:
 				draw_texture_rect_region(SWORD_ATTACK_ATLAS, destination, source, tint)
 		elif weapon_row == 0:
 			var frame := 0
+			var lunge := Vector2.ZERO
+			var base := Vector2(0, -hop_height)
 			if hammer_attack_elapsed >= 0.0:
 				frame = 1 if hammer_attack_elapsed < HAMMER_WINDUP else 2
-			draw_hammer_pose(self, frame, Vector2(0, -hop_height) + (hammer_lunge if frame == 2 else Vector2.ZERO), tint)
+			if frame == 2:
+				# The lunge is quick but not instant: a fast glide toward the tile, with
+				# afterimages trailing behind it (and the raised pose fading where it stood).
+				var t := hammer_attack_elapsed - HAMMER_WINDUP
+				lunge = hammer_lunge * _lunge_at(t)
+				var fade := clampf(1.0 - t / 0.22, 0.0, 1.0)
+				if t < 0.12:
+					draw_hammer_pose(self, 1, base, Color(0.75, 0.95, 1.0, 0.45 * (1.0 - t / 0.12)))
+				for k in [3, 2, 1]:
+					var back: float = t - k * 0.022
+					if back > 0.0:
+						draw_hammer_pose(self, 2, base + hammer_lunge * _lunge_at(back), Color(0.7, 0.93, 1.0, (0.55 - k * 0.13) * fade))
+			draw_hammer_pose(self, frame, base + lunge, tint)
 		else:
 			var source := Rect2(facing*PLAYER_ATLAS_CELL,weapon_row*PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL)
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)

@@ -2024,6 +2024,81 @@ const METEOR_LAVA = Color("ff7a1a")
 const METEOR_GOLD = Color("ffd23a")
 const METEOR_RED = Color("c8261a")
 const METEOR_CREAM = Color("fff0a0")
+## The hammer's blow spreading: one quake from the struck tile out over every tile it
+## shakes, as large as that area allows but never past it. A tremor wave lights
+## each tile as it passes, cracks run out to them, and sparks (yellow and cyan, like
+## the strike art) and stones fly out from the struck tile to the area's edge.
+const QUAKE_YELLOW = Color("ffd84a")
+const QUAKE_CYAN = Color("6fe3ff")
+const QUAKE_STONE = Color("6b5238")
+func _draw_quake(effect: Dictionary, origin: Vector2, t: float) -> void:
+	var cells: Array = effect.cells
+	var struck: Vector2i = effect.cell
+	# How far the area reaches from the struck tile (to its farthest corner).
+	var reach := 0.0
+	for cell in cells:
+		reach = maxf(reach, origin.distance_to(_center(cell)) + TILE * 0.5)
+	var wave := (1.0 - pow(1.0 - clampf(t / 0.55, 0.0, 1.0), 2.0)) * reach
+	var gone := 1.0 - t
+	# The tremor: each tile brightens as the wave passes under it, then settles.
+	for cell in cells:
+		var c := _center(cell)
+		var ahead := wave - origin.distance_to(c)
+		if ahead < -TILE * 0.5:
+			continue
+		var glow := clampf(1.0 - absf(ahead) / (TILE * 0.9), 0.0, 1.0)
+		var inset := 3.0
+		draw_rect(Rect2(c - Vector2.ONE * (TILE / 2 - inset), Vector2.ONE * (TILE - inset * 2)), Color(1.0, 0.8, 0.4, 0.12 * gone + 0.3 * glow * gone))
+		# Cracks running out to the tile as the wave arrives.
+		if cell != struck:
+			var along := clampf(wave / origin.distance_to(c), 0.0, 1.0)
+			var seed_value: int = int(cell.x) * 7 + int(cell.y) * 13
+			var normal := (c - origin).normalized().orthogonal()
+			var points := PackedVector2Array([origin])
+			for k in range(1, 5):
+				var bend := float((seed_value * 31 + k * 17) % 11 - 5) * (1.0 if k < 4 else 0.3)
+				points.append(origin.lerp(c, along * k / 4.0) + normal * bend)
+			draw_polyline(points, Color(0.13, 0.08, 0.04, 0.8 * gone + 0.1), 4)
+			draw_polyline(points, Color(1.0, 0.85, 0.45, 0.55 * gone), 1)
+	# Sparks and stones fly from the struck tile toward every shaken tile, each one
+	# stopping at the edge of the area.
+	var n := 0
+	for cell in cells:
+		var toward := _center(cell) - origin
+		for k in 4:
+			n += 1
+			var angle: float = (toward.angle() if toward.length() > 1.0 else float(n) * 1.3) + float((n * 37) % 9 - 4) * 0.09
+			var direction := Vector2.from_angle(angle)
+			var limit := _quake_extent(origin, direction, cells)
+			var travel := minf(wave * (0.85 + float(n % 3) * 0.1), limit)
+			if travel <= 2.0:
+				continue
+			var head := origin + direction * travel
+			var tail := origin + direction * maxf(travel - (22.0 * gone + 4.0), 0.0)
+			if k < 3:
+				draw_line(tail, head, Color(QUAKE_YELLOW if n % 2 == 0 else QUAKE_CYAN, gone), 4 if n % 2 == 0 else 3)
+			else:
+				# A stone, arcing a little but kept inside the area.
+				var lift := sin(clampf(travel / maxf(limit, 1.0), 0.0, 1.0) * PI) * 8.0
+				var stone := head - Vector2(0, lift)
+				if _in_quake(stone, cells):
+					draw_rect(Rect2(stone - Vector2(3, 3), Vector2(6, 5)), Color(QUAKE_STONE, gone))
+					draw_rect(Rect2(stone - Vector2(3, 3), Vector2(6, 2)), Color(0.55, 0.45, 0.33, gone))
+	# A white-hot core where the head landed.
+	if t < 0.3:
+		draw_circle(origin, 12 * (1.0 - t / 0.3) + 3, Color(1, 1, 0.9, 0.9 * (1.0 - t / 0.3)))
+
+## How far from `origin` a ray in `direction` stays inside the shaken tiles.
+func _quake_extent(origin: Vector2, direction: Vector2, cells: Array) -> float:
+	var distance := 0.0
+	while distance < TILE * 4 and _in_quake(origin + direction * (distance + 3.0), cells):
+		distance += 3.0
+	return maxf(distance - 4.0, 0.0)
+
+func _in_quake(point: Vector2, cells: Array) -> bool:
+	var cell := Vector2i(floori((point.x - BOARD.x) / TILE), floori((point.y - BOARD.y) / TILE))
+	return cells.has(cell)
+
 func _draw_meteor(effect: Dictionary, pos: Vector2, t: float) -> void:
 	var fall := clampf(t / 0.35, 0.0, 1.0)
 	if fall < 1.0:
@@ -2200,13 +2275,7 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				var lane := Vector2(absf(dir.y), absf(dir.x)) * TILE * k
 				draw_circle(pos + lane + back * (10 + t * 16), 7 + t * 8, Color("c9b79a", fade * 0.5))
 		"quake":
-			# Shock rings and cracks across every tile the hammer shakes.
-			for area_cell in effect.cells:
-				var c := _center(area_cell)
-				draw_arc(c,10+t*24,0,TAU,20,Color("ffd08a",fade),4)
-				draw_line(c+Vector2(-14,-4),c+Vector2(0,4),Color("3a2412",fade),3)
-				draw_line(c+Vector2(0,4),c+Vector2(12,-6),Color("3a2412",fade),3)
-			draw_circle(pos,8+t*30,Color(1,0.8,0.5,fade*0.35))
+			_draw_quake(effect, pos, t)
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)

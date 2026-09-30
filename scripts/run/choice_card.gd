@@ -6,6 +6,7 @@ const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
 const FairyDemo = preload("res://scripts/run/fairy_demo.gd")
 const FairyMarks = preload("res://scripts/run/fairy_marks.gd")
+const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
 
 ## The label under a fairy's name: 召喚 (an ally with HP), 設置 (stays five turns)
 ## or 使い切り (works once, right away).
@@ -88,22 +89,20 @@ func _ready() -> void:
 			description = "隕石が%d個落ちる" % (model.meteor_count() + (1 if preview_plus else 0))
 		if preview_plus and plus:
 			base_description = item.summary
-	# The frame shows the rarity: white, green, blue or gold, and thick enough to read.
+	# The frame shows the rarity in its material (wood, jade, lapis lazuli, gold),
+	# drawn over the card at the end; the card itself is just the dark ground.
 	var tier := Rarity.tier(offer)
 	var frame: Color = Rarity.COLORS[tier]
 	for state in ["normal","hover","pressed","disabled"]:
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color("172b2b") if state in ["hover","pressed"] else Color(frame.darkened(0.88), 1.0) if tier >= Rarity.RARE else Color("0c181b")
-		style.border_color = frame if state in ["hover","pressed"] or tier > Rarity.COMMON else Color(frame, 0.75)
-		style.set_border_width_all((5 if state in ["hover","pressed"] else 3) + (1 if tier == Rarity.SUPER_RARE else 0))
 		if tier == Rarity.SUPER_RARE:
 			style.shadow_color = Color(frame, 0.55)
 			style.shadow_size = 10
-		style.set_corner_radius_all(8)
 		add_theme_stylebox_override(state,style)
 	# The corner only carries a special heading (クラスアップ後, 魔法陣の武器); the diagram
 	# and the kind label already say whether it is a weapon or a fairy.
-	var tag_label := _label(Vector2(14,9),tag,15,accent)
+	var tag_label := _label(Vector2(14,12),tag,15,accent)
 	tag_label.visible = tag != ""
 	# The rarity sits on a badge in the top-right corner, in the frame colour.
 	var badge := Label.new()
@@ -118,29 +117,29 @@ func _ready() -> void:
 	badge.add_theme_stylebox_override("normal",pill)
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(badge)
-	badge.position = Vector2(size.x-badge.get_minimum_size().x-10,8)
+	badge.position = Vector2(size.x-badge.get_minimum_size().x-12,11)
 	# A long corner tag (クラスアップ後, 魔法陣の武器) must stop short of the badge; on a
 	# card too narrow for it at a readable size it is left out (the stats line and
 	# the frame still say it).
 	_fit_width(tag_label,badge.position.x-6-tag_label.position.x)
 	if tag_label.get_theme_font_size("font_size") < 13 or tag_label.get_minimum_size().x > badge.position.x-6-tag_label.position.x:
 		tag_label.visible = false
-	var title_label := _label(Vector2(14,32),title,23,Color("eee7d2"))
+	var title_label := _label(Vector2(14,34),title,23,Color("eee7d2"))
 	_fit_width(title_label,size.x-40)
 	if plus:
 		var font: Font = title_label.get_theme_font("font")
 		var title_size := title_label.get_theme_font_size("font_size")
-		_label(Vector2(16+font.get_string_size(title,HORIZONTAL_ALIGNMENT_LEFT,-1,title_size).x,32),"+",title_size,Color("ffd35b"))
+		_label(Vector2(16+font.get_string_size(title,HORIZONTAL_ALIGNMENT_LEFT,-1,title_size).x,34),"+",title_size,Color("ffd35b"))
 	# Stats and the comparison note sit at the bottom so long descriptions never overlap them.
-	var y := size.y-(86 if note != "" else 62) if action_text != "" else size.y-(58 if note != "" else 34)
+	var y := size.y-(90 if note != "" else 66) if action_text != "" else size.y-(62 if note != "" else 38)
 	if offer.kind == "weapon":
 		var diagram := Diagram.new()
 		# The effect text keeps its full size: the diagram shrinks to leave it room.
 		var detail := _label(Vector2(14,0),description,15,Color("e5dfc5"))
 		_wrap_label(detail,size.x-28)
 		var text_height := _text_height(detail, 15)
-		var side := clampf(y-4-72-text_height-2,56.0,minf(140,size.x-40))
-		diagram.position = Vector2((size.x-side)/2,66)
+		var side := clampf(y-4-74-text_height-2,56.0,minf(140,size.x-40))
+		diagram.position = Vector2((size.x-side)/2,68)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.slides = Weapons.slides(int(offer.value))
@@ -150,8 +149,8 @@ func _ready() -> void:
 		diagram.accent = accent
 		add_child(diagram)
 		if plus:
-			_badge(diagram.position+Vector2(side+32,0),26)
-		var detail_top := 72+side
+			_badge(Vector2(minf(diagram.position.x+side+32,size.x-12),diagram.position.y),26)
+		var detail_top := 74+side
 		detail.position.y = detail_top
 		# The knockback example goes between the diagram and the text when the whole
 		# text still fits under it at full size.
@@ -159,8 +158,8 @@ func _ready() -> void:
 			var demo := FairyDemo.new()
 			demo.model = model
 			demo.id = "knockback"
-			demo.position = Vector2(10,70+side)
-			demo.size = Vector2(size.x-20,50)
+			demo.position = Vector2(12,72+side)
+			demo.size = Vector2(size.x-24,50)
 			add_child(demo)
 			detail_top += 52
 			detail.position.y = detail_top
@@ -168,26 +167,15 @@ func _ready() -> void:
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
 		var stats := "1 AP / 入れ替え" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / ノックバック" if Weapons.knockback(int(offer.value)) > 0 and damage <= 0 else "1 AP / 攻撃 %d" % damage
 		if circle:
-			# The enchantment replaces the attack: say so plainly.
+			# The enchantment replaces the attack: say so plainly (in the enchantment colour).
 			stats = "魔法陣・攻撃不可"
-			var ring := Panel.new()
-			ring.position = Vector2(4,4)
-			ring.size = size-Vector2(8,8)
-			ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var style := StyleBoxFlat.new()
-			style.draw_center = false
-			style.border_color = Color("f4f2ea")
-			style.set_border_width_all(2)
-			style.set_corner_radius_all(6)
-			ring.add_theme_stylebox_override("panel",style)
-			add_child(ring)
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
 		# What kind of fairy it is: a label just left of the rarity badge (or, when the
 		# corner tag leaves no room there, at the start of the row under the name).
 		var kind: String = KINDS.get(fairy_id, "使い切り")
-		var kind_label := _pill(Vector2(14,8),kind if kind != "設置" else "設置・5ターン",KIND_COLORS[kind])
-		var row := 66.0
+		var kind_label := _pill(Vector2(14,11),kind if kind != "設置" else "設置・5ターン",KIND_COLORS[kind])
+		var row := 68.0
 		var place_x := 14.0
 		var kind_x := badge.position.x-kind_label.get_minimum_size().x-6
 		if kind_x >= 14 and (not tag_label.visible or kind_x >= tag_label.position.x+tag_label.get_minimum_size().x+6):
@@ -217,8 +205,8 @@ func _ready() -> void:
 		demo.id = fairy_id
 		demo.plus = 1 if plus else 0
 		# Edge to edge inside the frame: the example's width sets how large it is drawn.
-		demo.position = Vector2(6,demo_top)
-		demo.size = Vector2(size.x-12,clampf(y-demo_top-marks_height-text_room-6,52.0,220.0))
+		demo.position = Vector2(12,demo_top)
+		demo.size = Vector2(size.x-24,clampf(y-demo_top-marks_height-text_room-6,44.0,220.0))
 		add_child(demo)
 		if plus:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
@@ -254,7 +242,14 @@ func _ready() -> void:
 		var note_label := _label(Vector2(14,y+22),note,16,note_color)
 		_fit_width(note_label,size.x-24)
 	if action_text != "":
-		_label(Vector2(14,size.y-34),action_text + "  →",20,accent)
+		_label(Vector2(14,size.y-38),action_text + "  →",20,accent)
+	# The material frame goes on top of everything, and brightens under the pointer.
+	var material_frame := RarityFrame.new()
+	material_frame.tier = tier
+	material_frame.size = size
+	add_child(material_frame)
+	mouse_entered.connect(material_frame.set_hover.bind(true))
+	mouse_exited.connect(material_frame.set_hover.bind(false))
 
 func _badge(corner: Vector2, side: float) -> void:
 	var badge := PlusBadge.new()
