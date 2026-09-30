@@ -119,8 +119,12 @@ func _ready() -> void:
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(badge)
 	badge.position = Vector2(size.x-badge.get_minimum_size().x-10,8)
-	# A long corner tag (クラスアップ後, 魔法陣の武器) must stop short of the badge.
+	# A long corner tag (クラスアップ後, 魔法陣の武器) must stop short of the badge; on a
+	# card too narrow for it at a readable size it is left out (the stats line and
+	# the frame still say it).
 	_fit_width(tag_label,badge.position.x-6-tag_label.position.x)
+	if tag_label.get_theme_font_size("font_size") < 13 or tag_label.get_minimum_size().x > badge.position.x-6-tag_label.position.x:
+		tag_label.visible = false
 	var title_label := _label(Vector2(14,32),title,23,Color("eee7d2"))
 	_fit_width(title_label,size.x-40)
 	if plus:
@@ -237,13 +241,16 @@ func _ready() -> void:
 		if chain:
 			var chip := _pill(Vector2(14,y-28),"誘爆",Color("ff9a5b"))
 			var chained := _label(Vector2(22+chip.get_minimum_size().x,y-28),"他の大砲・魔弾でも発動",LABEL_SIZE,Color("ffc59a"))
+			if chained.get_minimum_size().x > size.x-12-chained.position.x:
+				chained.text = "大砲・魔弾でも発動"
 			_fit_width(chained,size.x-12-chained.position.x)
 		var item_def: Resource = model.item_definition(fairy_id)
 		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
 		var uses: int = item_def.initial_count + (1 if plus else 0)
 		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else accent)
 	if note != "":
-		_label(Vector2(14,y+22),note,16,note_color)
+		var note_label := _label(Vector2(14,y+22),note,16,note_color)
+		_fit_width(note_label,size.x-24)
 	if action_text != "":
 		_label(Vector2(14,size.y-34),action_text + "  →",20,accent)
 

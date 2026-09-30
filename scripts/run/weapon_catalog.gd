@@ -55,6 +55,8 @@ const DATA = [
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
 	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大5）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると5）", "offsets":[Vector2i(1,0)]},
+	# A rare mid-game drop: moves like the cross sword, and its blow spreads in a cross.
+	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":2, "effect":"この武器の攻撃は2ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.

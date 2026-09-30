@@ -704,9 +704,14 @@ func bow_lines() -> Array[Vector2i]:
 	return result
 
 ## Hammer: the struck tile, its two side tiles, and the three tiles beyond.
-func hammer_area(target: Vector2i) -> Array[Vector2i]:
+## Where a hammer's blow spreads: the target, the tiles above and below it and the
+## column beyond; the cross hammer, the target and the four tiles around it.
+func hammer_area(target: Vector2i, index: int = weapon) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for offset in [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1)]:
+	var shape: Array = [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1)]
+	if WEAPONS[index].get("area", "") == "cross":
+		shape = [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(-1,0), Vector2i(1,0)]
+	for offset in shape:
 		if inside(target + offset):
 			result.append(target + offset)
 	return result

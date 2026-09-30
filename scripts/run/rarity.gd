@@ -18,7 +18,7 @@ static func tier(offer: Dictionary) -> int:
 		var index := int(offer.value)
 		if Weapons.is_late(index):
 			return SUPER_RARE
-		if offer.get("enchant", "") == "circle":
+		if offer.get("enchant", "") == "circle" or Weapons.DATA[index].get("rare", false):
 			return RARE
 		if Weapons.is_mid(index) or Weapons.is_boss_reward(index) or Weapons.from_rotorick(index):
 			return UNCOMMON

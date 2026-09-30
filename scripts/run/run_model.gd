@@ -176,7 +176,8 @@ func finish_battle() -> bool:
 	if late and not late_drops.is_empty() and rng.randf() < LATE_WEAPON_CHANCE:
 		drops = late_drops
 	if mid and not drops.is_empty():
-		var drop: int = sample(drops,1)[0]
+		# Rare drops (十字槌) turn up half as often as the others.
+		var drop: int = weighted_sample(drops,1,func(index: int) -> float: return 0.5 if Weapons.DATA[index].get("rare", false) else 1.0)[0]
 		offers.append({"kind":"weapon","value":drop})
 		weapons.erase(drop)
 		for index in sample(weapons,WEAPON_OFFERS-1):

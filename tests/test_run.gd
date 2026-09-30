@@ -1199,7 +1199,14 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 44,"39 weapons plus the three generals, the king staff and the mallet")
+	verify(W.DATA.size() == 45,"39 weapons plus the three generals, the king staff, the mallet and the cross hammer")
+	# 十字槌: a rare mid-game hammer that moves like the cross sword and spreads in a cross.
+	var cross_hammer: int = ids.find("cross_hammer")
+	verify(W.mid_pool().has(cross_hammer) and W.is_hammer(cross_hammer) and W.base_damage(cross_hammer) == 2,"The cross hammer is a mid-game hammer that hits for 2")
+	verify(Run.Rarity.tier({"kind":"weapon","value":cross_hammer}) == Run.Rarity.RARE,"...and a rare one")
+	var ch := _weapon_room("cross_hammer",[Vector2i(2,1),Vector2i(1,1),Vector2i(3,1),Vector2i(2,0),Vector2i(3,2)])
+	verify(ch.hammer_area(Vector2i(2,1)).size() == 5,"Its blow covers the target and the four tiles around it")
+	verify(ch.player_action(Vector2i(1,1)) and ch.enemy_at(Vector2i(1,1)).hp == 3 and ch.enemy_at(Vector2i(2,1)).hp == 3 and ch.enemy_at(Vector2i(3,1)).hp == 5 and ch.enemy_at(Vector2i(2,0)).hp == 5,"Striking up: 2 to the target and to its side, nothing beyond the cross")
 	verify(W.base_damage(ids.find("rook_spear")) == 0 and W.base_damage(ids.find("bishop_blade")) == 0 and not W.can_forge(ids.find("rook_spear")) and not W.can_forge(ids.find("bishop_blade")),"Rook spear and bishop blade: 0 damage, cannot be forged")
 	var mallet: int = ids.find("mallet")
 	verify(W.early_reward_pool().has(mallet) and W.is_hammer(mallet) and W.base_damage(mallet) == 1,"The mallet: an early hammer that hits for 1")
