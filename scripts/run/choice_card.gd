@@ -18,13 +18,13 @@ const KINDS := {
 const KIND_COLORS := {"召喚": Color("7dff9a"), "設置": Color("9fd8ff"), "使い切り": Color("ffd08a")}
 ## Summoned allies: [HP, AP, HP once classed up].
 const SUMMONS := {
-	"acorn_fairy": [1, 1, 2], "holy_spirit": [1, 1, 1], "lone_wolf": [2, 2, 2],
+	"acorn_fairy": [1, 1, 2], "holy_spirit": [1, 1, 1], "lone_wolf": [3, 3, 3],
 	"glutton_fairy": [1, 2, 3], "guardian_fairy": [3, 1, 4],
 }
 ## The trickier fairies get a fuller line than their summary.
 const CARD_TEXT := {
 	"abyss_spirit": "武器の届かない空きマス（敵・障害物なし）が奈落に。動くと変わる",
-	"lone_wolf": "届かないマスに召喚。単独で2、隣に仲間で1、届くとすねる",
+	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で2ダメージ、隣に仲間がいると1ダメージ。届くマスではすねる",
 	"shadow_stitch": "届かないマスに影を置き、0 APで入れ替わる",
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（99ダメージ）",
 	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",

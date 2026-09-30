@@ -411,7 +411,8 @@ static func _shadow(time: float, art: Texture2D) -> void:
 	if swap > 0.0:
 		_say(_center(Vector2(2.5,0)), "0 AP", 16, GOLD)
 
-## Summoned where no weapon reaches (here: holding silver). Alone it bites for 2,
+## Summoned where no weapon reaches (here: holding silver); it moves and bites like
+## a silver general facing right. Alone it bites for 2,
 ## next to you or another ally for 1, and on a tile a weapon reaches it sulks.
 static func _wolf(time: float) -> void:
 	var p := _cycle(time, 5.4)
@@ -422,8 +423,9 @@ static func _wolf(time: float) -> void:
 	match phase:
 		0:
 			_enemy(Vector2(4,1), 1.0 - _ph(q, 0.55, 0.7))
-			var at := Vector2(3,2).lerp(Vector2(4,2), _ph(q, 0.1, 0.3))
-			_wolf_art(at - Vector2(0, sin(_ph(q, 0.35, 0.5) * PI) * 0.25), 1)
+			# A silver bite: up-right, lunging toward the prey and back.
+			var lunge := sin(_ph(q, 0.3, 0.5) * PI) * 0.3
+			_wolf_art(Vector2(3,2) + Vector2(lunge, -lunge), 1)
 			_pop(Vector2(4,1), "−2", _ph(q, 0.4, 0.8), RED, 0, 24)
 		1:
 			_enemy(Vector2(2,0))

@@ -1719,7 +1719,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),true)
 	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
-	var ap: int = 2 if ally.type in ["glutton", "wolf"] else 1
+	var ap: int = Rules.WOLF_AP if ally.type == "wolf" else 2 if ally.type == "glutton" else 1
 	for i in range(ap):
 		draw_rect(Rect2(ap_x+45+i*26,153,22,23),GOLD)
 	var moves: Array = []
@@ -1734,13 +1734,9 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			lines = ["敵より先に動く", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
 			intent = "近くの敵を攻撃"
 		"wolf":
-			for y in range(-2, 3):
-				for x in range(-2, 3):
-					var offset := Vector2i(x, y)
-					if offset != Vector2i.ZERO and absi(x) + absi(y) <= 2:
-						moves.append(offset)
-			strikes = CARDINAL_OFFSETS
-			lines = ["2マス駆けて隣の敵に噛む", "ひとりなら2、隣に誰かいると1", "武器が届く所ではすねる"]
+			moves = Rules.WOLF_MOVES
+			strikes = Rules.WOLF_MOVES
+			lines = ["銀の動き・右向き固定", "AP3：1歩か1噛みでAP1", "噛むと単独で2ダメージ", "隣に誰かいると1ダメージ", "武器が届く所ではすねる"]
 			var sulking: bool = model.all_reach().has(ally.cell)
 			intent = "すねている…（動かない）" if sulking else "群れずに噛みつく"
 		"glutton":

@@ -1515,26 +1515,24 @@ func _loner_fairies() -> void:
 	reach = m.all_reach()
 	var wolf_spots: Array = m.item_targets("lone_wolf")
 	verify(not wolf_spots.is_empty() and wolf_spots.all(func(c): return not reach.has(c)),"The wolf is placed only where no weapon reaches")
-	var setup: Array = []
+	# A tile out of reach with room for a silver step right and prey up-right of that.
+	var home := Vector2i(-1,-1)
 	for cell in wolf_spots:
-		for direction in Rules.CARDINALS:
-			# Three tiles away: two running steps, then the bite.
-			var mid: Vector2i = cell + direction * 2
-			var far: Vector2i = cell + direction * 3
-			var lane := [cell + direction, mid, far]
-			if setup.is_empty() and m.inside(far) and not lane.has(m.player.cell) and m.distance(mid, m.player.cell) > 1:
-				setup = [cell, mid, far]
-	verify(not setup.is_empty(),"Found a clear lane for the wolf")
-	if setup.is_empty():
+		var step: Vector2i = cell + Vector2i(1,0)
+		var far: Vector2i = cell + Vector2i(2,-1)
+		if home == Vector2i(-1,-1) and m.inside(step) and m.inside(far) and not reach.has(step) and not m.blocked(step) and not m.blocked(far) and m.distance(step, m.player.cell) > 1 and far != m.player.cell and m.enemy_at(cell + Vector2i(1,-1)).is_empty() and m.enemy_at(cell + Vector2i(1,1)).is_empty():
+			home = cell
+	verify(home != Vector2i(-1,-1),"Found room for the wolf")
+	if home == Vector2i(-1,-1):
 		return
-	var prey: Dictionary = m.make_enemy("heavy",setup[2],0)
+	var prey: Dictionary = m.make_enemy("heavy",home + Vector2i(2,-1),0)
 	prey.hp = 5
 	m.enemies.append(prey)
-	verify(m.use_item("lone_wolf",setup[0]) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
+	verify(m.use_item("lone_wolf",home) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
 	var wolf: Dictionary = m.allies[0]
+	verify(wolf.hp == 3 and Rules.WOLF_AP == 3,"The lone wolf has HP 3 and AP 3")
 	m.act_allies()
-	verify(wolf.cell == setup[1] and prey.hp == 3,"Alone, it runs in and bites for 2 in one turn")
-	verify(wolf.hp == 2,"The lone wolf is summoned with HP 2")
+	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 1,"Alone, it takes a silver step and bites twice for 2 (3 AP)")
 	m.tick_walls()
 	verify(m.allies.size() == 1,"The wolf does not fade with the turn count")
 	var crowd: Vector2i = Vector2i(-1,-1)
@@ -1542,17 +1540,37 @@ func _loner_fairies() -> void:
 		var cell: Vector2i = wolf.cell + direction
 		if crowd == Vector2i(-1,-1) and m.inside(cell) and not m.blocked(cell) and cell != m.player.cell and m.enemy_at(cell).is_empty() and m.distance(cell, prey.cell) > 1:
 			crowd = cell
+	prey.hp = 5
 	m.allies.append({"id":-50, "type":"holy_knight", "cell":crowd, "hp":1, "ap":0, "facing":2})
 	m.act_allies()
-	verify(prey.hp == 2,"With company beside it, the bite drops to 1")
+	verify(prey.hp == 2,"With company beside it, each bite drops to 1")
 	m.allies = m.allies.filter(func(a): return a.type == "wolf")
+	# Class-up: a kill gives the AP back, so it can finish a second enemy.
+	for plus in [false, true]:
+		m.enemies.clear()
+		wolf.cell = home
+		wolf.plus = plus
+		var a: Dictionary = m.make_enemy("heavy",home + Vector2i(1,-1),0)
+		var b: Dictionary = m.make_enemy("heavy",home + Vector2i(1,1),1)
+		a.hp = 4
+		b.hp = 4
+		m.enemies.append_array([a, b])
+		m.act_allies()
+		var dead: int = [a, b].filter(func(e): return e.hp <= 0).size()
+		verify(dead == (2 if plus else 1),"%s wolf finishes %d of two HP4 enemies" % ["A classed-up" if plus else "A plain", dead])
+	wolf.plus = false
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	prey = m.make_enemy("heavy",home + Vector2i(1,-1),0)
+	prey.hp = 5
+	m.enemies.append(prey)
 	for y in m.board_size:
 		for x in m.board_size:
 			if not m.all_reach().has(wolf.cell) and Vector2i(x,y) != wolf.cell and not m.blocked(Vector2i(x,y)) and m.enemy_at(Vector2i(x,y)).is_empty():
 				m.player.cell = Vector2i(x,y)
 	verify(m.all_reach().has(wolf.cell),"The player can stand where a weapon reaches the wolf")
 	m.act_allies()
-	verify(prey.hp == 2 and wolf.sulking,"Within any weapon's reach, the wolf sulks and skips its turn")
+	verify(prey.hp == 5 and wolf.sulking,"Within any weapon's reach, the wolf sulks and skips its turn")
 	# A charge crashes into the pinned shadow like any placed thing: smashed, and it stops there.
 	m = fixture()
 	m.enemies.clear()

@@ -147,7 +147,7 @@ const PLUS_TEXT := {
 	"vane_cannon": ["毎戦闘2回・0 APで置ける", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
-	"lone_wolf": ["倒すと隣の敵を連続で噛む", "全武器の範囲外の空きマスに\n召喚。HP2、倒されるまで残る。\n自分で2マス駆けて噛みつき、\n倒したら隣の敵にもう一度。\n武器が届く所ではすねる。"],
+	"lone_wolf": ["噛んで倒すとAPが1戻る", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n噛んで倒すとAPが1戻る。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"],
@@ -1585,10 +1585,14 @@ func _glutton_action(glutton: Dictionary) -> void:
 		trigger_mine(glutton)
 	glutton.ap = 0
 
-## 一匹狼の妖精: a lone ally that hunts on its own until it falls.
+## 一匹狼の妖精: a lone ally that hunts on its own until it falls. It moves like a
+## silver general facing right and bites the tiles it could move to.
+const WOLF_MOVES = [Vector2i(1,0), Vector2i(1,-1), Vector2i(1,1), Vector2i(-1,-1), Vector2i(-1,1)]
+const WOLF_HP := 3
+const WOLF_AP := 3
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
-	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":2, "ap":2, "facing":1, "plus":plus})
+	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":WOLF_HP, "ap":WOLF_AP, "facing":1, "plus":plus})
 	_note_summon("wolf")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
@@ -1604,46 +1608,65 @@ func wolf_crowded(wolf: Dictionary) -> bool:
 			return true
 	return false
 
-## Within any weapon's reach the wolf sulks. Otherwise it runs up to two
-## tiles and then bites once: 2 alone, 1 with company. The upgraded wolf
-## bites a second neighbour after a kill.
+## Within any weapon's reach the wolf sulks. Otherwise it spends its 3 AP one at a
+## time: a bite on an enemy it reaches (2 alone, 1 with company), or a silver step
+## toward one. The upgraded wolf gets the AP back when a bite kills.
 func _wolf_action(wolf: Dictionary) -> void:
 	wolf.sulking = all_reach().has(wolf.cell)
 	if wolf.sulking:
 		add_log("一匹狼の妖精はそっぽを向いた")
 		wolf.ap = 0
 		return
-	var bites := 2 if wolf.get("plus", false) else 1
-	for step in 3:
-		var prey := _wolf_prey(wolf)
-		if prey.is_empty():
-			if step == 2 or not _step_toward_enemy(wolf):
-				break
-			continue
-		while not prey.is_empty() and bites > 0:
-			bites -= 1
+	wolf.ap = WOLF_AP
+	while wolf.ap > 0 and wolf.hp > 0 and not terminal():
+		var prey := _wolf_prey(wolf, wolf.cell)
+		if not prey.is_empty():
+			wolf.ap -= 1
 			var target: Dictionary = prey.enemy
-			wolf.facing = CARDINALS.find(prey.dir)
 			events.append({"kind":"bite", "cell":wolf.cell + prey.dir, "id":-2})
 			damage_enemy(target, 1 if wolf_crowded(wolf) else 2, prey.dir)
 			add_log("一匹狼の妖精が噛みついた")
 			check_outcome()
-			if target.hp > 0 or terminal():
-				break
-			prey = _wolf_prey(wolf)
-		break
+			if target.hp <= 0 and wolf.get("plus", false):
+				wolf.ap += 1
+			continue
+		var step := _wolf_step(wolf)
+		if step == wolf.cell:
+			break
+		wolf.ap -= 1
+		wolf.cell = step
+		trigger_mine(wolf)
 	wolf.ap = 0
 
-## The weakest enemy next to the wolf, as {enemy, dir}; empty when none.
-func _wolf_prey(wolf: Dictionary) -> Dictionary:
+## The weakest enemy the wolf reaches from `from`, as {enemy, dir}; empty when none.
+func _wolf_prey(wolf: Dictionary, from: Vector2i) -> Dictionary:
 	var best: Dictionary = {}
-	for direction in CARDINALS:
-		var enemy := enemy_at(wolf.cell + direction)
+	for direction in WOLF_MOVES:
+		var enemy := enemy_at(from + direction)
 		if enemy.is_empty():
 			continue
 		if best.is_empty() or enemy.hp < best.enemy.hp or (enemy.hp == best.enemy.hp and enemy.id < best.enemy.id):
 			best = {"enemy":enemy, "dir":direction}
 	return best
+
+## The first silver step on the shortest way to a tile from which an enemy is in reach.
+func _wolf_step(wolf: Dictionary) -> Vector2i:
+	var start: Vector2i = wolf.cell
+	var first := {start: start}
+	var layer: Array[Vector2i] = [start]
+	while not layer.is_empty():
+		var next_layer: Array[Vector2i] = []
+		for current in layer:
+			for offset in WOLF_MOVES:
+				var next: Vector2i = current + offset
+				if first.has(next) or not inside(next) or blocked(next) or next == player.cell or mines.has(next) or not enemy_at(next).is_empty():
+					continue
+				first[next] = next if current == start else first[current]
+				if not _wolf_prey(wolf, next).is_empty():
+					return first[next]
+				next_layer.append(next)
+		layer = next_layer
+	return start
 
 func act_allies() -> void:
 	if terminal():

@@ -220,8 +220,8 @@ func finish_battle() -> bool:
 	if late and not late_drops.is_empty() and rng.randf() < LATE_WEAPON_CHANCE:
 		drops = late_drops
 	if mid and not drops.is_empty():
-		# Rare drops (十字槌) turn up half as often as the others.
-		var drop: int = weighted_sample(drops,1,func(index: int) -> float: return 0.5 if Weapons.DATA[index].get("rare", false) else 1.0)[0]
+		# Rare drops (十字槌・金将剣・銀将剣) turn up half as often, 八方桂剣 a fifth.
+		var drop: int = weighted_sample(drops,1,weapon_weight)[0]
 		offers.append({"kind":"weapon","value":drop})
 		weapons.erase(drop)
 		off_timing.erase(drop)
@@ -261,7 +261,12 @@ func _enchant(index: int, offer: Dictionary) -> void:
 func _weapon_slot(usual: Array, off_timing: Array) -> int:
 	if usual.is_empty() or (not off_timing.is_empty() and rng.randf() < OFF_TIMING_CHANCE):
 		return weighted_sample(off_timing,1,func(index: int) -> float: return OFF_TIMING_LATE_WEIGHT if Weapons.is_late(index) else 1.0)[0]
-	return sample(usual,1)[0]
+	return weighted_sample(usual,1,weapon_weight)[0]
+
+## Rarer weapons turn up less often within their pool (by their rarity).
+const WEAPON_TIER_WEIGHTS := [1.0, 1.0, 0.5, 0.2]
+func weapon_weight(index: int) -> float:
+	return WEAPON_TIER_WEIGHTS[Rarity.tier({"kind":"weapon", "value":index})]
 
 ## True on the reward right before a camp and its boss.
 func is_before_boss() -> bool:
