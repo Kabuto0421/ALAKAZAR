@@ -1474,7 +1474,7 @@ func _draw_weapons() -> void:
 			extras.append("引寄")
 
 		if weapon.has("charge"):
-			extras.append("溜め%d/%d" % [model.blade_charge, Rules.BLADE_MAX])
+			extras.append("溜め%d/%d" % [model.blade_charge, model.blade_max()])
 		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
 		_text(pos+Vector2(28,72),"・".join(extras),16,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)

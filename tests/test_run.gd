@@ -1189,6 +1189,12 @@ func _mechanic_weapons() -> void:
 	verify(m.enemies[0].hp == 2 and m.weapon_damage(m.weapon) == 1,"Its hit spends the charge")
 	m.tick_walls()
 	verify(m.weapon_damage(m.weapon) == 1,"A turn it was used in stores nothing")
+	# Forged: hits for 2 and stores up to +3, so up to 5.
+	m = _weapon_room("charge_blade",[Vector2i(2,2)])
+	m.weapon_power[m.weapon] = 1
+	for k in 5:
+		m.tick_walls()
+	verify(m.weapon_damage(m.weapon) == 5,"Forged, the charge blade builds up to 5")
 	# Pools: the lance is a pre-boss reward, the rook and bishop mid-game drops, the staff an early reward.
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)

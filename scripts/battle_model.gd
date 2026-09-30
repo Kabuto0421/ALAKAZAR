@@ -123,6 +123,15 @@ const CIRCLE_DAMAGE := 99
 var blade_charge := 0
 var blade_used := false
 const BLADE_MAX := 2
+## Forged, it stores one more (its hits then run 2 up to 5).
+const BLADE_MAX_FORGED := 3
+
+## How much the 溜め大剣 can store right now (more once forged).
+func blade_max() -> int:
+	for index in owned_weapons:
+		if WEAPONS[index].has("charge"):
+			return BLADE_MAX_FORGED if weapon_power.has(index) else BLADE_MAX
+	return BLADE_MAX
 ## Camp class-ups: fairy id -> true. Upgraded fairies show a yellow "+".
 var fairy_plus: Dictionary = {}
 ## What each class-up does: [one-line summary, full description].
@@ -1773,7 +1782,7 @@ func wall_extension(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 func tick_walls() -> void:
 	# 溜め大剣 stores one more point for every turn it sat unused.
 	if not blade_used:
-		blade_charge = mini(blade_charge + 1, BLADE_MAX)
+		blade_charge = mini(blade_charge + 1, blade_max())
 	blade_used = false
 	for cell in walls.keys():
 		walls[cell] -= 1
