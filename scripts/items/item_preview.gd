@@ -70,7 +70,7 @@ static func grid(id: String, plus: bool) -> Vector2i:
 ## `plus`: 1 shows the class-up version, 0 the base one, -1 whatever the model has.
 static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float, rect: Rect2 = Rect2(848,228,268,100), plus: int = -1) -> void:
 	if id == "knockback":
-		board = Vector2i(4,1)
+		board = Vector2i(5,1)
 		_fit(canvas, rect)
 		_board(Color("b8d7c5"))
 		_knockback(time)
@@ -316,13 +316,13 @@ static func _flying_slash(time: float, accent: Color) -> void:
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.08, hit + 0.2))
 		_pop(enemy, "−1", _ph(p, hit, hit + 0.3))
 
-## 2x2: rushes one way, shoving what it hits (1; slammed into a wall 1 more, and into
-## another enemy 1 more for each).
+## 2x2: rushes one way, cutting what it hits for 1 and driving it ahead; slammed into
+## another enemy, both take 1 more (into a wall, nothing more).
 static func _axe(time: float, accent: Color) -> void:
 	var p := _cycle(time, 5.6)
 	var into_enemy := p >= 0.5
 	var q := fmod(p * 2, 1.0)
-	# First into a wall, then into another enemy (which takes 1 too).
+	# First into a wall (it just stops), then into another enemy (both take 1).
 	if into_enemy:
 		_enemy(Vector2(5,0), 1.0 - _ph(q, 0.72, 0.85))
 	else:
@@ -338,39 +338,46 @@ static func _axe(time: float, accent: Color) -> void:
 	_bump(Vector2(4,0), Vector2(5,0), q, 0.45, into_enemy)
 	_steps(1 if into_enemy else 0, 2)
 
-## A shove, as the shield weapons do it: hit for 1, pushed one tile; slammed into
-## something it takes 1 more, and an enemy it is slammed into takes 1 too.
+## A knockback weapon: no damage, but the enemy slides all the way until something
+## stops it. Slammed into another enemy, both take 1; into a wall, nothing.
 static func _knockback(time: float) -> void:
 	var p := _cycle(time, 5.0)
 	var into_enemy := p < 0.5
 	var q := fmod(p * 2, 1.0)
 	_player(Vector2(0,0))
-	var swing := _ph(q, 0.1, 0.25)
+	var swing := _ph(q, 0.1, 0.22)
 	if swing > 0.0 and swing < 1.0:
 		cv.draw_line(_center(Vector2(1,0)) + Vector2(-14, -14), _center(Vector2(1,0)) + Vector2(14, 14), Color.WHITE, 4)
 	if into_enemy:
-		_enemy(Vector2(2,0), 1.0 - _ph(q, 0.75, 0.88))
+		_enemy(Vector2(4,0), 1.0 - _ph(q, 0.78, 0.9))
 	else:
-		_art(WALL, Vector2(2,0))
-	var shake := sin(_ph(q, 0.3, 0.42) * PI) * 0.15
-	_enemy(Vector2(1,0) + Vector2(shake, 0), 1.0 - _ph(q, 0.75, 0.88))
-	_pop(Vector2(1,0), "−1", _ph(q, 0.15, 0.45))
-	_bump(Vector2(1,0), Vector2(2,0), q, 0.38, into_enemy)
+		_art(WALL, Vector2(4,0))
+	var slide := _ph(q, 0.22, 0.42)
+	var at := Vector2(1,0).lerp(Vector2(3,0), slide)
+	if slide > 0.0 and slide < 1.0:
+		for k in 3:
+			cv.draw_line(_center(at) - Vector2(16 + k * 7, -8 + k * 8), _center(at) - Vector2(26 + k * 7, -8 + k * 8), Color(1,1,1,0.6), 2)
+	_enemy(at, 1.0 - (_ph(q, 0.78, 0.9) if into_enemy else 0.0))
+	_bump(Vector2(3,0), Vector2(4,0), q, 0.42, into_enemy)
 	_steps(0 if into_enemy else 1, 2)
 
-## The collision between two tiles at `at` (0..1 of the cycle): a burst, "ドン", and a
-## "−1" in the collision colour on the shoved enemy (and on the one it hit).
-static func _bump(shoved: Vector2, hit: Vector2, q: float, at: float, hurts_other: bool) -> void:
+## The collision between two tiles at `at` (0..1 of the cycle). Into another enemy:
+## a burst, "ドン", and a "−1" in the collision colour on both. Into anything else:
+## just a small stop, no damage.
+static func _bump(shoved: Vector2, hit: Vector2, q: float, at: float, hurt: bool) -> void:
 	var k := _ph(q, at, at + 0.2)
 	var contact := (_center(shoved) + _center(hit)) / 2.0
+	if not hurt:
+		if k > 0.0 and k < 1.0:
+			cv.draw_line(contact - Vector2(0, 12), contact + Vector2(0, 12), Color(1,1,1,1.0 - k), 3)
+		return
 	if k > 0.0 and k < 1.0:
 		for n in 8:
 			var ray := Vector2.from_angle(n * TAU / 8 + 0.2) * (6 + k * 12) * (1.0 if n % 2 == 0 else 0.6)
 			cv.draw_line(contact, contact + ray, BUMP, 3)
 		_say(contact + Vector2(0, -C * (0.3 if board.y == 1 else 0.55)), "ドン", 13, BUMP)
 	_pop(shoved, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
-	if hurts_other:
-		_pop(hit, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
+	_pop(hit, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
 
 ## A 2x2 ally that strikes what touches it; broken, two holy knights step out.
 static func _holy(time: float, accent: Color) -> void:

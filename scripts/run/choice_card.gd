@@ -68,13 +68,9 @@ func _ready() -> void:
 		var weapon: Dictionary = Weapons.DATA[int(offer.value)]
 		accent = Color(weapon.color)
 		title = weapon.name
-		# The diagram already shows where it reaches: the text keeps only what it
-		# cannot show (the part after "。": hammer echoes, the charge, swaps, pulls...).
-		# The bow's line of fire is part of what it does, so it keeps its whole line.
-		var detail: String = weapon.detail
-		description = detail if weapon.get("ranged", "") != "" else detail.get_slice("。", 1) if detail.contains("。") else ""
-		if weapon.get("swap", false):
-			description = ""  # the stats line already says 無傷で入替
+		# The diagram already shows where it reaches: the text only explains what it
+		# cannot show (knockback, swaps, hammer echoes, the charge, pulls, the bow).
+		description = weapon.get("effect", "")
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
@@ -135,9 +131,11 @@ func _ready() -> void:
 	var y := size.y-(86 if note != "" else 62) if action_text != "" else size.y-(58 if note != "" else 34)
 	if offer.kind == "weapon":
 		var diagram := Diagram.new()
-		var shove := Weapons.knockback(int(offer.value)) > 0
-		# A shoving weapon makes room under its reach for the collision example.
-		var side := minf(96 if shove else 140, size.x-40)
+		# The effect text keeps its full size: the diagram shrinks to leave it room.
+		var detail := _label(Vector2(14,0),description,15,Color("e5dfc5"))
+		_wrap_label(detail,size.x-28)
+		var text_height := _text_height(detail, 15)
+		var side := clampf(y-4-72-text_height-2,56.0,minf(140,size.x-40))
 		diagram.position = Vector2((size.x-side)/2,66)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
@@ -148,7 +146,10 @@ func _ready() -> void:
 		if plus:
 			_badge(diagram.position+Vector2(side+32,0),26)
 		var detail_top := 72+side
-		if shove:
+		detail.position.y = detail_top
+		# The knockback example goes between the diagram and the text when the whole
+		# text still fits under it at full size.
+		if Weapons.knockback(int(offer.value)) > 0 and text_height+54 <= y-4-detail_top:
 			var demo := FairyDemo.new()
 			demo.model = model
 			demo.id = "knockback"
@@ -156,12 +157,10 @@ func _ready() -> void:
 			demo.size = Vector2(size.x-20,50)
 			add_child(demo)
 			detail_top += 52
-			description = SHOVE_TEXT
-		var detail := _label(Vector2(14,detail_top),description,15,Color("e5dfc5"))
-		_wrap_label(detail,size.x-28)
+			detail.position.y = detail_top
 		_fit(detail,y-4-detail_top)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
-		var stats := "1 AP / 無傷で入替" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / 攻撃 %d" % damage
+		var stats := "1 AP / 入れ替え" if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / ノックバック" if Weapons.knockback(int(offer.value)) > 0 and damage <= 0 else "1 AP / 攻撃 %d" % damage
 		if circle:
 			# The enchantment replaces the attack: say so plainly.
 			stats = "魔法陣・攻撃不可"
@@ -213,7 +212,7 @@ func _ready() -> void:
 		demo.plus = 1 if plus else 0
 		# Edge to edge inside the frame: the example's width sets how large it is drawn.
 		demo.position = Vector2(6,demo_top)
-		demo.size = Vector2(size.x-12,clampf(y-demo_top-marks_height-text_room-6,64.0,220.0))
+		demo.size = Vector2(size.x-12,clampf(y-demo_top-marks_height-text_room-6,52.0,220.0))
 		add_child(demo)
 		if plus:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
@@ -264,7 +263,6 @@ const GREEN := Color("7dff9a")
 ## Text about a weapon's enchantment (the magic circle), in a colour nothing else uses.
 const ENCHANT := Color("ff7ae6")
 ## Shoving weapons: what a collision does.
-const SHOVE_TEXT := "押出：ぶつけた敵・ぶつかった敵に1ずつ"
 
 ## Small labels (the kind, where it goes, the chain note, the rarity) use the game's
 ## pixel font at the size it is drawn for, where it is crisp.
@@ -346,9 +344,22 @@ func _fit(label: Label, height: float) -> void:
 	# Japanese line breaking: "。" and "、" never start a line.
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var font_size := label.get_theme_font_size("font_size")
-	while font_size > 11 and label.get_line_count() * label.get_line_height() > height:
+	while font_size > 11 and _text_height(label, font_size) > height:
 		font_size -= 1
 		label.add_theme_font_size_override("font_size",font_size)
+
+## The height a wrapped label's text takes at `font_size`, measured from the font
+## (a label's own line count lags a frame behind a size change).
+func _text_height(label: Label, font_size: int) -> float:
+	if label.text == "":
+		return 0.0
+	# Wrapped the way the label wraps (AUTOWRAP_WORD_SMART).
+	var paragraph := TextParagraph.new()
+	paragraph.add_string(label.text, label.get_theme_font("font"), font_size)
+	paragraph.width = label.size.x
+	paragraph.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	var line_height := label.get_theme_font("font").get_height(font_size) + label.get_theme_constant("line_spacing")
+	return paragraph.get_line_count() * line_height
 
 func _label(at: Vector2, value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()

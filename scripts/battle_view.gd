@@ -746,7 +746,7 @@ func _feedback(weapon_attack: bool = false) -> void:
 			flash.life = 1.0  # the big "99" stays up a moment
 		if event.get("bump", false):
 			flash.life = 0.85  # its "−1" waits a beat, then rises
-		if event.kind == "bump" and chain_shake < 0.12:
+		if event.kind == "bump" and event.get("hurt", true) and chain_shake < 0.12:
 			# A collision jolts the board a little.
 			chain_shake = 0.12
 			chain_shake_power = 5.0
@@ -1395,7 +1395,7 @@ func _draw_shove_preview() -> void:
 					moves.append([enemy, other.cell])
 		var bumps: Array = []
 		for event in sim.events:
-			if event.kind == "bump":
+			if event.kind == "bump" and event.get("hurt", true):
 				bumps.append([event.cell, event.dir])
 			if event.kind == "hit" and event.get("bump", false):
 				for enemy in model.enemies:
@@ -1466,7 +1466,10 @@ func _draw_weapons() -> void:
 		# Swap weapons trade places instead of dealing damage.
 		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
-			extras.append("押出")
+			# Knockback weapons deal no damage of their own (until forged).
+			if model.weapon_damage(index) <= 0:
+				extras.clear()
+			extras.append("ノックバック")
 		if weapon.get("pull",false):
 			extras.append("引寄")
 
@@ -2078,8 +2081,12 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			for k in range(3):
 				draw_line(pos - dir * (14 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, pos - dir * (24 + k * 8) + Vector2(-dir.y, dir.x) * (k - 1) * 8, Color("e5dfc5", fade * 0.7), 3)
 		"bump":
-			# Impact star where the enemy slams into something, and a big "ドンッ".
+			# Impact star where the enemy slams into something, and a big "ドンッ" when it
+			# hit another enemy (against a wall it just stops: a small puff, no damage).
 			var at := pos + dir * 30
+			if not effect.get("hurt", true):
+				draw_arc(at, 6 + t * 10, 0, TAU, 12, Color(1, 1, 1, fade * 0.7), 2)
+				return
 			for k in range(8):
 				var ray := Vector2.from_angle(k * TAU / 8 + 0.2) * (8 + t * 22) * (1.0 if k % 2 == 0 else 0.6)
 				draw_line(at, at + ray, Color(BUMP, fade), 4)

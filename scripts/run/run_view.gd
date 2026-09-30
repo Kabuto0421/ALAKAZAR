@@ -153,7 +153,8 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgra
 	var mixed := offers.any(func(o: Dictionary) -> bool: return o.kind == "weapon") and offers.any(func(o: Dictionary) -> bool: return o.kind != "weapon")
 	var weights: Array[float] = []
 	for offer in offers:
-		weights.append(0.7 if mixed and offer.kind == "weapon" else 1.0)
+		# A weapon with an effect to explain keeps the full width for its text.
+		weights.append(0.7 if mixed and offer.kind == "weapon" and not Weapons.DATA[int(offer.value)].has("effect") else 1.0)
 	var total := 0.0
 	for weight in weights:
 		total += weight
@@ -308,7 +309,7 @@ func _loadout() -> void:
 		if run.battle.is_circle(index):
 			_label(at+Vector2(10,130),"魔法陣・攻撃不可",14,Card.ENCHANT)
 		else:
-			_label(at+Vector2(10,130),"攻撃 %d" % damage + ("  押し出し" if Weapons.knockback(index) > 0 else ""),14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+			_label(at+Vector2(10,130),("ノックバック" if damage <= 0 else "攻撃 %d  ノックバック" % damage) if Weapons.knockback(index) > 0 else "入れ替え" if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(544+slot*184,top+30)
 		if slot >= fairies.size():

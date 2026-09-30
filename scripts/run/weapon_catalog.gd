@@ -35,26 +35,26 @@ const DATA = [
 	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
 	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・右・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1)]},
 	# Knockback: a struck enemy is shoved one tile away; if it cannot move it takes 1 more.
-	{"id":"shield", "name":"盾打ち", "short":"盾", "row":2, "color":"b8d7c5", "knockback":1, "detail":"右の1マス。攻撃した敵を右へ押し出す", "offsets":[Vector2i(1,0)]},
-	{"id":"sweep", "name":"薙ぎ払い", "short":"薙払", "row":2, "color":"d7c5b8", "knockback":1, "detail":"上・下の1マス。攻撃した敵を上下へ押し出す", "offsets":[Vector2i(0,-1),Vector2i(0,1)]},
-	{"id":"gale", "name":"突風剣", "short":"突風", "row":2, "color":"c5f0ff", "knockback":1, "detail":"右上・右・右下。攻撃した敵を外側へ押し出す", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1)]},
+	{"id":"shield", "name":"盾打ち", "short":"盾", "row":2, "color":"b8d7c5", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を右の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右の1マス。無傷で敵を右の奥までノックバック", "offsets":[Vector2i(1,0)]},
+	{"id":"sweep", "name":"薙ぎ払い", "short":"薙払", "row":2, "color":"d7c5b8", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を上下の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"上・下の1マス。無傷で敵を上下の奥までノックバック", "offsets":[Vector2i(0,-1),Vector2i(0,1)]},
+	{"id":"gale", "name":"突風剣", "short":"突風", "row":2, "color":"c5f0ff", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を外側の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右上・右・右下。無傷で敵を外側の奥までノックバック", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1)]},
 	# Mid-game weapons, dropped after the first boss.
-	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
-	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
+	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "effect":"この武器の攻撃は3ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
+	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "effect":"この武器は斜め4方向の直線上にいる敵を射て、1ダメージを与える。この武器では移動できない。", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 # Weapons with their own mechanics (not just a shape).
-	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "detail":"右へ、ふさがるまで一直線に進む。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
+	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "effect":"この武器はふさがるまで右へ進める。攻撃は、その直線上で最初にぶつかる敵に当たる。", "detail":"右へ、ふさがるまで一直線に進む。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
 	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横4方向へ、ふさがるまで進める", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
 	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜め4方向へ、ふさがるまで進める", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
-	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
-	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
+	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "effect":"この武器の攻撃は1ダメージを与え、敵を自分の隣まで引き寄せる。", "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
+	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"gold", "name":"金将剣", "short":"金将", "row":2, "color":"ffd35b", "tier":"mid", "detail":"右3マス・上下・左（斜め後ろ以外の6マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,-1),Vector2i(0,1),Vector2i(-1,0)]},
 	{"id":"silver", "name":"銀将剣", "short":"銀将", "row":2, "color":"d8e2ee", "tier":"mid", "detail":"右3マスと左斜め2マス（5マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(-1,-1),Vector2i(-1,1)]},
-	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
-	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
-	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "detail":"右1マス。使わないターンごとに攻撃+1（最大3）", "offsets":[Vector2i(1,0)]},
+	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
+	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
+	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3）。攻撃すると1に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3）", "offsets":[Vector2i(1,0)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.

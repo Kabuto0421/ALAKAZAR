@@ -31,8 +31,9 @@ func run() -> void:
 	root.add_child(scene)
 	await create_timer(0.7).timeout
 	for weapon in range(Rules.WEAPONS.size()):
-		# Mid-game weapons and the swap staff (no damage, it trades places) have their own tests.
-		if Rules.WEAPONS[weapon].get("tier","") in ["mid","late"] or Rules.WEAPONS[weapon].get("swap", false) or Rules.WEAPONS[weapon].get("hammer", false):
+		# Mid-game weapons, the swap staff (no damage, it trades places) and knockback
+		# weapons (no damage, they knock the enemy back) have their own tests.
+		if Rules.WEAPONS[weapon].get("tier","") in ["mid","late"] or Rules.WEAPONS[weapon].get("swap", false) or Rules.WEAPONS[weapon].get("hammer", false) or Rules.WEAPONS[weapon].get("knockback", 0) > 0:
 			continue
 		for attack in [false,true]:
 			var target := fixture(weapon,attack)

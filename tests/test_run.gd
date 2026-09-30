@@ -1030,7 +1030,7 @@ func _rare_fairies() -> void:
 	verify(m.item_targets("axe_spirit").has(Vector2i(2,2)) and m.big_anchor(Vector2i(2,2)) != Vector2i(-1,-1),"The axe fits a 2x2 block around a tile in range")
 	verify(not m.use_item("axe_spirit",Vector2i(2,2)),"The axe needs a direction")
 	verify(m.use_item("axe_spirit",Vector2i(2,2),Vector2i.RIGHT),"The axe charges")
-	verify(tough.cell == Vector2i(m.board_size-1,2) and tough.hp == 3,"It hits for 1, drives the enemy to the wall, and the slam adds 1")
+	verify(tough.cell == Vector2i(m.board_size-1,2) and tough.hp == 4,"It hits for 1 and drives the enemy to the wall (a wall adds nothing)")
 	verify(m.allies.is_empty() and m.events.any(func(e): return e.kind == "axe"),"The axe vanishes after its charge")
 	# Holy spirit: a 2x2 ally that strikes what touches it; broken, it frees two knights.
 	m = fixture()
@@ -1314,29 +1314,34 @@ func _knockback() -> void:
 	m.player.cell = Vector2i(1,2)
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
-	verify(m.player_action(Vector2i(2,2)) and m.enemies[0].cell == Vector2i(3,2) and m.enemies[0].hp == 1,"A shield hit deals 1 and shoves the enemy a tile away")
-	m.player.ap = 2
-	m.player.cell = Vector2i(2,2)
-	m.walls[Vector2i(4,2)] = 3
-	verify(m.player_action(Vector2i(3,2)) and m.enemy_at(Vector2i(3,2)).is_empty(),"Shoved into a wall it takes 1 more (a heavy goes down)")
-	m = fixture()
-	m.weapon = shield
-	m.owned_weapons.assign([0,1,shield])
-	m.player.cell = Vector2i(1,2)
-	m.enemies.clear()
-	var front: Dictionary = m.make_enemy("heavy",Vector2i(2,2),0)
-	var back: Dictionary = m.make_enemy("heavy",Vector2i(3,2),1)
-	m.enemies.append(front)
-	m.enemies.append(back)
-	m.player_action(Vector2i(2,2))
-	verify(front.cell == Vector2i(2,2) and front.hp == 0 and back.hp == 1,"Slamming into another enemy hurts both: the shoved one and the one it hits")
-	verify(m.events.filter(func(e: Dictionary) -> bool: return e.kind == "hit" and e.get("bump", false)).size() == 2,"Both collision hits are marked as bumps for the board")
+	verify(m.player_action(Vector2i(2,2)) and m.enemies[0].cell == Vector2i(m.board_size-1,2) and m.enemies[0].hp == 2,"A shield hit deals no damage and knocks the enemy back all the way")
+	verify(not m.events.any(func(e: Dictionary) -> bool: return e.kind == "hit"),"...with no hit to show")
 	m = fixture()
 	m.weapon = shield
 	m.owned_weapons.assign([0,1,shield])
 	m.player.cell = Vector2i(1,2)
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
+	m.walls[Vector2i(4,2)] = 3
+	verify(m.player_action(Vector2i(2,2)) and m.enemies[0].cell == Vector2i(3,2) and m.enemies[0].hp == 2,"Knocked into a wall it just stops, unhurt")
+	m = fixture()
+	m.weapon = shield
+	m.owned_weapons.assign([0,1,shield])
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	var front: Dictionary = m.make_enemy("heavy",Vector2i(2,2),0)
+	var back: Dictionary = m.make_enemy("heavy",Vector2i(5,2),1)
+	m.enemies.append(front)
+	m.enemies.append(back)
+	m.player_action(Vector2i(2,2))
+	verify(front.cell == Vector2i(4,2) and front.hp == 1 and back.hp == 1,"Knocked into another enemy down the line, both take 1")
+	verify(m.events.filter(func(e: Dictionary) -> bool: return e.kind == "hit" and e.get("bump", false)).size() == 2,"Both collision hits are marked as bumps for the board")
+	m = fixture()
+	m.weapon = shield
+	m.owned_weapons.assign([0,1,shield])
+	m.player.cell = Vector2i(1,2)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("recruit",Vector2i(2,2),0))
 	m.mines.append(Vector2i(3,2))
 	m.player_action(Vector2i(2,2))
 	verify(m.enemy_at(Vector2i(3,2)).is_empty() and m.mines.is_empty(),"A shove onto a mine sets it off")
@@ -1868,7 +1873,7 @@ func _prison_king() -> void:
 	# Rooted: shoves and blasts do not move them.
 	var cell: Vector2i = king.cell
 	m.knock_back(king, Vector2i.RIGHT, 1)
-	verify(king.cell == cell and king.hp == 9,"The king cannot be shoved; the shove slams into him instead")
+	verify(king.cell == cell and king.hp == 10,"The king cannot be shoved (and, like a wall, takes nothing from it)")
 	# He never attacks: standing right next to him is safe from the king himself.
 	m.player.cell = king.cell + Vector2i(-1, 1)
 	m.player.hp = 5

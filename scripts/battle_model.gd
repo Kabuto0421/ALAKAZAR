@@ -831,8 +831,11 @@ func _player_action(cell: Vector2i) -> bool:
 				events.append({"kind":"analyzed", "cell":target.cell, "id":-2})
 				add_log("解析兵：その武器は解析済み")
 				continue
-			target.hp -= weapon_damage(weapon)
-			events.append({"kind": "hit", "cell": target.cell, "id": target.id})
+			# Knockback weapons deal no damage of their own (unless forged): only the shove.
+			var damage := weapon_damage(weapon)
+			if damage > 0:
+				target.hp -= damage
+				events.append({"kind": "hit", "cell": target.cell, "id": target.id})
 			add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[target.type].name])
 			if target.type == "analyst" and target.hp > 0:
 				target.learned = weapon
@@ -842,7 +845,8 @@ func _player_action(cell: Vector2i) -> bool:
 				add_log("%sを撃破" % TYPES[target.type].name)
 			elif Catalog.knockback(weapon) > 0:
 				var away := Vector2i(signi(cell.x - player.cell.x), signi(cell.y - player.cell.y))
-				knock_back(target, away, Catalog.knockback(weapon))
+				# Shoved all the way, until something stops it.
+				knock_back(target, away, board_size * 2)
 			elif WEAPONS[weapon].get("pull", false) and target == enemy and int(target.get("size", 1)) == 1:
 				# 鎖鎌: drag the enemy to the tile in between.
 				var middle: Vector2i = player.cell + (cell - player.cell) / 2
@@ -960,9 +964,8 @@ func _cast_circle() -> void:
 ## player or another enemy, it slams into it: 1 damage (and 1 to an enemy it hits).
 func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 	if enemy.type in IMMOVABLE:
-		# Rooted to the floor: the shove slams into it like a wall.
+		# Rooted to the floor: it does not budge (and, like a wall, takes nothing).
 		events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
-		_bump_damage(enemy)
 		return
 	var big: bool = int(enemy.get("size", 1)) > 1
 	if direction == Vector2i.ZERO or (big and direction.x != 0 and direction.y != 0):
@@ -984,13 +987,14 @@ func knock_back(enemy: Dictionary, direction: Vector2i, tiles: int) -> void:
 				if not struck.has(enemy_at(cell)):
 					struck.append(enemy_at(cell))
 		if stopped:
-			# The shoved enemy takes 1; an enemy it is slammed into takes 1 too.
-			# (Walls, the player, allies and objects are unhurt.)
-			events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction})
-			add_log("%sが叩きつけられた" % TYPES[enemy.type].name)
-			_bump_damage(enemy)
-			for other in struck:
-				_bump_damage(other)
+			# Slammed into another enemy, both take 1. Against anything else (the edge,
+			# walls, obstacles, the player, allies, cannons) it just stops, unhurt.
+			events.append({"kind":"bump", "cell":enemy.cell, "id":-2, "dir":direction, "hurt":not struck.is_empty()})
+			if not struck.is_empty():
+				add_log("%sが叩きつけられた" % TYPES[enemy.type].name)
+				_bump_damage(enemy)
+				for other in struck:
+					_bump_damage(other)
 			return
 		enemy.cell += direction
 		events.append({"kind":"push", "cell":enemy.cell, "id":-2, "dir":direction})
