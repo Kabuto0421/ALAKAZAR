@@ -291,7 +291,14 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 			for k in range(0, int(rect.size.y), 6):
 				canvas.draw_line(Vector2(rect.position.x + 20 * factor, rect.position.y + k), Vector2(rect.end.x - 20 * factor, rect.position.y + k), Color(0.75, 0.45, 1.0, 0.12), 1)
 		"rook":
-			canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-76,-84)*factor, Vector2.ONE*152*factor), Rect2(direction*56, (56 if red else 0), 56, 56), tint)
+			if red:
+				# Braced, it crouches low in its frame: crop to the crouch and fill its 2x2
+				# (a little taller than drawn) so it still reads as two tiles by two.
+				var crop: Rect2 = [Rect2(3,25,50,31), Rect2(5,23,46,33), Rect2(4,25,47,31), Rect2(5,23,46,33)][direction]
+				crop.position += Vector2(direction*56, 56)
+				canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-60,-42)*factor, Vector2(120,106)*factor), crop, tint)
+			else:
+				canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-76,-84)*factor, Vector2.ONE*152*factor), Rect2(direction*56, 0, 56, 56), tint)
 		"prison":
 			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-76,-82)*factor, Vector2.ONE*152*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
