@@ -314,7 +314,7 @@ python3 tools/generate_bgm.py draft_loop.ogg camp_loop.ogg  # 指定した曲だ
 
 ### 効果音
 
-効果音はうるさくならないよう最小限で、**足音**（主人公 `step`・敵 `enemy_step`）、**大砲の誘爆**（8bit風の「ピコン」`chain_01`〜`chain_20`。D5から1連鎖ごとに半音上がり、20連鎖でA6。音程のゆらぎは付けない）と**監獄の王戦**の音だけです：兵の復活 `king_revive`、要塞が兵を出す `fortress_spawn`、王への被弾 `king_hit`、要塞にひび `fortress_crack`、要塞の崩壊 `fortress_collapse`、王が崩れ落ちる `king_collapse`。ほかにボス戦のジングル（王の登場・怒り・陥落、ロトリックの登場）があります。
+効果音はうるさくならないよう最小限で、**足音**（主人公 `step`・敵 `enemy_step`）、**攻撃**（剣の振り `sword_swing`、ハンマーの着弾 `hammer_slam`。この2つは外部で作った録音素材で、一番大きい瞬間が攻撃の当たる瞬間＝ハンマーはヒットストップの瞬間に重なるよう、少し前から鳴らす）、**大砲の誘爆**（8bit風の「ピコン」`chain_01`〜`chain_20`。D5から1連鎖ごとに半音上がり、20連鎖でA6。音程のゆらぎは付けない）と**監獄の王戦**の音だけです：兵の復活 `king_revive`、要塞が兵を出す `fortress_spawn`、王への被弾 `king_hit`、要塞にひび `fortress_crack`、要塞の崩壊 `fortress_collapse`、王が崩れ落ちる `king_collapse`。ほかにボス戦のジングル（王の登場・怒り・陥落、ロトリックの登場）があります。
 
 `assets/audio/sfx/` の音は `tools/generate_sfx.py` で生成しています（`pip install numpy soundfile`）。全部の音を同じ作り方（布・木・石・鉄などの素材、同じ石造りの部屋の残響、同じ仕上げと音量の基準）にそろえています。ゲームでは `scripts/audio/sfx_player.gd` が鳴らし、毎回ピッチを少しずらします。どのイベントで鳴らすかは `battle_view.gd` の `_event_sound` にあります。
 

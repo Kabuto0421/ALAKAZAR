@@ -465,10 +465,15 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			player_view.play_hammer_attack(Vector2(weapon_action.destination - weapon_action.origin))
 			impact_time = UnitView.hammer_contact()
 			duration = UnitView.hammer_duration()
+			# The slam's crack lands as the head touches the tile (the hit-stop).
+			if sfx != null:
+				sfx.play_at_impact("hammer_slam", impact_time)
 		else:
 			player_view.play_sword_attack(model.facing)
 			impact_time = player_view.sword_impact_time()
 			duration = player_view.sword_attack_duration()
+			if sfx != null:
+				sfx.play_at_impact("sword_swing", impact_time)
 		_update_controls()
 		await get_tree().create_timer(impact_time).timeout
 		if token != generation:

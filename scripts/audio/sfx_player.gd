@@ -1,11 +1,23 @@
 extends Node
-## One-shot sound effects and the boss stings. Kept sparse on purpose: footsteps
-## and the boss fights only.
-## Effects are rendered by tools/generate_sfx.py, stings by tools/generate_bgm.py.
+## One-shot sound effects and the boss stings. Kept sparse on purpose: footsteps,
+## the sword swing and the hammer slam, cannon chain links, and the boss fights.
+## Effects are rendered by tools/generate_sfx.py (the sword swing and hammer slam
+## are recordings), stings by tools/generate_bgm.py.
 
 const SFX_DIR := "res://assets/audio/sfx/"
 const NAMES := ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack",
-	"fortress_collapse", "king_collapse"]
+	"fortress_collapse", "king_collapse", "sword_swing", "hammer_slam"]
+## Recorded attack sounds (made outside the generator): how far into each file its
+## loudest moment is, so it can be started early enough to land on the blow.
+const PEAK := {"sword_swing": 0.126, "hammer_slam": 0.059}
+
+## Play `name` so that its loudest moment falls `impact` seconds from now.
+func play_at_impact(name: String, impact: float, volume_db: float = 0.0) -> void:
+	var wait: float = impact - float(PEAK.get(name, 0.0))
+	if wait <= 0.0:
+		play(name, volume_db)
+	else:
+		get_tree().create_timer(wait).timeout.connect(func(): play(name, volume_db))
 ## Cannon chain links chain_01..chain_20: one semitone up per link (never pitch-jittered).
 const CHAIN_LINKS := 20
 ## Played at the music's level, never pitch-shifted.
