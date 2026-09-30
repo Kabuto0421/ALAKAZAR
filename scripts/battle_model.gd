@@ -159,6 +159,7 @@ const PLUS_TEXT := {
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲の外に置くと、周囲3\nマスの敵を1マス引き寄せる。\n攻撃範囲に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
+	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP1）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP2・AP2）が4体出る。"],
 	"axe_spirit": ["毎戦闘2回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘2回。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
@@ -507,11 +508,11 @@ static func meteor_text(n: int) -> String:
 	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
 
 ## Besides its own change (PLUS_TEXT), a class-up gives one more use per battle, keeping
-## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
-## the shadow get 0 AP instead of an extra use, the meteor and the stealth fairy only
+## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf, the
+## shadow and the holy spirit get 0 AP instead of an extra use, the meteor and the stealth fairy only
 ## their own change.
 const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "holy_spirit", "lone_wolf", "shadow_stitch"]
-const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit"]
 func fairy_ap_cost(id: String) -> int:
 	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) and PLUS_AP_CUT.has(id) else 0))
 
@@ -1097,24 +1098,26 @@ func ally_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 ## Removes fallen allies. A broken holy spirit lets out two holy knights on a
-## diagonal of its footprint (the friendly mirror of the moving prison).
+## diagonal of its footprint (the friendly mirror of the moving prison); classed up,
+## one from every free tile of it (up to four).
 func _bury_allies() -> void:
 	for holy in allies.duplicate():
 		if holy.type != "holy" or holy.hp > 0 or holy.get("released", false):
 			continue
 		holy.released = true
-		for pair in [[Vector2i(0,0), Vector2i(1,1)], [Vector2i(1,0), Vector2i(0,1)]]:
+		var layouts := [[Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(1,1)]] if holy.get("plus", false) else [[Vector2i(0,0), Vector2i(1,1)], [Vector2i(1,0), Vector2i(0,1)]]
+		for pair in layouts:
 			var spots: Array[Vector2i] = []
 			for offset in pair:
 				var cell: Vector2i = holy.cell + offset
 				if inside(cell) and cell != player.cell and enemy_at(cell).is_empty() and not obstacles.has(cell) and not walls.has(cell) and cannon_at(cell).is_empty() and not fairies.has(cell):
 					spots.append(cell)
-			if spots.size() == 2:
+			if spots.size() == 2 or (holy.get("plus", false) and not spots.is_empty()):
 				for cell in spots:
 					allies.append({"id":next_ally_id, "type":"holy_knight", "cell":cell, "hp":HOLY_KNIGHT_HP, "ap":HOLY_KNIGHT_AP, "facing":2})
 					next_ally_id -= 1
 					events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
-				add_log("聖精霊が壊れ、聖騎士が2体現れた")
+				add_log("聖精霊が壊れ、聖騎士が%d体現れた" % spots.size())
 				break
 	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 
@@ -1207,7 +1210,7 @@ func summon_holy(cell: Vector2i) -> void:
 	var anchor := big_anchor(cell)
 	if anchor == Vector2i(-1, -1):
 		return
-	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":1, "ap":1, "facing":2, "size":2})
+	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":1, "ap":1, "facing":2, "size":2, "plus":is_plus("holy_spirit")})
 	_note_summon("holy")
 	next_ally_id -= 1
 	for tile in footprint({"cell":anchor, "size":2}):

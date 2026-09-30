@@ -1773,7 +1773,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			warn = actors.has(int(ally.id)) and actors[int(ally.id)].charge_warning
 		"holy":
 			_draw_ally_big_range(ally)
-			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士（HP2・AP2）が2体"]
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士（HP2・AP2）が%d体" % (4 if ally.get("plus", false) else 2)]
 			intent = "近くの敵を攻撃"
 		"guardian":
 			_draw_ally_big_range(ally)
