@@ -1743,7 +1743,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),true)
 	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
-	var ap: int = Rules.WOLF_AP if ally.type == "wolf" else 2 if ally.type == "glutton" else 1
+	var ap: int = Rules.WOLF_AP if ally.type == "wolf" else Rules.HOLY_KNIGHT_AP if ally.type == "holy_knight" else 2 if ally.type == "glutton" else 1
 	for i in range(ap):
 		draw_rect(Rect2(ap_x+45+i*26,153,22,23),GOLD)
 	var moves: Array = []
@@ -1756,6 +1756,8 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			moves = CARDINAL_OFFSETS
 			strikes = CARDINAL_OFFSETS + (DIAGONAL_OFFSETS if ally.get("plus", false) else [])
 			lines = ["敵より先に動く", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
+			if ally.type == "holy_knight":
+				lines = ["敵より先に動く", "AP2：隣の敵に1か、敵へ1歩", "これを1ターンに2回"]
 			intent = "近くの敵を攻撃"
 		"wolf":
 			moves = Rules.WOLF_MOVES
@@ -1771,7 +1773,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			warn = actors.has(int(ally.id)) and actors[int(ally.id)].charge_warning
 		"holy":
 			_draw_ally_big_range(ally)
-			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士が2体出る"]
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士（HP2・AP2）が2体"]
 			intent = "近くの敵を攻撃"
 		"guardian":
 			_draw_ally_big_range(ally)

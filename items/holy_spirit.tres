@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "holy_spirit"
 title = "聖精霊"
-description = "レア・2×2の味方（HP1）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP1）が2体出る。"
+description = "激レア・2×2の味方（HP1）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP2・AP2）が2体出る。"
 summary = "壊れると2体になる味方"
 color = Color(1.0, 0.83, 0.36, 1)
 effect = ExtResource("2")

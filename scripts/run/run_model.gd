@@ -34,10 +34,11 @@ const CIRCLE_CHANCE := 0.03
 ## Each weapon card first draws its rarity from this table (コモン, アンコモン, レア,
 ## 激レア), by the fight just won, then a weapon of that rarity: the rarity sets when
 ## a weapon turns up. The rewards right before a boss (after fights 3 and mid 3) lean
-## to uncommon (the three-tile weapons and the mid-game ones).
+## to uncommon (the three-tile weapons and the mid-game ones). Early on the rare row is
+## tiny because magic circles (3% of rewards) already make about 1% of cards rare.
 const WEAPON_TIER_ODDS := [
-	[0.93, 0.06, 0.008, 0.002],
-	[0.93, 0.06, 0.008, 0.002],
+	[0.946, 0.05, 0.002, 0.002],
+	[0.946, 0.05, 0.002, 0.002],
 	[0.12, 0.85, 0.025, 0.005],
 	[0.40, 0.45, 0.13, 0.02],
 	[0.40, 0.45, 0.13, 0.02],

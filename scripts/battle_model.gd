@@ -13,6 +13,9 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## Ally unit types, for logs (enemies use TYPES).
+## The two knights a broken holy spirit leaves: HP 2, AP 2 (like the executioner).
+const HOLY_KNIGHT_HP := 2
+const HOLY_KNIGHT_AP := 2
 const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精", "guardian": "守護神"}
 ## Class-ups beyond one: the meteor fairy can be upgraded four times.
 const MAX_PLUS = {"meteor_fairy": 4}
@@ -1097,7 +1100,7 @@ func _bury_allies() -> void:
 					spots.append(cell)
 			if spots.size() == 2:
 				for cell in spots:
-					allies.append({"id":next_ally_id, "type":"holy_knight", "cell":cell, "hp":1, "ap":1, "facing":2})
+					allies.append({"id":next_ally_id, "type":"holy_knight", "cell":cell, "hp":HOLY_KNIGHT_HP, "ap":HOLY_KNIGHT_AP, "facing":2})
 					next_ally_id -= 1
 					events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
 				add_log("聖精霊が壊れ、聖騎士が2体現れた")
@@ -1686,42 +1689,51 @@ func act_allies() -> void:
 		if ally.type == "glutton":
 			_glutton_action(ally)
 			continue
-		# A cannon next to it is fair game: the acorn sets it off (a chain beats a single hit).
-		var touched := {}
-		var touch_dir := Vector2i.ZERO
-		for offset in CARDINALS + (DIAGONALS if ally.get("plus", false) else []):
-			var cannon := cannon_at(ally.cell + offset)
-			if not cannon.is_empty() and touched.is_empty():
-				touched = cannon
-				touch_dir = offset
-		if not touched.is_empty():
-			ally.ap = 0
-			events.append({"kind":"bump", "cell":ally.cell, "id":-2, "dir":touch_dir})
-			add_log("%sが%sを叩いた" % [ALLY_NAMES[ally.type], CANNON_TITLES[touched.kind]])
-			start_chain()
-			fire_cannon(touched)
-			check_outcome()
-			continue
-		var adjacent: Array[Dictionary] = []
-		for enemy in enemies:
-			var gap: Vector2i = (enemy.cell - ally.cell).abs()
-			# The upgraded acorn also reaches the diagonal neighbours.
-			if enemy.hp > 0 and (distance(ally.cell,enemy.cell) == 1 or (ally.get("plus", false) and gap == Vector2i.ONE)):
-				adjacent.append(enemy)
-		adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
-			return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
-		if not adjacent.is_empty():
-			var gap_to: Vector2i = adjacent[0].cell - ally.cell
-			if absi(gap_to.x) + absi(gap_to.y) == 1:
-				ally.facing = CARDINALS.find(gap_to)
-			damage_enemy(adjacent[0],1)
-			ally.ap = 0
-			add_log("%sが攻撃" % ALLY_NAMES[ally.type])
-			check_outcome()
-			continue
-		_step_toward_enemy(ally)
-		ally.ap = 0
+		# 聖騎士 act twice a turn (HP 2, AP 2, like the executioner); others once.
+		for k in HOLY_KNIGHT_AP if ally.type == "holy_knight" else 1:
+			if ally.hp <= 0 or terminal():
+				break
+			_basic_ally_action(ally)
 	check_outcome()
+
+## どんぐり妖精・聖騎士: set off a touching cannon, else bite the weakest neighbour,
+## else take a step toward the nearest enemy.
+func _basic_ally_action(ally: Dictionary) -> void:
+	# A cannon next to it is fair game: the acorn sets it off (a chain beats a single hit).
+	var touched := {}
+	var touch_dir := Vector2i.ZERO
+	for offset in CARDINALS + (DIAGONALS if ally.get("plus", false) else []):
+		var cannon := cannon_at(ally.cell + offset)
+		if not cannon.is_empty() and touched.is_empty():
+			touched = cannon
+			touch_dir = offset
+	if not touched.is_empty():
+		ally.ap = 0
+		events.append({"kind":"bump", "cell":ally.cell, "id":-2, "dir":touch_dir})
+		add_log("%sが%sを叩いた" % [ALLY_NAMES[ally.type], CANNON_TITLES[touched.kind]])
+		start_chain()
+		fire_cannon(touched)
+		check_outcome()
+		return
+	var adjacent: Array[Dictionary] = []
+	for enemy in enemies:
+		var gap: Vector2i = (enemy.cell - ally.cell).abs()
+		# The upgraded acorn also reaches the diagonal neighbours.
+		if enemy.hp > 0 and (distance(ally.cell,enemy.cell) == 1 or (ally.get("plus", false) and gap == Vector2i.ONE)):
+			adjacent.append(enemy)
+	adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
+		return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
+	if not adjacent.is_empty():
+		var gap_to: Vector2i = adjacent[0].cell - ally.cell
+		if absi(gap_to.x) + absi(gap_to.y) == 1:
+			ally.facing = CARDINALS.find(gap_to)
+		damage_enemy(adjacent[0],1)
+		ally.ap = 0
+		add_log("%sが攻撃" % ALLY_NAMES[ally.type])
+		check_outcome()
+		return
+	_step_toward_enemy(ally)
+	ally.ap = 0
 
 ## One step toward the nearest reachable enemy (breadth-first, never crossing
 ## allies or mines). False when no enemy can be reached or none is left.

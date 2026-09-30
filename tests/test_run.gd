@@ -1098,14 +1098,15 @@ func _rare_fairies() -> void:
 	holy.hp = 0
 	m._bury_allies()
 	var knights: Array = m.allies.filter(func(a): return a.type == "holy_knight")
-	verify(knights.size() == 2 and knights.all(func(k): return k.hp == 1 and k.ap == 1),"Broken, it frees two holy knights (HP1, AP1)")
+	verify(knights.size() == 2 and knights.all(func(k): return k.hp == 2 and k.ap == 2),"Broken, it frees two holy knights (HP2, AP2)")
 	# Knights fight like acorns.
 	var knight: Dictionary = knights[0]
 	var next_to: Dictionary = m.make_enemy("heavy",knight.cell+Vector2i.UP if m.inside(knight.cell+Vector2i.UP) else knight.cell+Vector2i.DOWN,2)
 	m.enemies.append(next_to)
+	next_to.hp = 5
 	m.phase = Rules.Phase.PLAYER
 	m.act_allies()
-	verify(next_to.hp == 1,"A holy knight attacks an adjacent enemy")
+	verify(next_to.hp <= 3,"A holy knight attacks an adjacent enemy twice a turn (AP2)")
 	# The 2x2 spirits are ordinary reward fairies now (風斧 rare, 聖精霊 super rare).
 	verify(Run.new().reward_fairy_pool.has("axe_spirit") and Run.new().reward_fairy_pool.has("holy_spirit"),"The axe and holy spirits are in the reward pool")
 
