@@ -16,6 +16,14 @@ var keys: Array[Label] = []
 var pluses: Array[Label] = []
 var badges: Array[Control] = []
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
+const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
+const Rarity = preload("res://scripts/run/rarity.gd")
+const LineBreak = preload("res://scripts/ui/line_break.gd")
+## The slot frame, in the fairy's rarity material (the same as its reward card).
+const FRAME := 7.0
+## Room for the summary between the icon and the frame.
+const SUMMARY_WIDTH := 186.0
+var frames: Array[Control] = []
 var hand_count: Label
 
 func setup(rules: RefCounted) -> void:
@@ -30,39 +38,45 @@ func setup(rules: RefCounted) -> void:
 		button.focus_mode = Control.FOCUS_NONE
 		button.pressed.connect(func(): activate_slot(slot))
 		button.add_theme_stylebox_override("normal",_style(Color("0c191a"),Color("355552")))
-		button.add_theme_stylebox_override("hover",_style(Color("203432"),Color("2bdcc8")))
+		button.add_theme_stylebox_override("hover",_style(Color("203432"),Color("2bdcc8"),FRAME+2))
 		button.add_theme_stylebox_override("disabled",_style(Color("101719"),Color("293a36")))
 		add_child(button)
 		quick_buttons.append(button)
 		var icon := Icon.new()
-		icon.position = Vector2(5,8)
-		icon.size = Vector2(72,72)
+		icon.position = Vector2(10,11)
+		icon.size = Vector2(66,66)
 		button.add_child(icon)
 		quick_icons.append(icon)
 		var badge := PlusBadge.new()
-		badge.position = Vector2(56,6)
+		badge.position = Vector2(56,9)
 		badge.size = Vector2(22,22)
 		button.add_child(badge)
 		badges.append(badge)
-		names.append(_label(button,Vector2(82,6),"",22))
-		var plus := _label(button,Vector2(82,6),"+",22)
+		names.append(_label(button,Vector2(82,8),"",22))
+		var plus := _label(button,Vector2(82,8),"+",22)
 		plus.add_theme_color_override("font_color",Color("ffd35b"))
 		pluses.append(plus)
-		var summary := _label(button,Vector2(82,38),"",16)
-		summary.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-		summary.custom_minimum_size = Vector2(190,0)
-		summary.size = Vector2(190,0)
+		var summary := _label(button,Vector2(82,40),"",16)
+		# Two lines at most fit inside the frame.
+		summary.add_theme_constant_override("line_spacing",-3)
+		summary.custom_minimum_size = Vector2(SUMMARY_WIDTH,0)
 		costs.append(summary)
-		var key := _label(button,Vector2(252,6),str(slot+4),15)
-		key.modulate = Color("768c87")
+		var key := _label(button,Vector2(250,8),str(slot+4),15)
+		key.modulate = Rarity.INFO
 		keys.append(key)
+		var frame := RarityFrame.new()
+		frame.thickness = FRAME
+		frame.size = button.size
+		button.add_child(frame)
+		frames.append(frame)
 	refresh(true,"")
 
-func _style(fill: Color,border: Color) -> StyleBoxFlat:
+## A border wider than the frame shows only its inner 2px, as a line inside the frame.
+func _style(fill: Color,border: Color,width: float = 2.0) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = fill
 	style.border_color = border
-	style.set_border_width_all(2)
+	style.set_border_width_all(int(width))
 	return style
 
 func _label(parent: Node, at: Vector2, value: String, font_size: int) -> Label:
@@ -105,7 +119,9 @@ func refresh(can_use: bool, selected: String) -> void:
 		button.disabled = not present or not enabled
 		badges[slot].visible = present and model.is_plus(hand[slot])
 		pluses[slot].visible = badges[slot].visible
+		frames[slot].visible = present
 		if not present:
+			button.add_theme_stylebox_override("disabled",_style(Color("101719"),Color("293a36")))
 			quick_icons[slot].texture = null
 			quick_icons[slot].queue_redraw()
 			names[slot].text = "空き枠"
@@ -115,13 +131,28 @@ func refresh(can_use: bool, selected: String) -> void:
 		var count: int = model.fairy_charges[slot]
 		button.disabled = not enabled or model.player.ap < model.fairy_ap_cost(hand[slot]) or count == 0
 		button.tooltip_text = model.fairy_description(hand[slot])
-		button.add_theme_stylebox_override("normal",_style(Color("203432") if selected==item.id and slot==selected_slot else Color("0c191a"),item.color if selected==item.id and slot==selected_slot else Color("55716b")))
+		var chosen: bool = selected==item.id and slot==selected_slot
+		button.add_theme_stylebox_override("normal",_style(Color("203432") if chosen else Color("0c191a"),item.color if chosen else Color("0c191a"),FRAME+2))
+		button.add_theme_stylebox_override("disabled",_style(Color("101719"),Color("101719"),FRAME+2))
+		var frame: Control = frames[slot]
+		var tier := Rarity.tier({"kind":"fairy","value":hand[slot]})
+		if frame.tier != tier:
+			frame.tier = tier
+			frame.set_process(tier == Rarity.SUPER_RARE)
+		frame.set_hover(chosen)
 		quick_icons[slot].texture = item.icon
 		quick_icons[slot].queue_redraw()
 		names[slot].text = item.title
 		names[slot].modulate = Color.WHITE if count > 0 else Color("768c87")
 		# What it does, in one line; the AP cost and single use are the same for every fairy.
 		costs[slot].text = model.fairy_summary(hand[slot]) if count > 0 else "使用済み・次戦で回復"
-		var font: Font = names[slot].get_theme_font("font")
+		# One line at 16px, or a little smaller (not under 14px); a longer one breaks onto
+		# two lines after a separator or particle.
+		var font: Font = costs[slot].get_theme_font("font")
+		var font_size := 16
+		while font_size > 14 and font.get_string_size(costs[slot].text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x > SUMMARY_WIDTH:
+			font_size -= 1
+		costs[slot].add_theme_font_size_override("font_size",font_size)
+		costs[slot].text = LineBreak.split(costs[slot].text,font,font_size,SUMMARY_WIDTH)
 		pluses[slot].position.x = 84 + font.get_string_size(item.title,HORIZONTAL_ALIGNMENT_LEFT,-1,22).x
-		costs[slot].modulate = Color("c9d8d2") if count > 0 else Color("768c87")
+		costs[slot].modulate = Rarity.INFO if count > 0 else Color("768c87")

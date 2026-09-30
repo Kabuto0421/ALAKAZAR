@@ -9,7 +9,7 @@ const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK := Color("e5dfc5")
 const CYAN := Color("2bdcc8")
 const GOLD := Color("ffd35b")
-const MUTED := Color("92b3ae")
+const MUTED := preload("res://scripts/run/rarity.gd").INFO
 
 const Shot = preload("res://scripts/ui/help_shot.gd")
 ## Each page: a title, a short lead that states the rule, and up to three

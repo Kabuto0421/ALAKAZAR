@@ -6,6 +6,11 @@ const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
 const Diagram = preload("res://scripts/run/range_diagram.gd")
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
+const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
+const Rarity = preload("res://scripts/run/rarity.gd")
+const LineBreak = preload("res://scripts/ui/line_break.gd")
+## The loadout boxes wear the rarity frame of their card, thinner.
+const SLOT_FRAME := 7.0
 const HelpPanel = preload("res://scripts/ui/help_panel.gd")
 var help: Control
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
@@ -70,7 +75,7 @@ func _render() -> void:
 		_rule_toggle(Vector2(292,12),"rule_siege","包囲の輪","4ターンごとに外周から1周ずつ包囲される。\n包囲の中にいると敵ターン開始時に1ダメージ（敵も）。\n次に狭まる輪は赤く点滅する。")
 		_rule_toggle(Vector2(492,12),"rule_friendly","同士討ち","投げ槍は範囲の敵にも当たる。\n突進は、止められた敵・壁に挟まれた敵にも1ダメージ。\n（弓の矢は元から敵にも当たる）")
 		_rule_toggle(Vector2(692,12),"rule_combo","連撃","1回の行動で2体以上倒すとAPが1戻る。")
-	var sub := Color("9aafa9")
+	var sub := Rarity.INFO
 	match run.state:
 		Run.State.START_WEAPON:
 			_label(Vector2(44,48),"最初の武器を選ぶ",30,INK)
@@ -214,9 +219,9 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			return
 		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
 		card.note = "新しく届く +%dマス" % added if added > 0 else "届く範囲は増えない"
-		card.note_color = GOOD if added > 0 else Color("92b3ae")
+		card.note_color = GOOD if added > 0 else Rarity.INFO
 		if offer.get("enchant", "") == "circle":
-			card.tag = "魔法陣の武器"
+			card.tag = "魔法陣武器"
 			card.note = "囲むと99ダメージ"
 			card.note_color = Card.ENCHANT
 		if run.state == Run.State.REWARD and run.battle.owned_weapons.size() >= run.battle.WEAPON_LIMIT:
@@ -279,8 +284,8 @@ func _loadout() -> void:
 	screen.add_child(panel)
 	var weapons: Array = run.battle.owned_weapons
 	var fairies: Array = run.battle.fairy_loadout
-	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Color("9aafa9"))
-	_label(Vector2(546,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Color("9aafa9"))
+	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Rarity.INFO)
+	_label(Vector2(546,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Rarity.INFO)
 	for slot in run.battle.WEAPON_LIMIT:
 		var at := Vector2(56+slot*160,top+30)
 		if slot >= weapons.size():
@@ -295,23 +300,24 @@ func _loadout() -> void:
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
 		screen.add_child(box)
+		_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
 		var diagram := Diagram.new()
-		diagram.position = at+Vector2(29,6)
-		diagram.size = Vector2(92,92)
+		diagram.position = at+Vector2(36,10)
+		diagram.size = Vector2(78,78)
 		diagram.offsets = Weapons.offsets(index)
 		diagram.slides = Weapons.slides(index)
 		diagram.echo = Weapons.hammer_echo(index)
 		diagram.hammer = Weapons.is_hammer(index)
 		diagram.accent = accent
 		screen.add_child(diagram)
-		_title(at+Vector2(10,104),data.name,17,run.battle.weapon_power.has(index))
+		_title(at+Vector2(10,90),data.name,17,run.battle.weapon_power.has(index))
 		if run.battle.weapon_power.has(index):
-			_badge(diagram.position+Vector2(104,-6),20)
+			_badge(diagram.position+Vector2(92,-2),20)
 		var damage: int = run.battle.weapon_damage(index)
 		if run.battle.is_circle(index):
-			_label(at+Vector2(10,130),"魔法陣・攻撃不可",14,Card.ENCHANT)
+			_label(at+Vector2(10,116),"魔法陣・攻撃不可",14,Card.ENCHANT)
 		else:
-			_label(at+Vector2(10,130),("ノックバック" if damage <= 0 else "攻撃 %d  ノックバック" % damage) if Weapons.knockback(index) > 0 else "入れ替え" if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Color("92b3ae"))
+			_summary(_label(at+Vector2(10,116),("ノックバック" if damage <= 0 else "攻撃%d・ノックバック" % damage) if Weapons.knockback(index) > 0 else "入れ替え" if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Rarity.INFO),150-20)
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(544+slot*184,top+30)
 		if slot >= fairies.size():
@@ -324,19 +330,20 @@ func _loadout() -> void:
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(item.color,0.6)))
 		screen.add_child(box)
+		_frame(at,box.size,Rarity.tier({"kind":"fairy","value":str(fairies[slot])}))
 		var icon := TextureRect.new()
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.texture = item.icon
-		icon.position = at+Vector2(42,6)
-		icon.size = Vector2(90,90)
+		icon.position = at+Vector2(49,10)
+		icon.size = Vector2(76,76)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(icon)
 		var plus: bool = run.battle.is_plus(str(fairies[slot]))
 		if plus:
-			_badge(icon.position+Vector2(94,-2),20)
-		_title(at+Vector2(10,104),item.title,17,plus)
-		_label(at+Vector2(10,130),run.battle.fairy_summary(str(fairies[slot])),14,Color(item.color))
+			_badge(icon.position+Vector2(84,0),20)
+		_title(at+Vector2(10,90),item.title,17,plus)
+		_summary(_label(at+Vector2(10,116),run.battle.fairy_summary(str(fairies[slot])),14,Rarity.INFO),174-20)
 
 ## A name with a yellow "+" after it when the item is upgraded.
 func _title(at: Vector2, text: String, font_size: int, plus: bool) -> void:
@@ -344,6 +351,26 @@ func _title(at: Vector2, text: String, font_size: int, plus: bool) -> void:
 	if plus:
 		var width: float = label.get_theme_font("font").get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x
 		_label(at+Vector2(width+2,0),"+",font_size,Color("ffd35b"))
+
+## A summary too long for one line at 14px tries 13px, then wraps onto two lines
+## (after a separator or particle, so no lone character is left on the second line).
+func _summary(label: Label, width: float) -> void:
+	var font: Font = label.get_theme_font("font")
+	for font_size in [14, 13]:
+		if font.get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x <= width:
+			label.add_theme_font_size_override("font_size",font_size)
+			return
+	label.add_theme_font_size_override("font_size",13)
+	label.add_theme_constant_override("line_spacing",-3)
+	label.text = LineBreak.split(label.text,font,13,width)
+
+func _frame(at: Vector2, extent: Vector2, tier: int) -> void:
+	var frame := RarityFrame.new()
+	frame.tier = tier
+	frame.thickness = SLOT_FRAME
+	frame.position = at
+	frame.size = extent
+	screen.add_child(frame)
 
 func _badge(corner: Vector2, side: float) -> void:
 	var badge := PlusBadge.new()

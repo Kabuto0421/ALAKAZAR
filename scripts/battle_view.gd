@@ -30,6 +30,10 @@ const ZAP_H = preload("res://assets/sprites/effects/zap_h.png")
 const ZAP_V = preload("res://assets/sprites/effects/zap_v.png")
 const CLOCKWISE_NEXT = {Vector2i.UP: Vector2i.RIGHT, Vector2i.RIGHT: Vector2i.DOWN, Vector2i.DOWN: Vector2i.LEFT, Vector2i.LEFT: Vector2i.UP}
 const RangeDiagram = preload("res://scripts/run/range_diagram.gd")
+const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
+const Rarity = preload("res://scripts/run/rarity.gd")
+## The weapon and fairy slots wear their rarity's material frame, thinner than a card's.
+const SLOT_FRAME := 7.0
 const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
@@ -63,7 +67,8 @@ const MAX_BOARD := 10
 var TILE := 64.0
 const UI_SCALE := 1.5
 const INK = Color("e5dfc5")
-const MUTED = Color("92b3ae")
+## Plain information text: the light blue of the レア label (greys read poorly).
+const MUTED = Rarity.INFO
 const CYAN = Color("2bdcc8")
 const GOLD = Color("f4d56f")
 const ITEM_ARROW_POSITIONS = [Vector2(956,449),Vector2(1010,483),Vector2(956,511),Vector2(902,483)]
@@ -1463,14 +1468,18 @@ func _draw_weapons() -> void:
 		var accent := Color(weapon.color)
 		var equipped: bool = model.weapon == index
 		draw_rect(rect,Color("1b3431") if equipped else Color("0b1415"))
-		draw_rect(rect,accent if equipped else Color("324843"),false,4 if equipped else 2)
-		_text(pos+Vector2(10,22),str(slot+1),15,MUTED)
+		var circle: bool = model.is_circle(index)
+		# The frame in the weapon's rarity material; the equipped one is lit and ringed
+		# inside in its colour.
+		RarityFrame.paint(self, rect, Rarity.tier({"kind":"weapon","value":index,"enchant":"circle" if circle else ""}), clock, SLOT_FRAME, equipped)
+		if equipped:
+			draw_rect(rect.grow(-SLOT_FRAME-1),accent,false,2)
+		_text(pos+Vector2(13,30),str(slot+1),15,MUTED)
 		var label: String = ("▶ " if equipped else "")+weapon.name
 		_text(pos+Vector2(28,38),label,22,accent)
 		var forged: bool = model.weapon_power.has(index)
 		if forged:
 			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
-		var circle: bool = model.is_circle(index)
 		var extras: Array[String] = []
 		# Swap weapons trade places instead of dealing damage.
 		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
@@ -1486,17 +1495,22 @@ func _draw_weapons() -> void:
 			extras.append("溜め%d/%d" % [model.blade_charge, model.blade_max()])
 		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
-		_text(pos+Vector2(28,72),"・".join(extras),16,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
-		if circle:
-			# A white inner frame marks the enchantment.
-			draw_rect(rect.grow(-3),Color(CIRCLE_WHITE,0.6),false,1)
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var echo := Catalog.hammer_echo(index)
 		var count := RangeDiagram.span(offsets + echo)
-		var side := 84.0
+		# Inside the frame; sliding weapons leave room for their arrows past the tiles.
+		var inner := 94.0-SLOT_FRAME*2-4
+		var arrow := 0.0 if Catalog.slides(index).is_empty() else 1.0
+		var side := inner*count/(count+arrow*2)
 		var cell_size := side/count
-		var origin := pos+Vector2(248-side-6,5)
+		var origin := pos+Vector2(248-SLOT_FRAME-2-side-arrow*cell_size,SLOT_FRAME+2+arrow*cell_size)
+		# The stats line stops short of the diagram (a forged knockback weapon's is long).
+		var stats := "・".join(extras)
+		var stats_size := 16
+		while stats_size > 13 and pos.x+14+_text_width(stats,stats_size) > origin.x-arrow*cell_size-4:
+			stats_size -= 1
+		_text(pos+Vector2(14,72),stats,stats_size,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
 		for y in range(count):
 			for x in range(count):
 				var offset := Vector2i(x-count/2,y-count/2)

@@ -30,7 +30,7 @@ const CARD_TEXT := {
 	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
 	"blessing_fairy": "3×3の中にいれば、攻撃が上下のマスにも当たる",
-	"capacitor_fairy": "ターン終了時と攻撃されると1溜まり、3溜まると4方向に放電",
+	"capacitor_fairy": "ターン終了時・攻撃された時に1溜まり、3つで放電",
 }
 ## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.
 const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
@@ -51,7 +51,7 @@ var tag := ""
 var context: Array[Vector2i] = []
 ## One line under the stats: what this choice changes.
 var note := ""
-var note_color := Color("92b3ae")
+var note_color := Rarity.INFO
 ## Camp: show the item as it will be after forging / the class-up.
 var preview_plus := false
 
@@ -100,7 +100,7 @@ func _ready() -> void:
 			style.shadow_color = Color(frame, 0.55)
 			style.shadow_size = 10
 		add_theme_stylebox_override(state,style)
-	# The corner only carries a special heading (クラスアップ後, 魔法陣の武器); the diagram
+	# The corner only carries a special heading (クラスアップ後, 魔法陣武器); the diagram
 	# and the kind label already say whether it is a weapon or a fairy.
 	var tag_label := _label(Vector2(14,12),tag,15,accent)
 	tag_label.visible = tag != ""
@@ -118,7 +118,7 @@ func _ready() -> void:
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(badge)
 	badge.position = Vector2(size.x-badge.get_minimum_size().x-12,11)
-	# A long corner tag (クラスアップ後, 魔法陣の武器) must stop short of the badge; on a
+	# A long corner tag (クラスアップ後, 魔法陣武器) must stop short of the badge; on a
 	# card too narrow for it at a readable size it is left out (the stats line and
 	# the frame still say it).
 	_fit_width(tag_label,badge.position.x-6-tag_label.position.x)
@@ -169,7 +169,7 @@ func _ready() -> void:
 		if circle:
 			# The enchantment replaces the attack: say so plainly (in the enchantment colour).
 			stats = "魔法陣・攻撃不可"
-		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
+		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Rarity.INFO)
 	else:
 		# What kind of fairy it is: a label just left of the rarity badge (or, when the
 		# corner tag leaves no room there, at the start of the row under the name).
@@ -237,12 +237,13 @@ func _ready() -> void:
 		var item_def: Resource = model.item_definition(fairy_id)
 		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
 		var uses: int = item_def.initial_count + (1 if plus else 0)
-		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else accent)
+		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else Rarity.INFO)
 	if note != "":
 		var note_label := _label(Vector2(14,y+22),note,16,note_color)
 		_fit_width(note_label,size.x-24)
 	if action_text != "":
-		_label(Vector2(14,size.y-38),action_text + "  →",20,accent)
+		# The same crisp blue on every card (an item colour such as purple read poorly).
+		_label(Vector2(14,size.y-38),action_text + "  →",20,Rarity.INFO)
 	# The material frame goes on top of everything, and brightens under the pointer.
 	var material_frame := RarityFrame.new()
 	material_frame.tier = tier
