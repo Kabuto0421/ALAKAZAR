@@ -165,9 +165,9 @@ func _ready() -> void:
 			add_child(ring)
 		_label(Vector2(14,y),stats,15,GREEN if preview_plus else ENCHANT if circle else Color("ffd35b") if damage > 1 else Color("92b3ae"))
 	else:
-		# Under the name: what kind of fairy it is.
+		# What kind of fairy it is: a label just left of the rarity badge.
 		var kind: String = KINDS.get(fairy_id, "使い切り")
-		var kind_label := _label(Vector2(14,60),kind if kind != "設置" else "設置・5ターンで消える",13,Color("0c181b"))
+		var kind_label := _label(Vector2(14,9),kind if kind != "設置" else "設置・5ターン",12,Color("0c181b"))
 		kind_label.add_theme_font_override("font",label_font())
 		var pill_style := StyleBoxFlat.new()
 		pill_style.bg_color = KIND_COLORS[kind]
@@ -175,18 +175,11 @@ func _ready() -> void:
 		pill_style.content_margin_left = 6
 		pill_style.content_margin_right = 6
 		kind_label.add_theme_stylebox_override("normal",pill_style)
-		# Where it goes: on the same row, right-aligned, when there is room (the example
-		# gets that height), else on a row of its own.
-		var place := _label(Vector2(14,84),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),12,Color("c9d4cc"))
+		kind_label.position.x = badge.position.x-kind_label.get_minimum_size().x-6
+		# Under the name: where it goes.
+		var place := _label(Vector2(14,60),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),13,Color("d6e0d8"))
 		place.add_theme_font_override("font",label_font())
-		var demo_top := 104.0
-		var place_width := place.get_minimum_size().x
-		if kind == "設置" and kind_label.get_minimum_size().x + place_width + 8 > size.x-24:
-			# Too long for one row with the placement: the short form keeps both on it.
-			kind_label.text = "設置・5ターン"
-		if kind_label.get_minimum_size().x + place_width + 8 <= size.x-24:
-			place.position = Vector2(size.x-12-place_width,62)
-			demo_top = 84.0
+		var demo_top := 84.0
 		# An animated example of what it does, as large as the card allows, then the
 		# summon's HP / AP, the guardian's calls and one short line of text.
 		var stats: Array = SUMMONS.get(fairy_id, [])
@@ -264,7 +257,7 @@ const ENCHANT := Color("ff7ae6")
 const SHOVE_TEXT := "押出：ぶつけた敵・ぶつかった敵に1ずつ"
 
 static var _label_font: Font
-## Small labels (the fairy's kind, the chain note) in a plain bold gothic from the
+## Small labels (the fairy's kind, where it goes, the chain note) in a bold gothic from the
 ## system, which reads better than the pixel font at this size.
 static func label_font() -> Font:
 	if _label_font == null:
@@ -272,7 +265,11 @@ static func label_font() -> Font:
 		font.font_names = PackedStringArray(["Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", "IPAGothic"])
 		font.font_weight = 700
 		font.fallbacks = [preload("res://assets/fonts/DotGothic16-Regular.ttf")]
-		_label_font = font
+		# Not every system has a bold face: thicken the strokes so it reads bold anyway.
+		var bold := FontVariation.new()
+		bold.base_font = font
+		bold.variation_embolden = 0.8
+		_label_font = bold
 	return _label_font
 
 ## Swap a plain label for rich text with the characters that differ from `base`
