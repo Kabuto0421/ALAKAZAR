@@ -1590,6 +1590,8 @@ func _draw_intel() -> void:
 		_draw_ally_inspector(ally)
 	elif not enemy.is_empty():
 		_draw_enemy_inspector(enemy)
+	elif not _placed_at(hover_cell).is_empty():
+		_draw_placed_inspector(_placed_at(hover_cell))
 	elif selected_weapon >= 0:
 		var weapon: Dictionary = Rules.WEAPONS[selected_weapon]
 		_text(Vector2(852,133),weapon.name,25,Color(weapon.color))
@@ -1916,8 +1918,70 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
-		_draw_threat(enemy,489)
+		_text(Vector2(852,480),"壊すと執行兵2体",19,CYAN)
+		_draw_threat(enemy,526)
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+
+## Things placed on the board (fairies' devices, pits, mines, the magic circle),
+## for the inspector: {title, icon (fairy id or ""), turns, state, lines, color}.
+const CANNON_FAIRIES := {"lance": "cannon_fairy", "vane": "vane_cannon", "firework": "firework_fairy", "capacitor": "capacitor_fairy"}
+const DIRECTION_NAMES := {Vector2i.RIGHT: "右", Vector2i.LEFT: "左", Vector2i.UP: "上", Vector2i.DOWN: "下"}
+func _placed_at(cell: Vector2i) -> Dictionary:
+	if not model.inside(cell):
+		return {}
+	var cannon: Dictionary = model.cannon_at(cell)
+	if not cannon.is_empty():
+		var info := {"icon": CANNON_FAIRIES[cannon.kind], "turns": int(cannon.get("turns", Rules.WALL_TURNS))}
+		match cannon.kind:
+			"lance":
+				info.state = "向き：%s" % DIRECTION_NAMES.get(cannon.dir, "")
+				info.lines = ["叩くと向きの直線上に", "2連射（各1）"] if cannon.get("plus", false) else ["叩くと向きの直線上の", "敵すべてに1"]
+			"vane":
+				info.state = "向き：%s" % DIRECTION_NAMES.get(cannon.dir, "")
+				info.lines = ["叩くと向きの直線上に", "2連射（各1）", "撃つたびに向きが", "時計回りに回る"]
+			"firework":
+				info.state = ""
+				info.lines = ["叩くと爆発して消える", "周囲8マスに1", "自分・味方も巻き込む"]
+			"capacitor":
+				info.state = "電気：%d / %d" % [int(cannon.get("charge", 0)), Rules.CAPACITOR_FULL]
+				info.lines = ["ターン終了時と", "叩かれた時に1溜まる", "3で縦横4方向の直線上の", "敵すべてに1"]
+		info.lines.append("他の大砲・魔弾でも誘爆")
+		return info
+	if model.walls.has(cell):
+		return {"icon": "wall_fairy", "turns": int(model.walls[cell]), "state": "", "lines": ["完全な障害物", "敵も自分も通れない"]}
+	if model.fairies.has(cell):
+		return {"icon": "stealth_fairy", "turns": int(model.fairy_turns.get(cell, 0)), "state": "", "lines": ["通り道をふさぐ", "縦横に敵が来ると", "1ダメージを与えて消える"]}
+	if not model.shadow.is_empty() and model.shadow.cell == cell:
+		return {"icon": "shadow_stitch", "turns": int(model.shadow.turns), "state": "今ターン：入れ替わり可" if model.shadow.get("ready", false) else "今ターン：入れ替わり済み", "lines": ["押すと0 APで", "影と入れ替わる", "入れ替わりは1ターン1回"]}
+	if model.mines.has(cell):
+		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
+	if model.pits.has(cell):
+		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の敵は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
+	if not model.blessing.is_empty() and model.blessed(cell):
+		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下にも当たる"]}
+	if model.circle_tiles.has(cell):
+		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
+	return {}
+
+func _draw_placed_inspector(info: Dictionary) -> void:
+	var item: Resource = model.item_definition(info.icon) if info.icon != "" else null
+	var title: String = info.get("title", item.title if item != null else "")
+	var color: Color = item.color if item != null else info.get("color", INK)
+	var x := 852.0
+	if item != null:
+		SpiritIcon.paint(self,Vector2(880,128),item.icon,0.8)
+		x = 912.0
+	_text(Vector2(x,140),title,26,color)
+	_text(Vector2(852,187),"設置物",18,MUTED)
+	if int(info.turns) > 0:
+		_text(Vector2(930,187),"あと%dターン" % int(info.turns),20,GOLD)
+	var y := 240.0
+	if info.state != "":
+		_text(Vector2(852,y),info.state,20,CYAN)
+		y += 44
+	for line in info.lines:
+		_text(Vector2(852,y),line,18,INK)
+		y += 28
 
 ## The big line under an enemy: whether it will hit you next enemy turn if you
 ## stay where you are (the same check as the "!" over it on the board).
