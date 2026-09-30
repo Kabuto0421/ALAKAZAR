@@ -925,15 +925,16 @@ func _expiring_and_rewards() -> void:
 	var beats: Array = muzzles.map(func(e): return snappedf(e.delay, 0.01))
 	verify(beats == [0.0, 0.18],"The cannon it sets off fires one beat later")
 	ch.cannons.clear()
-	ch.place_cannon(Vector2i(1,1), Vector2i.RIGHT, "lance", true)
-	ch.place_cannon(Vector2i(3,1), Vector2i.DOWN, "lance", true)
+	ch.place_cannon(Vector2i(1,1), Vector2i.RIGHT, "vane", true)
+	ch.place_cannon(Vector2i(3,1), Vector2i.DOWN, "vane", true)
 	ch.events.clear()
 	ch.start_chain()
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
 	beats = ch.events.filter(func(e): return e.kind == "muzzle").map(func(e): return snappedf(e.delay, 0.01))
-	verify(beats == [0.0, 0.18, 0.48, 0.78],"Upgraded: first volley, the cannon it sets off (both volleys), then the second volley")
+	verify(beats == [0.0, 0.18, 0.48, 0.78],"Upgraded vane: first volley, the cannon it sets off (both volleys), then the second volley")
 	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [3, 4],"Within one turn the chain keeps counting from the last one (3, 4)")
 	ch.tick_walls()
+	ch.cannon_at(Vector2i(1,1)).dir = Vector2i.RIGHT
 	ch.events.clear()
 	ch.start_chain()
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
@@ -956,11 +957,13 @@ func _expiring_and_rewards() -> void:
 	verify(called.all(func(a): return gd.footprint_distance(boss[0], a.cell) <= 1),"They appear right around it")
 	var entrance: Array = gd.events.filter(func(e): return e.kind == "guardian")
 	verify(entrance.size() == 1 and entrance[0].calls.size() == 2 and entrance[0].calls[1].delay > entrance[0].calls[0].delay,"The calls come one after another")
-	# The capacitor charges by itself at the end of every player turn.
+	# The capacitor only charges when struck: the turn ending adds nothing.
 	var cm := fixture()
 	cm.place_cannon(Vector2i(3,3), Vector2i.UP, "capacitor")
-	cm.charge_capacitors()
-	verify(int(cm.cannon_at(Vector2i(3,3)).charge) == 1,"A capacitor stores 1 at the end of the player's turn")
+	var cplanner := Planner.new()
+	cplanner.begin(cm)
+	cplanner.finish(cm)
+	verify(int(cm.cannon_at(Vector2i(3,3)).charge) == 0,"A capacitor does not charge at the end of the turn")
 	# Placed spirits (cannons, stealth) vanish after five player turns, like walls.
 	var m := fixture()
 	m.place_cannon(Vector2i(3,3), Vector2i.UP, "vane")
@@ -1025,9 +1028,13 @@ func _class_ups() -> void:
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
 	verify(m.is_directional("wall_fairy") and not m.use_item("wall_fairy",Vector2i(2,2)),"Wall+ asks for a direction")
 	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)) and m.walls.has(Vector2i(2,4)) and m.walls.size() == 3,"Wall+ builds a three-tile line")
-	# Lance cannon+: the same two volleys ahead, 0 AP to place and two per battle.
+	# Lance cannon+: one shot as before, but 0 AP to place and two per battle.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
-	verify(m.fairy_ap_cost("cannon_fairy") == 1 and m.fairy_charges == [2],"Lance cannon+ still costs 1 AP and comes twice")
+	verify(m.fairy_ap_cost("cannon_fairy") == 0 and m.fairy_charges == [2],"Lance cannon+ costs 0 AP and comes twice")
+	m.player.ap = 0
+	verify(m.use_item("cannon_fairy",Vector2i(2,2),Vector2i.UP),"Lance cannon+ is placed with 0 AP")
+	m.player.ap = 1
+	verify(m.player_action(Vector2i(2,2)) and m.events.filter(func(e): return e.kind == "muzzle").size() == 1,"Lance cannon+ still fires a single shot")
 	# Vane cannon+: two volleys, then turns.
 	m = _plus_room("vane_cannon",[Vector2i(2,0),Vector2i(2,5)])
 	m.use_item("vane_cannon",Vector2i(2,2),Vector2i.UP)
@@ -1037,14 +1044,11 @@ func _class_ups() -> void:
 	m.use_item("firework_fairy",Vector2i(2,2))
 	var hp: int = m.player.hp
 	verify(m.player_action(Vector2i(2,2)) and m.player.hp == hp and _hurt(m,Vector2i(3,3)),"Firework+ spares the player but hits enemies")
-	# Capacitor+: starts with one charge, so two strikes discharge.
+	# Capacitor+: 0 AP to place and two per battle; it still starts empty.
 	m = _plus_room("capacitor_fairy",[Vector2i(2,5)])
-	m.use_item("capacitor_fairy",Vector2i(2,2))
-	verify(m.cannon_at(Vector2i(2,2)).charge == 1,"Capacitor+ starts with a charge")
-	m.player.ap = 2
-	m.player_action(Vector2i(2,2))
-	m.player_action(Vector2i(2,2))
-	verify(_hurt(m,Vector2i(2,5)),"Capacitor+ discharges after two strikes")
+	verify(m.fairy_ap_cost("capacitor_fairy") == 0 and m.fairy_charges == [2],"Capacitor+ costs 0 AP and comes twice")
+	m.player.ap = 0
+	verify(m.use_item("capacitor_fairy",Vector2i(2,2)) and m.cannon_at(Vector2i(2,2)).charge == 0,"Capacitor+ is placed with 0 AP, empty")
 	# Class-up bookkeeping.
 	m = fixture()
 	m.fairy_loadout.assign(["slash_fairy","magic_bolt"])
@@ -1835,6 +1839,14 @@ func _glutton() -> void:
 	glutton = m.allies[0]
 	m.act_allies()
 	verify(rook.hp > 0 and heavy.hp <= 0 and glutton.hp == 2,"It eats a 1x1 enemy but a 2x2 boss is too big for it")
+	# A 2x2 ally (the holy spirit, the guardian) is too big for it as well.
+	m = fixture()
+	m.player.cell = Vector2i(0,5)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),0))
+	m.summon_glutton(Vector2i(1,1))
+	m.summon_holy(Vector2i(2,1))
+	verify(m.glutton_prey(m.allies[0], m.allies[0].cell).is_empty(),"A 2x2 ally is too big for the glutton")
 	# It bites other allies too.
 	m = fixture()
 	m.player.cell = Vector2i(0,5)

@@ -146,11 +146,11 @@ const PLUS_TEXT := {
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
-	"cannon_fairy": ["叩くと2連射になる", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
+	"cannon_fairy": ["0 APで置ける・毎戦闘2回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
-	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
+	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["置くのも入れ替わりも0 AP", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わる\n（1ターン1回）。"],
-	"lone_wolf": ["0 APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。"],
+	"lone_wolf": ["0 APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。"],
@@ -158,10 +158,10 @@ const PLUS_TEXT := {
 	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲の外に置くと、周囲3\nマスの敵を1マス引き寄せる。\n攻撃範囲に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
-	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
+	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず2ダメージ。"],
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP1）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP2・AP2）が4体出る。"],
 	"axe_spirit": ["毎戦闘2回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘2回。"],
-	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
+	"capacitor_fairy": ["0 APで置ける・毎戦闘2回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
 ## Class-ups that turn a fairy into another one (none now: the flying slash became 斬撃精霊+).
@@ -506,13 +506,13 @@ func fairy_description(id: String) -> String:
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
+	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。\n自分と味方は無事。" % n
 
 ## Besides its own change (PLUS_TEXT), a class-up gives one more use per battle, keeping
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch"]
+const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy"]
 const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit"]
 func fairy_ap_cost(id: String) -> int:
 	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) and PLUS_AP_CUT.has(id) else 0))
@@ -1503,7 +1503,7 @@ func summon_glutton(cell: Vector2i) -> void:
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
 
-## What it may bite from `cell`: the player, any enemy (2x2 bosses too) or another ally.
+## What it may bite from `cell`: the player, or a 1x1 enemy or ally (2x2 ones are too big).
 func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for offset in GLUTTON_MOVES:
@@ -1517,7 +1517,7 @@ func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
 			result.append(tile)
 			continue
 		var ally := ally_at(tile)
-		if not ally.is_empty() and ally.id != glutton.id:
+		if not ally.is_empty() and ally.id != glutton.id and int(ally.get("size", 1)) == 1:
 			result.append(tile)
 	return result
 
@@ -1891,8 +1891,7 @@ func cannon_at(cell: Vector2i) -> Dictionary:
 	return {}
 
 func place_cannon(cell: Vector2i, direction: Vector2i, kind: String, plus: bool = false) -> void:
-	# An upgraded capacitor arrives already holding one charge.
-	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":1 if plus and kind == "capacitor" else 0, "plus":plus})
+	cannons.append({"cell":cell, "dir":direction, "kind":kind, "turns":WALL_TURNS, "charge":0, "plus":plus})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"cannon"})
 
 const CANNON_VOLLEYS := 2
@@ -1906,8 +1905,8 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	# chain reads; its events are stamped with the moment it fires.
 	var first_event := events.size()
 	var at := chain_clock
-	# The chain counts every cannon going off this player turn (its end-of-turn
-	# charge included): a new strike carries the count on instead of starting over.
+	# The chain counts every cannon going off this player turn: a new strike carries
+	# the count on instead of starting over.
 	turn_chain += 1
 	if turn_chain >= 2:
 		events.append({"kind":"chain", "cell":cannon.cell, "id":-2, "count":turn_chain, "delay":at})
@@ -1972,9 +1971,8 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	# Lance and vane cannons fire straight ahead twice (the vane turns after the pair).
 	var shot_dir: Vector2i = cannon.dir
 	# The first volley, then everything it sets off, then the second volley at once.
-	# The lance fires once (twice once upgraded); the vane always twice.
-	# One shot; two once classed up (槍砲精霊 and 風見砲 alike).
-	var volleys := CANNON_VOLLEYS if cannon.get("plus", false) else 1
+	# One shot; the classed-up vane fires two (the lance's class-up is 0 AP and a second use instead).
+	var volleys := CANNON_VOLLEYS if cannon.get("plus", false) and cannon.kind == "vane" else 1
 	for volley in volleys:
 		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
 		struck_ids.clear()
@@ -2016,14 +2014,6 @@ func cannon_line(origin: Vector2i, direction: Vector2i, passed: Array) -> Array[
 func _resonate(passed: Array, fired: Array) -> void:
 	for other in passed:
 		_chain_to(other, fired)
-
-## End of the player's turn: every capacitor stores 1 on its own.
-func charge_capacitors() -> void:
-	start_chain()
-	for cannon in cannons.duplicate():
-		if cannon.kind == "capacitor" and cannons.has(cannon):
-			_charge_capacitor(cannon, [])
-	check_outcome()
 
 ## Capacitor: every strike (a weapon or a chained cannon shot) stores 1; at 3 it
 ## discharges down all four lines, then starts charging again.

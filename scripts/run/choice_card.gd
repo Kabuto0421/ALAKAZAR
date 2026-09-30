@@ -30,7 +30,7 @@ const CARD_TEXT := {
 	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
 	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる",
-	"capacitor_fairy": "ターン終了時・攻撃された時に1溜まり、3つで放電",
+	"capacitor_fairy": "叩かれる・撃たれると1溜まり、3つで4方向に放電",
 }
 ## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.
 const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
@@ -235,8 +235,9 @@ func _ready() -> void:
 				chained.text = "大砲・魔弾でも発動"
 			_fit_width(chained,size.x-12-chained.position.x)
 		var item_def: Resource = model.item_definition(fairy_id)
-		var ap: int = maxi(0, item_def.ap_cost - (1 if plus else 0))
-		var uses: int = item_def.initial_count + (1 if plus else 0)
+		# The same rules as the battle: only some class-ups cut the AP or add a use.
+		var ap: int = maxi(0, item_def.ap_cost - (1 if plus and model.PLUS_AP_CUT.has(fairy_id) else 0))
+		var uses: int = item_def.initial_count + (1 if plus and not model.PLUS_NO_EXTRA_USE.has(fairy_id) else 0)
 		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else Rarity.INFO)
 	if note != "":
 		var note_label := _label(Vector2(14,y+22),note,16,note_color)

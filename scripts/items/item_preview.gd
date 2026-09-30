@@ -91,7 +91,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"acorn_fairy": _acorn(time, art)
 		"warp_fairy": _warp(time, accent, art)
 		"wall_fairy": _wall(time, art)
-		"cannon_fairy": _cannon(time, accent, art, upgraded)
+		"cannon_fairy": _cannon(time, accent, art, false)
 		"vane_cannon": _vane(time, accent, art, upgraded)
 		"firework_fairy": _firework(time, accent, art)
 		"capacitor_fairy": _capacitor(time, accent, art)
@@ -250,11 +250,11 @@ static func _firework(time: float, accent: Color, art: Texture2D) -> void:
 		_enemy(enemy, 1.0 - _ph(p, 0.55, 0.7))
 		_pop(enemy, "−1", _ph(p, 0.35, 0.7))
 
-## Charges each turn and each hit; at 3 it discharges down all four lines.
+## Each hit stores one; at 3 it discharges down all four lines.
 static func _capacitor(time: float, accent: Color, art: Texture2D) -> void:
 	var p := _cycle(time, 3.6)
 	var at := Vector2(2,1)
-	# One charge as the turn ends, then one each time the player hits it.
+	# One charge each time the player hits it.
 	var stored := 0
 	if p < 0.62:
 		stored = 1 if p >= 0.1 else 0
@@ -264,10 +264,9 @@ static func _capacitor(time: float, accent: Color, art: Texture2D) -> void:
 		stored = 3
 	_player(Vector2(1,2))
 	_art(CHARGED if stored > 0 else art, at)
-	for hit: float in [0.3, 0.5]:
+	for hit: float in [0.1, 0.3, 0.5]:
 		_flash(at, Color.WHITE, _ph(p, hit - 0.02, hit + 0.08))
 		_pop(at, "+1", _ph(p, hit, hit + 0.15), GOLD, 6, 14)
-	_pop(at, "+1", _ph(p, 0.1, 0.25), GOLD, 6, 14)
 	# The gauge: three lamps across the top of its tile.
 	for k in 3:
 		var lamp := Rect2(at * C + Vector2(5 + k * 10.5, 3), Vector2(9, 6))

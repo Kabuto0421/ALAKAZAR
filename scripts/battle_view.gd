@@ -1612,9 +1612,10 @@ func _draw_intel() -> void:
 		_text(Vector2(992,187),"%d AP" % model.fairy_ap_cost(selected_item),24,GOLD)
 		ItemPreview.paint(self,model,selected_item,clock)
 		var lines: PackedStringArray = model.fairy_description(selected_item).split("\n")
+		# The text's baseline sits a line below the example so the first line clears it.
 		for i in range(lines.size()):
-			_text(Vector2(850,335+i*25),lines[i],18,INK)
-		_text(Vector2(852,440 if item_origin != Vector2i(-1,-1) else 487),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
+			_text(Vector2(850,352+i*25),lines[i],18,INK)
+		_text(Vector2(852,490),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	var ally := _preview_ally()
@@ -1763,7 +1764,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 		"acorn", "holy_knight":
 			moves = CARDINAL_OFFSETS
 			strikes = CARDINAL_OFFSETS + (DIAGONAL_OFFSETS if ally.get("plus", false) else [])
-			lines = ["敵より先に動く", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
+			lines = ["敵より先に動く", "隣の大砲は叩いて撃たせる", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
 			if ally.type == "holy_knight":
 				lines = ["敵より先に動く", "AP2：隣の敵に1か、敵へ1歩", "これを1ターンに2回"]
 			intent = "近くの敵を攻撃"
@@ -1965,28 +1966,28 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		match cannon.kind:
 			"lance":
 				info.state = "向き：%s" % DIRECTION_NAMES.get(cannon.dir, "")
-				info.lines = ["叩くと向きの直線上に", "2連射（各1）"] if cannon.get("plus", false) else ["叩くと向きの直線上の", "敵すべてに1"]
+				info.lines = ["叩くと向きの直線上の", "敵すべてに1"]
 			"vane":
 				info.state = "向き：%s" % DIRECTION_NAMES.get(cannon.dir, "")
 				info.lines = (["叩くと向きの直線上に", "2連射（各1）"] if cannon.get("plus", false) else ["叩くと向きの直線上の", "敵すべてに1"]) + ["撃つたびに向きが", "時計回りに回る"]
 			"firework":
 				info.state = ""
-				info.lines = ["叩くと爆発して消える", "周囲8マスに1", "自分・味方も巻き込む"]
+				info.lines = ["叩くと爆発して消える", "周囲8マスの敵に1", "自分・味方は巻き込まない"] if cannon.get("plus", false) else ["叩くと爆発して消える", "周囲8マスに1", "自分・味方も巻き込む"]
 			"capacitor":
 				info.state = "電気：%d / %d" % [int(cannon.get("charge", 0)), Rules.CAPACITOR_FULL]
-				info.lines = ["ターン終了時と", "叩かれた時に1溜まる", "3で縦横4方向の直線上の", "敵すべてに1"]
+				info.lines = ["叩かれた時に1溜まる", "3で縦横4方向の直線上の", "敵すべてに1"]
 		info.lines.append("他の大砲・魔弾でも誘爆")
 		return info
 	if model.walls.has(cell):
 		return {"icon": "wall_fairy", "turns": int(model.walls[cell]), "state": "", "lines": ["完全な障害物", "敵も自分も通れない"]}
 	if model.fairies.has(cell):
-		return {"icon": "stealth_fairy", "turns": int(model.fairy_turns.get(cell, 0)), "state": "", "lines": ["通り道をふさぐ", "縦横に敵が来ると", "1ダメージを与えて消える"]}
+		return {"icon": "stealth_fairy", "turns": int(model.fairy_turns.get(cell, 0)), "state": "", "lines": ["通り道をふさぐ", "縦横に敵が来ると1ダメージ", "消えずに残る（1ターン1回）"] if model.is_plus("stealth_fairy") else ["通り道をふさぐ", "縦横に敵が来ると", "1ダメージを与えて消える"]}
 	if not model.shadow.is_empty() and model.shadow.cell == cell:
 		return {"icon": "shadow_stitch", "turns": int(model.shadow.turns), "state": "今ターン：入れ替わり可" if model.shadow.get("ready", false) else "今ターン：入れ替わり済み", "lines": ["押すと%d APで" % model.shadow_swap_cost(), "影と入れ替わる", "入れ替わりは1ターン1回"]}
 	if model.mines.has(cell):
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
-		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の敵は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
+		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の突進は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"]}
 	if model.circle_tiles.has(cell):
