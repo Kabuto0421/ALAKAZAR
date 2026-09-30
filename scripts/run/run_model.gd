@@ -33,8 +33,9 @@ var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fa
 const CIRCLE_CHANCE := 0.03
 ## Each weapon card first draws its rarity from this table (コモン, アンコモン, レア,
 ## 激レア), by the fight just won, then a weapon of that rarity: the rarity sets when
-## a weapon turns up. The rewards right before a boss (after fights 3 and mid 3) lean
-## to uncommon (the three-tile weapons and the mid-game ones). Early on the rare row is
+## a weapon turns up. The reward before the first boss leans to uncommon (the
+## three-tile weapons and the mid-game ones); from the one before Rotorick on, cards
+## are 25/30/35/10 (rare the likeliest), the same as the fairies. Early on the rare row is
 ## tiny because magic circles (3% of rewards) already make about 1% of cards rare.
 const WEAPON_TIER_ODDS := [
 	[0.946, 0.05, 0.002, 0.002],
@@ -43,11 +44,11 @@ const WEAPON_TIER_ODDS := [
 	[0.40, 0.45, 0.13, 0.02],
 	[0.40, 0.45, 0.13, 0.02],
 	[0.40, 0.45, 0.13, 0.02],
-	[0.05, 0.80, 0.13, 0.02],
-	[0.36, 0.40, 0.16, 0.08],
-	[0.36, 0.40, 0.16, 0.08],
-	[0.36, 0.40, 0.16, 0.08],
-	[0.36, 0.40, 0.16, 0.08],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
 ]
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy","guardian_fairy","axe_spirit","holy_spirit"]
 
@@ -84,7 +85,8 @@ func back_to_weapon() -> void:
 ## Each fairy card first draws its rarity from this table (コモン, アンコモン, レア,
 ## 激レア), by the fight just won (0 = the first fight), then a fairy of that rarity.
 ## Every fairy can turn up from the first reward; the rarer tiers grow as the run
-## goes on (激レア from about 1% early to 10% at the end).
+## goes on (激レア from about 1% early to 10%, and from the reward before Rotorick on
+## 25/30/35/10 with rare the likeliest).
 const FAIRY_TIER_ODDS := [
 	[0.80, 0.15, 0.04, 0.01],
 	[0.80, 0.15, 0.04, 0.01],
@@ -92,11 +94,11 @@ const FAIRY_TIER_ODDS := [
 	[0.55, 0.28, 0.12, 0.05],
 	[0.52, 0.29, 0.13, 0.06],
 	[0.50, 0.30, 0.14, 0.06],
-	[0.46, 0.31, 0.16, 0.07],
-	[0.40, 0.33, 0.19, 0.08],
-	[0.37, 0.34, 0.20, 0.09],
-	[0.35, 0.35, 0.21, 0.09],
-	[0.32, 0.36, 0.22, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
+	[0.25, 0.30, 0.35, 0.10],
 ]
 
 ## The reward right after a boss (the first one, Rotorick) leans rarer: this is added
