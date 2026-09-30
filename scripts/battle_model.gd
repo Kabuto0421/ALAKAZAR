@@ -508,10 +508,10 @@ static func meteor_text(n: int) -> String:
 	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
 
 ## Besides its own change (PLUS_TEXT), a class-up gives one more use per battle, keeping
-## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf, the
-## shadow and the holy spirit get 0 AP instead of an extra use, the meteor and the stealth fairy only
+## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
+## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "holy_spirit", "lone_wolf", "shadow_stitch"]
+const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch"]
 const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit"]
 func fairy_ap_cost(id: String) -> int:
 	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) and PLUS_AP_CUT.has(id) else 0))

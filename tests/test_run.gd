@@ -1119,7 +1119,7 @@ func _rare_fairies() -> void:
 	hp_room.fairy_plus["holy_spirit"] = true
 	hp_room.allies.append({"id":-70, "type":"holy", "cell":Vector2i(2,2), "hp":0, "ap":1, "facing":2, "size":2, "plus":true})
 	hp_room._bury_allies()
-	verify(hp_room.allies.filter(func(a): return a.type == "holy_knight").size() == 4 and hp_room.fairy_ap_cost("holy_spirit") == 0 and hp_room.fairy_uses("holy_spirit") == 1,"Holy spirit+: four knights when it breaks, 0 AP, once a battle")
+	verify(hp_room.allies.filter(func(a): return a.type == "holy_knight").size() == 4 and hp_room.fairy_ap_cost("holy_spirit") == 1 and hp_room.fairy_uses("holy_spirit") == 1,"Holy spirit+: four knights when it breaks, still 1 AP, once a battle")
 	# Knights fight like acorns.
 	var knight: Dictionary = knights[0]
 	var next_to: Dictionary = m.make_enemy("heavy",knight.cell+Vector2i.UP if m.inside(knight.cell+Vector2i.UP) else knight.cell+Vector2i.DOWN,2)
