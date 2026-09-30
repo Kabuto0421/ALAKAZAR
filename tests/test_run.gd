@@ -72,6 +72,7 @@ func _initialize() -> void:
 	verify(run.offers.slice(0,3).filter(func(o): return Run.Weapons.early_reward_pool().has(int(o.value))).size() >= 2,"Early reward weapons are (nearly always) from the early pool")
 	# Weapons from other points in the run are not ruled out, only very unlikely.
 	var off := 0
+	var uncommon := 0
 	var slots := 0
 	for seed_value in 400:
 		var trial := Run.new()
@@ -84,9 +85,12 @@ func _initialize() -> void:
 		trial.finish_battle()
 		for o in trial.offers.slice(0,3):
 			slots += 1
-			if not Run.Weapons.early_reward_pool().has(int(o.value)):
+			if Run.Rarity.UNCOMMON_WEAPONS.has(Run.Weapons.DATA[int(o.value)].id):
+				uncommon += 1
+			elif not Run.Weapons.early_reward_pool().has(int(o.value)):
 				off += 1
 	verify(off > 0 and off < slots * 0.06,"Off-timing weapons turn up rarely in the early rewards (%d/%d)" % [off, slots])
+	verify(uncommon > slots * 0.02 and uncommon < slots * 0.09,"About 5%% of early weapon cards are the uncommon 上下剣・前斜剣 (%d/%d)" % [uncommon, slots])
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -1146,7 +1150,7 @@ func _magic_circle() -> void:
 	verify(m.circle_tiles.has(Vector2i(0,0)) and m.circle_tiles.has(Vector2i(1,1)),"A move paints where it started and where it landed")
 	# Rewards: circle weapons show up now and then, and choosing one keeps the enchantment.
 	var seen := 0
-	for seed_value in 60:
+	for seed_value in 400:
 		var run := Run.new()
 		run.start(seed_value)
 		run.choose(0)
@@ -1154,14 +1158,16 @@ func _magic_circle() -> void:
 		run.battle.enemies.clear()
 		run.battle.check_outcome()
 		run.finish_battle()
-		var slot: int = run.offers.find_custom(func(o): return o.get("enchant","") == "circle")
+		# (飛車槍・角剣 always carry a circle; the random one goes on simple weapons.)
+		var slot: int = run.offers.find_custom(func(o): return o.get("enchant","") == "circle" and not Run.Weapons.is_late(int(o.value)))
 		if slot >= 0:
 			seen += 1
+			verify(Run.Weapons.is_simple(int(run.offers[slot].value)),"Magic circles go only on simple weapons")
 			run.choose(slot)
 			if run.state == Run.State.REPLACE:
 				run.replace(2)
 			verify(run.battle.enchants.values().has("circle"),"A chosen circle weapon keeps its enchantment")
-	verify(seen > 0 and seen < 30,"Circle weapons are a rare early reward (%d/60)" % seen)
+	verify(seen >= 3 and seen <= 25,"Circle weapons turn up in about 3%% of rewards (%d/400)" % seen)
 
 func _weapon_room(id: String, foes: Array) -> RefCounted:
 	var m := fixture()
@@ -1228,7 +1234,11 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 45,"39 weapons plus the three generals, the king staff, the mallet and the cross hammer")
+	verify(W.DATA.size() == 46,"39 weapons plus the three generals, the king staff, the mallet, the cross hammer and the thunder blade")
+	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
+	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
+	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
+	verify(W.offsets(thunder) == [Vector2i(1,-1), Vector2i(-1,1)],"雷剣 reaches up-right and down-left")
 	# 十字槌: a rare mid-game hammer that moves like the cross sword and spreads in a cross.
 	var cross_hammer: int = ids.find("cross_hammer")
 	verify(W.mid_pool().has(cross_hammer) and W.is_hammer(cross_hammer) and W.base_damage(cross_hammer) == 2,"The cross hammer is a mid-game hammer that hits for 2")

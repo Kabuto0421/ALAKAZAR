@@ -29,9 +29,8 @@ var rng := RandomNumberGenerator.new()
 var boss_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
-## Magic circle weapons: a rare early reward, commoner after the first boss.
-const CIRCLE_CHANCE_EARLY := 0.1
-const CIRCLE_CHANCE_LATE := 0.3
+## Magic circle weapons: 3% of rewards, and only on a simple (plain moving) weapon.
+const CIRCLE_CHANCE := 0.03
 ## 飛車槍・角剣 (magic circle only) are rare even after Rotorick: the chance that a
 ## reward's drop slot is one of them instead of a mid-game weapon.
 const LATE_WEAPON_CHANCE := 0.2
@@ -40,6 +39,8 @@ const LATE_WEAPON_CHANCE := 0.2
 const OFF_TIMING_CHANCE := 0.02
 ## Within those, 飛車槍・角剣 weigh this much (they are super rare).
 const OFF_TIMING_LATE_WEIGHT := 0.25
+## After the first two fights: the chance that a weapon slot is 上下剣 or 前斜剣 (uncommon).
+const EARLY_UNCOMMON_CHANCE := 0.05
 var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy","guardian_fairy","axe_spirit","holy_spirit"]
 
 func start(seed_value: int = -1) -> void:
@@ -77,8 +78,8 @@ func back_to_weapon() -> void:
 ## Every fairy can turn up from the first reward; the rarer tiers grow as the run
 ## goes on (激レア from about 1% early to 10% at the end).
 const FAIRY_TIER_ODDS := [
-	[0.85, 0.10, 0.04, 0.01],
-	[0.85, 0.10, 0.04, 0.01],
+	[0.80, 0.15, 0.04, 0.01],
+	[0.80, 0.15, 0.04, 0.01],
 	[0.80, 0.13, 0.06, 0.01],
 	[0.55, 0.28, 0.12, 0.05],
 	[0.52, 0.29, 0.13, 0.06],
@@ -235,10 +236,9 @@ func finish_battle() -> bool:
 		if Weapons.is_late(int(offer.value)):
 			offer.enchant = "circle"
 			offer.rare = true
-	# Now and then one weapon offer comes with a magic circle (never the bow, which cannot move).
-	var circle_chance := CIRCLE_CHANCE_LATE if mid else CIRCLE_CHANCE_EARLY
-	var movable: Array = offers.filter(func(o: Dictionary) -> bool: return Weapons.DATA[int(o.value)].get("ranged", "") == "" and o.get("enchant", "") == "")
-	if not movable.is_empty() and rng.randf() < circle_chance:
+	# Now and then one simple weapon offer comes with a magic circle.
+	var movable: Array = offers.filter(func(o: Dictionary) -> bool: return Weapons.is_simple(int(o.value)) and o.get("enchant", "") == "")
+	if not movable.is_empty() and rng.randf() < CIRCLE_CHANCE:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
 		pick.rare = true
@@ -259,6 +259,11 @@ func _enchant(index: int, offer: Dictionary) -> void:
 ## One ordinary weapon slot: usually a weapon of this point in the run, now and then
 ## (OFF_TIMING_CHANCE) one that normally turns up elsewhere; 飛車槍・角剣 even less.
 func _weapon_slot(usual: Array, off_timing: Array) -> int:
+	# After the first two fights a slot is now and then an uncommon early-sized weapon.
+	if stage < Weapons.SINGLE_TILE_STAGES - 1:
+		var uncommon: Array = off_timing.filter(func(index: int) -> bool: return Rarity.UNCOMMON_WEAPONS.has(Weapons.DATA[index].id))
+		if not uncommon.is_empty() and rng.randf() < EARLY_UNCOMMON_CHANCE:
+			return uncommon[rng.randi_range(0, uncommon.size() - 1)]
 	if usual.is_empty() or (not off_timing.is_empty() and rng.randf() < OFF_TIMING_CHANCE):
 		return weighted_sample(off_timing,1,func(index: int) -> float: return OFF_TIMING_LATE_WEIGHT if Weapons.is_late(index) else 1.0)[0]
 	return weighted_sample(usual,1,weapon_weight)[0]

@@ -16,11 +16,11 @@ const DATA = [
 	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
 	{"id":"sky_knight", "name":"天桂剣", "short":"天桂", "row":2, "color":"4fe0a8", "detail":"上へ2・左右へ1に跳ぶ", "offsets":[Vector2i(-1,-2),Vector2i(1,-2)]},
 	# Odd up-and-down jumpers: variants of the vertical jump and the knights.
-	{"id":"tall_knight", "name":"立桂剣", "short":"立桂", "row":2, "color":"6fe0ff", "detail":"右へ1・上下へ2に跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(1,2)]},
+	{"id":"flick_down", "name":"跳下剣", "short":"跳下", "row":2, "color":"a0e6ff", "detail":"右下の1マスと上へ2マス", "offsets":[Vector2i(1,1),Vector2i(0,-2)]},
 	{"id":"twist_knight", "name":"捻桂剣", "short":"捻桂", "row":2, "color":"ff9fd0", "detail":"右上の桂馬と左下の桂馬に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(-2,1)]},
 	{"id":"bolt", "name":"稲妻剣", "short":"稲妻", "row":2, "color":"fff06a", "detail":"右上2段と左下2段に跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(-1,2)]},
 	{"id":"fork", "name":"燕返剣", "short":"燕返", "row":2, "color":"ff8a8a", "detail":"右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,2)]},
-	{"id":"slant", "name":"袈裟剣", "short":"袈裟", "row":2, "color":"ffb36b", "detail":"右上と左下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(-2,2)]},
+	{"id":"return_goose", "name":"帰雁剣", "short":"帰雁", "row":2, "color":"ffc9a0", "detail":"下の1マスと右上の桂馬", "offsets":[Vector2i(0,1),Vector2i(2,-1)]},
 	{"id":"crane", "name":"鶴翼剣", "short":"鶴翼", "row":2, "color":"e0c8ff", "detail":"右上へ斜め2・右下の桂馬に跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,1)]},
 	# Mixed: one neighbouring tile plus one jump.
 	{"id":"goose", "name":"雁行剣", "short":"雁行", "row":2, "color":"ffd9a0", "detail":"上の1マスと右下の桂馬", "offsets":[Vector2i(0,-1),Vector2i(2,1)]},
@@ -57,6 +57,8 @@ const DATA = [
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大5）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると5）", "offsets":[Vector2i(1,0)]},
 	# A rare mid-game drop: moves like the cross sword, and its blow spreads in a cross.
 	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":2, "effect":"この武器の攻撃は2ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
+	# Added last so earlier weapon indices stay put.
+	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]}
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
@@ -122,6 +124,10 @@ static func is_jump(index: int) -> bool:
 ## Two tiles with at least one jump: odd movement, but always weaker than a 4-tile cross.
 static func is_quirky(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].offsets.size() == 2 and DATA[index].offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)
+
+## Plain movers: no effect of their own (the only ones a magic circle is put on).
+static func is_simple(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and not DATA[index].has("effect") and not DATA[index].get("swap", false) and not is_late(index) and DATA[index].get("ranged", "") == ""
 
 static func is_early(index: int) -> bool:
 	return is_single(index) or is_quirky(index)
