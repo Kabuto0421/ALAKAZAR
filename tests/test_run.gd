@@ -898,6 +898,29 @@ func _expiring_and_rewards() -> void:
 	bl.refill_fairies()
 	bl.place_blessing(Vector2i(1,1))
 	verify(bl.blessed(bl.player.cell) and bl.player_action(Vector2i(2,2)) and mid_foe.hp == 1 and top_foe.hp == 1 and low_foe.hp == 1 and right_foe.hp == 1,"Blessed, the hit also lands on the cross around the struck tile")
+	# 加護の妖精+: ending the turn inside heals 1 (never above the maximum); outside, nothing.
+	var bh := fixture()
+	bh.enemies.clear()
+	bh.enemies.append(bh.make_enemy("heavy", Vector2i(5,5), 0))
+	bh.player.cell = Vector2i(1,2)
+	bh.player.hp = 3
+	bh.place_blessing(Vector2i(1,1))
+	var bplanner := Planner.new()
+	bplanner.begin(bh)
+	verify(bh.player.hp == 3,"The plain blessing does not heal")
+	bh.fairy_plus["blessing_fairy"] = true
+	bh.place_blessing(Vector2i(1,1))
+	verify(int(bh.blessing.radius) == 1,"Blessing+ keeps the 3x3")
+	bh.events.clear()
+	bplanner.begin(bh)
+	verify(bh.player.hp == 4 and bh.events.any(func(e): return e.kind == "heal"),"Blessing+: ending the turn inside heals 1")
+	bh.player.hp = Rules.MAX_HP
+	bplanner.begin(bh)
+	verify(bh.player.hp == Rules.MAX_HP,"...but never above the maximum")
+	bh.player.hp = 3
+	bh.player.cell = Vector2i(4,4)
+	bplanner.begin(bh)
+	verify(bh.player.hp == 3,"Outside the blessed ground, no heal")
 	# 隕石妖精: meteors land in weapon reach, 99 to enemies in the 3x3; more with each class-up.
 	var mt := fixture()
 	mt.enemies.clear()

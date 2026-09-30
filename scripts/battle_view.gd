@@ -376,7 +376,7 @@ func _enemy_turn() -> void:
 	_update_controls()
 	if not model.events.is_empty():
 		# Rule A: the siege closing and burning shows before the enemies move
-		# (and a capacitor discharging at the end of the turn).
+		# (and the blessed ground's heal at the end of the turn).
 		_sync_units(true)
 		_feedback()
 		queue_redraw()
@@ -812,7 +812,7 @@ func _feedback(weapon_attack: bool = false) -> void:
 			var base := TILE/64.0
 			swell.tween_property(eater,"scale",Vector2.ONE*base*(1.35 if event.kind == "devour" else 1.2),0.12)
 			swell.tween_property(eater,"scale",Vector2.ONE*base,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-		if actors.has(event.id) and event.kind not in ["plant", "charge_end"]:
+		if actors.has(event.id) and event.kind not in ["plant", "charge_end", "heal"]:
 			actors[event.id].flash = 0.18
 
 ## 守護神の妖精: the board dims, a pillar of light drops the guardian in, and each ally
@@ -1183,7 +1183,7 @@ func _draw_board() -> void:
 			slash_zone.append(hover_cell)
 	# 氷結妖精 / 加護の妖精: hovering a legal tile shows the square they cover.
 	if selected_item in ["freeze_fairy", "blessing_fairy"] and model.item_targets(selected_item).has(hover_cell):
-		var radius := 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
+		var radius := 1
 		slash_zone = model.square_around(hover_cell, radius)
 	# Magic circle: hovering a move shows the area it would close.
 	var circle_zone: Array[Vector2i] = []
@@ -1989,7 +1989,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.pits.has(cell):
 		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の突進は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
-		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"]}
+		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+1"] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):
 		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
 	return {}
@@ -2291,7 +2291,7 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2384,6 +2384,11 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				draw_line(at + lane - dir * 50, at + lane - dir * (90 + k * 10), Color("9fffc0", alpha * 0.55), 3)
 			var frame: int = Rules.CARDINALS.find(Vector2i(dir))
 			draw_texture_rect_region(AXE_DASH, Rect2(at - Vector2.ONE * 62, Vector2.ONE * 124), Rect2(maxi(frame, 0) * 224, 0, 224, 224), Color(1, 1, 1, alpha))
+		"heal":
+			# 加護の地: a heart and a green "+1" rise over the player.
+			var rise := pos + Vector2(0, -34 - t * 22)
+			_draw_heart(rise + Vector2(-14, 0), 18.0, Color("ff5b62", fade), true)
+			_text(rise + Vector2(-2, 7), "+1", 20, Color("7dff9a", fade))
 		"analyzed":
 			# A scan ring and "解析済" floating up.
 			draw_arc(pos, 18 + t * 10, 0, TAU, 24, Color("7fffd0", fade), 2, true)

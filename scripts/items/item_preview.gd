@@ -568,10 +568,9 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 ## on the four tiles around the struck one (a cross). Step out and they do not.
 static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 5.0)
-	# Classed up, the 5x5 leaves no tile to step out to on this board.
-	var inside := p < 0.5 or plus
+	var inside := p < 0.5
 	var q := fmod(p * 2, 1.0)
-	var reach := 2 if plus else 1
+	var reach := 1
 	var area := Rect2(Vector2(1 - reach, 1 - reach) * C, Vector2.ONE * (reach * 2 + 1) * C).intersection(Rect2(Vector2.ZERO, Vector2(5,3) * C))
 	cv.draw_rect(area, Color(accent, 0.22))
 	cv.draw_rect(area, accent, false, 2)
@@ -596,8 +595,10 @@ static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) ->
 			_pop(enemy, "−1", _ph(q, 0.35, 0.7), RED if enemy == Vector2(column, 1) else GOLD)
 		elif q > 0.5:
 			_cross(_center(enemy), 7)
-	if not plus:
-		_steps(0 if inside else 1, 2)
+	# Classed up: ending the turn inside heals 1.
+	if plus and inside:
+		_heart_up(_center(stand) + Vector2(0, -C * 0.3), _ph(q, 0.72, 0.98))
+	_steps(0 if inside else 1, 2)
 
 ## Called from your own tile: meteors hit random tiles in reach (here: holding
 ## silver), 3 to every enemy in the 3x3. You and your allies are safe.
