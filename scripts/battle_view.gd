@@ -442,14 +442,23 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		weapon_kind = "hammer"  # the mallet swings like the hammer
 	# Swords swing; the hammer uses its own sheet; the bow just looses an arrow.
 	var sword_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_kind not in ["hammer","bow"]
+	var hammer_attack: bool = not weapon_action.is_empty() and weapon_action.attacking and weapon_kind == "hammer"
 	if not weapon_action.is_empty() and not weapon_action.attacking:
 		_sound("step")
-	if sword_attack:
+	if sword_attack or hammer_attack:
 		# The model resolves immediately; keep the prior enemy visuals until contact.
 		var player_view = actors[-1]
-		player_view.play_sword_attack(model.facing)
-		var impact_time: float = player_view.sword_impact_time()
-		var duration: float = player_view.sword_attack_duration()
+		var impact_time: float
+		var duration: float
+		if hammer_attack:
+			# The hammer is raised, then brought down: the blow lands with the strike.
+			player_view.play_hammer_attack(Vector2(weapon_action.destination - weapon_action.origin))
+			impact_time = UnitView.HAMMER_WINDUP
+			duration = UnitView.HAMMER_WINDUP + UnitView.HAMMER_STRIKE
+		else:
+			player_view.play_sword_attack(model.facing)
+			impact_time = player_view.sword_impact_time()
+			duration = player_view.sword_attack_duration()
 		_update_controls()
 		await get_tree().create_timer(impact_time).timeout
 		if token != generation:
@@ -1483,7 +1492,8 @@ func _draw_weapons() -> void:
 			draw_rect(rect.grow(-3),Color(CIRCLE_WHITE,0.6),false,1)
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
-		var count := RangeDiagram.span(offsets)
+		var echo := Catalog.hammer_echo(index)
+		var count := RangeDiagram.span(offsets + echo)
 		var side := 84.0
 		var cell_size := side/count
 		var origin := pos+Vector2(248-side-6,5)
@@ -1493,7 +1503,9 @@ func _draw_weapons() -> void:
 				var tile := Rect2(origin+Vector2(x,y)*cell_size+Vector2.ONE,Vector2.ONE*(cell_size-2))
 				var active := offsets.has(offset)
 				draw_rect(tile,Color(accent,0.3) if active else Color("172627"))
-				draw_rect(tile,accent if active else Color("3d5753"),false,1)
+				if echo.has(offset) and not active:
+					_hatch(tile, HAMMER_ECHO)
+				draw_rect(tile,accent if active else HAMMER_ECHO if echo.has(offset) else Color("3d5753"),false,1)
 				if offset == Vector2i.ZERO:
 					_draw_player_portrait(index,tile.get_center(),cell_size*1.1,1)
 				elif active:
@@ -1577,17 +1589,35 @@ func _draw_intel() -> void:
 		_text(Vector2(852,330),"合わせて確認",23,INK)
 		_text(Vector2(852,540),"右クリックで固定",20,MUTED)
 
+## A hammer's echo tile: hatched in orange (the blow spreads here too).
+const HAMMER_ECHO = Color("ffa04a")
+func _hatch(rect: Rect2, color: Color) -> void:
+	draw_rect(rect, Color(color, 0.14))
+	for k in range(1, 8):
+		var t := k / 4.0
+		var a := rect.position + Vector2(minf(t,1.0), maxf(t-1.0,0.0)) * rect.size.x
+		var b := rect.position + Vector2(maxf(t-1.0,0.0), minf(t,1.0)) * rect.size.x
+		draw_line(a, b, Color(color, 0.5), 1.5)
+
 func _draw_player_portrait(weapon_index: int, center: Vector2, side: float, facing_index: int = 2) -> void:
+	if Catalog.is_hammer(weapon_index):
+		# The hammer pose (it only faces right).
+		UnitView.draw_hammer_pose(self, 0, Vector2.ZERO, Color.WHITE, side/64.0, center/(side/64.0) + Vector2(0, 21))
+		return
 	var cell := UnitView.PLAYER_ATLAS_CELL
 	var row: int = Rules.WEAPONS[weapon_index].row
 	draw_texture_rect_region(UnitView.PLAYER_ATLAS,Rect2(center-Vector2.ONE*side/2,Vector2.ONE*side),Rect2(facing_index*cell,row*cell,cell,cell))
 
 func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_index: int = -1, _forward_index: int = 0, portrait_index: int = 2, compact: bool = false, attack: Array = []) -> void:
 	var count := 3
+	# Hammers: where the blow also reaches when it strikes the tile to the right.
+	var echo: Array[Vector2i] = []
+	if enemy.is_empty() and weapon_index >= 0:
+		echo = Catalog.hammer_echo(weapon_index)
 	var step := 52 if compact else 64
 	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)
-	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets) == 5 or RangeDiagram.span(attack) == 5:
+	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets + echo) == 5 or RangeDiagram.span(attack) == 5:
 		count = 5
 		step = 38
 		self_cell = Vector2i(2,2)
@@ -1600,7 +1630,9 @@ func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_i
 			var hits: bool = attack.has(offset)
 			var tone: Color = Color("ff805a") if hits else accent
 			draw_rect(rect,Color(tone,0.3) if active or hits else Color("192828"))
-			draw_rect(rect,tone if active or hits else Color("46625e"),false,2)
+			if echo.has(offset) and not active:
+				_hatch(rect, HAMMER_ECHO)
+			draw_rect(rect,tone if active or hits else HAMMER_ECHO if echo.has(offset) else Color("46625e"),false,2)
 			if offset == Vector2i.ZERO:
 				if not enemy.is_empty():
 					_draw_enemy_portrait(enemy,rect.get_center(),0.85)

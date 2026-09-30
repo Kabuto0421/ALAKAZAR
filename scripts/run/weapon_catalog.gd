@@ -68,6 +68,26 @@ const START_CHOICE_COUNT := 3
 static func can_forge(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and not DATA[index].get("no_forge", false)
 
+## Where a hammer's blow spreads, relative to the struck tile: the tiles above and
+## below it and the column beyond; the cross hammer, the four tiles around it.
+static func hammer_shape(index: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1)]
+	if DATA[index].get("area", "") == "cross":
+		result.assign([Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(-1,0), Vector2i(1,0)])
+	return result
+
+## The tiles a hammer's blow also reaches when it strikes the tile to its right
+## (the example the range diagrams show), relative to the player.
+static func hammer_echo(index: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not is_hammer(index):
+		return result
+	var target := Vector2i(1,0)
+	for offset in hammer_shape(index):
+		if offset != Vector2i.ZERO and target + offset != Vector2i.ZERO:
+			result.append(target + offset)
+	return result
+
 static func is_hammer(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and (DATA[index].id == "hammer" or DATA[index].get("hammer", false))
 

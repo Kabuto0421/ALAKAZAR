@@ -23,6 +23,16 @@ const GLUTTON = preload("res://assets/sprites/spirits/glutton_fairy.png")
 const WOLF_SHEET = preload("res://assets/sprites/spirits/lone_wolf_directions.png")
 const WOLF_SULK = preload("res://assets/sprites/spirits/lone_wolf_sulk.png")
 const PLAYER_ATLAS = preload("res://assets/sprites/adventurer_weapon_directions_64.png")
+## The player holding a hammer (ハンマー・木槌・十字槌; always facing right): standing,
+## the raised windup and the strike with its impact burst. Anchors are the point
+## between the feet in each frame, so the stance stays put between frames.
+const HAMMER_FRAMES = [preload("res://assets/sprites/player_hammer_idle.png"), preload("res://assets/sprites/player_hammer_windup.png"), preload("res://assets/sprites/player_hammer_strike.png")]
+const HAMMER_ANCHORS = [Vector2(235,555), Vector2(300,582), Vector2(225,545)]
+## Scale that makes the hammer pose as tall as the other player sprites.
+const HAMMER_SCALE := 0.127
+## The swing: windup, then the strike (the hit lands as the strike frame shows).
+const HAMMER_WINDUP := 0.14
+const HAMMER_STRIKE := 0.26
 const SWORD_ATTACK_ATLAS = preload("res://assets/sprites/attacks/sword-attack-directions.png")
 const SwordMotion = preload("res://scripts/animation/sword_motion.gd")
 const ENEMY_ATLAS = preload("res://assets/sprites/enemies/police_officer_directions_28.png")
@@ -65,6 +75,8 @@ var charge_warning := false
 var attack_target := false
 var hop_height := 0.0
 var sword_attack_elapsed := -1.0
+var hammer_attack_elapsed := -1.0
+var hammer_lunge := Vector2.ZERO
 var sword_attack_facing := 0
 var hit_elapsed := -1.0
 ## A blessing (守護神: HP+1): three twinkles by the hearts and the new heart popping in.
@@ -107,6 +119,11 @@ func _process(delta: float) -> void:
 		if sword_attack_elapsed >= SwordMotion.duration(sword_attack_facing):
 			sword_attack_elapsed = -1.0
 			z_index = 2
+	if hammer_attack_elapsed >= 0.0:
+		hammer_attack_elapsed += delta
+		if hammer_attack_elapsed >= HAMMER_WINDUP + HAMMER_STRIKE:
+			hammer_attack_elapsed = -1.0
+			z_index = 2
 	if hit_elapsed >= 0.0:
 		hit_elapsed += delta
 		if hit_elapsed >= 0.16:
@@ -141,6 +158,14 @@ func _sheet_frame(sheet: Array, time: float, once: bool) -> Rect2:
 	var frame := int(time * sheet[2])
 	frame = mini(frame, sheet[1] - 1) if once else frame % int(sheet[1])
 	return Rect2(frame * 256, 0, 256, 256)
+
+## `toward`: the struck tile's direction; the strike lunges that way so the head
+## comes down on it.
+func play_hammer_attack(toward: Vector2 = Vector2.RIGHT) -> void:
+	hammer_attack_elapsed = 0.0
+	hammer_lunge = toward.normalized() * 22.0
+	z_index = 3
+	queue_redraw()
 
 func play_sword_attack(direction: int) -> void:
 	sword_attack_facing = clampi(direction, 0, 3)
@@ -204,6 +229,11 @@ func _draw() -> void:
 				var source := Rect2(frame * SWORD_ATTACK_CELL, sword_attack_facing * SWORD_ATTACK_CELL, SWORD_ATTACK_CELL, SWORD_ATTACK_CELL)
 				var destination := SwordMotion.frame_rect(sword_attack_facing, frame)
 				draw_texture_rect_region(SWORD_ATTACK_ATLAS, destination, source, tint)
+		elif weapon_row == 0:
+			var frame := 0
+			if hammer_attack_elapsed >= 0.0:
+				frame = 1 if hammer_attack_elapsed < HAMMER_WINDUP else 2
+			draw_hammer_pose(self, frame, Vector2(0, -hop_height) + (hammer_lunge if frame == 2 else Vector2.ZERO), tint)
 		else:
 			var source := Rect2(facing*PLAYER_ATLAS_CELL,weapon_row*PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL,PLAYER_ATLAS_CELL)
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)
@@ -442,6 +472,15 @@ func _draw_drone(tint: Color, canvas: CanvasItem = null) -> void:
 	canvas.draw_rect(Rect2(-3,-3+bob,6,4),Color("ffb84d"))
 	canvas.draw_rect(Rect2(-5,6+bob,10,7),dark)
 	canvas.draw_rect(Rect2(-2,9+bob,4,4),Color("ec8051"))
+
+## One hammer pose with the point between its feet at `feet` (the other player
+## sprites stand with their feet 21px below the tile centre), `factor` times the
+## usual size.
+static func draw_hammer_pose(canvas: CanvasItem, frame: int, offset: Vector2 = Vector2.ZERO, tint: Color = Color.WHITE, factor: float = 1.0, feet: Vector2 = Vector2(0, 21)) -> void:
+	var texture: Texture2D = HAMMER_FRAMES[frame]
+	var scale := HAMMER_SCALE * factor
+	var anchor: Vector2 = HAMMER_ANCHORS[frame]
+	canvas.draw_texture_rect(texture, Rect2(feet * factor + offset - anchor * scale, texture.get_size() * scale), false, tint)
 
 func _draw_player_sprite(texture: Texture2D, source: Rect2, enlarge_down_sword: bool, tint: Color) -> void:
 	var destination := Rect2(-32, -37-hop_height, 64, 64)

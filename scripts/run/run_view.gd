@@ -300,6 +300,8 @@ func _loadout() -> void:
 		diagram.size = Vector2(92,92)
 		diagram.offsets = Weapons.offsets(index)
 		diagram.slides = Weapons.slides(index)
+		diagram.echo = Weapons.hammer_echo(index)
+		diagram.hammer = Weapons.is_hammer(index)
 		diagram.accent = accent
 		screen.add_child(diagram)
 		_title(at+Vector2(10,104),data.name,17,run.battle.weapon_power.has(index))
