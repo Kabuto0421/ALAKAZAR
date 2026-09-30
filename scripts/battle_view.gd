@@ -639,6 +639,9 @@ func _chain_burst(event: Dictionary) -> void:
 		fx.banner = true
 		fx.hits = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0).size()
 	add_child(fx)
+	# ピコン: one semitone higher for every link of this turn's chain.
+	if sfx != null:
+		sfx.chain_link(int(event.count) - 1)
 	chain_shake = 0.22
 	chain_shake_power = 5.0 + 2.0 * mini(int(event.count), 6)
 	# Hit-stop: freeze for a beat (longer on the last link), then carry on.

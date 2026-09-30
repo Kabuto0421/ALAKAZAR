@@ -258,6 +258,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	blade_charge = 0
 	blade_used = false
 	free_swap_used = false
+	turn_chain = 0
 	slot_rolls = 0
 	slot_seed = randi()
 	refill_fairies()
@@ -1835,6 +1836,7 @@ func free_swap_ready() -> bool:
 ## Called when a new player turn begins: walls count down and crumble.
 func tick_walls() -> void:
 	free_swap_used = false
+	turn_chain = 0
 	# 溜め大剣 stores one more point for every turn it sat unused.
 	if not blade_used:
 		blade_charge = mini(blade_charge + 1, blade_max())
@@ -1904,8 +1906,11 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	# chain reads; its events are stamped with the moment it fires.
 	var first_event := events.size()
 	var at := chain_clock
-	if fired.size() >= 2:
-		events.append({"kind":"chain", "cell":cannon.cell, "id":-2, "count":fired.size(), "delay":at})
+	# The chain counts every cannon going off this player turn (its end-of-turn
+	# charge included): a new strike carries the count on instead of starting over.
+	turn_chain += 1
+	if turn_chain >= 2:
+		events.append({"kind":"chain", "cell":cannon.cell, "id":-2, "count":turn_chain, "delay":at})
 	_fire_cannon(cannon, fired)
 	for i in range(first_event, events.size()):
 		if not events[i].has("delay"):
@@ -1916,6 +1921,8 @@ const CHAIN_BEAT := 0.18
 const VOLLEY_GAP := 0.3
 ## Timeline of the chain being resolved (seconds from its first shot).
 var chain_clock := 0.0
+## Cannons gone off this player turn, through its end (CHAIN ×n keeps counting).
+var turn_chain := 0
 
 ## Start a new chain's timeline (a strike, a bolt, an acorn, the turn-end charge).
 func start_chain() -> void:

@@ -932,7 +932,12 @@ func _expiring_and_rewards() -> void:
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
 	beats = ch.events.filter(func(e): return e.kind == "muzzle").map(func(e): return snappedf(e.delay, 0.01))
 	verify(beats == [0.0, 0.18, 0.48, 0.78],"Upgraded: first volley, the cannon it sets off (both volleys), then the second volley")
-	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"The chain link is counted for the combo")
+	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [3, 4],"Within one turn the chain keeps counting from the last one (3, 4)")
+	ch.tick_walls()
+	ch.events.clear()
+	ch.start_chain()
+	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
+	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"A new player turn starts the count over")
 	# 守護神の妖精: calls back one of each ally kind summoned this battle, with +1 HP.
 	var gd := fixture()
 	gd.enemies.clear()

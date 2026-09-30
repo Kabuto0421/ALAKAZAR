@@ -6,6 +6,8 @@ extends Node
 const SFX_DIR := "res://assets/audio/sfx/"
 const NAMES := ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack",
 	"fortress_collapse", "king_collapse"]
+## Cannon chain links chain_01..chain_20: one semitone up per link (never pitch-jittered).
+const CHAIN_LINKS := 20
 ## Played at the music's level, never pitch-shifted.
 const STINGS := {
 	"king_intro": preload("res://assets/audio/bgm/king_intro.ogg"),
@@ -30,6 +32,8 @@ func _ready() -> void:
 	if _streams.is_empty():
 		for name in NAMES:
 			_streams[name] = load(SFX_DIR + name + ".ogg")
+		for link in range(1, CHAIN_LINKS + 1):
+			_streams["chain_%02d" % link] = load(SFX_DIR + "chain_%02d.ogg" % link)
 	for i in VOICES:
 		var voice := AudioStreamPlayer.new()
 		add_child(voice)
@@ -43,6 +47,12 @@ func play(name: String, volume_db: float = 0.0) -> void:
 	if not _streams.has(name):
 		return
 	_start(_streams[name], VOLUME_DB + volume_db, randf_range(0.95, 1.05), name)
+
+## The n-th link of this turn's cannon chain (1 = the first set-off), in tune.
+func chain_link(link: int) -> void:
+	var name := "chain_%02d" % clampi(link, 1, CHAIN_LINKS)
+	if _streams.has(name):
+		_start(_streams[name], VOLUME_DB, 1.0, name)
 
 func sting(name: String) -> void:
 	if STINGS.has(name):

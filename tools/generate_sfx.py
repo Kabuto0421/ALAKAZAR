@@ -333,6 +333,37 @@ def king_collapse(k):
                                (1.3, k.debris(1.2, 20, 200, 2500), 0.8))), "boss", 0.35
 
 
+## Cannon chain links: a short 8-bit "pi-kon" (a quick blip a fourth below, then the
+## note), one semitone higher for every link, chain_01 (D5) to chain_20 (A6).
+CHAIN_LINKS = 20
+
+
+def chain_link(k, link):
+    root = 74 + (link - 1)
+
+    def pulse(midi_note, d, tau, chirp):
+        f = 440.0 * 2 ** ((midi_note - 69) / 12)
+        t = k.t(d)
+        freq = f * (chirp + (1 - chirp) * np.clip(t / 0.03, 0, 1))
+        phase = 2 * np.pi * np.cumsum(freq) / SR
+        wave = np.sign(np.sin(phase)) * 0.6
+        # A soft low-pass (a few harmonics only), so it never gets shrill.
+        a = np.exp(-2 * np.pi * f * 3.0 / SR)
+        out = np.zeros_like(wave)
+        acc = 0.0
+        for i, v in enumerate(wave):
+            acc = (1 - a) * v + a * acc
+            out[i] = acc
+        return out * k.decay(d, tau, attack=0.004)
+
+    pi = pulse(root - 5, 0.05, 0.025, 0.97)
+    kon = pulse(root, 0.22, 0.08, 0.985)
+    buf = np.zeros(int(SR * 0.27))
+    place(buf, 0, pi)
+    place(buf, int(0.045 * SR), kon)
+    return buf, "hit", 0.05
+
+
 EFFECTS = [step, enemy_step, king_revive, fortress_spawn, king_hit, fortress_crack, fortress_collapse, king_collapse]
 
 
@@ -349,6 +380,15 @@ def main():
         path = os.path.join(OUT_DIR, name + ".ogg")
         soundfile.write(path, data, SR, format="OGG", subtype="VORBIS")
         print(f"{name}: {len(data) / SR:.2f}s")
+    for link in range(1, CHAIN_LINKS + 1):
+        name = "chain_%02d" % link
+        if only and name not in only and "chain" not in only:
+            continue
+        samples, level, room = chain_link(Kit(2000 + link), link)
+        data = finish(samples, level, room)
+        soundfile.write(os.path.join(OUT_DIR, name + ".ogg"), data, SR, format="OGG", subtype="VORBIS")
+    if not only or "chain" in only:
+        print("chain_01..chain_%02d" % CHAIN_LINKS)
 
 
 if __name__ == "__main__":
