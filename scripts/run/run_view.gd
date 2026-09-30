@@ -147,12 +147,24 @@ func _coverage() -> Array[Vector2i]:
 	return tiles
 
 func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgrading: bool = false) -> void:
-	var gap := 20.0
-	var width := (1064-gap*(offers.size()-1))/offers.size()
+	var gap := 20.0 if offers.size() < 5 else 14.0
+	# Fairy cards lead with a wide animated example, weapon cards with a small square
+	# diagram: when both are offered, fairy cards get the extra width.
+	var mixed := offers.any(func(o: Dictionary) -> bool: return o.kind == "weapon") and offers.any(func(o: Dictionary) -> bool: return o.kind != "weapon")
+	var weights: Array[float] = []
+	for offer in offers:
+		weights.append(0.7 if mixed and offer.kind == "weapon" else 1.0)
+	var total := 0.0
+	for weight in weights:
+		total += weight
+	var unit := (1064-gap*(offers.size()-1))/total
 	var coverage := _coverage()
+	var x := 44.0
 	for index in offers.size():
+		var width: float = unit*weights[index]
 		var card := Card.new()
-		card.position = Vector2(44+index*(width+gap),CARD_TOP)
+		card.position = Vector2(x,CARD_TOP)
+		x += width+gap
 		card.size = Vector2(width,CARD_HEIGHT)
 		card.offer = offers[index]
 		card.model = run.battle

@@ -39,8 +39,6 @@ const PLACES := {
 	"gravity_fairy": "どこでも", "warp_fairy": "どこでも",
 	"abyss_spirit": "自分のマス", "meteor_fairy": "自分のマス",
 }
-## Summons whose example outlines where they can step and strike.
-const RANGED_SUMMONS := ["acorn_fairy", "holy_spirit", "glutton_fairy", "guardian_fairy"]
 ## Examples drawn with the silver general's sword (they are about weapon reach).
 const SILVER_EXAMPLES := ["shadow_stitch", "lone_wolf", "abyss_spirit", "gravity_fairy", "meteor_fairy"]
 var offer: Dictionary
@@ -177,13 +175,22 @@ func _ready() -> void:
 		pill_style.content_margin_left = 6
 		pill_style.content_margin_right = 6
 		kind_label.add_theme_stylebox_override("normal",pill_style)
-		# Where it goes.
+		# Where it goes: on the same row, right-aligned, when there is room (the example
+		# gets that height), else on a row of its own.
 		var place := _label(Vector2(14,84),"置く場所：" + PLACES.get(fairy_id, "武器の範囲"),12,Color("c9d4cc"))
 		place.add_theme_font_override("font",label_font())
+		var demo_top := 104.0
+		var place_width := place.get_minimum_size().x
+		if kind == "設置" and kind_label.get_minimum_size().x + place_width + 8 > size.x-24:
+			# Too long for one row with the placement: the short form keeps both on it.
+			kind_label.text = "設置・5ターン"
+		if kind_label.get_minimum_size().x + place_width + 8 <= size.x-24:
+			place.position = Vector2(size.x-12-place_width,62)
+			demo_top = 84.0
 		# An animated example of what it does, as large as the card allows, then the
 		# summon's HP / AP, the guardian's calls and one short line of text.
 		var stats: Array = SUMMONS.get(fairy_id, [])
-		var marks_height := (26.0 if not stats.is_empty() else 0.0) + (46.0 if fairy_id == "guardian_fairy" else 0.0)
+		var marks_height := (26.0 if not stats.is_empty() else 0.0) + (36.0 if fairy_id == "guardian_fairy" else 0.0)
 		# Room for the text: its lines at this card's width, plus the chain line of cannons.
 		var chars_per_line := maxf(1.0, floorf((size.x-24)/15.5))
 		var text_room := ceilf(description.length()/chars_per_line)*21.0+6.0
@@ -194,17 +201,16 @@ func _ready() -> void:
 		demo.model = model
 		demo.id = fairy_id
 		demo.plus = 1 if plus else 0
-		demo.position = Vector2(10,104)
-		demo.size = Vector2(size.x-20,clampf(y-104-marks_height-text_room-6,64.0,200.0))
+		# Edge to edge inside the frame: the example's width sets how large it is drawn.
+		demo.position = Vector2(6,demo_top)
+		demo.size = Vector2(size.x-12,clampf(y-demo_top-marks_height-text_room-6,64.0,220.0))
 		add_child(demo)
 		if plus:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
-		if fairy_id in SILVER_EXAMPLES or fairy_id in RANGED_SUMMONS:
-			# Silver examples: the sword's reach is outlined white. Summons: their own
-			# reach is outlined green.
-			var silver: bool = fairy_id in SILVER_EXAMPLES
-			demo.legend = "例：銀将剣" if silver else "緑枠：動く・攻撃"
-			demo.legend_color = Color("d8e2ee") if silver else GREEN
+		if fairy_id in SILVER_EXAMPLES:
+			# These examples assume the silver general's sword, whose reach is outlined white.
+			demo.legend = "例：銀将剣"
+			demo.legend_color = Color("d8e2ee")
 		var marks_top := demo.position.y+demo.size.y+6
 		if marks_height > 0:
 			var marks := FairyMarks.new()
@@ -255,7 +261,7 @@ const GREEN := Color("7dff9a")
 ## Text about a weapon's enchantment (the magic circle), in a colour nothing else uses.
 const ENCHANT := Color("ff7ae6")
 ## Shoving weapons: what a collision does.
-const SHOVE_TEXT := "押出：敵や壁にぶつけると、ぶつけた敵とぶつかった敵に1ずつ"
+const SHOVE_TEXT := "押出：ぶつけた敵・ぶつかった敵に1ずつ"
 
 static var _label_font: Font
 ## Small labels (the fairy's kind, the chain note) in a plain bold gothic from the

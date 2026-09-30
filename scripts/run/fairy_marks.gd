@@ -31,16 +31,16 @@ func _draw() -> void:
 		var names := ["隠密", "どんぐり", "一匹狼", "聖精霊", "暴食"]
 		var step := size.x / icons.size()
 		for k in icons.size():
-			var center := Vector2(step * (k + 0.5), y + 13)
-			var rect := Rect2(center - Vector2(13, 13), Vector2(26, 26))
+			var center := Vector2(step * (k + 0.5), y + 11)
+			var rect := Rect2(center - Vector2(11, 11), Vector2(22, 22))
 			draw_rect(rect.grow(1), Color("192828"))
 			if icons[k][1] == Rect2():
 				draw_texture_rect(icons[k][0], rect, false)
 			else:
 				draw_texture_rect_region(icons[k][0], rect, icons[k][1])
 			var name: String = names[k]
-			var width := FONT.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x
-			draw_string(FONT, Vector2(center.x - width / 2, y + 40), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("e5dfc5"))
+			var width := FONT.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+			draw_string(FONT, Vector2(center.x - width / 2, y + 33), name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("e5dfc5"))
 
 ## The same heart the player's HP uses.
 func _heart(center: Vector2, side: float) -> void:
