@@ -333,8 +333,13 @@ func _new_fairies() -> void:
 	# Vane cannon rotates clockwise after each shot.
 	m = fixture()
 	m.place_cannon(Vector2i(2,2),Vector2i.UP,"vane")
+	m.enemies.clear()
+	var vane_target: Dictionary = m.make_enemy("heavy",Vector2i(2,0),0)
+	vane_target.hp = 5
+	m.enemies.append(vane_target)
 	m.fire_cannon(m.cannon_at(Vector2i(2,2)))
 	verify(m.cannon_at(Vector2i(2,2)).dir == Vector2i.RIGHT,"Vane cannon turns right after firing")
+	verify(vane_target.hp == 4,"A plain vane cannon fires once (two volleys only once classed up)")
 
 	# Direction sheets: 2x2 square, top-left up, top-right right, bottom-left down, bottom-right left.
 	var sheet := ImageTexture.create_from_image(Image.create(64,64,false,Image.FORMAT_RGBA8))

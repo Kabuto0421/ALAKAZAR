@@ -1960,7 +1960,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 				info.lines = ["叩くと向きの直線上に", "2連射（各1）"] if cannon.get("plus", false) else ["叩くと向きの直線上の", "敵すべてに1"]
 			"vane":
 				info.state = "向き：%s" % DIRECTION_NAMES.get(cannon.dir, "")
-				info.lines = ["叩くと向きの直線上に", "2連射（各1）", "撃つたびに向きが", "時計回りに回る"]
+				info.lines = (["叩くと向きの直線上に", "2連射（各1）"] if cannon.get("plus", false) else ["叩くと向きの直線上の", "敵すべてに1"]) + ["撃つたびに向きが", "時計回りに回る"]
 			"firework":
 				info.state = ""
 				info.lines = ["叩くと爆発して消える", "周囲8マスに1", "自分・味方も巻き込む"]

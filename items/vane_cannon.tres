@@ -8,8 +8,8 @@
 script = ExtResource("1")
 id = "vane_cannon"
 title = "風見砲の妖精"
-description = "槍砲精霊の亜種。叩くと向きの\n直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"
-summary = "叩くと2連射、向きが回る"
+description = "槍砲精霊の亜種。叩くと向きの\n直線上の敵すべてに1。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"
+summary = "叩くと撃ち、向きが回る"
 color = Color(0.55, 0.85, 1, 1)
 directional = true
 effect = ExtResource("2")

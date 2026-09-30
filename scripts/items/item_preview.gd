@@ -92,7 +92,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"warp_fairy": _warp(time, accent, art)
 		"wall_fairy": _wall(time, art)
 		"cannon_fairy": _cannon(time, accent, art, upgraded)
-		"vane_cannon": _vane(time, accent, art)
+		"vane_cannon": _vane(time, accent, art, upgraded)
 		"firework_fairy": _firework(time, accent, art)
 		"capacitor_fairy": _capacitor(time, accent, art)
 		"slash_fairy":
@@ -206,8 +206,8 @@ static func _cannon(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 			var hit: float = start + 0.2 * (enemy.x - 1) / 3.4
 			_pop(enemy, "−1", _ph(p, hit, hit + 0.28), RED, v * 12.0)
 
-## Two volleys, then it turns 90 degrees clockwise.
-static func _vane(time: float, accent: Color, art: Texture2D) -> void:
+## One shot (two volleys once classed up), then it turns 90 degrees clockwise.
+static func _vane(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 4.4)
 	var center := Vector2(2,1)
 	var dirs: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT, Vector2i.UP]
@@ -220,12 +220,12 @@ static func _vane(time: float, accent: Color, art: Texture2D) -> void:
 		elif k == shot:
 			_enemy(targets[k], 1.0 - _ph(q, 0.45, 0.55))
 	var aim: Vector2i = dirs[shot]
-	for v in 2:
+	for v in (2 if plus else 1):
 		var k := _ph(q, 0.08 + v * 0.18, 0.2 + v * 0.18)
 		if k > 0.0 and k < 1.0:
 			cv.draw_line(_center(center), _center(center).lerp(_center(targets[shot]), k), accent, 5)
 		_pop(targets[shot], "−1", _ph(q, 0.2 + v * 0.18, 0.5 + v * 0.18), RED, v * 12.0)
-	# After both volleys it turns towards the next direction.
+	# After firing it turns towards the next direction.
 	var turn := _ph(q, 0.6, 0.9)
 	var facing: Vector2i = dirs[(shot + (1 if turn >= 1.0 else 0)) % 4]
 	if not Sheet.paint(cv, _center(center), "vane_cannon", facing, (C - 4) / 64.0):

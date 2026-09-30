@@ -147,7 +147,7 @@ const PLUS_TEXT := {
 	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
 	"cannon_fairy": ["叩くと2連射になる", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
-	"vane_cannon": ["毎戦闘2回・0 APで置ける", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
+	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
 	"lone_wolf": ["噛んで倒すとAPが1戻る", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n噛んで倒すとAPが1戻る。"],
@@ -1959,7 +1959,8 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	var shot_dir: Vector2i = cannon.dir
 	# The first volley, then everything it sets off, then the second volley at once.
 	# The lance fires once (twice once upgraded); the vane always twice.
-	var volleys := CANNON_VOLLEYS if cannon.kind == "vane" or cannon.get("plus", false) else 1
+	# One shot; two once classed up (槍砲精霊 and 風見砲 alike).
+	var volleys := CANNON_VOLLEYS if cannon.get("plus", false) else 1
 	for volley in volleys:
 		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
 		struck_ids.clear()
