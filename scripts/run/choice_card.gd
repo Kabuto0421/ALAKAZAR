@@ -29,7 +29,7 @@ const CARD_TEXT := {
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（99ダメージ）",
 	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
-	"blessing_fairy": "3×3の中にいれば、攻撃が上下のマスにも当たる",
+	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる",
 	"capacitor_fairy": "ターン終了時・攻撃された時に1溜まり、3つで放電",
 }
 ## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.

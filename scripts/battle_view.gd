@@ -1980,7 +1980,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.pits.has(cell):
 		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の敵は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
-		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下にも当たる"]}
+		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"]}
 	if model.circle_tiles.has(cell):
 		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
 	return {}

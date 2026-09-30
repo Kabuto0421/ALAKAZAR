@@ -153,7 +153,7 @@ const PLUS_TEXT := {
 	"lone_wolf": ["噛んで倒すとAPが1戻る", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n噛んで倒すとAPが1戻る。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
-	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下にも当たる。"],
+	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
@@ -835,10 +835,11 @@ func _player_action(cell: Vector2i) -> bool:
 					struck.append(other)
 		elif WEAPONS[weapon].get("ranged","") == "bishop":
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
-		# 加護: standing in the blessed ground, the blow also lands above and below.
+		# 加護: standing in the blessed ground, the blow also lands on the four tiles
+		# around the struck one (a cross).
 		if blessed(player.cell):
-			for side in [Vector2i.UP, Vector2i.DOWN]:
-				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.DOWN})
+			for side in CARDINALS:
+				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.DOWN if side.x == 0 else Vector2i.RIGHT})
 				var other := enemy_at(cell + side)
 				if not other.is_empty() and not struck.has(other):
 					struck.append(other)

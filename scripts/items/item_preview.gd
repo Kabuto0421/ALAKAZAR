@@ -565,7 +565,7 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 			_say(enemy * C + Vector2(C - 8, C - 6), str(4 if plus else 3), 14, Color("c8f4ff"))
 
 ## Blessed ground for five turns: while you stand in its 3x3, your hits also land
-## above and below. Step out and they do not.
+## on the four tiles around the struck one (a cross). Step out and they do not.
 static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 5.0)
 	# Classed up, the 5x5 leaves no tile to step out to on this board.
@@ -582,16 +582,20 @@ static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) ->
 	var swing := _ph(q, 0.3, 0.45)
 	if swing > 0.0 and swing < 1.0:
 		var reach_px := C * (1.4 if inside else 0.4) * swing
-		cv.draw_line(_center(Vector2(column,1)) - Vector2(0, reach_px), _center(Vector2(column,1)) + Vector2(0, reach_px), Color.WHITE, 4)
-	for y in 3:
-		var enemy := Vector2(column, y)
-		var hit := inside or y == 1
+		var struck := _center(Vector2(column,1))
+		cv.draw_line(struck - Vector2(0, reach_px), struck + Vector2(0, reach_px), Color.WHITE, 4)
+		cv.draw_line(struck, struck + Vector2(reach_px, 0), Color.WHITE, 4)
+	# The struck enemy and the three around it (the fourth side is where you stand).
+	var foes: Array[Vector2] = [Vector2(column, 1), Vector2(column, 0), Vector2(column, 2)]
+	if column + 1 < 5:
+		foes.append(Vector2(column + 1, 1))
+	for enemy: Vector2 in foes:
+		var hit: bool = inside or enemy == Vector2(column, 1)
 		_enemy(enemy, 1.0 - (_ph(q, 0.5, 0.65) if hit else 0.0))
 		if hit:
-			_pop(enemy, "−1", _ph(q, 0.35, 0.7), RED if y == 1 else GOLD)
-	if not inside and q > 0.5:
-		for y in [0, 2]:
-			_cross(_center(Vector2(column, y)), 7)
+			_pop(enemy, "−1", _ph(q, 0.35, 0.7), RED if enemy == Vector2(column, 1) else GOLD)
+		elif q > 0.5:
+			_cross(_center(enemy), 7)
 	if not plus:
 		_steps(0 if inside else 1, 2)
 
