@@ -8,8 +8,8 @@
 script = ExtResource("1")
 id = "wall_fairy"
 title = "壁精霊"
-description = "攻撃範囲の空きマスに配置。\n置いたターンを含め5ターン\n完全な障害物として残る。\n敵も自分も通れない。"
-summary = "5ターン残る壁"
+description = "攻撃範囲の空きマスに配置。\n置いたターンを含め{turns}ターン\n完全な障害物として残る。\n敵も自分も通れない。"
+summary = "{turns}ターン残る壁"
 color = Color(0.62, 0.66, 0.72, 1)
 effect = ExtResource("2")
 icon = ExtResource("3")

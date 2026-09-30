@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "guardian_fairy"
 title = "守護神の妖精"
-description = "攻撃範囲に2×2の守護神（HP3・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"
+description = "攻撃範囲に2×2の守護神（HP{hp}・\nAP{ally_ap}）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+{guardian_bonus}で呼び直す。暴食も来る。"
 summary = "召喚した妖精を一斉に呼ぶ"
 color = Color(0.72, 0.86, 1, 1)
 effect = ExtResource("2")

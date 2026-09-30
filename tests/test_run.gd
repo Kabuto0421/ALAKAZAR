@@ -1030,6 +1030,27 @@ func _hurt(m: RefCounted, cell: Vector2i) -> bool:
 	return not enemy.is_empty() and enemy.hp < m.TYPES.heavy.hp
 
 func _class_ups() -> void:
+	# Fairy texts read their numbers from the rules: nothing is left unfilled, and the
+	# numbers match the data (so changing a value changes every text that quotes it).
+	var tx := fixture()
+	var unfilled: Array = []
+	for item in tx.ITEMS:
+		for plus in [0, 1]:
+			for text in [tx.fairy_summary(item.id, plus), tx.fairy_description(item.id, plus)]:
+				if "{" in text or "}" in text:
+					unfilled.append(item.id)
+	verify(unfilled.is_empty(),"Every fairy text is filled in (%s)" % str(unfilled))
+	verify(("HP%d・AP%d" % [Rules.SUMMON_STATS.acorn_fairy.hp, Rules.SUMMON_STATS.acorn_fairy.ap]) in tx.fairy_description("acorn_fairy", 0) and ("HP%d" % Rules.SUMMON_STATS.acorn_fairy.hp_plus) in tx.fairy_description("acorn_fairy", 1),"Summon texts quote the summon table")
+	verify(("%dターン" % Rules.FREEZE_TURNS) in tx.fairy_description("freeze_fairy", 0) and ("%dターン" % (Rules.FREEZE_TURNS + 1)) in tx.fairy_description("freeze_fairy", 1),"Freeze texts quote its turns")
+	verify(("%d APで置ける" % tx.fairy_ap_cost("cannon_fairy", 1)) in tx.fairy_summary("cannon_fairy", 1),"Class-up lines quote the class-up AP")
+	tx.summon_acorn(Vector2i(0,0))
+	verify(tx.allies[-1].hp == Rules.SUMMON_STATS.acorn_fairy.hp and tx.allies[-1].ap == Rules.SUMMON_STATS.acorn_fairy.ap,"Summons take their HP and AP from the same table")
+	# 重力妖精: 0 AP to use, plain and classed up.
+	verify(tx.fairy_ap_cost("gravity_fairy", 0) == 0 and tx.fairy_ap_cost("gravity_fairy", 1) == 0 and tx.fairy_uses("gravity_fairy", 1) == 2,"Gravity fairy costs 0 AP (and comes twice classed up)")
+	var gv := _plus_room("gravity_fairy",[Vector2i(4,2)])
+	gv.fairy_plus.clear()
+	gv.player.ap = 0
+	verify(gv.use_item("gravity_fairy",Vector2i(5,5)),"The gravity fairy works with 0 AP left")
 	# Magic bolt+: fires both ways along the chosen line.
 	var m := _plus_room("magic_bolt",[Vector2i(2,0),Vector2i(2,5)])
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.UP) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Magic bolt+ hits both ways along its line")
@@ -1560,7 +1581,7 @@ func _loner_fairies() -> void:
 	m.enemies.append(prey)
 	verify(m.use_item("lone_wolf",home) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
 	var wolf: Dictionary = m.allies[0]
-	verify(wolf.hp == 3 and Rules.WOLF_AP == 3,"The lone wolf has HP 3 and AP 3")
+	verify(wolf.hp == 3 and Rules.summon_ap("lone_wolf") == 3,"The lone wolf has HP 3 and AP 3")
 	m.act_allies()
 	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 1,"Alone, it takes a silver step and bites twice for 2 (3 AP)")
 	m.tick_walls()

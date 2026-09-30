@@ -1757,7 +1757,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),true)
 	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
-	var ap: int = Rules.WOLF_AP if ally.type == "wolf" else Rules.HOLY_KNIGHT_AP if ally.type == "holy_knight" else 2 if ally.type == "glutton" else 1
+	var ap: int = Rules.ally_ap(ally.type)
 	for i in range(ap):
 		draw_rect(Rect2(ap_x+45+i*26,153,22,23),GOLD)
 	var moves: Array = []
@@ -1771,27 +1771,27 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			strikes = CARDINAL_OFFSETS + (DIAGONAL_OFFSETS if ally.get("plus", false) else [])
 			lines = ["敵より先に動く", "隣の大砲は叩いて撃たせる", "隣の敵に1（HPの低い敵から）" if not ally.get("plus", false) else "縦横斜めの敵に1", "いなければ近い敵へ1歩"]
 			if ally.type == "holy_knight":
-				lines = ["敵より先に動く", "AP2：隣の敵に1か、敵へ1歩", "これを1ターンに2回"]
+				lines = ["敵より先に動く", "AP%d：隣の敵に1か、敵へ1歩" % Rules.HOLY_KNIGHT_AP, "これを1ターンに%d回" % Rules.HOLY_KNIGHT_AP]
 			intent = "近くの敵を攻撃"
 		"wolf":
 			moves = Rules.WOLF_MOVES
 			strikes = Rules.WOLF_MOVES
-			lines = ["銀の動き・右向き固定", "AP3：1歩か1噛みでAP1", "噛むと単独で2ダメージ", "隣に誰かいると1ダメージ", "武器が届く所ではすねる"]
+			lines = ["銀の動き・右向き固定", "AP%d：1歩か1噛みでAP1" % Rules.ally_ap("wolf"), "噛むと単独で%dダメージ" % Rules.WOLF_BITE, "隣に誰かいると%dダメージ" % Rules.WOLF_CROWDED_BITE, "武器が届く所ではすねる"]
 			var sulking: bool = model.all_reach().has(ally.cell)
 			intent = "すねている…（動かない）" if sulking else "群れずに噛みつく"
 		"glutton":
 			moves = Rules.GLUTTON_MOVES
 			strikes = Rules.GLUTTON_MOVES
-			lines = ["金の動き・右向き固定", "2回動いて一番近い相手を噛む", "噛むと99ダメージ", "同じ距離ならあなたを優先"]
+			lines = ["金の動き・右向き固定", "%d回動いて一番近い相手を噛む" % Rules.ally_ap("glutton"), "噛むと%dダメージ" % Rules.CIRCLE_DAMAGE, "同じ距離ならあなたを優先"]
 			# The same "!" the board shows (worked out once per turn in _sync_units).
 			warn = actors.has(int(ally.id)) and actors[int(ally.id)].charge_warning
 		"holy":
 			_draw_ally_big_range(ally)
-			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士（HP2・AP2）が%d体" % (4 if ally.get("plus", false) else 2)]
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士（HP%d・AP%d）が%d体" % [Rules.HOLY_KNIGHT_HP, Rules.HOLY_KNIGHT_AP, 4 if ally.get("plus", false) else 2]]
 			intent = "近くの敵を攻撃"
 		"guardian":
 			_draw_ally_big_range(ally)
-			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "この戦闘の妖精をHP+1で呼んだ"]
+			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "この戦闘の妖精をHP+%dで呼んだ" % Rules.GUARDIAN_BONUS_HP]
 			intent = "仲間を率いて戦う"
 	if ally.type not in ["holy", "guardian"]:
 		_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
@@ -1980,7 +1980,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 				info.lines = ["叩くと爆発して消える", "周囲8マスの敵に1", "自分・味方は巻き込まない"] if cannon.get("plus", false) else ["叩くと爆発して消える", "周囲8マスに1", "自分・味方も巻き込む"]
 			"capacitor":
 				info.state = "電気：%d / %d" % [int(cannon.get("charge", 0)), Rules.CAPACITOR_FULL]
-				info.lines = ["叩かれた時に1溜まる", "3で縦横4方向の直線上の", "敵すべてに1"]
+				info.lines = ["叩かれた時に1溜まる", "%dで縦横4方向の直線上の" % Rules.CAPACITOR_FULL, "敵すべてに1"]
 		info.lines.append("他の大砲・魔弾でも誘爆")
 		return info
 	if model.walls.has(cell):
@@ -1992,9 +1992,9 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.mines.has(cell):
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
-		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の突進は落ちず2ダメージ", "動くと届く範囲に合わせて", "奈落も変わる"]}
+		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の突進は落ちず%dダメージ" % Rules.PIT_BUMP_DAMAGE, "動くと届く範囲に合わせて", "奈落も変わる"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
-		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+1"] if model.blessing.get("plus", false) else [])}
+		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):
 		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
 	return {}

@@ -84,7 +84,7 @@ func _render() -> void:
 			_loadout()
 		Run.State.START_FAIRY:
 			_label(Vector2(44,48),"最初の妖精を選ぶ",30,INK)
-			_label(Vector2(44,94),"2 / 2   妖精は各戦闘1回・使用1 AP",17,sub)
+			_label(Vector2(44,94),"2 / 2   妖精は各戦闘1回・使うAPはカードに表示",17,sub)
 			_cards(run.offers)
 			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"← 武器選択",_back_to_weapon)

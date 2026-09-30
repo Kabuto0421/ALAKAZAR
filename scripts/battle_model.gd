@@ -17,6 +17,33 @@ const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 const HOLY_KNIGHT_HP := 2
 const HOLY_KNIGHT_AP := 2
 const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精", "guardian": "守護神"}
+## Summoned allies, by fairy: HP, AP and HP once classed up. The summons, the reward
+## cards, the ally panel and every text that quotes these numbers read them from here.
+const SUMMON_STATS := {
+	"acorn_fairy": {"hp": 1, "ap": 1, "hp_plus": 2},
+	"glutton_fairy": {"hp": 1, "ap": 2, "hp_plus": 3},
+	"guardian_fairy": {"hp": 3, "ap": 1, "hp_plus": 4},
+	"holy_spirit": {"hp": 1, "ap": 1, "hp_plus": 1},
+	"lone_wolf": {"hp": 3, "ap": 3, "hp_plus": 3},
+}
+## Which fairy each summoned ally type comes from.
+const ALLY_FAIRY := {"acorn": "acorn_fairy", "glutton": "glutton_fairy", "guardian": "guardian_fairy", "holy": "holy_spirit", "wolf": "lone_wolf"}
+## 守護神の妖精: HP added to every ally it calls back.
+const GUARDIAN_BONUS_HP := 1
+## 暴食妖精: HP gained per bite.
+const GLUTTON_GROWTH := 1
+## 一匹狼の妖精: a bite alone / with someone next to it.
+const WOLF_BITE := 2
+const WOLF_CROWDED_BITE := 1
+## 重力妖精: pull reach and push distance (one more each, classed up).
+const GRAVITY_PULL := 2
+const GRAVITY_PUSH := 1
+## 影縫い精霊: AP to swap with the shadow (one less classed up).
+const SHADOW_SWAP_AP := 1
+## 加護の妖精+: HP healed for ending the turn on the blessed ground.
+const BLESS_HEAL := 1
+## 奈落: what a charging 2x2 takes for stumbling over a pit.
+const PIT_BUMP_DAMAGE := 2
 ## Class-ups beyond one: the meteor fairy can be upgraded four times.
 const MAX_PLUS = {"meteor_fairy": 4}
 ## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
@@ -139,29 +166,29 @@ func blade_max() -> int:
 	return BLADE_MAX
 ## Camp class-ups: fairy id -> true. Upgraded fairies show a yellow "+".
 var fairy_plus: Dictionary = {}
-## What each class-up does: [one-line summary, full description].
+## Class-ups: [the short line, the full text]. {name}s are filled by fairy_text().
 const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
-	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に1。\n刺しても消えず5ターン残る\n（1ターンに1回）。"],
-	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
-	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
-	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
-	"cannon_fairy": ["0 APで置ける・毎戦闘2回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
+	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に1。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
+	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
+	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
+	"wall_fairy": ["{turns}ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め{turns}ターン\n完全な障害物として残る。"],
+	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
-	"shadow_stitch": ["置くのも入れ替わりも0 AP", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わる\n（1ターン1回）。"],
-	"lone_wolf": ["0 APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n武器が届く所ではすねる。"],
-	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
-	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
-	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+1", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+1。"],
+	"shadow_stitch": ["置くのも入れ替わりも{cost_plus} AP", "全武器の範囲外の空きマスに\n影を縫い止める。{turns}ターン残る。\n{swap_ap_plus} APで影と入れ替わる\n（1ターン1回）。"],
+	"lone_wolf": ["{cost_plus} APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で{wolf_bite}、隣に誰かいると{wolf_crowded}。\n武器が届く所ではすねる。"],
+	"glutton_fairy": ["最初からHP{hp_plus}の暴食妖精", "攻撃範囲に召喚。HP{hp_plus}・AP{ally_ap}。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと{bite}ダメージ、HP+{growth}。"],
+	"freeze_fairy": ["{freeze_plus}ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n{freeze_plus}ターン動けず攻撃もしない。"],
+	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+{bless_heal}", "攻撃範囲の空きマスに置く。\n周囲5×5が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+{bless_heal}。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
-	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
+	"guardian_fairy": ["HP{hp_plus}で降臨する", "攻撃範囲に2×2の守護神（HP{hp_plus}・\nAP{ally_ap}）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+{guardian_bonus}で呼び直す。暴食も来る。"],
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
-	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲の外に置くと、周囲3\nマスの敵を1マス引き寄せる。\n攻撃範囲に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
-	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず2ダメージ。"],
-	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP1）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP2・AP2）が4体出る。"],
-	"axe_spirit": ["毎戦闘2回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘2回。"],
-	"capacitor_fairy": ["0 APで置ける・毎戦闘2回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
+	"gravity_fairy": ["もっと遠くから引き寄せ、{push_plus}マス弾く", "空きマスならどこでも置ける。\n範囲外なら、もっと遠く（周囲\n{pull_plus}マス）から1マス引き寄せる。\n攻撃範囲なら、周りの敵を\n{push_plus}マス弾く。ダメージなし。"],
+	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず{pit_bump}ダメージ。"],
+	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
+	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。"],
+	"capacitor_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n{charge}溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
 ## Class-ups that turn a fairy into another one (none now: the flying slash became 斬撃精霊+).
@@ -494,19 +521,58 @@ func fairy_title(id: String) -> String:
 	var level := plus_level(id)
 	return item.title + ("" if level == 0 else "+" if level == 1 else "+%d" % level)
 
-func fairy_summary(id: String) -> String:
-	if id == "meteor_fairy" and is_plus(id):
-		return "隕石が%d個落ちる" % meteor_count()
-	return PLUS_TEXT[id][0] if is_plus(id) else item_definition(id).summary
+## `plus`: 1 the classed-up text, 0 the plain one, -1 whatever this fairy is now.
+func fairy_summary(id: String, plus: int = -1) -> String:
+	var upgraded := _upgraded(id, plus)
+	if id == "meteor_fairy" and upgraded:
+		return "隕石が%d個落ちる" % _meteors_at(id, plus)
+	return fairy_text(id, PLUS_TEXT[id][0] if upgraded else item_definition(id).summary)
 
-func fairy_description(id: String) -> String:
-	if id == "meteor_fairy" and is_plus(id):
-		return meteor_text(meteor_count())
-	return PLUS_TEXT[id][1] if is_plus(id) else item_definition(id).description
+func fairy_description(id: String, plus: int = -1) -> String:
+	var upgraded := _upgraded(id, plus)
+	if id == "meteor_fairy" and upgraded:
+		return meteor_text(_meteors_at(id, plus))
+	return fairy_text(id, PLUS_TEXT[id][1] if upgraded else item_definition(id).description)
+
+## The meteor count to describe: a class-up preview of a plain meteor fairy shows two.
+func _meteors_at(id: String, plus: int) -> int:
+	return meteor_count() + (1 if plus == 1 and not is_plus(id) else 0)
+
+func _upgraded(id: String, plus: int) -> bool:
+	return is_plus(id) if plus < 0 else plus == 1 and PLUS_TEXT.has(id)
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。\n自分と味方は無事。" % n
+	return fairy_text("meteor_fairy", "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に{meteor}ダメージ。\n自分と味方は無事。" % n)
+
+## Fairy texts never write a number the rules own: they write {name} and this fills it
+## from the constants above and the fairy's item data, so changing a value (a fairy's
+## AP, a summon's HP, a duration) changes every text that quotes it.
+static func fairy_text(id: String, text: String) -> String:
+	return text.format(text_values(id))
+
+static func text_values(id: String) -> Dictionary:
+	var values := {
+		"turns": WALL_TURNS, "freeze": FREEZE_TURNS, "freeze_plus": FREEZE_TURNS + 1,
+		"abyss_plus": WALL_TURNS + 2, "meteor": METEOR_DAMAGE, "charge": CAPACITOR_FULL,
+		"bite": CIRCLE_DAMAGE, "growth": GLUTTON_GROWTH, "guardian_bonus": GUARDIAN_BONUS_HP,
+		"knight_hp": HOLY_KNIGHT_HP, "knight_ap": HOLY_KNIGHT_AP,
+		"wolf_bite": WOLF_BITE, "wolf_crowded": WOLF_CROWDED_BITE,
+		"pull": GRAVITY_PULL, "pull_plus": GRAVITY_PULL + 1, "push": GRAVITY_PUSH, "push_plus": GRAVITY_PUSH + 1,
+		"swap_ap": SHADOW_SWAP_AP, "swap_ap_plus": maxi(0, SHADOW_SWAP_AP - 1),
+		"bless_heal": BLESS_HEAL, "pit_bump": PIT_BUMP_DAMAGE,
+	}
+	for item in ITEMS:
+		if item.id == id:
+			values.cost = fairy_ap_cost_at(item, false)
+			values.cost_plus = fairy_ap_cost_at(item, true)
+			values.uses = fairy_uses_at(item, false)
+			values.uses_plus = fairy_uses_at(item, true)
+	if SUMMON_STATS.has(id):
+		values.hp = SUMMON_STATS[id].hp
+		values.hp_plus = SUMMON_STATS[id].hp_plus
+		values.ally_ap = SUMMON_STATS[id].ap
+	return values
 
 ## Besides its own change (PLUS_TEXT), a class-up gives one more use per battle, keeping
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
@@ -514,11 +580,30 @@ static func meteor_text(n: int) -> String:
 ## their own change.
 const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy"]
 const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit"]
-func fairy_ap_cost(id: String) -> int:
-	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) and PLUS_AP_CUT.has(id) else 0))
+## A fairy's AP and uses per battle come only from its item data (ap_cost,
+## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
+func fairy_ap_cost(id: String, plus: int = -1) -> int:
+	return fairy_ap_cost_at(item_definition(id), _upgraded(id, plus))
 
-func fairy_uses(id: String) -> int:
-	return item_definition(id).initial_count + (1 if is_plus(id) and not PLUS_NO_EXTRA_USE.has(id) else 0)
+func fairy_uses(id: String, plus: int = -1) -> int:
+	return fairy_uses_at(item_definition(id), _upgraded(id, plus))
+
+static func fairy_ap_cost_at(item: Resource, upgraded: bool) -> int:
+	return maxi(0, item.ap_cost - (1 if upgraded and PLUS_AP_CUT.has(item.id) else 0))
+
+static func fairy_uses_at(item: Resource, upgraded: bool) -> int:
+	return item.initial_count + (1 if upgraded and not PLUS_NO_EXTRA_USE.has(item.id) else 0)
+
+## A summon's HP (its class-up HP once classed up) and AP.
+func summon_hp(id: String) -> int:
+	return int(SUMMON_STATS[id].hp_plus if is_plus(id) else SUMMON_STATS[id].hp)
+
+static func summon_ap(id: String) -> int:
+	return int(SUMMON_STATS[id].ap)
+
+## An ally unit's AP per turn (the holy knights have their own).
+static func ally_ap(type: String) -> int:
+	return HOLY_KNIGHT_AP if type == "holy_knight" else summon_ap(ALLY_FAIRY[type]) if ALLY_FAIRY.has(type) else 1
 
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
@@ -1152,7 +1237,7 @@ func summon_guardian(cell: Vector2i) -> void:
 	var anchor := big_anchor(cell)
 	if anchor == Vector2i(-1, -1):
 		return
-	var guardian := {"id":next_ally_id, "type":"guardian", "cell":anchor, "hp":4 if is_plus("guardian_fairy") else 3, "ap":1, "facing":2, "size":2}
+	var guardian := {"id":next_ally_id, "type":"guardian", "cell":anchor, "hp":summon_hp("guardian_fairy"), "ap":summon_ap("guardian_fairy"), "facing":2, "size":2}
 	allies.append(guardian)
 	next_ally_id -= 1
 	var calls: Array = []
@@ -1173,7 +1258,7 @@ func summon_guardian(cell: Vector2i) -> void:
 		# fairy has none, it just stands its five turns again).
 		var ally_id := -1
 		if kind != "stealth":
-			allies[-1].hp += 1
+			allies[-1].hp += GUARDIAN_BONUS_HP
 			ally_id = int(allies[-1].id)
 		var delay := GUARDIAN_LAND + GUARDIAN_STEP * calls.size()
 		for i in range(first, events.size()):
@@ -1211,7 +1296,7 @@ func summon_holy(cell: Vector2i) -> void:
 	var anchor := big_anchor(cell)
 	if anchor == Vector2i(-1, -1):
 		return
-	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":1, "ap":1, "facing":2, "size":2, "plus":is_plus("holy_spirit")})
+	allies.append({"id":next_ally_id, "type":"holy", "cell":anchor, "hp":summon_hp("holy_spirit"), "ap":summon_ap("holy_spirit"), "facing":2, "size":2, "plus":is_plus("holy_spirit")})
 	_note_summon("holy")
 	next_ally_id -= 1
 	for tile in footprint({"cell":anchor, "size":2}):
@@ -1283,7 +1368,7 @@ func axe_preview(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 
 func summon_acorn(cell: Vector2i) -> void:
 	var plus := is_plus("acorn_fairy")
-	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":2 if plus else 1, "ap":1, "facing":1, "plus":plus})
+	allies.append({"id":next_ally_id, "type":"acorn", "cell":cell, "hp":summon_hp("acorn_fairy"), "ap":summon_ap("acorn_fairy"), "facing":1, "plus":plus})
 	_note_summon("acorn")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
@@ -1295,7 +1380,7 @@ func place_shadow(cell: Vector2i) -> void:
 
 ## Clicking the shadow swaps with it: 1 AP (0 once classed up), once a player turn.
 func shadow_swap_cost() -> int:
-	return 0 if is_plus("shadow_stitch") else 1
+	return maxi(0, SHADOW_SWAP_AP - (1 if is_plus("shadow_stitch") else 0))
 
 func can_swap_shadow(cell: Vector2i) -> bool:
 	return phase == Phase.PLAYER and not shadow.is_empty() and shadow.cell == cell and shadow.ready and player.ap >= shadow_swap_cost()
@@ -1322,10 +1407,10 @@ func gravity(cell: Vector2i) -> void:
 	var plus := is_plus("gravity_fairy")
 	events.append({"kind":"gravity", "cell":cell, "id":-2, "pull":gravity_pulls(cell)})
 	if gravity_pulls(cell):
-		_gravity_pull(cell, 3 if plus else 2)
+		_gravity_pull(cell, GRAVITY_PULL + (1 if plus else 0))
 		add_log("重力妖精が敵を引き寄せた")
 	else:
-		_gravity_push(cell, 2 if plus else 1)
+		_gravity_push(cell, GRAVITY_PUSH + (1 if plus else 0))
 		add_log("重力妖精が敵を弾き飛ばした")
 	check_outcome()
 
@@ -1432,9 +1517,9 @@ func place_blessing(cell: Vector2i) -> void:
 func bless_heal() -> void:
 	if blessing.is_empty() or not blessing.get("plus", false) or not blessed(player.cell) or player.hp <= 0 or player.hp >= MAX_HP:
 		return
-	player.hp += 1
+	player.hp = mini(player.hp + BLESS_HEAL, MAX_HP)
 	events.append({"kind":"heal", "cell":player.cell, "id":-1})
-	add_log("加護の地でHPが1回復した")
+	add_log("加護の地でHPが%d回復した" % BLESS_HEAL)
 
 func blessed(cell: Vector2i) -> bool:
 	if blessing.is_empty():
@@ -1506,7 +1591,7 @@ const GLUTTON_MOVES = [Vector2i(1,0), Vector2i(1,-1), Vector2i(1,1), Vector2i(0,
 
 func summon_glutton(cell: Vector2i) -> void:
 	var plus := is_plus("glutton_fairy")
-	allies.append({"id":next_ally_id, "type":"glutton", "cell":cell, "hp":3 if plus else 1, "ap":2, "facing":1, "plus":plus})
+	allies.append({"id":next_ally_id, "type":"glutton", "cell":cell, "hp":summon_hp("glutton_fairy"), "ap":summon_ap("glutton_fairy"), "facing":1, "plus":plus})
 	_note_summon("glutton")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"acorn"})
@@ -1533,7 +1618,7 @@ func glutton_prey(glutton: Dictionary, cell: Vector2i) -> Array[Vector2i]:
 ## whole. Every bite adds 1 HP.
 func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
 	glutton.ap -= 1
-	glutton.hp += 1
+	glutton.hp += GLUTTON_GROWTH
 	var gap: Vector2i = tile - glutton.cell
 	if CARDINALS.has(gap):
 		glutton.facing = CARDINALS.find(gap)
@@ -1565,7 +1650,7 @@ func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
 ## Two actions: bite whatever is in reach (the player first); otherwise step along the
 ## shortest route over its own moves to a tile with prey in reach, the player's first.
 func _glutton_action(glutton: Dictionary) -> void:
-	glutton.ap = 2
+	glutton.ap = summon_ap("glutton_fairy")
 	while glutton.ap > 0 and glutton.hp > 0 and not terminal():
 		var prey := glutton_prey(glutton, glutton.cell)
 		if not prey.is_empty():
@@ -1609,11 +1694,9 @@ func _glutton_action(glutton: Dictionary) -> void:
 ## 一匹狼の妖精: a lone ally that hunts on its own until it falls. It moves like a
 ## silver general facing right and bites the tiles it could move to.
 const WOLF_MOVES = [Vector2i(1,0), Vector2i(1,-1), Vector2i(1,1), Vector2i(-1,-1), Vector2i(-1,1)]
-const WOLF_HP := 3
-const WOLF_AP := 3
 func summon_wolf(cell: Vector2i) -> void:
 	var plus := is_plus("lone_wolf")
-	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":WOLF_HP, "ap":WOLF_AP, "facing":1, "plus":plus})
+	allies.append({"id":next_ally_id, "type":"wolf", "cell":cell, "hp":summon_hp("lone_wolf"), "ap":summon_ap("lone_wolf"), "facing":1, "plus":plus})
 	_note_summon("wolf")
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
@@ -1638,14 +1721,14 @@ func _wolf_action(wolf: Dictionary) -> void:
 		add_log("一匹狼の妖精はそっぽを向いた")
 		wolf.ap = 0
 		return
-	wolf.ap = WOLF_AP
+	wolf.ap = summon_ap("lone_wolf")
 	while wolf.ap > 0 and wolf.hp > 0 and not terminal():
 		var prey := _wolf_prey(wolf, wolf.cell)
 		if not prey.is_empty():
 			wolf.ap -= 1
 			var target: Dictionary = prey.enemy
 			events.append({"kind":"bite", "cell":wolf.cell + prey.dir, "id":-2})
-			damage_enemy(target, 1 if wolf_crowded(wolf) else 2, prey.dir)
+			damage_enemy(target, WOLF_CROWDED_BITE if wolf_crowded(wolf) else WOLF_BITE, prey.dir)
 			add_log("一匹狼の妖精が噛みついた")
 			check_outcome()
 			continue
@@ -2247,7 +2330,7 @@ func rook_charge(enemy: Dictionary) -> bool:
 				# Too big to fall: stumbling over the abyss costs 2 and fills it.
 				pits.erase(cell)
 				events.append({"kind":"fall", "cell":cell, "id":-2})
-				damage_enemy(enemy, 2)
+				damage_enemy(enemy, PIT_BUMP_DAMAGE)
 				if enemy.hp <= 0:
 					stop = true
 			elif _smash(cell):

@@ -16,21 +16,17 @@ const KINDS := {
 	"capacitor_fairy": "設置", "shadow_stitch": "設置", "blessing_fairy": "設置", "abyss_spirit": "設置",
 }
 const KIND_COLORS := {"召喚": Color("7dff9a"), "設置": Color("9fd8ff"), "使い切り": Color("ffd08a")}
-## Summoned allies: [HP, AP, HP once classed up].
-const SUMMONS := {
-	"acorn_fairy": [1, 1, 2], "holy_spirit": [1, 1, 1], "lone_wolf": [3, 3, 3],
-	"glutton_fairy": [1, 2, 3], "guardian_fairy": [3, 1, 4],
-}
-## The trickier fairies get a fuller line than their summary.
+## The trickier fairies get a fuller line than their summary. Numbers the rules own are
+## written as {name} and filled by the battle model (fairy_text), like the item texts.
 const CARD_TEXT := {
 	"abyss_spirit": "武器の届かない空きマス（敵・障害物なし）が奈落に。動くと変わる",
-	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で2ダメージ、隣に仲間がいると1ダメージ。届くマスではすねる",
-	"shadow_stitch": "届かないマスに影を置き、1 APで入れ替わる",
-	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（99ダメージ）",
-	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが3ダメージを受ける）",
-	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+1）",
-	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる",
-	"capacitor_fairy": "叩かれる・撃たれると1溜まり、3つで4方向に放電",
+	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で{wolf_bite}ダメージ、隣に仲間がいると{wolf_crowded}ダメージ。届くマスではすねる",
+	"shadow_stitch": "届かないマスに影を置き、{swap_ap} APで入れ替わる",
+	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（{bite}ダメージ）",
+	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージを受ける）",
+	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+{guardian_bonus}）",
+	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる。育てれば癒やしの力も…？",
+	"capacitor_fairy": "叩かれる・撃たれると1溜まり、{charge}つで4方向に放電",
 }
 ## Cannons: besides their own trigger, another cannon's shot or a magic bolt sets them off.
 const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
@@ -81,14 +77,14 @@ func _ready() -> void:
 		title = item.title
 		plus = model.is_plus(fairy_id) or (preview_plus and model.PLUS_TEXT.has(fairy_id))
 		# One short line: what it does, or on a class-up card what the class-up adds.
-		description = CARD_TEXT.get(fairy_id, item.summary)
+		description = model.fairy_text(fairy_id, CARD_TEXT[fairy_id]) if CARD_TEXT.has(fairy_id) else model.fairy_summary(fairy_id, 0)
 		if plus:
-			description = model.PLUS_TEXT[fairy_id][0]
+			description = model.fairy_summary(fairy_id, 1)
 		if fairy_id == "meteor_fairy" and plus:
 			# Each class-up adds a meteor: preview the next count.
 			description = "隕石が%d個落ちる" % (model.meteor_count() + (1 if preview_plus else 0))
 		if preview_plus and plus:
-			base_description = item.summary
+			base_description = model.fairy_summary(fairy_id, 0)
 	# The frame shows the rarity in its material (wood, jade, lapis lazuli, gold),
 	# drawn over the card at the end; the card itself is just the dark ground.
 	var tier := Rarity.tier(offer)
@@ -192,7 +188,7 @@ func _ready() -> void:
 		var demo_top := row+26
 		# An animated example of what it does, as large as the card allows, then the
 		# summon's HP / AP, the guardian's calls and one short line of text.
-		var stats: Array = SUMMONS.get(fairy_id, [])
+		var stats: Dictionary = model.SUMMON_STATS.get(fairy_id, {})
 		var marks_height := (26.0 if not stats.is_empty() else 0.0) + (36.0 if fairy_id == "guardian_fairy" else 0.0)
 		# Room for the text: its lines at this card's width, plus the chain line of cannons.
 		var chars_per_line := maxf(1.0, floorf((size.x-24)/15.5))
@@ -220,8 +216,8 @@ func _ready() -> void:
 			marks.position = Vector2(14,marks_top)
 			marks.size = Vector2(size.x-28,marks_height)
 			if not stats.is_empty():
-				marks.hp = int(stats[2]) if plus else int(stats[0])
-				marks.ap = int(stats[1])
+				marks.hp = int(stats.hp_plus) if plus else int(stats.hp)
+				marks.ap = int(stats.ap)
 			marks.calls = fairy_id == "guardian_fairy"
 			add_child(marks)
 		var text_top := marks_top+marks_height+(2 if marks_height > 0 else 0)
@@ -234,10 +230,9 @@ func _ready() -> void:
 			if chained.get_minimum_size().x > size.x-12-chained.position.x:
 				chained.text = "大砲・魔弾でも発動"
 			_fit_width(chained,size.x-12-chained.position.x)
-		var item_def: Resource = model.item_definition(fairy_id)
-		# The same rules as the battle: only some class-ups cut the AP or add a use.
-		var ap: int = maxi(0, item_def.ap_cost - (1 if plus and model.PLUS_AP_CUT.has(fairy_id) else 0))
-		var uses: int = item_def.initial_count + (1 if plus and not model.PLUS_NO_EXTRA_USE.has(fairy_id) else 0)
+		# Straight from the battle rules (the item data and its class-up).
+		var ap: int = model.fairy_ap_cost(fairy_id, 1 if plus else 0)
+		var uses: int = model.fairy_uses(fairy_id, 1 if plus else 0)
 		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else Rarity.INFO)
 	if note != "":
 		var note_label := _label(Vector2(14,y+22),note,16,note_color)

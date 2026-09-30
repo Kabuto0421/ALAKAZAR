@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "blessing_fairy"
 title = "加護の妖精"
-description = "攻撃範囲の空きマスに置く。\n周囲3×3が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。"
+description = "攻撃範囲の空きマスに置く。\n周囲3×3が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n育てれば、癒やしの力も…？"
 summary = "中だと攻撃が十字に広がる"
 color = Color(1, 0.86, 0.45, 1)
 target = 0

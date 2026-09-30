@@ -8,8 +8,8 @@
 script = ExtResource("1")
 id = "freeze_fairy"
 title = "氷結妖精"
-description = "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n3ターン動けず攻撃もしない。"
-summary = "3×3を3ターン凍結"
+description = "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n{freeze}ターン動けず攻撃もしない。"
+summary = "3×3を{freeze}ターン凍結"
 color = Color(0.55, 0.85, 1, 1)
 target = 2
 effect = ExtResource("2")

@@ -20,7 +20,7 @@ const PAGES := [
 		{"shots": ["basic_attack_a", "basic_attack_b"], "tags": ["AP 2", "攻撃 −1 AP"], "caption": "攻撃", "sub": "敵を押す。自分は動かない"},
 		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く", "sub": "光るマスに置く"},
 	]},
-	{"title": "AP（行動力）", "lead": "移動・攻撃・妖精はどれもAP1。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
+	{"title": "AP（行動力）", "lead": "移動・攻撃はAP1、妖精はカードのAP（ほとんど1）。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
 		{"shots": ["loop_0", "loop_1", "loop_2", "loop_3", "loop_4"], "tags": ["あなたのターン AP 2", "移動 −1 AP", "攻撃 −1 AP → 0", "敵のターン", "またあなたのターン AP 2"], "caption": "2回動いたら敵の番", "sub": "敵が動くとAPが2に戻る。これのくり返し", "wide": true},
 		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP", "sub": "光るマスが変わる"},
 	]},
@@ -34,7 +34,7 @@ const PAGES := [
 		{"shots": ["push_a", "push_b"], "tags": ["押出", "ぶつかって +1"], "caption": "押出", "sub": "押された敵がぶつかると+1"},
 		{"shots": ["slide"], "caption": "滑る", "sub": "ふさがるまで一直線に進む"},
 	]},
-	{"title": "妖精", "lead": "妖精はいっしょに戦う相棒。各戦闘1回ずつ力を貸してくれて、呼ぶとAP1。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
+	{"title": "妖精", "lead": "妖精はいっしょに戦う相棒。各戦闘1回ずつ力を貸してくれて、呼ぶとAP1（0 APの妖精もいる）。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
 		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "呼ぶとAP1", "sub": "1戦闘1回（次の戦闘でまた呼べる）"},
 		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第", "sub": "水色のマスに置ける"},
 	]},

@@ -7,6 +7,7 @@ extends RefCounted
 ## Illustrations are independent of gameplay state and never consume items or AP.
 
 const Units = preload("res://scripts/unit_view.gd")
+const Rules = preload("res://scripts/battle_model.gd")
 const Sheet = preload("res://scripts/items/direction_sheet.gd")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const FLYING_SLASH = preload("res://assets/sprites/spirits/flying_slash.png")
@@ -409,7 +410,7 @@ static func _shadow(time: float, art: Texture2D, plus: bool) -> void:
 		_art(art, Vector2(4,1).lerp(Vector2(1,1), swap), _ph(p, 0.3, 0.38))
 	_player(Vector2(1,1).lerp(Vector2(4,1), swap))
 	if swap > 0.0:
-		_say(_center(Vector2(2.5,0)), "0 AP" if plus else "1 AP", 16, GOLD)
+		_say(_center(Vector2(2.5,0)), "%d AP" % maxi(0, Rules.SHADOW_SWAP_AP - (1 if plus else 0)), 16, GOLD)
 
 ## Summoned where no weapon reaches (here: holding silver); it moves and bites like
 ## a silver general facing right. Alone it bites for 2,
