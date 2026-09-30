@@ -97,17 +97,13 @@ func _render() -> void:
 				_label(Vector2(44,94),("妖精の使用回数が回復・勝利でHP+1（持ち越し）。" if run.win_heal() > 0 else "妖精の使用回数が回復（HPは持ち越し）。") + "武器3候補・妖精2候補。",17,sub)
 			_cards(run.offers)
 			_loadout()
-			# Framed in lapis with light-blue text so it reads as a choice of its own.
-			var skip := _button(Vector2(894,86),Vector2(214,44),"今の構成で進む",_skip)
-			skip.add_theme_color_override("font_color",Rarity.INFO)
-			skip.add_theme_color_override("font_hover_color",Color.WHITE)
-			var frame := RarityFrame.new()
-			frame.tier = Rarity.RARE
-			frame.thickness = 6.0
-			frame.size = skip.size
-			skip.add_child(frame)
-			skip.mouse_entered.connect(func(): frame.set_hover(true))
-			skip.mouse_exited.connect(func(): frame.set_hover(false))
+			# A plain light-blue border so it reads as a choice of its own.
+			var skip := _button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
+			skip.add_theme_color_override("font_color",Color.WHITE)
+			for state in ["normal","hover","pressed"]:
+				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
+				style.set_border_width_all(3 if state != "normal" else 2)
+				skip.add_theme_stylebox_override(state,style)
 		Run.State.REPLACE:
 			var title: String = run.battle.WEAPONS[int(run.pending.value)].name if run.pending.kind=="weapon" else run.battle.item_definition(str(run.pending.value)).title
 			_label(Vector2(44,48),"「%s」と交換する装備を選ぶ" % title,30,INK)
