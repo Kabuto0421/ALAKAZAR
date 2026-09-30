@@ -2070,7 +2070,7 @@ func strike_under(cell: Vector2i, kind: String, direction: Vector2i) -> void:
 
 # --- two-by-two bosses -------------------------------------------------------
 
-## A broken moving prison lets out two executioners on a diagonal of its footprint.
+## Broken prisons and fortresses leave only rubble or nothing (no one comes out).
 func _release_prisoners() -> void:
 	for fortress in enemies.duplicate():
 		if fortress.type == "fortress" and fortress.hp <= 0 and not fortress.get("released", false):
@@ -2078,30 +2078,9 @@ func _release_prisoners() -> void:
 			ruins.append(fortress.cell)
 			add_log("要塞監獄が崩れた")
 	for prison in enemies.duplicate():
-		if prison.type != "prison" or prison.hp > 0 or prison.get("released", false):
-			continue
-		prison.released = true
-		var pairs := [[Vector2i(0,0), Vector2i(1,1)], [Vector2i(1,0), Vector2i(0,1)]]
-		var spots: Array[Vector2i] = []
-		for pair in pairs:
-			spots.clear()
-			for offset in pair:
-				var cell: Vector2i = prison.cell + offset
-				if cell != player.cell and not blocked(cell) and enemy_at(cell).is_empty():
-					spots.append(cell)
-			if spots.size() == 2:
-				break
-		var next_id := 0
-		for enemy in enemies:
-			next_id = maxi(next_id, int(enemy.id) + 1)
-		for cell in spots:
-			var guard := make_enemy("executioner", cell, next_id)
-			guard.facing = prison.facing
-			guard.ap = 0
-			enemies.append(guard)
-			events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"prison"})
-			next_id += 1
-		add_log("移動監獄が壊れ、執行兵が現れた")
+		if prison.type == "prison" and prison.hp <= 0 and not prison.get("released", false):
+			prison.released = true
+			add_log("移動監獄が壊れた")
 
 ## Boss entrance: every blue rook turns red and aims before the player's first turn.
 func boss_intro() -> bool:

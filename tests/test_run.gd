@@ -630,7 +630,7 @@ func _rook_and_prison() -> void:
 	verify(m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(2,1),"The player steps up to it")
 	m.player.ap = 2
 	verify(m.player_action(Vector2i(3,1)) and rook.hp == 1,"Striking any of its tiles damages it")
-	# Moving prison: slides as a block, breaks into two executioners.
+	# Moving prison: slides as a block and simply breaks.
 	m = _boss_room()
 	prison = m.enemies.filter(func(e): return e.type == "prison")[0]
 	m.enemies = m.enemies.filter(func(e): return e.type == "prison")
@@ -646,14 +646,8 @@ func _rook_and_prison() -> void:
 	m.player.ap = 2
 	m.weapon = 0
 	verify(m.player_action(Vector2i(1,4)),"The player strikes the prison")
-	var guards: Array = m.enemies.filter(func(e): return e.type == "executioner")
-	verify(guards.size() == 2 and m.phase == Rules.Phase.PLAYER,"Breaking it releases two executioners and the fight goes on")
-	var spots: Array = guards.map(func(e): return e.cell)
-	spots.sort()
-	verify(spots == [Vector2i(1,3),Vector2i(2,4)],"They appear on a diagonal of its footprint")
-	verify(guards.all(func(e): return e.hp == 2 and Rules.TYPES[e.type].ap == 2),"Executioners are HP2/AP2")
-	_enemy_turn(m)
-	verify(m.player.hp < 4,"Executioners attack like infantry")
+	verify(m.enemies.filter(func(e): return e.type == "executioner").is_empty(),"Breaking it releases no one")
+	verify(m.phase == Rules.Phase.WON,"With the prison gone the room is cleared")
 	# The run draws the boss room.
 	var run := Run.new()
 	run.start(7)

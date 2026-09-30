@@ -1747,7 +1747,6 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			lines = ["金の動き・右向き固定", "2回動いて一番近い相手を噛む", "噛むと99ダメージ", "同じ距離ならあなたを優先"]
 			# The same "!" the board shows (worked out once per turn in _sync_units).
 			warn = actors.has(int(ally.id)) and actors[int(ally.id)].charge_warning
-			intent = "次はあなたを噛む！" if warn else "何でも喰らう"
 		"holy":
 			_draw_ally_big_range(ally)
 			lines = ["敵より先に動く", "辺に接する敵に1、", "いなければ敵へ1マス進む", "壊れると聖騎士が2体出る"]
@@ -1763,9 +1762,9 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 	for line in lines:
 		_text(Vector2(852,y),line,16,MUTED)
 		y += 22
-	# Only a real warning is spelled out (the glutton about to bite you).
-	if warn:
-		_text(Vector2(852,y+10),intent,22,Color("ff5b62"))
+	# The glutton can bite you too: the same warning as an enemy's.
+	if ally.type == "glutton":
+		_text(Vector2(852,y+14),THREAT_TEXT[0] if warn else THREAT_TEXT[1],20,THREAT_RED if warn else MUTED)
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(ally.id) else "右クリックで固定",18,MUTED)
 
 ## The 2x2 holy spirit: it strikes and steps along its four sides.
@@ -1917,8 +1916,17 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
-		_text(Vector2(852,489),"壊すと執行兵2体",23,CYAN)
+		_draw_threat(enemy,489)
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+
+## The big line under an enemy: whether it will hit you next enemy turn if you
+## stay where you are (the same check as the "!" over it on the board).
+const THREAT_TEXT := ["このままだと攻撃される！", "今の位置なら攻撃は届かない"]
+const THREAT_RED := Color("ff5b62")
+func _draw_threat(unit: Dictionary, y: float) -> void:
+	var id := int(unit.id)
+	var warn: bool = actors.has(id) and actors[id].charge_warning
+	_text(Vector2(852,y),THREAT_TEXT[0] if warn else THREAT_TEXT[1],20,THREAT_RED if warn else MUTED)
 
 func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	var type: Dictionary = Rules.TYPES[enemy.type]
@@ -1943,8 +1951,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,217),"移動・攻撃範囲：飛車",21,INK)
 		_draw_range(ROOK_RANGE,CYAN,enemy)
 		_text(Vector2(852,450),"向きの先へ端まで突進",18,Color("ff805a"))
-		var rook_intent := "赤：構えた向きへ突進" if enemy.get("state","") == "brace" else "すぐに構える"
-		_text(Vector2(852,489),rook_intent,23,GOLD)
+		_draw_threat(enemy,489)
+		_text(Vector2(852,520),"赤：構えた向きへ次に突進" if enemy.get("state","") == "brace" else "次の敵ターンに構える",19,GOLD if enemy.get("state","") == "brace" else MUTED)
 		_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 		return
 	if enemy.type in ["prison", "shadow"]:
@@ -1965,7 +1973,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
 	elif enemy.type == "king":
 		if enemy.hp <= Rules.KING_RAGE_HP:
-			_text(Vector2(852,520),"怒り：要塞が兵を2体ずつ出す",19,Color("ff6b6b"))
+			_text(Vector2(852,546),"怒り：要塞が兵を2体ずつ出す",19,Color("ff6b6b"))
 		var next := model.next_revival()
 		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
 	elif enemy.type == "fortress":
@@ -1978,13 +1986,15 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		var learned := int(enemy.get("learned",-1))
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
 	if int(enemy.get("frozen",0)) > 0:
-		_text(Vector2(852,520),"凍結中：あと%dターン動けない" % int(enemy.frozen),19,Color("9fe4ff"))
-	var intent := "死者を蘇らせる" if enemy.type == "king" else "兵を送り出す" if enemy.type == "fortress" else "金の動きで迫る" if enemy.type == "gold" else "銀の動きで迫る" if enemy.type == "silver" else "盾を構えて前進" if enemy.type == "shield" else "解析しながら前進" if enemy.type == "analyst" else "まっすぐ迫って攻撃" if enemy.type == "executioner" else "弓を構えている !" if enemy.get("state","") == "aim" else "照準合わせ" if enemy.type == "archer" else "接近して投擲" if enemy.type == "javelin" else "前線へ前進" if enemy.type == "heavy" else "移動 → 地雷設置" if enemy.type == "miner" else "跳躍接近" if enemy.type in Rules.JUMPERS else "突撃準備 !" if enemy.state == "charge" else "包囲中" if enemy.state == "encircle" else "囲んでから突撃"
-	_text(Vector2(852,479),intent,25,GOLD if enemy.state in ["charge","aim","brace"] else CYAN)
+		_text(Vector2(852,546),"凍結中：あと%dターン動けない" % int(enemy.frozen),19,Color("9fe4ff"))
+	_draw_threat(enemy,489)
+	# What it is up to right now, under the warning.
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
 	elif enemy.state == "charge":
-		_text(Vector2(852,520),"次の敵ターンに突撃",20,INK)
+		_text(Vector2(852,520),"突撃準備：次の敵ターンに突撃",19,GOLD)
+	elif enemy.get("state","") == "aim":
+		_text(Vector2(852,520),"弓を構えている：次に射る",19,GOLD)
 	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 
 func _draw_heart(center: Vector2, size: float, color: Color, filled: bool) -> void:
