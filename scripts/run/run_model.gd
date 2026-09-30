@@ -29,21 +29,18 @@ var rng := RandomNumberGenerator.new()
 var boss_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
-## Rare 2x2 fairies: one of the two fairy offers after the first boss may be one.
-const RARE_FAIRIES: Array[String] = ["axe_spirit", "holy_spirit"]
-const RARE_CHANCE := 0.3
-## Late fairies: placed only where no carried weapon reaches; they only turn
-## up after Rotorick.
-const LATE_FAIRIES: Array[String] = ["shadow_stitch", "lone_wolf", "abyss_spirit"]
-## Mid fairies: offered only after the first boss.
-const MID_FAIRIES: Array[String] = ["gravity_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy", "guardian_fairy"]
 ## Magic circle weapons: a rare early reward, commoner after the first boss.
 const CIRCLE_CHANCE_EARLY := 0.1
 const CIRCLE_CHANCE_LATE := 0.3
 ## 飛車槍・角剣 (magic circle only) are rare even after Rotorick: the chance that a
 ## reward's drop slot is one of them instead of a mid-game weapon.
 const LATE_WEAPON_CHANCE := 0.2
-var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy","guardian_fairy"]
+## Chance that an ordinary weapon slot holds a weapon from another point in the run
+## (a mid-game weapon early on, a three-tile one before the pre-boss reward, ...).
+const OFF_TIMING_CHANCE := 0.02
+## Within those, 飛車槍・角剣 weigh this much (they are super rare).
+const OFF_TIMING_LATE_WEIGHT := 0.25
+var reward_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy","warp_fairy","wall_fairy","cannon_fairy","vane_cannon","firework_fairy","slash_fairy","capacitor_fairy","shadow_stitch","lone_wolf","abyss_spirit","gravity_fairy","glutton_fairy","freeze_fairy","blessing_fairy","meteor_fairy","guardian_fairy","axe_spirit","holy_spirit"]
 
 func start(seed_value: int = -1) -> void:
 	if seed_value < 0:
@@ -75,13 +72,41 @@ func back_to_weapon() -> void:
 	state = State.START_WEAPON
 	offers.assign(start_weapon_offers)
 
-## Newly added fairies turn up more often; the rarer tiers less often.
-const NEW_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "abyss_spirit", "glutton_fairy", "freeze_fairy", "blessing_fairy", "meteor_fairy", "guardian_fairy"]
-const NEW_FAIRY_WEIGHT := 2.5
-const TIER_WEIGHTS := [1.0, 1.0, 0.5, 0.2]
+## Each fairy card first draws its rarity from this table (コモン, アンコモン, レア,
+## 激レア), by the fight just won (0 = the first fight), then a fairy of that rarity.
+## Every fairy can turn up from the first reward; the rarer tiers grow as the run
+## goes on (激レア from about 1% early to 10% at the end).
+const FAIRY_TIER_ODDS := [
+	[0.85, 0.10, 0.04, 0.01],
+	[0.85, 0.10, 0.04, 0.01],
+	[0.80, 0.13, 0.06, 0.01],
+	[0.55, 0.28, 0.12, 0.05],
+	[0.52, 0.29, 0.13, 0.06],
+	[0.50, 0.30, 0.14, 0.06],
+	[0.46, 0.31, 0.16, 0.07],
+	[0.40, 0.33, 0.19, 0.08],
+	[0.37, 0.34, 0.20, 0.09],
+	[0.35, 0.35, 0.21, 0.09],
+	[0.32, 0.36, 0.22, 0.10],
+]
 
-func fairy_weight(id: String) -> float:
-	return TIER_WEIGHTS[Rarity.tier({"kind":"fairy", "value":id})] * (NEW_FAIRY_WEIGHT if NEW_FAIRIES.has(id) else 1.0)
+## One fairy for a reward card: a rarity from the odds, then one of the candidates
+## of that rarity (the nearest rarity with any left when that one has none).
+func draw_fairy(candidates: Array) -> String:
+	var odds: Array = FAIRY_TIER_ODDS[clampi(stage, 0, FAIRY_TIER_ODDS.size() - 1)]
+	var roll := rng.randf()
+	var tier := odds.size() - 1
+	for t in odds.size():
+		roll -= float(odds[t])
+		if roll < 0.0:
+			tier = t
+			break
+	for step in range(0, 4):
+		for t in [tier - step, tier + step]:
+			var pool: Array = candidates.filter(func(id: String) -> bool: return Rarity.tier({"kind":"fairy", "value":id}) == t)
+			if not pool.is_empty():
+				return pool[rng.randi_range(0, pool.size() - 1)]
+	return ""
 
 ## Draw `count` without repeats, each pick proportional to its weight.
 func weighted_sample(pool: Array, count: int, weight: Callable) -> Array:
@@ -159,16 +184,23 @@ func finish_battle() -> bool:
 	var late := stage >= Battle.BOSS2_LEVEL
 	# The last fight before a boss pays better: only three-tile weapons.
 	var before_boss := is_before_boss()
+	# Weapons outside their usual timing are not ruled out, only very unlikely: each
+	# ordinary slot is one of them OFF_TIMING_CHANCE of the time.
+	var off_timing: Array = []
 	for index in range(Weapons.DATA.size()):
-		# The late weapons only ever come through the rare drop slot below.
-		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index) or (Weapons.is_mid(index) and not mid) or Weapons.is_late(index) or (Weapons.from_rotorick(index) and stage < Battle.MID_LEVELS[-1]):
+		if battle.owned_weapons.has(index) or Weapons.horizontal_only(index):
 			continue
+		# The mid weapons normally come through the drop slot below and the late
+		# ones through its rare late roll; 香車槍 waits for the reward before Rotorick.
+		var usual := not ((Weapons.is_mid(index)) or Weapons.is_late(index) or (Weapons.from_rotorick(index) and stage < Battle.MID_LEVELS[-1]))
 		if before_boss:
-			if not Weapons.is_boss_reward(index):
-				continue
-		elif single_only and not Weapons.early_reward_pool().has(index):
-			continue
-		weapons.append(index)
+			usual = usual and Weapons.is_boss_reward(index)
+		elif single_only:
+			usual = usual and Weapons.early_reward_pool().has(index)
+		if usual:
+			weapons.append(index)
+		else:
+			off_timing.append(index)
 	# After the first boss, one weapon slot is a mid-game drop (hammer, bow, ...) when one is
 	# left; after Rotorick it is now and then (rarely) a sliding weapon instead.
 	var drops: Array = Weapons.mid_pool().filter(func(index: int) -> bool: return not battle.owned_weapons.has(index))
@@ -180,11 +212,12 @@ func finish_battle() -> bool:
 		var drop: int = weighted_sample(drops,1,func(index: int) -> float: return 0.5 if Weapons.DATA[index].get("rare", false) else 1.0)[0]
 		offers.append({"kind":"weapon","value":drop})
 		weapons.erase(drop)
-		for index in sample(weapons,WEAPON_OFFERS-1):
-			offers.append({"kind":"weapon","value":index})
-	else:
-		for index in sample(weapons,WEAPON_OFFERS):
-			offers.append({"kind":"weapon","value":index})
+		off_timing.erase(drop)
+	while offers.size() < WEAPON_OFFERS and not (weapons.is_empty() and off_timing.is_empty()):
+		var index := _weapon_slot(weapons, off_timing)
+		weapons.erase(index)
+		off_timing.erase(index)
+		offers.append({"kind":"weapon","value":index})
 	# 飛車槍・角剣 only ever come as magic circle weapons.
 	for offer in offers:
 		if Weapons.is_late(int(offer.value)):
@@ -197,22 +230,26 @@ func finish_battle() -> bool:
 		var pick: Dictionary = movable[rng.randi_range(0, movable.size() - 1)]
 		pick.enchant = "circle"
 		pick.rare = true
-	var fairy_pool: Array = reward_fairy_pool.filter(func(id: String) -> bool: return (late or not LATE_FAIRIES.has(id)) and (mid or not MID_FAIRIES.has(id)))
-	var fairy_candidates: Array = fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
+	var fairy_candidates: Array = reward_fairy_pool.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
 	# A full loadout may leave only one new fairy: owned fairies become valid swaps.
-	if fairy_candidates.size() < 2:
-		fairy_candidates = fairy_pool.duplicate()
-	for id in weighted_sample(fairy_candidates,FAIRY_OFFERS,fairy_weight):
+	if fairy_candidates.size() < FAIRY_OFFERS:
+		fairy_candidates = reward_fairy_pool.duplicate()
+	for k in FAIRY_OFFERS:
+		var id := draw_fairy(fairy_candidates)
+		fairy_candidates.erase(id)
 		offers.append({"kind":"fairy","value":id})
-	# Beating a boss (the first one or Rotorick) can turn the last fairy offer into a rare one.
-	var rares: Array = RARE_FAIRIES.filter(func(id: String) -> bool: return not battle.fairy_loadout.has(id))
-	if Battle.BOSS_LEVELS.has(stage) and not rares.is_empty() and rng.randf() < RARE_CHANCE:
-		offers[offers.size()-1] = {"kind":"fairy","value":sample(rares,1)[0], "rare":true}
 	return true
 
 func _enchant(index: int, offer: Dictionary) -> void:
 	if offer.get("enchant", "") != "":
 		battle.enchants[index] = offer.enchant
+
+## One ordinary weapon slot: usually a weapon of this point in the run, now and then
+## (OFF_TIMING_CHANCE) one that normally turns up elsewhere; 飛車槍・角剣 even less.
+func _weapon_slot(usual: Array, off_timing: Array) -> int:
+	if usual.is_empty() or (not off_timing.is_empty() and rng.randf() < OFF_TIMING_CHANCE):
+		return weighted_sample(off_timing,1,func(index: int) -> float: return OFF_TIMING_LATE_WEIGHT if Weapons.is_late(index) else 1.0)[0]
+	return sample(usual,1)[0]
 
 ## True on the reward right before a camp and its boss.
 func is_before_boss() -> bool:

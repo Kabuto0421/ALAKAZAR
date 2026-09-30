@@ -69,7 +69,24 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Win opens reward state")
 	verify(m.inventory.acorn_fairy==1,"Skills refill immediately after clear")
 	verify(run.offers.size()==5 and run.offers.slice(0,3).all(func(o): return o.kind=="weapon") and run.offers.slice(3).all(func(o): return o.kind=="fairy"),"Rewards always contain three weapons and two fairies")
-	verify(run.offers.slice(0,3).all(func(o): return Run.Weapons.is_quirky(o.value) and Run.Weapons.offsets(o.value).size() < 4),"Early reward weapons are odd two-tile weapons, weaker than a cross")
+	verify(run.offers.slice(0,3).filter(func(o): return Run.Weapons.early_reward_pool().has(int(o.value))).size() >= 2,"Early reward weapons are (nearly always) from the early pool")
+	# Weapons from other points in the run are not ruled out, only very unlikely.
+	var off := 0
+	var slots := 0
+	for seed_value in 400:
+		var trial := Run.new()
+		trial.start(seed_value)
+		trial.choose(0)
+		trial.choose(0)
+		trial.start_battle()
+		trial.battle.enemies.clear()
+		trial.battle.check_outcome()
+		trial.finish_battle()
+		for o in trial.offers.slice(0,3):
+			slots += 1
+			if not Run.Weapons.early_reward_pool().has(int(o.value)):
+				off += 1
+	verify(off > 0 and off < slots * 0.06,"Off-timing weapons turn up rarely in the early rewards (%d/%d)" % [off, slots])
 	var old_weapons := m.owned_weapons.duplicate()
 	var new_weapon: int = run.offers[0].value
 	run.choose(0)
@@ -810,8 +827,30 @@ func _expiring_and_rewards() -> void:
 	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton super rare, meteor rare, magic bolt common")
 	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
 	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.UNCOMMON,"Rook spear super rare, hammer uncommon")
-	var weigher := Run.new()
-	verify(weigher.fairy_weight("gravity_fairy") > weigher.fairy_weight("magic_bolt") and weigher.fairy_weight("glutton_fairy") < weigher.fairy_weight("magic_bolt"),"New fairies are weighted up, the super rare glutton down")
+	verify(Rarity.tier({"kind":"fairy","value":"holy_spirit"}) == Rarity.SUPER_RARE,"The holy spirit is super rare")
+	# Fairy cards draw a rarity first: 激レア about 1% early, rising to 10% at the end.
+	var odds: Array = Run.FAIRY_TIER_ODDS
+	verify(odds.all(func(row): return absf(row.reduce(func(a, b): return a + b, 0.0) - 1.0) < 0.001),"Each row of fairy rarity odds adds up to 1")
+	var rising := true
+	for k in range(1, odds.size()):
+		rising = rising and odds[k][3] >= odds[k-1][3] and odds[k][0] <= odds[k-1][0]
+	verify(rising and is_equal_approx(odds[0][3], 0.01) and is_equal_approx(odds[-1][3], 0.10),"Super rare fairies climb from 1% to 10%, commons shrink")
+	var drawer := Run.new()
+	drawer.start(3)
+	var super_early := 0
+	var super_late := 0
+	var early_tiers := {}
+	for k in 4000:
+		drawer.stage = 0
+		var early_id := drawer.draw_fairy(drawer.reward_fairy_pool)
+		early_tiers[Rarity.tier({"kind":"fairy","value":early_id})] = true
+		if Rarity.tier({"kind":"fairy","value":early_id}) == Rarity.SUPER_RARE:
+			super_early += 1
+		drawer.stage = 10
+		if Rarity.tier({"kind":"fairy","value":drawer.draw_fairy(drawer.reward_fairy_pool)}) == Rarity.SUPER_RARE:
+			super_late += 1
+	verify(early_tiers.size() == 4,"Every rarity can turn up from the first reward")
+	verify(super_early > 10 and super_early < 90 and super_late > 300 and super_late < 500,"Super rare fairy cards: about 1%% early (%d/4000), 10%% late (%d/4000)" % [super_early, super_late])
 	# 氷結妖精: the 3x3 around it is frozen for three enemy turns.
 	var fz := fixture()
 	fz.enemies.clear()
@@ -1064,32 +1103,8 @@ func _rare_fairies() -> void:
 	m.phase = Rules.Phase.PLAYER
 	m.act_allies()
 	verify(next_to.hp == 1,"A holy knight attacks an adjacent enemy")
-	# Rare drop: only after the first boss, now and then.
-	var rare_runs := 0
-	var early_rare := 0
-	for seed_value in 40:
-		var run := Run.new()
-		run.start(seed_value)
-		run.choose(0)
-		run.choose(0)
-		run.stage = Rules.BOSS_LEVEL
-		run.start_battle()
-		run.battle.enemies.clear()
-		run.battle.check_outcome()
-		run.finish_battle()
-		if run.offers.any(func(o): return o.get("rare", false)):
-			rare_runs += 1
-		var early := Run.new()
-		early.start(seed_value)
-		early.choose(0)
-		early.choose(0)
-		early.battle.enemies.clear()
-		early.battle.check_outcome()
-		early.finish_battle()
-		if early.offers.any(func(o): return Run.RARE_FAIRIES.has(str(o.value))):
-			early_rare += 1
-	verify(rare_runs > 0 and rare_runs < 40,"After the first boss a rare fairy sometimes drops (%d/40)" % rare_runs)
-	verify(early_rare == 0,"Rare fairies never drop before the first boss")
+	# The 2x2 spirits are ordinary reward fairies now (風斧 rare, 聖精霊 super rare).
+	verify(Run.new().reward_fairy_pool.has("axe_spirit") and Run.new().reward_fairy_pool.has("holy_spirit"),"The axe and holy spirits are in the reward pool")
 
 func _magic_circle() -> void:
 	var m := fixture()
@@ -1260,7 +1275,7 @@ func _mechanic_weapons() -> void:
 		if trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value)):
 			rare_hits += 1
 	verify(rare_hits > 5 and rare_hits < 40,"The rook spear and bishop blade are rare late rewards (%d / 100)" % rare_hits)
-	var lance_early := false
+	var lance_early := 0
 	var lance_late := false
 	for seed_value in 40:
 		for stage in [Run.LAST_NORMAL_STAGE, Rules.MID_LEVELS[2]]:
@@ -1275,10 +1290,10 @@ func _mechanic_weapons() -> void:
 			trial.finish_battle()
 			var has_lance: bool = trial.offers.any(func(o): return o.kind == "weapon" and int(o.value) == ids.find("lance"))
 			if stage == Run.LAST_NORMAL_STAGE:
-				lance_early = lance_early or has_lance
+				lance_early += 1 if has_lance else 0
 			else:
 				lance_late = lance_late or has_lance
-	verify(not lance_early and lance_late,"The lance waits for the reward right before Rotorick")
+	verify(lance_early <= 3 and lance_late,"The lance normally waits for the reward right before Rotorick (%d/40 earlier)" % lance_early)
 
 func _capacitor() -> void:
 	var m := fixture()
@@ -1574,26 +1589,6 @@ func _loner_fairies() -> void:
 	m.phase = Rules.Phase.ENEMY
 	m.rook_charge(rook)
 	verify(rook.cell == Vector2i(3,2) and wedge.cell == Vector2i(2,2),"Without the player in the lane, enemies still block the charge")
-	# Both are late fairies: never offered before the first boss, offered after it.
-	var early_seen := false
-	var late_seen := false
-	for seed_value in 40:
-		for stage in [0, 1, Rules.BOSS_LEVEL, Rules.MID_LEVELS[0], Rules.BOSS2_LEVEL, Rules.LATE_LEVELS[0]]:
-			var trial := Run.new()
-			trial.start(seed_value)
-			trial.choose(0)
-			trial.choose(0)
-			trial.stage = stage
-			trial.start_battle()
-			trial.battle.enemies.clear()
-			trial.battle.check_outcome()
-			trial.finish_battle()
-			var late: bool = trial.offers.any(func(o): return o.kind == "fairy" and Run.LATE_FAIRIES.has(o.value))
-			if stage < Rules.BOSS2_LEVEL:
-				early_seen = early_seen or late
-			else:
-				late_seen = late_seen or late
-	verify(not early_seen and late_seen,"The loner fairies only turn up after Rotorick")
 
 func _optional_rules() -> void:
 	# All three rules are off by default.
@@ -1752,7 +1747,6 @@ func _abyss() -> void:
 	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open until its last turn")
 	m.tick_walls()
 	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and then closes")
-	verify(Run.LATE_FAIRIES.has("abyss_spirit"),"The abyss spirit is a late fairy")
 
 func _gravity() -> void:
 	# Outside the weapon's range it pulls enemies within 2 tiles one step in, without damage.
@@ -1793,7 +1787,6 @@ func _gravity() -> void:
 	m.pits.append(Vector2i(3,2))
 	m.gravity(Vector2i(2,2))
 	verify(m.enemies.size() == 1,"Pulled over a pit, an enemy falls in")
-	verify(Run.MID_FAIRIES.has("gravity_fairy"),"The gravity fairy is a mid-game fairy")
 
 func _glutton() -> void:
 	# A summoned ally with gold moves (front = right) that bites whatever is nearest.
@@ -1842,7 +1835,7 @@ func _glutton() -> void:
 	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),0))
 	m.summon_glutton(Vector2i(2,1))
 	verify(ThreatPreview.attackers(m).has(m.allies[0].id),"A glutton about to bite the player is flagged like an attacker")
-	verify(Run.new().reward_fairy_pool.has("glutton_fairy") and not Run.LATE_FAIRIES.has("glutton_fairy") and not Run.MID_FAIRIES.has("glutton_fairy"),"The glutton is offered from the early rewards")
+	verify(Run.new().reward_fairy_pool.has("glutton_fairy"),"The glutton is in the reward pool")
 
 func _prison_king() -> void:
 	var m := Rules.new()

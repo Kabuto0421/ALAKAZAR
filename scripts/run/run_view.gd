@@ -235,10 +235,6 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 			card.action_text = "選んで交換"  # the loadout is full
 	else:
 		var id := str(offer.value)
-		if offer.get("rare", false):
-			card.tag = "レア妖精"
-			card.note = "ボスのレアドロップ"
-			card.note_color = Color("ffd35b")
 		if run.battle.fairy_loadout.has(id):
 			card.note = "同じ妖精を所持中"
 			card.note_color = Color("ffd35b")
