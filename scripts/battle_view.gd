@@ -71,7 +71,7 @@ const INK = Color("e5dfc5")
 const MUTED = Rarity.INFO
 const CYAN = Color("2bdcc8")
 const GOLD = Color("f4d56f")
-const ITEM_ARROW_POSITIONS = [Vector2(956,449),Vector2(1010,483),Vector2(956,511),Vector2(902,483)]
+const ITEM_ARROW_POSITIONS = [Vector2(956,425),Vector2(1010,459),Vector2(956,493),Vector2(902,459)]
 
 var ui_font: Font = FONT
 var selected_weapon := -1
@@ -1183,7 +1183,7 @@ func _draw_board() -> void:
 			slash_zone.append(hover_cell)
 	# 氷結妖精 / 加護の妖精: hovering a legal tile shows the square they cover.
 	if selected_item in ["freeze_fairy", "blessing_fairy"] and model.item_targets(selected_item).has(hover_cell):
-		var radius := 1
+		var radius := 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
 		slash_zone = model.square_around(hover_cell, radius)
 	# Magic circle: hovering a move shows the area it would close.
 	var circle_zone: Array[Vector2i] = []
@@ -1610,12 +1610,17 @@ func _draw_intel() -> void:
 			SpiritIcon.paint_plus(self,Vector2(954,138),22)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
 		_text(Vector2(992,187),"%d AP" % model.fairy_ap_cost(selected_item),24,GOLD)
-		ItemPreview.paint(self,model,selected_item,clock)
+		# Choosing a direction, the board already previews the shot: the example makes
+		# way so the text and the prompt sit above the arrow buttons.
+		var choosing := item_origin != Vector2i(-1,-1)
+		if not choosing:
+			ItemPreview.paint(self,model,selected_item,clock)
 		var lines: PackedStringArray = model.fairy_description(selected_item).split("\n")
 		# The text's baseline sits a line below the example so the first line clears it.
+		var text_top := 252.0 if choosing else 352.0
 		for i in range(lines.size()):
-			_text(Vector2(850,352+i*25),lines[i],18,INK)
-		_text(Vector2(852,490),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
+			_text(Vector2(850,text_top+i*25),lines[i],18,INK)
+		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else 490.0),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	var ally := _preview_ally()

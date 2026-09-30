@@ -153,7 +153,7 @@ const PLUS_TEXT := {
 	"lone_wolf": ["0 APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
-	"blessing_fairy": ["中でターンを終えるとHP+1", "攻撃範囲の空きマスに置く。\n周囲3×3が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+1。"],
+	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+1", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+1。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"guardian_fairy": ["HP4で降臨する", "攻撃範囲に2×2の守護神（HP4・\nAP1）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+1で呼び直す。暴食も来る。"],
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
@@ -1422,9 +1422,9 @@ func square_around(cell: Vector2i, radius: int) -> Array[Vector2i]:
 				result.append(tile)
 	return result
 
-## 加護の妖精: blessed 3x3 ground around the cell for WALL_TURNS turns.
+## 加護の妖精: blessed ground around the cell for WALL_TURNS turns (5x5 upgraded).
 func place_blessing(cell: Vector2i) -> void:
-	blessing = {"cell":cell, "turns":WALL_TURNS, "radius":1, "plus":is_plus("blessing_fairy")}
+	blessing = {"cell":cell, "turns":WALL_TURNS, "radius":2 if is_plus("blessing_fairy") else 1, "plus":is_plus("blessing_fairy")}
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
 	add_log("加護の地が生まれた")
 

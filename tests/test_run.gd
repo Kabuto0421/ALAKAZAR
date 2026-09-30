@@ -910,7 +910,7 @@ func _expiring_and_rewards() -> void:
 	verify(bh.player.hp == 3,"The plain blessing does not heal")
 	bh.fairy_plus["blessing_fairy"] = true
 	bh.place_blessing(Vector2i(1,1))
-	verify(int(bh.blessing.radius) == 1,"Blessing+ keeps the 3x3")
+	verify(int(bh.blessing.radius) == 2,"Blessing+ spreads to 5x5")
 	bh.events.clear()
 	bplanner.begin(bh)
 	verify(bh.player.hp == 4 and bh.events.any(func(e): return e.kind == "heal"),"Blessing+: ending the turn inside heals 1")
