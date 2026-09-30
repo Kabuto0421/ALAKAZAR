@@ -8,10 +8,10 @@
 script = ExtResource("1")
 id = "shadow_stitch"
 title = "影縫い精霊"
-description = "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n影を押すと0 APで入れ替わる。\n入れ替わりは1ターン1回。"
-summary = "影と0 APで入れ替わる"
+description = "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n影を押すと1 APで入れ替わる。\n入れ替わりは1ターン1回。"
+summary = "影と1 APで入れ替わる"
 color = Color(0.62, 0.68, 0.95, 1)
 target = 3
-ap_cost = 0
+ap_cost = 1
 effect = ExtResource("2")
 icon = ExtResource("3")

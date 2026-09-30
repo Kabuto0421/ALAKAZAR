@@ -420,7 +420,7 @@ func _act(cell: Vector2i) -> void:
 	selected_weapon = -1
 	_update_controls()
 	if model.can_swap_shadow(cell):
-		# 影縫い精霊: trade places with the pinned shadow, 0 AP.
+		# 影縫い精霊: trade places with the pinned shadow (1 AP, 0 once classed up).
 		selected_enemy_id = -2
 		model.player_action(cell)
 		_finish_player_action(true)
@@ -1137,7 +1137,7 @@ func _draw() -> void:
 	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell) and not busy:
 		_text(Vector2(36,673),"引き寄せる（攻撃範囲）" if model.gravity_pulls(hover_cell) else "弾く（攻撃範囲外）",23,GRAVITY_PULL if model.gravity_pulls(hover_cell) else GRAVITY_PUSH)
 	elif model.can_swap_shadow(hover_cell) and selected_item.is_empty() and not busy:
-		_text(Vector2(36,673),"影と入れ替わる 0 AP",23,CYAN)
+		_text(Vector2(36,673),"影と入れ替わる %d AP" % model.shadow_swap_cost(),23,CYAN)
 	elif model.inside(hover_cell) and model.targets().has(hover_cell) and selected_item.is_empty() and not busy:
 		_text(Vector2(36,673),"移動 1 AP" if model.enemy_at(hover_cell).is_empty() else "攻撃 1 AP",23,GOLD)
 	if model.terminal() and not busy:
@@ -1974,7 +1974,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.fairies.has(cell):
 		return {"icon": "stealth_fairy", "turns": int(model.fairy_turns.get(cell, 0)), "state": "", "lines": ["通り道をふさぐ", "縦横に敵が来ると", "1ダメージを与えて消える"]}
 	if not model.shadow.is_empty() and model.shadow.cell == cell:
-		return {"icon": "shadow_stitch", "turns": int(model.shadow.turns), "state": "今ターン：入れ替わり可" if model.shadow.get("ready", false) else "今ターン：入れ替わり済み", "lines": ["押すと0 APで", "影と入れ替わる", "入れ替わりは1ターン1回"]}
+		return {"icon": "shadow_stitch", "turns": int(model.shadow.turns), "state": "今ターン：入れ替わり可" if model.shadow.get("ready", false) else "今ターン：入れ替わり済み", "lines": ["押すと%d APで" % model.shadow_swap_cost(), "影と入れ替わる", "入れ替わりは1ターン1回"]}
 	if model.mines.has(cell):
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):

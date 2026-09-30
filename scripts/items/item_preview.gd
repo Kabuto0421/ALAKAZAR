@@ -102,7 +102,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 				_slash(time, accent, art)
 		"axe_spirit": _axe(time, accent)
 		"holy_spirit": _holy(time, accent)
-		"shadow_stitch": _shadow(time, art)
+		"shadow_stitch": _shadow(time, art, upgraded)
 		"lone_wolf": _wolf(time)
 		"abyss_spirit": _abyss(time, accent, art)
 		"gravity_fairy": _gravity(time, art)
@@ -396,8 +396,9 @@ static func _holy(time: float, accent: Color) -> void:
 	# Another enemy breaks it.
 	_enemy(Vector2(3,0) - Vector2(sin(_ph(p, 0.48, 0.62) * PI) * 0.25, 0))
 
-## Placed where no weapon reaches (here: holding silver); swap with it for 0 AP.
-static func _shadow(time: float, art: Texture2D) -> void:
+## Placed where no weapon reaches (here: holding silver); swap with it for 1 AP
+## (0 once classed up).
+static func _shadow(time: float, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 4.2)
 	var swap := _ph(p, 0.55, 0.72)
 	_reach(Vector2i(1,1) if swap < 1.0 else Vector2i(4,1))
@@ -409,7 +410,7 @@ static func _shadow(time: float, art: Texture2D) -> void:
 		_art(art, Vector2(4,1).lerp(Vector2(1,1), swap), _ph(p, 0.3, 0.38))
 	_player(Vector2(1,1).lerp(Vector2(4,1), swap))
 	if swap > 0.0:
-		_say(_center(Vector2(2.5,0)), "0 AP", 16, GOLD)
+		_say(_center(Vector2(2.5,0)), "0 AP" if plus else "1 AP", 16, GOLD)
 
 ## Summoned where no weapon reaches (here: holding silver); it moves and bites like
 ## a silver general facing right. Alone it bites for 2,

@@ -805,7 +805,12 @@ func _expiring_and_rewards() -> void:
 	verify(um.fairy_ap_cost("magic_bolt") == 1 and um.fairy_charges == [1],"Before the class-up: 1 AP, once a battle")
 	um.fairy_plus["magic_bolt"] = true
 	um.refill_fairies()
-	verify(um.fairy_ap_cost("magic_bolt") == 0 and um.fairy_charges == [2],"After it: 0 AP, twice a battle")
+	verify(um.fairy_ap_cost("magic_bolt") == 1 and um.fairy_charges == [2],"After it: still 1 AP, twice a battle")
+	# Summoners also get 1 AP off; the meteor only gets more meteors.
+	um.fairy_plus["acorn_fairy"] = true
+	um.fairy_plus["meteor_fairy"] = true
+	verify(um.fairy_ap_cost("acorn_fairy") == 0 and um.fairy_uses("acorn_fairy") == 2,"A classed-up acorn: 0 AP, twice a battle")
+	verify(um.fairy_ap_cost("meteor_fairy") == 1 and um.fairy_uses("meteor_fairy") == 1 and um.meteor_count() == 2,"A classed-up meteor: 1 AP, once a battle, two meteors")
 	verify(um.item_definition("warp_fairy").ap_cost == 0,"The warp fairy costs 0 AP")
 	# A magic bolt flies through a cannon and sets it off; an acorn beside a cannon fires it.
 	var bm := fixture()
@@ -997,9 +1002,10 @@ func _class_ups() -> void:
 	# Magic bolt+: fires both ways along the chosen line.
 	var m := _plus_room("magic_bolt",[Vector2i(2,0),Vector2i(2,5)])
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.UP) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Magic bolt+ hits both ways along its line")
-	# Stealth+: strikes every adjacent enemy.
+	# Stealth+: strikes and stays (once per enemy turn).
 	m = _plus_room("stealth_fairy",[Vector2i(2,1),Vector2i(2,3)])
-	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and _hurt(m,Vector2i(2,1)) and _hurt(m,Vector2i(2,3)) and m.fairies.is_empty(),"Stealth fairy+ strikes every adjacent enemy, then fades")
+	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and (_hurt(m,Vector2i(2,1)) or _hurt(m,Vector2i(2,3))) and m.fairies.has(Vector2i(2,2)),"Stealth fairy+ strikes and stays")
+	verify(m.fairy_uses("stealth_fairy") == 1 and m.fairy_ap_cost("stealth_fairy") == 1,"Stealth fairy+ keeps its AP and uses")
 	# Acorn+: HP 2 and diagonal attacks.
 	m = _plus_room("acorn_fairy",[Vector2i(3,3)])
 	m.use_item("acorn_fairy",Vector2i(2,2))
@@ -1016,7 +1022,7 @@ func _class_ups() -> void:
 	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)) and m.walls.has(Vector2i(2,4)) and m.walls.size() == 3,"Wall+ builds a three-tile line")
 	# Lance cannon+: the same two volleys ahead, 0 AP to place and two per battle.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
-	verify(m.fairy_ap_cost("cannon_fairy") == 0 and m.fairy_charges == [2],"Lance cannon+ is free to place and comes twice")
+	verify(m.fairy_ap_cost("cannon_fairy") == 1 and m.fairy_charges == [2],"Lance cannon+ still costs 1 AP and comes twice")
 	# Vane cannon+: two volleys, then turns.
 	m = _plus_room("vane_cannon",[Vector2i(2,0),Vector2i(2,5)])
 	m.use_item("vane_cannon",Vector2i(2,2),Vector2i.UP)
@@ -1475,28 +1481,21 @@ func _loner_fairies() -> void:
 	verify(not spots.is_empty() and spots.all(func(c): return not reach.has(c) and c != m.player.cell),"The shadow only goes where no carried weapon reaches")
 	var spot: Vector2i = spots[0]
 	var start: Vector2i = m.player.cell
-	verify(m.use_item("shadow_stitch",spot) and m.player.ap == 2 and m.blocked(spot),"Pinning the shadow costs no AP and takes the tile")
-	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 2,"Clicking the shadow swaps places for 0 AP")
+	verify(m.use_item("shadow_stitch",spot) and m.player.ap == 1 and m.blocked(spot),"Pinning the shadow costs 1 AP and takes the tile")
+	verify(m.player_action(spot) and m.player.cell == spot and m.shadow.cell == start and m.player.ap == 0,"Clicking the shadow swaps places for 1 AP")
 	verify(not m.can_swap_shadow(start) and not m.player_action(start),"Only one swap a turn")
 	m.tick_walls()
+	m.player.ap = 2
 	verify(m.can_swap_shadow(start) and m.shadow.turns == Rules.WALL_TURNS - 1,"The swap comes back next turn while the shadow counts down")
 	for k in Rules.WALL_TURNS - 1:
 		m.tick_walls()
 	verify(m.shadow.is_empty() and not m.blocked(start),"The shadow fades after five turns")
-	# Class-up: arriving hits every enemy beside the landing tile.
+	# Class-up: pinning and swapping are both free (no extra use).
 	m = fixture()
 	m.fairy_plus["shadow_stitch"] = true
 	m.place_shadow(spot)
-	var foe: Dictionary = {}
-	for direction in Rules.CARDINALS:
-		var cell: Vector2i = spot + direction
-		if m.inside(cell) and cell != m.player.cell and not m.blocked(cell) and m.enemy_at(cell).is_empty():
-			m.enemies.clear()
-			foe = m.make_enemy("heavy",cell,0)
-			foe.hp = 5
-			m.enemies.append(foe)
-			break
-	verify(not foe.is_empty() and m.player_action(spot) and foe.hp == 4,"The upgraded shadow hits its neighbours on arrival")
+	var ap_now: int = m.player.ap
+	verify(m.fairy_ap_cost("shadow_stitch") == 0 and m.fairy_uses("shadow_stitch") == 1 and m.player_action(spot) and m.player.ap == ap_now,"The upgraded shadow: 0 AP to pin and to swap")
 	# 一匹狼の妖精: a lasting ally placed out of reach; it hunts alone and sulks within reach.
 	m = fixture()
 	m.fairy_loadout.assign(["lone_wolf"])
@@ -1535,19 +1534,10 @@ func _loner_fairies() -> void:
 	m.act_allies()
 	verify(prey.hp == 2,"With company beside it, each bite drops to 1")
 	m.allies = m.allies.filter(func(a): return a.type == "wolf")
-	# Class-up: a kill gives the AP back, so it can finish a second enemy.
-	for plus in [false, true]:
-		m.enemies.clear()
-		wolf.cell = home
-		wolf.plus = plus
-		var a: Dictionary = m.make_enemy("heavy",home + Vector2i(1,-1),0)
-		var b: Dictionary = m.make_enemy("heavy",home + Vector2i(1,1),1)
-		a.hp = 4
-		b.hp = 4
-		m.enemies.append_array([a, b])
-		m.act_allies()
-		var dead: int = [a, b].filter(func(e): return e.hp <= 0).size()
-		verify(dead == (2 if plus else 1),"%s wolf finishes %d of two HP4 enemies" % ["A classed-up" if plus else "A plain", dead])
+	# Class-up: free to summon, no extra use.
+	m.fairy_plus["lone_wolf"] = true
+	verify(m.fairy_ap_cost("lone_wolf") == 0 and m.fairy_uses("lone_wolf") == 1,"A classed-up wolf: 0 AP, still once a battle")
+	m.fairy_plus.erase("lone_wolf")
 	wolf.plus = false
 	m.phase = Rules.Phase.PLAYER
 	m.enemies.clear()

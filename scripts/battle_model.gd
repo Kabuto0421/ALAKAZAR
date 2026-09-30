@@ -142,15 +142,15 @@ var fairy_plus: Dictionary = {}
 ## What each class-up does: [one-line summary, full description].
 const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
-	"stealth_fairy": ["道をふさぎ隣の敵すべてに1", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵すべてに\n1ダメージを与えて消える。"],
+	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に1。\n刺しても消えず5ターン残る\n（1ターンに1回）。"],
 	"acorn_fairy": ["HP2・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP2・AP1、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘2回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["5ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め5ターン\n完全な障害物として残る。"],
 	"cannon_fairy": ["叩くと2連射になる", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上に2連射（各1）。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "花火の砲台を空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
-	"shadow_stitch": ["入れ替わると隣の敵に1", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わり（1ターン\n1回）、着いたマスの縦横の\n敵すべてに1。"],
-	"lone_wolf": ["噛んで倒すとAPが1戻る", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。\n噛んで倒すとAPが1戻る。"],
+	"shadow_stitch": ["置くのも入れ替わりも0 AP", "全武器の範囲外の空きマスに\n影を縫い止める。5ターン残る。\n0 APで影と入れ替わる\n（1ターン1回）。"],
+	"lone_wolf": ["0 APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP3・AP3。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で2、隣に誰かいると1。"],
 	"glutton_fairy": ["最初からHP3の暴食妖精", "攻撃範囲に召喚。HP3・AP2。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと99ダメージ、HP+1。"],
 	"freeze_fairy": ["4ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n4ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["加護が5×5に広がる", "攻撃範囲の空きマスに置く。\n周囲5×5が5ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。"],
@@ -159,6 +159,7 @@ const PLUS_TEXT := {
 	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
 	"gravity_fairy": ["引き寄せ3マス・弾き2マス", "空きマスならどこでも置ける。\n攻撃範囲の外に置くと、周囲3\nマスの敵を1マス引き寄せる。\n攻撃範囲に置くと、周りの敵を\n2マス弾く。ダメージなし。"],
 	"abyss_spirit": ["7ターン続く奈落", "自分のマスを押して呼ぶ。\n7ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の敵は落ちず2ダメージ。"],
+	"axe_spirit": ["毎戦闘2回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘2回。"],
 	"capacitor_fairy": ["2回叩くと4方向に放電", "攻撃範囲の空きマスに設置。\n最初から電気が1溜まっている。\n3溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -184,6 +185,8 @@ var shortcuts: Array[String] = ["magic_bolt", "stealth_fairy", "warp_fairy"]
 var fairies: Array[Vector2i] = []
 ## Stealth fairies: cell -> player turns left.
 var fairy_turns: Dictionary = {}
+## Upgraded stealth fairies: cell -> the round they last struck (once per enemy turn).
+var stealth_struck: Dictionary = {}
 var obstacles: Array[Vector2i] = []
 ## Wall spirits: cell -> player turns left (including the current one).
 var walls: Dictionary = {}
@@ -234,6 +237,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	mines.clear()
 	fairies.clear()
 	fairy_turns.clear()
+	stealth_struck.clear()
 	allies.clear()
 	next_ally_id = -100
 	obstacles.clear()
@@ -502,12 +506,17 @@ func fairy_description(id: String) -> String:
 static func meteor_text(n: int) -> String:
 	return "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に3ダメージ。自分と味方は無事。" % n
 
-## A class-up also makes a fairy cheaper (1 AP less, never below 0) and usable once more per battle.
+## Besides its own change (PLUS_TEXT), a class-up gives one more use per battle, keeping
+## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
+## the shadow get 0 AP instead of an extra use, the meteor and the stealth fairy only
+## their own change.
+const PLUS_AP_CUT: Array[String] = ["acorn_fairy", "glutton_fairy", "guardian_fairy", "holy_spirit", "lone_wolf", "shadow_stitch"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy"]
 func fairy_ap_cost(id: String) -> int:
-	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) else 0))
+	return maxi(0, item_definition(id).ap_cost - (1 if is_plus(id) and PLUS_AP_CUT.has(id) else 0))
 
 func fairy_uses(id: String) -> int:
-	return item_definition(id).initial_count + (1 if is_plus(id) else 0)
+	return item_definition(id).initial_count + (1 if is_plus(id) and not PLUS_NO_EXTRA_USE.has(id) else 0)
 
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
@@ -659,20 +668,21 @@ func trigger_fairies() -> void:
 	# Placement order, then enemy ID, resolves simultaneous opportunities.
 	var ordered := enemies.duplicate()
 	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.id < b.id)
-	# The upgraded fairy strikes every adjacent enemy at once instead of just one.
-	var all_sides := is_plus("stealth_fairy")
+	# The upgraded fairy stays after striking (once per enemy turn) until its turns run out.
+	var stays := is_plus("stealth_fairy")
 	for cell in fairies.duplicate():
-		var struck := false
+		if stays and int(stealth_struck.get(cell, -1)) == round_number:
+			continue
 		for enemy in ordered:
 			if enemy.hp > 0 and distance(cell, enemy.cell) == 1:
-				if not struck:
+				if stays:
+					stealth_struck[cell] = round_number
+				else:
 					fairies.erase(cell)
 					fairy_turns.erase(cell)
-					events.append({"kind": "ambush", "cell": cell, "id": -2})
-					struck = true
+				events.append({"kind": "ambush", "cell": cell, "id": -2})
 				damage_enemy(enemy, 1)
-				if not all_sides:
-					break
+				break
 	check_outcome()
 
 func inside(cell: Vector2i) -> bool:
@@ -1279,9 +1289,12 @@ func place_shadow(cell: Vector2i) -> void:
 	shadow = {"cell":cell, "turns":WALL_TURNS, "ready":true}
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"shadow"})
 
-## Clicking the shadow swaps with it: 0 AP, once a player turn.
+## Clicking the shadow swaps with it: 1 AP (0 once classed up), once a player turn.
+func shadow_swap_cost() -> int:
+	return 0 if is_plus("shadow_stitch") else 1
+
 func can_swap_shadow(cell: Vector2i) -> bool:
-	return phase == Phase.PLAYER and not shadow.is_empty() and shadow.cell == cell and shadow.ready
+	return phase == Phase.PLAYER and not shadow.is_empty() and shadow.cell == cell and shadow.ready and player.ap >= shadow_swap_cost()
 
 func swap_shadow() -> void:
 	events.clear()
@@ -1289,19 +1302,11 @@ func swap_shadow() -> void:
 	player.cell = shadow.cell
 	shadow.cell = from
 	shadow.ready = false
+	player.ap -= shadow_swap_cost()
 	events.append({"kind":"warp", "cell":from, "id":-2})
 	events.append({"kind":"warp", "cell":player.cell, "id":-2})
 	add_log("影縫い精霊と入れ替わった")
 	trigger_mine(player)
-	if is_plus("shadow_stitch") and not terminal():
-		strike_guard = true
-		struck_ids.clear()
-		for direction in CARDINALS:
-			var enemy := enemy_at(player.cell + direction)
-			if not enemy.is_empty():
-				events.append({"kind":"bolt", "cell":enemy.cell, "id":-2})
-				damage_enemy(enemy, 1, direction)
-		strike_guard = false
 	check_outcome()
 
 ## 重力妖精: in the equipped weapon's range it pulls, outside it pushes.
@@ -1614,7 +1619,7 @@ func wolf_crowded(wolf: Dictionary) -> bool:
 
 ## Within any weapon's reach the wolf sulks. Otherwise it spends its 3 AP one at a
 ## time: a bite on an enemy it reaches (2 alone, 1 with company), or a silver step
-## toward one. The upgraded wolf gets the AP back when a bite kills.
+## toward one. (The class-up only makes it free to summon.)
 func _wolf_action(wolf: Dictionary) -> void:
 	wolf.sulking = all_reach().has(wolf.cell)
 	if wolf.sulking:
@@ -1631,8 +1636,6 @@ func _wolf_action(wolf: Dictionary) -> void:
 			damage_enemy(target, 1 if wolf_crowded(wolf) else 2, prey.dir)
 			add_log("一匹狼の妖精が噛みついた")
 			check_outcome()
-			if target.hp <= 0 and wolf.get("plus", false):
-				wolf.ap += 1
 			continue
 		var step := _wolf_step(wolf)
 		if step == wolf.cell:
