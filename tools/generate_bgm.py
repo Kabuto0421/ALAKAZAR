@@ -1514,6 +1514,8 @@ TITLE_CHORDS = {
     "F": {"bass": "F1", "pad": ["F2", "A2", "C3", "F3"], "arp": ["F3", "A3", "C4", "F4"]},
     "Em": {"bass": "E2", "pad": ["E3", "G3", "B3", "E4"], "arp": ["E4", "G4", "B4", "E5"]},
     "D": {"bass": "D2", "pad": ["D3", "F#3", "A3", "D4"], "arp": ["D4", "F#4", "A4", "D5"]},
+    # B7, the dominant of E minor: its D# is the leading tone that pulls up to E.
+    "B": {"bass": "B1", "pad": ["B2", "D#3", "F#3", "A3"], "arp": ["B3", "D#4", "F#4", "B4"]},
 }
 TITLE_PROGRESSION = ["Dm", "C", "Dm", "Am", "Dm", "C", "G", "Am"]
 TITLE_PCS = [2, 4, 5, 7, 9, 11, 0]  # D Dorian
@@ -1677,7 +1679,7 @@ DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
 #                            thins out bar by bar until only whistle and harp are left,
 #                            and the loop returns to the glen. (G -> Am closes the loop.)
 KOMURO = ["Am", "F", "G", "C", "Am", "F", "G"]
-CYBER_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D"]
+CYBER_CHORDS = ["Em", "C", "G", "B", "Em", "C", "B"]
 FUSION_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D", "G"]
 # "w" marks a tin-whistle note; the rest are pipes.
 KOMURO_TUNE = [
@@ -1695,10 +1697,10 @@ CYBER_HOOK = [
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "A5"), (12, 4, "G5")],
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 4, "G5")],
     [(0, 3, "D5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "D6"), (12, 4, "B5")],
-    [(0, 3, "A5"), (3, 3, "F#5"), (6, 2, "D5"), (8, 2, "E5"), (10, 2, "F#5"), (12, 4, "A5")],
-    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "B5"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "E6")],
+    [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "B5"), (8, 2, "A5"), (10, 2, "F#5"), (12, 4, "D#5")],
+    [(0, 4, "E5"), (4, 2, "B5"), (6, 2, "E6"), (8, 2, "D6"), (10, 2, "B5"), (12, 4, "G5")],
     [(0, 2, "C6"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "G5"), (10, 2, "C6"), (12, 4, "E6")],
-    [(0, 2, "D6"), (2, 2, "A5"), (4, 2, "F#5"), (6, 2, "A5"), (8, 8, "D6")],
+    [(0, 2, "A5"), (2, 2, "F#5"), (4, 2, "D#5"), (6, 2, "F#5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D#5")],
 ]
 
 
@@ -1708,6 +1710,14 @@ def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
     return synth(m, steps * STEP * gate, "saw", detune=(-26, -15, -7, 0, 7, 15, 26), vol=vol,
                  attack=0.006, decay=0.3, sustain=0.8, release=0.1,
                  cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from)
+
+
+def landing_hit(loop, t0, chord, vol=0.13):
+    """The arrival chord after a phrase's leading tone: the whole triad, an octave
+    higher and the root two octaves up, struck together on the downbeat (on its own
+    bus, so the kick's pump does not duck it) while the melody lands on the tonic."""
+    notes = [midi(chord["bass"]) + 24] + [midi(n) + 12 for n in chord["arp"][:3]]
+    loop.put("landing", t0, edm_stab(notes, vol, steps=3))
 
 
 def edm_stab(notes, vol=0.06, steps=1.5):
@@ -1899,10 +1909,15 @@ def title_march():
                 prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
                     m = midi(nt)
-                    loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
+                    # The last note of a phrase (the leading tone D#) is thrown into an echo
+                    # that trails over the landing.
+                    bus = "tail" if idx in (3, 6) and st == 12 else "lead"
+                    loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
                     if idx >= 4:
-                        loop.put("lead", t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
+                        loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
                     prev = m
+                if idx == 4:
+                    landing_hit(loop, t0, chord)
             else:
                 # --- cyber + Celtic together, thinning out toward the glen ---
                 full = idx < 4
@@ -1922,6 +1937,7 @@ def title_march():
                 if idx == 0:
                     loop.put("fx", t0, crash(rng, 2.2, 0.15))
                     loop.put("kick", t0, kick(1.0))
+                    landing_hit(loop, t0, chord)
                 if idx < 6:
                     if idx < 5:
                         for s in range(16):
@@ -1955,6 +1971,7 @@ def title_march():
     loop.echo("lead", STEP * 3, 0.2, 0.2)
     loop.echo("whistle", STEP * 3, 0.35, 0.4)
     loop.echo("arp", STEP * 3, 0.3, 0.35)
+    loop.echo("tail", STEP * 3, 0.45, 0.55)
     loop.duck("pad", kicks, 0.3)
     loop.duck("bass", kicks, 0.2, length=0.1)
     # The EDM part pumps hard: pad, stabs and bass all duck on every kick.
