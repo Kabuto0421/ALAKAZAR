@@ -1622,9 +1622,9 @@ func _loner_fairies() -> void:
 	m.enemies.append(prey)
 	verify(m.use_item("lone_wolf",home) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
 	var wolf: Dictionary = m.allies[0]
-	verify(wolf.hp == 3 and Rules.summon_ap("lone_wolf") == 3,"The lone wolf has HP 3 and AP 3")
+	verify(wolf.hp == 3 and Rules.summon_ap("lone_wolf") == 2,"The lone wolf has HP 3 and AP 2")
 	m.act_allies()
-	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 1,"Alone, it takes a silver step and bites twice for 2 (3 AP)")
+	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 3,"Alone, it takes a silver step and bites once for 2 (2 AP)")
 	m.tick_walls()
 	verify(m.allies.size() == 1,"The wolf does not fade with the turn count")
 	var crowd: Vector2i = Vector2i(-1,-1)
@@ -1635,7 +1635,7 @@ func _loner_fairies() -> void:
 	prey.hp = 5
 	m.allies.append({"id":-50, "type":"holy_knight", "cell":crowd, "hp":1, "ap":0, "facing":2})
 	m.act_allies()
-	verify(prey.hp == 2,"With company beside it, each bite drops to 1")
+	verify(prey.hp == 3,"With company beside it, each bite drops to 1 (two bites)")
 	m.allies = m.allies.filter(func(a): return a.type == "wolf")
 	# Class-up: free to summon, no extra use.
 	m.fairy_plus["lone_wolf"] = true

@@ -24,7 +24,7 @@ const SUMMON_STATS := {
 	"glutton_fairy": {"hp": 1, "ap": 2, "hp_plus": 3},
 	"guardian_fairy": {"hp": 3, "ap": 1, "hp_plus": 4},
 	"holy_spirit": {"hp": 1, "ap": 1, "hp_plus": 1},
-	"lone_wolf": {"hp": 3, "ap": 3, "hp_plus": 3},
+	"lone_wolf": {"hp": 3, "ap": 2, "hp_plus": 3},
 }
 ## Which fairy each summoned ally type comes from.
 const ALLY_FAIRY := {"acorn": "acorn_fairy", "glutton": "glutton_fairy", "guardian": "guardian_fairy", "holy": "holy_spirit", "wolf": "lone_wolf"}
