@@ -54,6 +54,7 @@ func run() -> void:
 	title.queue_free()
 	await process_frame
 	await check_title_sync()
+	check_title_extras()
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
 	await process_frame
@@ -292,3 +293,26 @@ func check_title_sync() -> void:
 	verify(absf(title._song_time()-12.598)<0.01 and title.sync.section_name(title._song_time())=="glen","The song time folds back into the loop")
 	title.queue_free()
 	await process_frame
+
+
+# Fairies the title art does not show are set out by themselves, clear of everything painted.
+func check_title_extras() -> void:
+	var Extras = load("res://scripts/title/title_extras.gd")
+	var Model = load("res://scripts/battle_model.gd")
+	var missing: Array = Extras.missing()
+	verify(missing.any(func(item): return item.id=="time_fairy"),"The time fairy, not in the art, is set out on the title screen")
+	verify(Extras.IN_ART.all(func(id): return Model.ITEMS.any(func(item): return item.id==id)),"Every fairy the art is said to show exists")
+	verify(missing.size()<=Extras.capacity(),"There is room for every fairy the art does not show")
+	var image: Image = load("res://assets/title/layer_10_heroes.png").get_image()
+	var logo: Image = load("res://assets/title/layer_30_logo.png").get_image()
+	var painted := 0
+	for y in range(int(Extras.AREA.position.y),int(Extras.AREA.end.y)):
+		for x in range(int(Extras.AREA.position.x),int(Extras.AREA.end.x)):
+			if image.get_pixel(x,y).a>0.05 or (logo.get_pixel(x,y).a>0.05 and logo.get_pixel(x,y).r>0.7):
+				painted+=1
+	verify(painted==0,"The free space holds none of the heroes' or the logo's pixels")
+	var spots: Array[Rect2] = []
+	for index in Extras.capacity():
+		spots.append(Rect2(Extras.slot_center(index)-Vector2.ONE*Extras.SIZE/2,Vector2.ONE*Extras.SIZE))
+	verify(spots.all(func(r): return Extras.AREA.grow(2).encloses(r)),"Every slot lies inside the free space (with room to bob)")
+	verify(range(spots.size()).all(func(i): return range(i+1,spots.size()).all(func(j): return not spots[i].intersects(spots[j]))),"...and no two slots overlap")

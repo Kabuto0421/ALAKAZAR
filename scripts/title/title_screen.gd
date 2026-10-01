@@ -17,6 +17,7 @@ extends Control
 const Achievements = preload("res://scripts/title/achievements.gd")
 const Sync = preload("res://scripts/title/title_sync.gd")
 const TitleFx = preload("res://scripts/title/title_fx.gd")
+const TitleExtras = preload("res://scripts/title/title_extras.gd")
 const GRADE_SHADER = preload("res://scripts/title/title_grade.gdshader")
 const LOGO_SHADER = preload("res://scripts/title/title_logo.gdshader")
 const LAYER_SHADER = preload("res://scripts/title/title_layer.gdshader")
@@ -106,6 +107,7 @@ var bar_top: ColorRect
 var bar_bottom: ColorRect
 var art: Control
 var heroes: TextureRect
+var extras: Node2D
 var enemies: TextureRect
 var logo: TextureRect
 var window: TextureRect
@@ -142,6 +144,9 @@ func _ready() -> void:
 	art.add_child(fx)
 	heroes = _layer(HEROES)
 	heroes_mat = _shade(heroes, LAYER_SHADER)
+	# Fairies the art does not show yet stand in the free sky above them.
+	extras = TitleExtras.new()
+	heroes.add_child(extras)
 	enemies = _layer(ENEMIES)
 	enemies_mat = _shade(enemies, LAYER_SHADER)
 	# The sparks fly in front of the army.
