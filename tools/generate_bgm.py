@@ -270,6 +270,25 @@ class Mix:
         rms = math.sqrt(sum(s * s for s in total) / self.n) or 1.0
         scale = min(peak / top, TARGET_RMS * getattr(self, "loudness", 1.0) / rms)
         data = numpy.array(total, dtype=numpy.float32) * scale
+        # A section that must sit louder than the rest of the file (start s, end s, RMS):
+        # raised after the file-wide normalisation and held under a soft ceiling.
+        region = getattr(self, "region_rms", None)
+        if region:
+            lo, hi = int(region[0] * RATE), min(int(region[1] * RATE), len(data))
+            seg = data[lo:hi].astype(numpy.float64)
+            ceiling = 0.92
+
+            def limited(gain):
+                return numpy.tanh(seg * gain / ceiling) * ceiling
+
+            low, high = 0.5, 12.0
+            for _ in range(30):
+                mid = (low + high) / 2
+                if math.sqrt(float(numpy.mean(limited(mid) ** 2))) < region[2]:
+                    low = mid
+                else:
+                    high = mid
+            data[lo:hi] = limited((low + high) / 2).astype(numpy.float32)
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
                                  compression_level=getattr(self, "compression", COMPRESSION)) as f:
@@ -1980,6 +1999,9 @@ def title_theme(opening="rolloff"):
     joined.buses = {"all": head + body}
     joined.loop_offset = intro.n / RATE
     joined.loudness = 1.05
+    # The EDM part (march bars 8-14) hits much harder than the rest.
+    march_bar = 240.0 / TITLE_MARCH_BPM
+    joined.region_rms = (intro.n / RATE + 7 * march_bar, intro.n / RATE + 14 * march_bar, 0.35)
     return joined
 
 
