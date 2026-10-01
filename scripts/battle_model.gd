@@ -254,7 +254,24 @@ var fallen: Array[String] = []
 ## Where broken fortresses left their rubble (top-left of each 2x2), for the view.
 var ruins: Array[Vector2i] = []
 
+## What happened this battle, for the achievements (Achievements.check reads it): the
+## highest CHAIN, the rounds each 設置 fairy was put down in, the most allies one 守護神
+## called, whether a 暴食妖精 ate the player, whether an attacking fairy set off a placed
+## one, and the magic circles closed.
+var stats := _fresh_stats()
+
+func _fresh_stats() -> Dictionary:
+	return {"max_chain": 0, "placed_rounds": [], "guardian_calls": 0, "eaten": false, "fairy_set_off": false, "circles": 0}
+
+## The fairies that are put down on the board and stay (the cards' 設置 label).
+const PLACED_FAIRIES := ["stealth_fairy", "wall_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit"]
+
+## How many 設置 fairies were put down within the last WALL_TURNS rounds (so still standing).
+func placed_recently() -> int:
+	return stats.placed_rounds.filter(func(r: int) -> bool: return round_number - r < WALL_TURNS).size()
+
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
+	stats = _fresh_stats()
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
 	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else FORMATIONS[level]
 	var layout: Node = scene.instantiate()
@@ -697,6 +714,8 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	struck_ids.clear()
 	item.effect.new().apply(self, cell, direction)
 	strike_guard = false
+	if id in PLACED_FAIRIES:
+		stats.placed_rounds.append(round_number)
 	add_log("%sを使用" % fairy_title(id))
 	check_outcome()
 	dig_abyss()
@@ -1066,6 +1085,7 @@ func _cast_circle() -> void:
 		if enemy.hp > 0 and footprint(enemy).any(func(tile: Vector2i) -> bool: return area.has(tile)):
 			struck.append(enemy)
 	var hit_units: Array = struck.map(func(enemy: Dictionary) -> Dictionary: return {"cell": enemy.cell, "size": enemy.get("size", 1)})
+	stats.circles += 1
 	events.append({"kind":"circle", "cell":player.cell, "id":-2, "cells":area, "line":found.line, "targets":hit_units})
 	for enemy in struck:
 		damage_enemy(enemy, CIRCLE_DAMAGE)
@@ -1260,6 +1280,7 @@ func summon_guardian(cell: Vector2i) -> void:
 			events[i].delay = delay
 			events[i].called = true
 		calls.append({"cell":spot, "delay":delay, "ally":ally_id})
+	stats.guardian_calls = maxi(int(stats.guardian_calls), calls.size())
 	events.append({"kind":"guardian", "cell":anchor, "id":-2, "ally":int(guardian.id), "calls":calls})
 	add_log("守護神が降臨し、%d体を呼び寄せた" % calls.size())
 
@@ -1665,6 +1686,7 @@ func glutton_bite(glutton: Dictionary, tile: Vector2i) -> void:
 	var big := int(enemy_at(tile).get("size", 1)) > 1 if tile != player.cell else false
 	events.append({"kind":"gulp" if tile == player.cell else "devour", "cell":tile, "id":-2, "by":glutton.id, "from":glutton.cell, "big":big})
 	if tile == player.cell:
+		stats.eaten = true
 		player.hp = maxi(player.hp - CIRCLE_DAMAGE, 0)
 		events.append({"kind":"hit", "cell":tile, "id":-1, "by":glutton.id, "damage":CIRCLE_DAMAGE})
 		add_log("暴食妖精があなたに噛みついた / %dダメージ" % CIRCLE_DAMAGE)
@@ -2042,6 +2064,7 @@ func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
 	# The chain counts every cannon going off this player turn: a new strike carries
 	# the count on instead of starting over.
 	turn_chain += 1
+	stats.max_chain = maxi(int(stats.max_chain), turn_chain)
 	if turn_chain >= 2:
 		events.append({"kind":"chain", "cell":cannon.cell, "id":-2, "count":turn_chain, "delay":at})
 	_fire_cannon(cannon, fired)
@@ -2248,6 +2271,7 @@ func _cannons_in(cells: Array) -> Array:
 func _detonate(cannons_hit: Array) -> void:
 	if cannons_hit.is_empty():
 		return
+	stats.fairy_set_off = true
 	start_chain()
 	_resonate(cannons_hit, [])
 

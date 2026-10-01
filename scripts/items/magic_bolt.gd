@@ -14,4 +14,6 @@ func apply(model: RefCounted, cell: Vector2i, direction: Vector2i) -> void:
 				model.damage_enemy(enemy, 1, aim)
 	# The bolt's own tile counts as the first link, so the cannons go off after it.
 	model.start_chain()
+	if not passed.is_empty():
+		model.stats.fairy_set_off = true
 	model._resonate(passed, [cell])

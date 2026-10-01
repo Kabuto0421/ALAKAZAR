@@ -57,7 +57,7 @@ func run() -> void:
 	Achievements.recording = false
 	Achievements.reset_memory()
 	var ach_ids: Array = Achievements.all().map(func(a): return a.id)
-	verify(ach_ids == ["fairy_master", "the_world"] and Achievements.all().all(func(a): return load(a.icon) != null and a.title != "" and a.description != ""),"Achievements: the fairy master first, then the world (each with an icon, name and description)")
+	verify(ach_ids.size() == 10 and ach_ids[0] == "fairy_master" and ach_ids[-1] == "the_world" and Achievements.all().all(func(a): return load(a.icon) != null and a.title != "" and a.description != ""),"Achievements: the fairy master first, the world last (each with an icon, name and description)")
 	verify(Achievements.unlocked_count() == 0 and not Achievements.unlock("nothing"),"...none earned at first (unknown ids are ignored)")
 	verify(Achievements.progress("fairy_master") == [0, load("res://scripts/battle_model.gd").ITEMS.size()] and Achievements.progress("the_world").is_empty(),"The fairy master shows how many fairies have been used; the other has no count")
 	title.queue_free()
@@ -206,7 +206,7 @@ func run() -> void:
 	verify(not Achievements.is_unlocked("fairy_master") and Achievements.progress("fairy_master")[0]==all_items.size()-1,"One fairy short of all: not yet (the count shows it)")
 	Book.record_use(all_items[-1].id)
 	battle._check_achievements()
-	verify(Achievements.is_unlocked("fairy_master") and battle.toast.get("id","")=="fairy_master","Having used every fairy earns 妖精マスター (and shows the banner)")
+	verify(Achievements.is_unlocked("fairy_master") and battle.toast.current=="fairy_master","Having used every fairy earns 妖精マスター (and shows the banner)")
 	battle.model.phase=Rules.Phase.WON
 	battle.model.time_stop=0
 	battle._check_achievements()

@@ -4,6 +4,7 @@ const Rules = preload("res://scripts/battle_model.gd")
 const Planner = preload("res://scripts/enemy_planner.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const ThreatPreview = preload("res://scripts/threat_preview.gd")
+const Achievements = preload("res://scripts/title/achievements.gd")
 var checks := 0
 var failures := 0
 
@@ -299,6 +300,7 @@ func _initialize() -> void:
 	_gravity_big()
 	_glutton()
 	_prison_king()
+	_achievement_scenarios()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2010,3 +2012,145 @@ func _prison_king() -> void:
 	king.hp = 0
 	m.check_outcome()
 	verify(m.phase == Rules.Phase.WON and m.events.filter(func(e): return e.kind == "king_fall").size() == 1,"The king's fall wins and raises the finale once")
+
+
+## Every achievement is played out on the real model, and checked to come only when earned.
+func _achievement_scenarios() -> void:
+	Achievements.recording = false
+	Achievements.reset_memory()
+	var fresh := func() -> RefCounted:
+		var m := fixture()
+		m.owned_weapons.assign([0])
+		m.weapon = 0
+		return m
+	# ばよえ〜ん！: 5 cannons going off in one turn. Four is not enough.
+	var chain: RefCounted = fresh.call()
+	chain.player.cell = Vector2i(0,5)
+	var ring := [[Vector2i(0,1),Vector2i.RIGHT],[Vector2i(2,1),Vector2i.DOWN],[Vector2i(2,3),Vector2i.RIGHT],[Vector2i(4,3),Vector2i.UP],[Vector2i(4,1),Vector2i.LEFT]]
+	for link in ring.slice(0, 4):
+		chain.place_cannon(link[0], link[1], "lance")
+	chain.start_chain()
+	chain.fire_cannon(chain.cannon_at(Vector2i(0,1)))
+	verify(chain.turn_chain == 4 and chain.stats.max_chain == 4 and not Achievements.check(chain).has("chain"),"A 4 CHAIN does not earn ばよえ〜ん！")
+	chain = fresh.call()
+	chain.player.cell = Vector2i(0,5)
+	for link in ring:
+		chain.place_cannon(link[0], link[1], "lance")
+	chain.start_chain()
+	chain.fire_cannon(chain.cannon_at(Vector2i(0,1)))
+	verify(chain.turn_chain == 5 and Achievements.check(chain) == ["chain"] and Achievements.is_unlocked("chain"),"A 5 CHAIN earns ばよえ〜ん！")
+	chain.reset(2)
+	verify(chain.stats.max_chain == 0,"The CHAIN record starts over with each battle")
+	# え、これできるんだ...: an attacking fairy (the bolt, the axe, the meteor...) sets a placed one off.
+	var bolt: RefCounted = fresh.call()
+	bolt.player.cell = Vector2i(0,2)
+	bolt.place_cannon(Vector2i(3,2), Vector2i.UP, "lance")
+	bolt.start_chain()
+	bolt.fire_cannon(bolt.cannon_at(Vector2i(3,2)))
+	verify(not bolt.stats.fairy_set_off and not Achievements.check(bolt).has("surprise"),"A cannon firing by itself is not a fairy setting it off")
+	bolt = fresh.call()
+	bolt.player.cell = Vector2i(0,2)
+	bolt.place_cannon(Vector2i(3,2), Vector2i.UP, "lance")
+	bolt.fairy_loadout.assign(["magic_bolt"])
+	bolt.refill_fairies()
+	var bolt_ok: bool = bolt.use_item("magic_bolt", Vector2i(1,2), Vector2i.RIGHT)
+	var bolt_earned := Achievements.check(bolt)
+	verify(bolt_ok and bolt_earned == ["surprise"],"A magic bolt through a lance cannon earns え、これできるんだ...")
+	var axe: RefCounted = fresh.call()
+	axe.player.cell = Vector2i(0,2)
+	axe.place_cannon(Vector2i(4,2), Vector2i.UP, "lance")
+	axe.fairy_loadout.assign(["axe_spirit"])
+	axe.refill_fairies()
+	var axe_ok: bool = axe.use_item("axe_spirit", Vector2i(1,2), Vector2i.RIGHT)
+	verify(axe_ok and axe.stats.fairy_set_off,"A damaging fairy besides the bolt (the axe) sets off a cannon in its path too")
+	# 魔法陣最高！: closing a circle with a circle weapon.
+	var circle: RefCounted = fresh.call()
+	var down_right: int = Run.Weapons.DATA.map(func(w): return w.id).find("front_diagonal")
+	circle.owned_weapons.assign([0,1,down_right])
+	circle.enchants[down_right] = "circle"
+	circle.weapon = down_right
+	circle.player.cell = Vector2i(2,2)
+	circle.circle_tiles.assign([Vector2i(3,1),Vector2i(4,2)])
+	verify(Achievements.check(circle).is_empty(),"White tiles alone earn nothing")
+	verify(circle.player_action(Vector2i(3,3)) and circle.stats.circles == 1 and Achievements.check(circle) == ["circle"],"Closing a magic circle earns 魔法陣最高！魔法陣最高！")
+	# 戦場の庭師: three 設置 fairies down within their five turns.
+	var garden: RefCounted = fresh.call()
+	garden.player.cell = Vector2i(0,2)
+	var placers := ["cannon_fairy", "vane_cannon", "capacitor_fairy"]
+	garden.fairy_loadout.assign(placers)
+	garden.refill_fairies()
+	for n in placers.size():
+		garden.player.ap = 2
+		garden.player.cell = Vector2i(0, 2 * n)
+		var spots: Array[Vector2i] = garden.item_targets(placers[n])
+		verify(not spots.is_empty() and garden.use_item(placers[n], spots[0], Vector2i.UP), "Placing %s" % placers[n])
+		verify((n < 2) == Achievements.check(garden).is_empty(),"%d placed: %s" % [n + 1, "nothing yet" if n < 2 else "戦場の庭師"])
+	verify(Achievements.is_unlocked("garden") and garden.placed_recently() == 3,"Three placed fairies earn 戦場の庭師")
+	var slow: RefCounted = fresh.call()
+	slow.fairy_loadout.assign(placers)
+	slow.refill_fairies()
+	for n in placers.size():
+		slow.round_number = 1 + n * Rules.WALL_TURNS
+		slow.player.ap = 2
+		slow.player.cell = Vector2i(0, 2 * n)
+		slow.use_item(placers[n], slow.item_targets(placers[n])[0], Vector2i.UP)
+	Achievements.reset_memory()
+	var slow_earned := Achievements.check(slow)
+	verify(slow.placed_recently() == 1 and slow.stats.placed_rounds.size() == 3 and not slow_earned.has("garden"),"Three placements spread over many turns never stand together: no 戦場の庭師")
+	# The list of 設置 fairies is the cards' 設置 label.
+	var card_kinds: Dictionary = load("res://scripts/run/choice_card.gd").KINDS
+	var labelled: Array = card_kinds.keys().filter(func(id): return card_kinds[id] == "設置")
+	labelled.sort()
+	var listed: Array = Rules.PLACED_FAIRIES.duplicate()
+	listed.sort()
+	verify(labelled == listed,"PLACED_FAIRIES matches the cards that say 設置")
+	# 天の守護神、ここにあり。: the guardian calls at least one ally.
+	var alone: RefCounted = fresh.call()
+	alone.summon_guardian(Vector2i(2,2))
+	verify(alone.stats.guardian_calls == 0 and not Achievements.check(alone).has("guardian_sky"),"A guardian with nobody to call earns nothing")
+	var guardian: RefCounted = fresh.call()
+	guardian.player.cell = Vector2i(0,0)
+	guardian.summon_acorn(Vector2i(4,0))
+	guardian.summon_guardian(Vector2i(2,2))
+	verify(guardian.stats.guardian_calls >= 1 and Achievements.check(guardian) == ["guardian_sky"],"A guardian that brings an ally earns 天の守護神、ここにあり。")
+	# Y O U　 D I E D: eaten by the glutton. Eating an enemy is not enough.
+	var snack: RefCounted = fresh.call()
+	snack.player.cell = Vector2i(0,5)
+	snack.summon_glutton(Vector2i(3,1))
+	var prey: Dictionary = snack.make_enemy("heavy", Vector2i(3,2), 3)
+	prey.hp = 5
+	snack.enemies.append(prey)
+	snack.act_allies()
+	verify(prey.hp <= 0 and not snack.stats.eaten and not Achievements.check(snack).has("you_died"),"The glutton eating an enemy does not earn Y O U　 D I E D")
+	var eaten: RefCounted = fresh.call()
+	eaten.player.cell = Vector2i(1,1)
+	eaten.player.hp = 5
+	eaten.summon_glutton(Vector2i(2,1))
+	eaten.act_allies()
+	verify(eaten.phase == Rules.Phase.LOST and Achievements.check(eaten) == ["you_died"],"Being eaten earns Y O U　 D I E D (and is a defeat, still checked)")
+	# これは一体、どうなっちゃうんだ〜！？: three meteor class-ups.
+	var meteor: RefCounted = fresh.call()
+	meteor.fairy_loadout.assign(["meteor_fairy"])
+	meteor.refill_fairies()
+	for n in 3:
+		verify(not Achievements.check(meteor).has("meteor_hell") and meteor.class_up(0),"Meteor class-up %d" % (n + 1))
+	verify(Achievements.check(meteor) == ["meteor_hell"],"The third meteor class-up earns これは一体、どうなっちゃうんだ〜！？")
+	# ALAKAZAR's KING: the Prison King falls on the last stage (the other bosses do not count).
+	var boss: RefCounted = Rules.new()
+	boss.reset(Rules.BOSS_LEVEL)
+	for enemy in boss.enemies:
+		enemy.hp = 0
+	boss.check_outcome()
+	verify(boss.phase == Rules.Phase.WON and not Achievements.check(boss).has("alakazar_king"),"Beating an earlier boss is not the king")
+	var king: RefCounted = Rules.new()
+	king.reset(Rules.FINAL_LEVEL)
+	verify(king.enemies.any(func(e): return e.type == "king") and Achievements.check(king).is_empty(),"The king alive earns nothing")
+	for enemy in king.enemies:
+		if enemy.type == "king":
+			enemy.hp = 0
+	king.check_outcome()
+	verify(king.phase == Rules.Phase.WON and Achievements.check(king) == ["alakazar_king"],"The Prison King's fall earns ALAKAZAR's KING")
+	# Nothing is earned twice, and the list on the 実績 page is in the asked order.
+	verify(Achievements.check(king).is_empty(),"An achievement is announced once")
+	verify(Achievements.all().map(func(a): return a.id) == ["fairy_master","alakazar_king","guardian_sky","you_died","garden","chain","surprise","circle","meteor_hell","the_world"],"The 実績 page lists them in order")
+	Achievements.reset_memory()

@@ -601,7 +601,7 @@ func _open_achievements() -> void:
 			text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			text.alignment = BoxContainer.ALIGNMENT_CENTER
 			row.add_child(text)
-			text.add_child(_row_label(("★ " if unlocked else "☆ ") + ("？？？" if hidden else str(entry.title)), 44, GOLD if unlocked else Color("8a949a")))
+			text.add_child(_row_label(("★ " if unlocked else "☆ ") + ("？？？" if hidden else str(entry.title)), 44, Color(str(entry.get("title_color", "f4d56f"))) if unlocked else Color("8a949a")))
 			text.add_child(_row_label("？？？" if hidden else str(entry.get("description", "")), 30, CREAM if unlocked else Color("6f797e")))
 			# A counting one shows how far it has got.
 			var progress := Achievements.progress(entry.id)

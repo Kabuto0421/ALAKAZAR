@@ -18,6 +18,10 @@ const LATIN = preload("res://assets/fonts/VT323-Regular.ttf")
 const INK = Color("e5dfc5")
 const CYAN = Color("2bdcc8")
 const BgmPlayer = preload("res://scripts/audio/bgm_player.gd")
+const Achievements = preload("res://scripts/title/achievements.gd")
+const AchievementToast = preload("res://scripts/title/achievement_toast.gd")
+## Announces achievements earned between fights (the meteor class-ups at the camp).
+var toast := AchievementToast.new()
 var run := Run.new()
 var screen: Control
 var battle_view: Node2D
@@ -27,10 +31,12 @@ var bgm: Node
 func _ready() -> void:
 	bgm = BgmPlayer.new()
 	add_child(bgm)
+	add_child(toast)
 	run.start()
 	_render()
 
 func _render() -> void:
+	toast.show_new(Achievements.check(run.battle))
 	if is_instance_valid(screen):
 		remove_child(screen)
 		screen.queue_free()
