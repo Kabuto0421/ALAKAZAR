@@ -1679,7 +1679,7 @@ DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
 #                            thins out bar by bar until only whistle and harp are left,
 #                            and the loop returns to the glen. (G -> Am closes the loop.)
 KOMURO = ["Am", "F", "G", "C", "Am", "F", "G"]
-CYBER_CHORDS = ["Em", "C", "G", "B", "Em", "Em", "C"]
+CYBER_CHORDS = ["Em", "C", "G", "B", "Em", "B", "Em", "Em"]
 FUSION_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D", "G"]
 # "w" marks a tin-whistle note; the rest are pipes.
 KOMURO_TUNE = [
@@ -1698,10 +1698,13 @@ CYBER_HOOK = [
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 4, "G5")],
     [(0, 3, "D5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "D6"), (12, 4, "B5")],
     [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "B5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D#6")],
-    [(0, 3, "E6"), (3, 3, "B5"), (6, 2, "G5"), (8, 2, "A5"), (10, 2, "B5"), (12, 2, "E6")],
-    # The outro (bars 6-7, ~36.8-41 s): a slow falling tag over Em, then C.
-    [(0, 4, "B5"), (4, 4, "G5"), (8, 4, "E5"), (12, 4, "B4")],
-    [(0, 4, "G5"), (4, 4, "E5"), (8, 8, "E5")],
+    [(0, 3, "E6"), (3, 3, "B5"), (6, 2, "G5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D6")],
+    # Bars 6-7 bring the phrase to its end: over B7 the 3+3+2 hook turns on the leading
+    # tone D#, and over Em it lands on the tonic, ending on E6.
+    [(0, 3, "D#6"), (3, 3, "B5"), (6, 2, "F#5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D#6")],
+    [(0, 3, "E6"), (3, 3, "B5"), (6, 2, "G5"), (8, 2, "B5"), (10, 2, "D6"), (12, 4, "E6")],
+    # Bar 8 is the outro and the build-up: no melody (the final E6 rings out).
+    [],
 ]
 
 
@@ -1791,11 +1794,11 @@ def title_march():
     """The looping march after the fanfare (see the plan above). 22 bars at 116 BPM."""
     rng = random.Random(97)
     bar = 16 * STEP
-    sizes = [("glen", 7), ("cyber", 7), ("fusion", 8)]
+    sizes = [("glen", 7), ("cyber", 8), ("fusion", 8)]
     total = sum(n for _, n in sizes)
     loop = Mix(total * bar, wrap=True)
     loop.put("drone", 0.0, pipe_drones(7 * bar - 0.7, 0.03))
-    loop.put("drone", (14 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
+    loop.put("drone", (15 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
     kicks = []
     edm_kicks = []
     at = 0
@@ -1867,30 +1870,39 @@ def title_march():
                     loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.1, 2800))
             elif name == "cyber":
                 # --- EDM: no Celtic sound at all ---
-                # The drop (bars 1-4) and the second drop (5-7, a stab on the offbeat). Bar 4
-                # breaks for half a bar: the kick drops out, a snare roll and a riser lift
-                # into the second drop.
+                # Bars 1-4 are the drop (bar 4 breaks for half a bar). Bar 5 is the climax: the
+                # hook's 3+3+2 landing on the tonic. Bars 6-7 (B7, Em) are the main melody
+                # bringing it all to its end on E6 while the groove winds down. Bar 8 is the
+                # outro (12 steps, about 1.5 s) and a build-up (4 steps, about 0.5 s) that
+                # throws the fusion open.
                 breaking = idx == 3
-                # Bars 6-7 are the outro: the groove thins to a slow kick, the tonal parts
-                # carry on softly, and the whole thing fades to silence by 41 s.
-                outro = idx >= 5
-                for s in ((0, 4, 8, 12) if not outro else (0, 8) if idx == 5 else (0,)):
-                    if breaking and s == 12:
-                        continue
-                    loop.put("kick", t0 + s * STEP, kick(1.0 if not outro else 0.8))
+                outro = idx == 7
+                kick_steps = () if outro else (0, 4, 8) if idx == 6 else (0, 4, 8, 12)
+                for s in kick_steps:
+                    loop.put("kick", t0 + s * STEP, kick(1.0))
                     edm_kicks.append(t0 + s * STEP)
                 if not outro:
+                    limit = 12 if idx == 6 else 16
                     for s in (2, 6, 10, 14):
-                        loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.08))
+                        if s < limit:
+                            loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.08))
                     for s in (1, 3, 5, 7, 9, 11, 13, 15):
-                        loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 8000, 15000, 0.03))
+                        if s < limit:
+                            loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 8000, 15000, 0.03))
                     for s in (4, 12):
-                        if not (breaking and s == 12):
+                        if not (s == 12 and (breaking or idx == 6)):
                             loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.27))
-                elif idx == 5:
-                    for s in (2, 10):
-                        loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.05))
-                    loop.put("fx", t0, riser(rng, bar, vol=0.07)[::-1])
+                else:
+                    # The outro: a falling noise, then the build-up into the fusion.
+                    loop.put("fx", t0, riser(rng, 12 * STEP, vol=0.07)[::-1])
+                    loop.put("fx", t0 + 12 * STEP, riser(rng, 4 * STEP, vol=1.0))
+                    # A saw sweeping up from E4 through two octaves: the swell's pitch.
+                    loop.put("fx", t0 + 12 * STEP, synth("E4", 4 * STEP, "saw", detune=(-12, 0, 12), vol=0.14, attack=0.05,
+                                                         decay=1.0, sustain=1.0, release=0.03, cutoff=(6000, 6000, 1.0),
+                                                         pitch=lambda t: 1.0 + 3.0 * min(t / (4 * STEP), 1.0) ** 2))
+                    loop.put("fx", t0 + 12 * STEP, crash(rng, 4 * STEP, 0.9)[::-1])
+                    for k in range(8):
+                        loop.put("snare", t0 + (12 + k * 0.5) * STEP, pipe_snare(rng, 0.08 + 0.7 * (k / 8) ** 1.2))
                 if breaking:
                     first = 12
                     for k in range((16 - first) * 2):
@@ -1902,34 +1914,36 @@ def title_march():
                 if idx == 4:
                     loop.put("fx", t0, crash(rng, 2.0, 0.15))
                 # Offbeat bass (the pump), and a 16th-note pluck arp over the triad.
-                if idx == 6:
-                    loop.put("edm_bass", t0, edm_bass(root, 12, 0.4))
+                if outro:
+                    loop.put("edm_bass", t0, edm_bass(root, 10, 0.35))
                 else:
-                    for s in (2, 6, 10, 14) if idx < 5 else (2, 6):
+                    for s in (2, 6, 10) if idx == 6 else (2, 6, 10, 14):
                         if idx == 4 and s == 14:
                             loop.put("edm_bass", t0 + s * STEP, edm_bass(root + 12, 1, 0.45))
                         else:
-                            loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5 if idx < 5 else 0.4))
+                            loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
-                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (min(idx, 4) / 4), vol=0.085 * (1.0 if idx < 5 else 0.9 if idx == 5 else 0.8)))
+                    if outro and i >= 12:
+                        continue
+                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (min(idx, 4) / 4), vol=0.085 if not outro else 0.07))
                 loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075 if not outro else 0.1))
-                if idx == 4:
+                if idx in (4, 5, 6):
                     notes = [midi(n) + 12 for n in chord["arp"][:3]]
-                    for s in (0, 3, 6, 10):
+                    for s in (0, 3, 6, 10) if idx != 6 else (0, 3, 6):
                         loop.put("edm_stab", t0 + s * STEP, edm_stab(notes, 0.1))
                 # The supersaw lead hook (the second half with an octave behind it).
                 prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
                     m = midi(nt)
-                    # The last notes of the phrases (the leading tone D#, then the final E6) are
+                    # The last note of each phrase (D6, the leading tone D#6, the final E6) is
                     # thrown into an echo that trails on.
-                    bus = "tail" if (idx in (3, 4) and st == 12) or outro else "lead"
+                    bus = "tail" if idx in (3, 4, 5, 6) and st == 12 else "lead"
                     loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
-                    if idx == 4:
+                    if idx in (4, 5, 6):
                         loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
                     prev = m
-                if idx == 4:
-                    landing_hit(loop, t0, chord)
+                if idx in (4, 6):
+                    landing_hit(loop, t0, chord, 0.13 if idx == 4 else 0.1)
             else:
                 # --- cyber + Celtic together, thinning out toward the glen ---
                 full = idx < 4
@@ -1992,17 +2006,17 @@ def title_march():
     loop.duck("edm_bass", edm_kicks, 0.85, length=0.13)
     loop.duck("arp", edm_kicks, 0.35, length=0.14)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
-    for first, last, gain in ((7, 14, 1.04), (14, 18, 1.25)):
+    for first, last, gain in ((7, 15, 1.04), (15, 19, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
                 buf[i] *= gain
-    # The outro's fade-out: bars 6-7 of the cyber part (~36.8-41 s) sink to silence, and
-    # the fusion enters from nothing.
-    lo, hi = int(12 * bar * RATE), int(14 * bar * RATE)
+    # The outro's fade-out: the first 12 steps (about 1.5 s) of the last cyber bar sink
+    # towards silence; the last 4 steps are the build-up and stay as they are.
+    lo, hi = int(14 * bar * RATE), int((14 * bar + 12 * STEP) * RATE)
     for buf in loop.buses.values():
         for i in range(lo, min(hi, len(buf))):
-            buf[i] *= 1.0 - (i - lo) / (hi - lo)
+            buf[i] *= 1.0 - 0.92 * (i - lo) / (hi - lo)
     return loop
 
 
