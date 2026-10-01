@@ -52,7 +52,12 @@ func run() -> void:
 	title._close_achievements()
 	verify(not is_instance_valid(title.achievements_page),"...and it closes")
 	var Achievements = load("res://scripts/title/achievements.gd")
-	verify(Achievements.all().is_empty() and Achievements.unlocked_count() == 0 and not Achievements.unlock("nothing"),"Achievements are ready but empty (unknown ids are ignored)")
+	Achievements.recording = false
+	Achievements.reset_memory()
+	var ach_ids: Array = Achievements.all().map(func(a): return a.id)
+	verify(ach_ids == ["fairy_master", "the_world"] and Achievements.all().all(func(a): return load(a.icon) != null and a.title != "" and a.description != ""),"Achievements: the fairy master first, then the world (each with an icon, name and description)")
+	verify(Achievements.unlocked_count() == 0 and not Achievements.unlock("nothing"),"...none earned at first (unknown ids are ignored)")
+	verify(Achievements.progress("fairy_master") == [0, load("res://scripts/battle_model.gd").ITEMS.size()] and Achievements.progress("the_world").is_empty(),"The fairy master shows how many fairies have been used; the other has no count")
 	title.queue_free()
 	await process_frame
 	await check_title_sync()
@@ -186,6 +191,34 @@ func run() -> void:
 		press.call(KEY_1)
 		verify(battle.model.weapon==battle.model.owned_weapons[weapon_count-1],"1 no longer switches weapons")
 	verify(battle.inventory_ui.keys[0].text=="1" and battle.inventory_ui.keys[2].text=="3","The fairy slots are labelled 1, 2 and 3")
+	# Achievements earned in a battle: every fairy used, and winning while time stands still.
+	var Book = load("res://scripts/fairy_book.gd")
+	Book.path="user://fairy_book_test.cfg"
+	Book.recording=true
+	Book.reset_memory()
+	Achievements.reset_memory()
+	var all_items: Array = load("res://scripts/battle_model.gd").ITEMS
+	for item in all_items.slice(0, all_items.size()-1):
+		Book.record_use(item.id)
+	battle._check_achievements()
+	verify(not Achievements.is_unlocked("fairy_master") and Achievements.progress("fairy_master")[0]==all_items.size()-1,"One fairy short of all: not yet (the count shows it)")
+	Book.record_use(all_items[-1].id)
+	battle._check_achievements()
+	verify(Achievements.is_unlocked("fairy_master") and battle.toast.get("id","")=="fairy_master","Having used every fairy earns 妖精マスター (and shows the banner)")
+	battle.model.phase=Rules.Phase.WON
+	battle.model.time_stop=0
+	battle._check_achievements()
+	verify(not Achievements.is_unlocked("the_world"),"Winning with time running earns nothing")
+	battle.model.time_stop=1
+	battle._check_achievements()
+	verify(Achievements.is_unlocked("the_world"),"Winning while time stands still earns ザ・ワールド")
+	battle.model.phase=Rules.Phase.PLAYER
+	battle.model.time_stop=0
+	Book.recording=false
+	Book.path=Book.SAVE_PATH
+	Book.reset_memory()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://fairy_book_test.cfg"))
+	Achievements.reset_memory()
 	# Summoned allies explain themselves under the cursor, like enemies.
 	var free_cell := Vector2i(-1,-1)
 	for y in battle.model.board_size:

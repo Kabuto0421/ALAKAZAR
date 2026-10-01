@@ -39,6 +39,7 @@ const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
 const FairyBook = preload("res://scripts/fairy_book.gd")
+const Achievements = preload("res://scripts/title/achievements.gd")
 const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
 const GuardianFx = preload("res://scripts/fx/guardian_fx.gd")
 const ChainFx = preload("res://scripts/fx/chain_fx.gd")
@@ -105,6 +106,8 @@ var generation := 0
 var hover_cell := Vector2i(-1,-1)
 var flashes: Array[Dictionary] = []
 var clock := 0.0
+## The achievement banner being shown: {id, until}.
+var toast: Dictionary = {}
 var show_rules := false
 var move_tween: Tween
 var selected_enemy_id := -2
@@ -937,6 +940,33 @@ func _cast_circle_fx(event: Dictionary) -> void:
 	add_child(layer)
 	layer.add_child(fx)
 
+## Achievements earned inside a battle. Called after every change, so it only has to be true
+## at that moment: all the fairies used (FairyBook), or the battle won while time stands still.
+func _check_achievements() -> void:
+	if Rules.ITEMS.all(func(item: Resource) -> bool: return FairyBook.has_used(item.id)):
+		_unlock("fairy_master")
+	if model.phase == Rules.Phase.WON and model.time_stopped():
+		_unlock("the_world")
+
+func _unlock(id: String) -> void:
+	if Achievements.unlock(id):
+		# Announced at the top of the screen for a few seconds.
+		toast = {"id": id, "until": clock + 4.0}
+
+## The "achievement unlocked" banner over the battle.
+func _draw_toast() -> void:
+	if toast.is_empty() or clock > float(toast.until):
+		return
+	var entry: Dictionary = Achievements.all().filter(func(e: Dictionary) -> bool: return e.id == toast.id)[0]
+	var left: float = float(toast.until) - clock
+	var rise := clampf((4.0 - left) / 0.3, 0.0, 1.0) * clampf(left / 0.4, 0.0, 1.0)
+	var rect := Rect2(Vector2(336, -90 + 110 * rise), Vector2(480, 84))
+	draw_rect(rect, Color("0b1218"))
+	draw_rect(rect, GOLD, false, 3)
+	draw_texture_rect(load(entry.icon), Rect2(rect.position + Vector2(8, 8), Vector2(68, 68)), false)
+	_text(rect.position + Vector2(92, 32), "実績解除！", 20, GOLD)
+	_text(rect.position + Vector2(92, 64), str(entry.title), 26, Color("fff6e0"))
+
 func _update_controls() -> void:
 	weapon_effects.visible = not show_rules and not inventory_ui.opened and (not model.terminal() or busy)
 	end_button.disabled = busy or model.phase != Rules.Phase.PLAYER or show_rules or inventory_ui.opened
@@ -971,6 +1001,7 @@ func _update_controls() -> void:
 		button.self_modulate = Color.WHITE
 	cancel_button.visible = not selected_item.is_empty() and not show_rules and not show_history
 	rules_button.visible = true
+	_check_achievements()
 	queue_redraw()
 
 func _selected_enemy() -> Dictionary:
@@ -1212,6 +1243,7 @@ func _draw() -> void:
 	_draw_weapons()
 	_draw_intel()
 	_draw_flashes()
+	_draw_toast()
 	var turn_text := "敵のターン" if busy and model.phase==Rules.Phase.ENEMY else "あなたのターン"
 	if model.board_size >= 8:
 		# The 8x8 board reaches up here, so the turn label moves into the player panel.

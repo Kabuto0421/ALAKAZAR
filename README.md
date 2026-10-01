@@ -22,7 +22,7 @@
   - **おまけ**：ビルドアップ（32.69秒〜）はカメラが少しずつ寄っていき（最大7%）、山場の一撃で戻る。終盤（約37.8秒〜アウトロ）は黒いレターボックスが閉じていき、融合の一撃で開く。サイバーでは雨が縦に落ちるデジタルレイン（青緑の四角の列）になり、融合では森側にも降る。
   - 曲を作り直したら**キューシートも作り直す**（`python3 tools/generate_bgm.py title_theme.cues.json`。`title_theme.ogg` は手でカットした版なので触らない）。長さが合わないとテストが落ちます。タイトル画面の `override_time`（0以上）で曲の位置を手で指定でき、キャプチャとテストはこれで任意の瞬間を再現します。
 - メニューは「GAME START」「実績」の2つを大きな文字（56px）で表示。選択中は金色・左に「▶」・金色の光、そのほかはクリーム色。↑↓（W/S）で選び Enter／Space／Z かクリックで決定。GAME STARTで暗転して `main.tscn`（初期ビルド選択）へ。
-- **実績**は仕組みだけ用意してあります（`scripts/title/achievements.gd`）。`DEFINITIONS` に `{"id", "title", "description", "hidden"}` を足し、達成した所で `Achievements.unlock("id")` を呼ぶと `user://achievements.cfg` に保存され、タイトルの実績ページ（大きな文字の一覧。未解除は灰色、隠し実績は「？？？」、上に「解除 n / 全体」）に出ます。今は一覧が空なので「実績は準備中です」と表示します。
+- **実績**（`scripts/title/achievements.gd`）。上から順に、①**妖精マスター**（妖精全員を使う。アイコンは魔弾・隠密・どんぐり妖精が三角に集まった絵。実績ページに「使った妖精 n / 全体」の進捗を出す）、②**ザ・ワールド**（時を止めてる状態で試合を終える。アイコンは時の妖精）。アイコンは `assets/achievements/`、未解除は暗いシルエットで、解除すると色が付きます。戦闘中に解除すると画面上部に「実績解除！」のバナーが出ます（判定は `BattleView._check_achievements`）。**実績を足すには** `DEFINITIONS` に `{id, title, description, icon}`（任意で `hidden`、進捗を出すなら `progress()` と `progress_label`）を足し、条件を満たした所で `Achievements.unlock("id")` を呼びます。体験版は起動のたびに初期化します（下の `launch_reset.gd`）。
 
 ```sh
 godot --editor --path .

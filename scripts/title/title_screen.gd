@@ -585,9 +585,30 @@ func _open_achievements() -> void:
 		for entry in all:
 			var unlocked := Achievements.is_unlocked(entry.id)
 			var hidden: bool = entry.get("hidden", false) and not unlocked
-			var name_label := _row_label(("★ " if unlocked else "☆ ") + ("？？？" if hidden else str(entry.title)), 40, GOLD if unlocked else Color("8a949a"))
-			rows.add_child(name_label)
-			rows.add_child(_row_label("？？？" if hidden else str(entry.get("description", "")), 28, CREAM if unlocked else Color("6f797e")))
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 28)
+			rows.add_child(row)
+			# The icon: in colour once earned, a dark silhouette until then.
+			var icon := TextureRect.new()
+			icon.custom_minimum_size = Vector2(120, 120)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			if entry.has("icon"):
+				icon.texture = load(entry.icon)
+			icon.modulate = Color.WHITE if unlocked else Color(0.3, 0.34, 0.4, 1.0)
+			row.add_child(icon)
+			var text := VBoxContainer.new()
+			text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			text.alignment = BoxContainer.ALIGNMENT_CENTER
+			row.add_child(text)
+			text.add_child(_row_label(("★ " if unlocked else "☆ ") + ("？？？" if hidden else str(entry.title)), 44, GOLD if unlocked else Color("8a949a")))
+			text.add_child(_row_label("？？？" if hidden else str(entry.get("description", "")), 30, CREAM if unlocked else Color("6f797e")))
+			# A counting one shows how far it has got.
+			var progress := Achievements.progress(entry.id)
+			if not progress.is_empty():
+				var done: int = progress[0]
+				var line := _row_label("%s  %d / %d" % [entry.get("progress_label", "進捗"), done, progress[1]], 30, GOLD if unlocked else Color("2bdcc8"))
+				text.add_child(line)
 	var back := Button.new()
 	back.text = "戻る  [Esc]"
 	back.add_theme_font_override("font", FONT)
