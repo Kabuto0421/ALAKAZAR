@@ -289,14 +289,17 @@ class Mix:
                 else:
                     high = mid
             data[lo:hi] = limited((low + high) / 2).astype(numpy.float32)
-        # A stretch to take out of the finished file (start s, end s): the two ends are
-        # joined with a 2 ms fade on each side so the join does not tick.
+        # A stretch to take out of the finished file (start s, end s). The part before the
+        # cut gets a 5 ms cosine fade-out; the part after it starts untouched but for its
+        # first quarter millisecond. End the cut where a sound begins (not in the middle of
+        # a noise): then the first thing after the join is that sound's own attack.
         cut = getattr(self, "cut", None)
         if cut:
             lo, hi = int(round(cut[0] * RATE)), int(round(cut[1] * RATE))
-            fade = int(0.002 * RATE)
-            data[lo - fade:lo] *= numpy.linspace(1.0, 0.0, fade)
-            data[hi:hi + fade] *= numpy.linspace(0.0, 1.0, fade)
+            fade = int(0.005 * RATE)
+            data[lo - fade:lo] *= 0.5 * (1.0 + numpy.cos(numpy.linspace(0.0, numpy.pi, fade)))
+            tiny = int(0.00025 * RATE)
+            data[hi:hi + tiny] *= numpy.linspace(0.0, 1.0, tiny)
             data = numpy.concatenate([data[:lo], data[hi:]])
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
@@ -2057,9 +2060,10 @@ def title_theme(opening="rolloff"):
     joined.buses = {"all": head + body}
     joined.loop_offset = intro.n / RATE
     joined.loudness = 1.05
-    # Cut 41.85-43.0 s out of the finished file: the end of the outro's fall and the whole
-    # build-up, so the quiet outro goes straight into the fusion's first hit.
-    joined.cut = (41.85, 43.0)
+    # Cut 41.85 s up to the fusion's first hit (43.03 s) out of the finished file: the end of
+    # the outro's fall and the whole build-up, so the quiet outro goes straight into the hit
+    # (the cut ends exactly on the hit, so no noise from the build-up is left in front of it).
+    joined.cut = (41.85, intro.n / RATE + 15 * 240.0 / TITLE_MARCH_BPM)
     return joined
 
 
