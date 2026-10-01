@@ -53,12 +53,14 @@ Writes into assets/audio/bgm/ (mono, 32 kHz, Vorbis ~74 kbps):
                      dissonant organ cluster and clashing bells.
     king_fall.ogg    the king falls: chains burst, a great hit, bells over C major.
     rotorick_intro.ogg  Rotorick arrives: reels spin and lock, a buzzer, a stab.
-    title_theme.ogg  the title screen: a five-bar fanfare (timpani roll, a brass
-                     call in D major, B-flat and C climbing to a D major crash),
-                     then a looping war march in D minor at 104 BPM (field snare,
-                     timpani, low strings, brass chords, the battle hook in the
-                     brass, the climax as a doubled anthem). The import loops it
-                     from the march's start (loop_offset printed when rendered).
+    title_theme.ogg  the title screen, a Celtic war theme in D Dorian at 100 BPM:
+                     a five-bar fanfare (pipe drones struck up under a bodhran
+                     and timpani roll, the war pipes' call with grace notes over
+                     brass, a great D chord), then a looping pipe-band march:
+                     the tune on pipes, then the battle (brass, timpani and low
+                     strings doubling it, a whistle descant), a quiet glen of
+                     harp and whistle, and a muster of rolls. The import loops
+                     it from the march's start (loop_offset printed when rendered).
     (Sound effects are rendered by tools/generate_sfx.py.)
 
     python3 tools/generate_bgm.py boss_loop.ogg rotorick_loop.ogg  # only these
@@ -1423,131 +1425,207 @@ def crash(rng, seconds=2.4, vol=0.14):
     return noise_hit(rng, seconds, 4500, 15000, vol)
 
 
-# The fanfare (D major, the call to arms), then the march turns to D minor.
-FANFARE = [
-    [(0, 1, "D4"), (1, 1, "D4"), (2, 1, "D4"), (3, 5, "A4"), (8, 2, "G4"), (10, 2, "F#4"), (12, 4, "G4")],
-    [(0, 1, "A4"), (1, 1, "A4"), (2, 1, "A4"), (3, 5, "D5"), (8, 2, "C#5"), (10, 2, "D5"), (12, 4, "E5")],
-    [(0, 6, "F5"), (6, 2, "E5"), (8, 6, "G5"), (14, 2, "F#5")],
+# --- the Celtic title: war pipes and a pipe-band march ---------------------------
+
+def pipes(note, seconds, vol=0.1, grace=None):
+    """Great Highland pipe chanter: a bright, reedy, steady tone (no vibrato, no
+    decay: the bag keeps it sounding) with an optional quick grace note on top."""
+    m = midi(note) if isinstance(note, str) else note
+    n = int((seconds + 0.04) * RATE)
+    base = hz(m)
+    cut = hz(grace) if grace is not None else base
+    out = [0.0] * n
+    p1 = p2 = 0.0
+    y1 = y2 = 0.0
+    a = lp_coef(4200)
+    for i in range(n):
+        t = i / RATE
+        f = cut if (grace is not None and t < 0.028) else base
+        p1 = (p1 + f / RATE) % 1.0
+        p2 = (p2 + f * 1.003 / RATE) % 1.0
+        # A narrow pulse (the double reed's buzz) blended with a saw.
+        s = 0.55 * ((1.0 if p1 < 0.22 else 0.0) - 0.22) + 0.45 * (2.0 * p2 - 1.0)
+        y1 += a * (s - y1)
+        y2 += a * (y1 - y2)
+        env = min(1.0, t / 0.012) if t < seconds else max(0.0, 1 - (t - seconds) / 0.04)
+        out[i] = y2 * env * vol
+    return out
+
+
+def pipe_drones(seconds, vol=0.05, swell=0.0):
+    """The pipe drones: bass D2 and two tenor D3s with a little beating, plus a
+    fifth, swelling in over `swell` seconds when the bag is struck up."""
+    voices = [synth(nt, seconds, "saw", detune=(-3, 3), vol=vol, attack=max(0.05, swell), decay=1.0,
+                    sustain=1.0, release=0.5, cutoff=(1300, 1300, 1.0))
+              for nt in ("D2", "D3", "A2")]
+    return [sum(v) for v in zip(*voices)]
+
+
+def pipe_snare(rng, vol):
+    """A pipe-band snare: tight and dry, higher than the field snare."""
+    rattle = noise_hit(rng, 0.09, 2600, 12000, vol)
+    head = synth(62, 0.03, "tri", vol=vol * 0.4, attack=0.001, decay=0.02, sustain=0.0,
+                 release=0.01, cutoff=(4000, 1500, 0.02))
+    return [a + (head[i] if i < len(head) else 0.0) for i, a in enumerate(rattle)]
+
+
+# D Dorian (the Celtic minor, with B natural). Pipe call for the fanfare.
+TITLE_CALL = [
+    [(0, 2, "A4"), (2, 2, "D5"), (4, 6, "E5"), (10, 2, "D5"), (12, 4, "A4")],
+    [(0, 1, "G4"), (1, 3, "A4"), (4, 2, "C5"), (6, 2, "D5"), (8, 8, "E5")],
+    [(0, 2, "F5"), (2, 2, "E5"), (4, 4, "D5"), (8, 2, "C5"), (10, 2, "A4"), (12, 4, "C5")],
 ]
-FANFARE_CHORDS = [["D3", "A3", "D4", "F#4"], ["D3", "A3", "D4", "F#4"],
-                  ["A#2", "F3", "A#3", "D4"], ["C3", "G3", "C4", "E4"]]
-# The march's countermelody: a horn call between the hook phrases.
-HORN_CALL = [(0, 3, "D4"), (3, 1, "D4"), (4, 4, "A4"), (8, 3, "G4"), (11, 1, "F4"), (12, 4, "E4")]
+TITLE_CALL_CHORDS = [["D3", "A3", "D4"], ["C3", "G3", "C4", "E4"], ["A#2", "F3", "A#3", "D4"], ["C3", "G3", "C4", "E4"]]
+# The war tune: a pipe-band march in D Dorian, dotted and snapped (16 steps a bar).
+TITLE_TUNE = [
+    [(0, 3, "D5"), (3, 1, "E5"), (4, 2, "F5"), (6, 2, "D5"), (8, 3, "A4"), (11, 1, "D5"), (12, 4, "D5")],
+    [(0, 3, "E5"), (3, 1, "F5"), (4, 2, "G5"), (6, 2, "E5"), (8, 3, "C5"), (11, 1, "E5"), (12, 4, "G5")],
+    [(0, 3, "A5"), (3, 1, "G5"), (4, 2, "F5"), (6, 2, "A5"), (8, 1, "G5"), (9, 3, "F5"), (12, 2, "E5"), (14, 2, "D5")],
+    [(0, 3, "C5"), (3, 1, "A4"), (4, 4, "E5"), (8, 2, "D5"), (10, 2, "C5"), (12, 4, "A4")],
+    [(0, 3, "D5"), (3, 1, "E5"), (4, 2, "F5"), (6, 2, "D5"), (8, 3, "A4"), (11, 1, "D5"), (12, 4, "F5")],
+    [(0, 3, "G5"), (3, 1, "A5"), (4, 2, "G5"), (6, 2, "E5"), (8, 4, "C5"), (12, 2, "D5"), (14, 2, "E5")],
+    [(0, 3, "D5"), (3, 1, "B4"), (4, 2, "G4"), (6, 2, "B4"), (8, 3, "D5"), (11, 1, "E5"), (12, 4, "D5")],
+    [(0, 3, "E5"), (3, 1, "C5"), (4, 4, "A4"), (8, 8, "D5")],
+]
+TITLE_CHORDS = {
+    "Dm": {"bass": "D2", "pad": ["D3", "F3", "A3", "D4"], "arp": ["D4", "F4", "A4", "D5"]},
+    "C": {"bass": "C2", "pad": ["C3", "E3", "G3", "C4"], "arp": ["C4", "E4", "G4", "C5"]},
+    "G": {"bass": "G1", "pad": ["G2", "B2", "D3", "G3"], "arp": ["G3", "B3", "D4", "G4"]},
+    "Am": {"bass": "A1", "pad": ["A2", "C3", "E3", "A3"], "arp": ["A3", "C4", "E4", "A4"]},
+}
+TITLE_PROGRESSION = ["Dm", "C", "Dm", "Am", "Dm", "C", "G", "Am"]
+TITLE_PCS = [2, 4, 5, 7, 9, 11, 0]  # D Dorian
 
 
 def title_theme():
-    """Title screen: a five-bar fanfare (timpani roll, a brass call in D major,
-    B-flat and C chords climbing to a D major crash), then a looping war march in
-    D minor at 104 BPM: field snare, timpani, low strings, brass chords, the
-    battle hook in the brass and the climax melody as a doubled anthem."""
+    """Title screen, a Celtic war theme in D Dorian at 100 BPM. The fanfare: the
+    pipe drones are struck up under a bodhran and timpani roll, the war pipes sound
+    their call (with grace notes) over brass chords, climbing to a great D chord
+    and a crash. Then the looping march: the pipe-band tune over drones, pipe-band
+    snare and bass drum; the battle with brass, timpani and low strings doubling the
+    tune; a quiet glen of harp and whistle; and a muster of rolls back to the top."""
     rng = random.Random(91)
     bar = 16 * STEP
-    intro_bars = 5
-    intro = Mix(intro_bars * bar, wrap=False)
-    # Bar 1: the timpani roll swells under a cymbal rush.
+    intro = Mix(5 * bar, wrap=False)
+    # Bar 1: the drones swell in, the drums roll up.
+    intro.put("drone", 0.0, pipe_drones(5 * bar - 0.3, 0.045, swell=1.6))
     for k in range(32):
-        intro.put("drum", k * STEP / 2, timpani(rng, "D2", 0.12 + 0.5 * (k / 31) ** 2))
-    intro.put("fx", 0.0, riser(rng, bar, vol=0.12))
-    # Bars 2-4: the call, over brass chords and timpani on the beats.
-    for b, phrase in enumerate(FANFARE):
+        level = (k / 31) ** 2
+        intro.put("drum", k * STEP / 2, bodhran(0.1 + 0.35 * level, accent=k % 4 == 0))
+        intro.put("snare", k * STEP / 2, pipe_snare(rng, 0.03 + 0.12 * level))
+    intro.put("drum", 0.0, timpani(rng, "D2", 0.3))
+    intro.put("fx", 0.0, riser(rng, bar, vol=0.08))
+    # Bars 2-4: the pipe call, with the brass answering under it.
+    for b, phrase in enumerate(TITLE_CALL):
         t0 = (b + 1) * bar
-        intro.put("fx", t0, crash(rng, 1.6, 0.1 if b else 0.16))
-        intro.put("brass", t0, brass_chord(FANFARE_CHORDS[b] if b < 2 else FANFARE_CHORDS[2], 8, 0.05))
-        intro.put("brass", t0 + 8 * STEP, brass_chord(FANFARE_CHORDS[b] if b < 2 else FANFARE_CHORDS[3], 8, 0.05))
+        intro.put("fx", t0, crash(rng, 1.5, 0.12 if b == 0 else 0.07))
+        intro.put("brass", t0, brass_chord(TITLE_CALL_CHORDS[b], 8, 0.045, 2200))
+        intro.put("brass", t0 + 8 * STEP, brass_chord(TITLE_CALL_CHORDS[min(b + 1, 3)] if b == 2 else TITLE_CALL_CHORDS[b], 8, 0.045, 2200))
         for st, ln, nt in phrase:
-            intro.put("lead", t0 + st * STEP, brass(nt, ln, 0.14, 3600))
-            intro.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.07, 2400))
-        for s in (0, 4, 8, 12):
-            intro.put("drum", t0 + s * STEP, timpani(rng, "D2" if s % 8 == 0 else "A1", 0.45))
-        for s in (12, 13, 14, 15):
-            intro.put("drum", t0 + s * STEP, snare(rng, 0.12 + 0.03 * (s - 12)))
-    # Bar 5: the great D major chord, a crash and a last timpani roll into the march.
+            intro.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.13, grace="G5" if ln >= 2 else None))
+        for s in (0, 8):
+            intro.put("drum", t0 + s * STEP, timpani(rng, "D2" if s == 0 else "A1", 0.42))
+            intro.put("kick", t0 + s * STEP, kick(0.55))
+        for s in range(12, 16):
+            intro.put("snare", t0 + s * STEP, pipe_snare(rng, 0.1))
+            intro.put("snare", t0 + (s + 0.5) * STEP, pipe_snare(rng, 0.08))
+    # Bar 5: the great chord, held, with a final roll into the march.
     t0 = 4 * bar
-    intro.put("fx", t0, crash(rng, 2.6, 0.2))
+    intro.put("fx", t0, crash(rng, 2.6, 0.18))
     intro.put("kick", t0, kick(1.0))
-    intro.put("brass", t0, brass_chord(["D2", "A2", "D3", "F#3", "A3", "D4", "F#4"], 13, 0.055, 3000))
-    intro.put("lead", t0, brass("A5", 12, 0.12, 3800))
-    intro.put("bass", t0, synth("D1", bar * 0.8, "saw", detune=(-6, 6), vol=0.35, decay=1.0,
+    intro.put("drum", t0, timpani(rng, "D2", 0.6))
+    intro.put("brass", t0, brass_chord(["D2", "A2", "D3", "A3", "D4", "F4", "A4"], 12, 0.05, 2800))
+    intro.put("lead", t0, pipes("D5", 12 * STEP, 0.13, grace="A5"))
+    intro.put("bass", t0, synth("D1", bar * 0.75, "saw", detune=(-6, 6), vol=0.35, decay=1.0,
                                 sustain=0.6, release=0.3, cutoff=(1400, 400, 0.4)))
-    intro.put("pad", t0, pad_chord(["D3", "F#3", "A3", "D4"], bar * 0.85, cutoff=2400, vol=0.06))
     for k in range(8):
-        intro.put("drum", t0 + (8 + k) * STEP, timpani(rng, "D2", 0.15 + 0.06 * k))
-    intro.echo("lead", STEP * 3, 0.3, 0.3)
+        intro.put("snare", t0 + (8 + k) * STEP, pipe_snare(rng, 0.06 + 0.03 * k))
+        intro.put("snare", t0 + (8.5 + k) * STEP, pipe_snare(rng, 0.05 + 0.03 * k))
+        intro.put("drum", t0 + (8 + k) * STEP, bodhran(0.15 + 0.05 * k))
+    intro.echo("lead", STEP * 3, 0.2, 0.22)
     intro.echo("fx", STEP * 2, 0.25, 0.2)
 
-    # The march: four sections of 4-bar phrases over i - VI - iv - V.
-    plan = [("march", 8), ("anthem", 8), ("calm", 4), ("build", 4)]
+    # The march: pipes, battle, glen, muster.
+    plan = [("pipes", 8), ("battle", 8), ("glen", 4), ("muster", 4)]
     total = sum(n for _, n in plan)
     loop = Mix(total * bar, wrap=True)
+    loop.put("drone", 0.0, pipe_drones(16 * bar, 0.04))
+    loop.put("drone", 20 * bar, pipe_drones(4 * bar, 0.03, swell=1.5))
     kicks = []
-    idx_global = 0
+    at = 0
     for name, count in plan:
         for idx in range(count):
-            t0 = idx_global * bar
-            chord = CHORDS[idx % 4]
-            big = name == "anthem"
-            quiet = name == "calm"
-            # --- drums ---
-            if not quiet:
-                for s in (0, 8):
-                    loop.put("drum", t0 + s * STEP, timpani(rng, chord["bass"].replace("1", "2"), 0.5 if big else 0.42))
-                    kicks.append(t0 + s * STEP)
-                if big:
-                    loop.put("kick", t0, kick(0.8))
-                    loop.put("kick", t0 + 8 * STEP, kick(0.7))
-            pattern = {0: 0.10, 3: 0.08, 4: 0.30, 6: 0.10, 7: 0.12, 10: 0.10, 12: 0.30, 13: 0.10, 14: 0.12, 15: 0.15}
-            level = 0.45 if quiet else 1.0
-            if name == "build":
-                for s in range(16):
-                    loop.put("snare", t0 + s * STEP, snare(rng, (0.06 + 0.2 * (idx * 16 + s) / 64) * 1.0))
-                    if idx >= 2:
-                        loop.put("snare", t0 + (s + 0.5) * STEP, snare(rng, 0.05 + 0.1 * (idx * 16 + s) / 64))
-            else:
-                for s, v in pattern.items():
-                    loop.put("snare", t0 + s * STEP, snare(rng, v * level))
-            if big and idx % 4 == 0:
-                loop.put("fx", t0, crash(rng, 2.0, 0.12))
-            # --- low strings: driving 8ths on the root and fifth ---
+            t0 = at * bar
+            chord = TITLE_CHORDS[TITLE_PROGRESSION[idx % 8]]
+            battle = name == "battle"
+            glen = name == "glen"
             root = midi(chord["bass"])
-            if not quiet:
-                for s, off in zip(range(0, 16, 2), (0, 0, 0, 0, 7, 7, 12, 7)):
-                    loop.put("bass", t0 + s * STEP, bass_note(root + off, 2, 0.42 if big else 0.36))
-            else:
-                loop.put("bass", t0, synth(root, bar * 0.9, "saw", detune=(-6, 6), vol=0.18, attack=0.2,
-                                           decay=1.0, sustain=0.8, release=0.3, cutoff=(700, 500, 1.0)))
-            # --- brass chords and the choir ---
-            loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1900 if big else 1300, vol=0.07 if big else 0.06))
-            if not quiet:
-                loop.put("brass", t0, brass_chord(chord["pad"][1:], 3, 0.045))
-                loop.put("brass", t0 + 6 * STEP, brass_chord(chord["pad"][1:], 2, 0.035))
-                loop.put("brass", t0 + 12 * STEP, brass_chord(chord["pad"][1:], 4, 0.04))
-            # --- melodies ---
-            if name == "march":
-                for st, ln, nt in HOOK[idx % 4]:
-                    loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.15, 3000))
-                if idx >= 4:
-                    for st, ln, nt in HOOK[idx % 4]:
-                        loop.put("lead", t0 + st * STEP, brass(nt, ln, 0.07, 3600))
-            elif name == "anthem":
-                for st, ln, nt in CLIMAX[idx % 4]:
-                    m = midi(nt) - 12
-                    loop.put("lead", t0 + st * STEP, brass(m, ln, 0.15, 3400))
-                    loop.put("lead", t0 + st * STEP, brass(third_below(nt, idx % 4 == 3) - 12, ln, 0.08, 2800))
-                for i, nt in enumerate([chord["arp"][k] for k in ARP_ORDER]):
-                    loop.put("arp", t0 + i * 2 * STEP, pluck(nt, 2600, vol=0.05))
-            elif name == "calm":
-                for st, ln, nt in HORN_CALL:
-                    loop.put("lead", t0 + st * STEP, brass(midi(nt) + (0 if idx % 2 == 0 else -5), ln, 0.09, 1800))
-                loop.put("bell", t0, bell(chord["bass"].replace("1", "4").replace("2", "4"), 1.6, vol=0.05))
-            elif name == "build":
-                for st, ln, nt in HORN_CALL:
-                    loop.put("lead", t0 + st * STEP, brass(midi(nt) + 12 * (idx // 2), ln, 0.08 + 0.02 * idx, 2400))
+            # --- drums: the pipe band's snare and bass drum, timpani in the battle ---
+            if not glen:
+                for s in ((0, 8) if name != "battle" else (0, 4, 8, 12)):
+                    loop.put("kick", t0 + s * STEP, kick(0.75 if s % 8 == 0 else 0.5))
+                    kicks.append(t0 + s * STEP)
+                if battle:
+                    loop.put("drum", t0, timpani(rng, chord["bass"].replace("1", "2"), 0.5))
+                    loop.put("drum", t0 + 8 * STEP, timpani(rng, chord["bass"].replace("1", "2"), 0.4))
+                    if idx % 4 == 0:
+                        loop.put("fx", t0, crash(rng, 2.0, 0.11))
+            if name == "muster":
+                for s in range(16):
+                    v = 0.05 + 0.16 * (idx * 16 + s) / 64
+                    loop.put("snare", t0 + s * STEP, pipe_snare(rng, v))
+                    loop.put("snare", t0 + (s + 0.5) * STEP, pipe_snare(rng, v * 0.7))
+                    if s % 4 == 0:
+                        loop.put("drum", t0 + s * STEP, bodhran(0.2 + 0.1 * idx, accent=True))
                 if idx == count - 1:
-                    loop.put("fx", t0, riser(rng, bar, vol=0.12))
-            idx_global += 1
-    loop.echo("lead", STEP * 3, 0.28, 0.3)
-    loop.echo("arp", STEP * 3, 0.3, 0.35)
-    loop.echo("bell", STEP * 6, 0.4, 0.5)
+                    loop.put("fx", t0, riser(rng, bar, vol=0.1))
+            elif glen:
+                for s in (0, 6, 8, 14):
+                    loop.put("drum", t0 + s * STEP, bodhran(0.18 if s % 8 == 0 else 0.1, accent=s == 0))
+            else:
+                # Accents on the beats, flams and a roll into the next bar.
+                for s, v in {0: 0.22, 2: 0.07, 3: 0.08, 4: 0.18, 6: 0.07, 7: 0.1, 8: 0.22, 10: 0.07, 11: 0.08, 12: 0.18}.items():
+                    loop.put("snare", t0 + s * STEP, pipe_snare(rng, v * (1.15 if battle else 1.0)))
+                for k in range(8):
+                    loop.put("snare", t0 + (14 + k * 0.25) * STEP, pipe_snare(rng, 0.05 + 0.012 * k))
+                for s in (0, 6, 8, 14):
+                    loop.put("drum", t0 + s * STEP, bodhran(0.22 if s % 8 == 0 else 0.12, accent=s % 8 == 0))
+            # --- strings and brass ---
+            if glen:
+                loop.put("bass", t0, synth(root, bar * 0.9, "saw", detune=(-6, 6), vol=0.16, attack=0.25,
+                                           decay=1.0, sustain=0.8, release=0.3, cutoff=(700, 500, 1.0)))
+                for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3]):
+                    loop.put("harp", t0 + i * 2 * STEP, harp(chord["arp"][k], 0.07))
+            else:
+                for s, off in zip(range(0, 16, 2), (0, 0, 7, 0, 0, 0, 7, 12)):
+                    loop.put("bass", t0 + s * STEP, bass_note(root + off, 2, 0.4 if battle else 0.32))
+                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1700 if battle else 1100, vol=0.06 if battle else 0.045))
+                if battle:
+                    loop.put("brass", t0, brass_chord(chord["pad"][1:], 4, 0.045))
+                    loop.put("brass", t0 + 8 * STEP, brass_chord(chord["pad"][1:], 4, 0.04))
+            # --- melodies ---
+            tune = TITLE_TUNE[idx % 8]
+            if name == "pipes":
+                for st, ln, nt in tune:
+                    loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="G5" if ln >= 2 and nt != "G5" else None))
+            elif battle:
+                for st, ln, nt in tune:
+                    loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.11, grace="A5" if ln >= 3 else None))
+                    loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.11, 2800))
+                    loop.put("lead", t0 + st * STEP, brass(lower_third(midi(nt), TITLE_PCS) - 12, ln, 0.06, 2400))
+                # A whistle descant high above, in long notes.
+                loop.put("whistle", t0, whistle(midi(chord["arp"][3]) + 12, bar * 0.45, vol=0.05))
+                loop.put("whistle", t0 + 8 * STEP, whistle(midi(chord["arp"][2]) + 12, bar * 0.45, vol=0.05))
+            elif glen:
+                for st, ln, nt in TITLE_TUNE[idx % 4]:
+                    loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.08))
+            else:
+                for st, ln, nt in TITLE_CALL[idx % 3]:
+                    loop.put("lead", t0 + st * STEP, pipes(midi(nt) + (12 if idx >= 2 else 0) - 12, ln * STEP * 0.97, 0.08 + 0.015 * idx))
+            at += 1
+    loop.echo("lead", STEP * 3, 0.2, 0.22)
+    loop.echo("whistle", STEP * 3, 0.35, 0.4)
+    loop.echo("harp", STEP * 3, 0.3, 0.35)
     loop.duck("pad", kicks, 0.25)
     # One file: the fanfare, then the march (the import loops from the march's start).
     head = [sum(b[i] for b in intro.buses.values()) for i in range(intro.n)]
@@ -1578,7 +1656,7 @@ def main():
               "king_rage_sting.ogg": lambda: with_tempo(120, king_rage_sting),
               "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
               "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting),
-              "title_theme.ogg": lambda: with_tempo(104, title_theme)}
+              "title_theme.ogg": lambda: with_tempo(100, title_theme)}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:

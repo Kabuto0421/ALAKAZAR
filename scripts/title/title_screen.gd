@@ -22,11 +22,11 @@ const VIEW := Vector2(1728, 1080)
 const ART_SHIFT := Vector2(-96, 0)
 const HEROES_SHIFT := Vector2(30, 0)
 const ENEMIES_SHIFT := Vector2(-30, 0)
-## The title theme: 104 BPM, the fanfare's bars.
-const BAR := 60.0 / 104.0 * 4.0
-const CALL_TIME := BAR  # the first brass call: the logo lands
+## The title theme: 100 BPM, the fanfare's bars.
+const BAR := 60.0 / 100.0 * 4.0
+const CALL_TIME := BAR  # the pipes' first call: the logo lands
 const MENU_TIME := BAR + 0.9
-const CRASH_TIME := BAR * 4.0  # the great D major chord
+const CRASH_TIME := BAR * 4.0  # the great D chord
 const MUSIC_DB := -8.0
 
 const GOLD := Color("f2c14e")
