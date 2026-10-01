@@ -53,6 +53,7 @@ func run() -> void:
 	verify(Achievements.all().is_empty() and Achievements.unlocked_count() == 0 and not Achievements.unlock("nothing"),"Achievements are ready but empty (unknown ids are ignored)")
 	title.queue_free()
 	await process_frame
+	await check_title_sync()
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
 	await process_frame
@@ -184,3 +185,85 @@ func run() -> void:
 	await create_timer(0.2).timeout
 	print("RUN UI: %d checks, %d failures" % [checks,failures])
 	quit(1 if failures else 0)
+
+
+# The title screen follows the music through its cue sheet (written by tools/generate_bgm.py).
+func check_title_sync() -> void:
+	var Sync = load("res://scripts/title/title_sync.gd")
+	var sync = Sync.new()
+	verify(sync.load_sheet(),"The title theme's cue sheet loads")
+	var music = load("res://assets/audio/bgm/title_theme.ogg")
+	verify(absf(sync.length-music.get_length())<0.05,"...and is as long as the title theme (the cues were made for this file)")
+	verify(absf(sync.loop_start-music.loop_offset)<0.001,"...and loops where the music does")
+	var hits: Array = sync.recent("hit",100.0,100.0)
+	var expected := [9.6,17.17,26.48,34.76,41.85]
+	verify(hits.size()==5 and range(5).all(func(i): return absf(hits[i][0]-expected[i])<0.02),"The big hits are at 9.6, 17.2, 26.5, 34.8 and 41.85 s")
+	verify(["fanfare","glen","war","cyber","build","climax","finish","outro","fusion"]==sync.sections.map(func(e): return e[0]),"The sections are the fanfare, glen, war, cyber, build, climax, finish, outro and fusion")
+	verify(sync.section_name(5.0)=="fanfare" and sync.section_name(14.0)=="glen" and sync.section_name(20.0)=="war" and sync.section_name(30.0)=="cyber" and sync.section_name(33.0)=="build" and sync.section_name(35.0)=="climax" and sync.section_name(41.0)=="outro" and sync.section_name(45.0)=="fusion","...and tell where a time falls")
+	verify(absf(sync.age("kick",26.6)-0.117)<0.01 and sync.age("kick",1.0)==INF,"The age of the latest kick (none before the first)")
+	verify(sync.pulse("kick",26.483,9.0)>0.9 and sync.pulse("kick",27.0-0.01,9.0)<0.05,"A kick pulse jumps on the beat and has died away before the next")
+	verify(sync.fresh("hit",26.4,26.6).size()==1 and sync.fresh("hit",26.5,26.6).is_empty(),"A cue is fresh only in the reading it falls in")
+	verify(sync.fresh("hit",26.6,26.5).is_empty(),"...a clock stepping back a little repeats nothing")
+	var round_trip: Array = sync.fresh("hit",58.3,18.0)
+	verify(round_trip.size()==1 and absf(round_trip[0][0]-17.172)<0.01,"...the loop's wrap gives the cues on both sides of it (not the fanfare's)")
+	verify(absf(sync.wrap(58.5)-12.098)<0.01 and sync.wrap(30.0)==30.0,"Times past the end come round to the loop's start")
+	verify(sync.letter_of([20.0,74])==0 and sync.letter_of([20.0,90])==7 and sync.letter_of([5.0,67])==0 and sync.letter_of([5.0,79])==7 and sync.letter_of([20.0,82])==4,"Low notes light the logo's left letters, high notes the right")
+	verify(sync.energy(13.0)<sync.energy(35.0) and sync.energy(57.0)<sync.energy(45.0),"The music is calm in the glen, full at the climax and thins out at the end")
+	# The screen, stepped through song time.
+	var title = load("res://title.tscn").instantiate()
+	root.add_child(title)
+	await process_frame
+	title.music.stop()
+	title.reveal = title.MENU_TIME+5.0
+	title.call_done = true
+	# Song time is set by hand and the screen stepped one frame at a time.
+	var at := func(t: float) -> void:
+		title.override_time = t
+		title._process(1.0/60.0)
+	var param := func(material: ShaderMaterial, name: String): return material.get_shader_parameter(name)
+	var gradient: ShaderMaterial = title.grade.material
+	at.call(20.0)
+	var war_saturation: float = param.call(gradient,"saturation")
+	at.call(30.0)
+	var cyber_saturation: float = param.call(gradient,"saturation")
+	verify(war_saturation>1.0 and cyber_saturation<0.7,"The war is vivid and the cyber part drained of colour")
+	verify(title.fx.digital>0.95 and title.fx.digital_left==0.0,"The rain turns into digital rain in the cyber part...")
+	at.call(48.0)
+	verify(param.call(gradient,"saturation")>1.2 and title.fx.digital_left>0.4,"...and the fusion has both worlds at full colour, with digital rain over the forest too")
+	at.call(14.5)
+	verify(title.fx.digital<0.05,"...and the glen's rain is plain rain again (the change eases in over a second or so)")
+	at.call(26.4)
+	at.call(26.51)
+	verify(title.flash.color.a>0.25 and title.flash.color.b>title.flash.color.r-0.01 and param.call(gradient,"aberration")>0.008 and param.call(gradient,"glitch")>0.5,"A big hit flashes the screen (cyan for the cyber part), splits the colours and tears the picture")
+	verify(title.art.position.length()>0.01,"...and jolts it")
+	at.call(29.0)
+	verify(title.flash.color.a<0.02 and param.call(gradient,"aberration")<0.001,"...and it settles")
+	# The kick pulses the logo, the menu frame and the fairies; the army's lights follow the beat.
+	var kick_time: float = sync.last("kick",30.0)[0]
+	at.call(kick_time+0.01)
+	verify(title.kick_pulse>0.7 and title.logo.scale.x>1.02 and param.call(title.window_mat,"lift")>0.5 and param.call(title.heroes_mat,"wave")>0.002,"The kick swells the logo and lights the menu frame and the fairies")
+	verify(param.call(title.enemies_mat,"cyan_glow")>0.5 and param.call(title.enemies_mat,"red_glow")<0.05,"...and flares the army's cyan lights in the cyber part")
+	at.call(kick_time+0.4)
+	verify(title.kick_pulse<0.05 and title.logo.scale.x<1.005,"...and lets go before the next one")
+	at.call(17.2)
+	verify(param.call(title.enemies_mat,"red_glow")>0.3,"The war drums flare the army's red lights")
+	# Melody notes light ALAKAZAR's letters.
+	var note: Array = sync.fresh("note",22.0,25.0)[0]
+	at.call(note[0]+0.03)
+	var letters: PackedFloat32Array = param.call(title.logo_mat,"shine")
+	verify(letters[sync.letter_of(note)]>0.7,"A melody note lights its letter of the logo")
+	# The build-up pushes in, the climax lets go; the outro closes letterbox bars, the fusion throws them open.
+	at.call(20.0)
+	verify(is_equal_approx(title.art.scale.x,1.0) and not title.bar_top.visible,"No zoom or letterbox in the glen")
+	at.call(34.5)
+	verify(title.art.scale.x>1.04,"The build-up zooms in")
+	at.call(40.9)
+	verify(title.bar_top.visible and title.bar_top.position.y+120.0>50.0 and title.bar_bottom.position.y<1030.0 and absf(title.art.scale.x-1.0)<0.01,"The outro closes the letterbox bars (and the zoom has let go)")
+	at.call(41.86)
+	at.call(42.6)
+	verify(not title.bar_top.visible,"...which the fusion's hit throws open")
+	# The loop: past the file's end the screen is in the glen again.
+	title.override_time=59.0
+	verify(absf(title._song_time()-12.598)<0.01 and title.sync.section_name(title._song_time())=="glen","The song time folds back into the loop")
+	title.queue_free()
+	await process_frame

@@ -5,8 +5,21 @@ extends Control
 ## the scene fades up under the timpani roll, the heroes and the Prison army step in
 ## and the logo lands on the first brass call, the menu appears, and the fanfare's
 ## final crash flashes the screen. Any key or click skips to the finished screen.
+##
+## After the fanfare the picture follows the music through its cue sheet (title_sync.gd,
+## written by tools/generate_bgm.py): each part of the song grades the colours its own
+## way (moonlit forest, red-lit war, cold cyber, both worlds together), the kick
+## pulses the logo, the menu frame and the row of fairies, the war drums and the cyber
+## kicks flare the lights of the Prison army, melody notes light ALAKAZAR's letters,
+## shake fireflies loose and throw sparks, and the big hits bring a bolt of lightning,
+## a shock ring and a flash. The build-up zooms in, the outro closes letterbox bars.
 
 const Achievements = preload("res://scripts/title/achievements.gd")
+const Sync = preload("res://scripts/title/title_sync.gd")
+const TitleFx = preload("res://scripts/title/title_fx.gd")
+const GRADE_SHADER = preload("res://scripts/title/title_grade.gdshader")
+const LOGO_SHADER = preload("res://scripts/title/title_logo.gdshader")
+const LAYER_SHADER = preload("res://scripts/title/title_layer.gdshader")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const BACKGROUND = preload("res://assets/title/layer_00_background.png")
 const HEROES = preload("res://assets/title/layer_10_heroes.png")
@@ -29,6 +42,34 @@ const MENU_TIME := BAR + 0.9
 const CRASH_TIME := BAR * 4.0  # the great D chord
 const MUSIC_DB := -8.0
 
+## How the picture is graded in each part of the song (the sections of the cue sheet):
+## gain on the forest side (l) and the city side (r), saturation, brightness, vignette,
+## scanlines, digital rain on the city side and on the forest side (dleft), and how many
+## seconds the change from the part before takes.
+const GRADES := {
+	"fanfare": {"l": Color(1.0, 1.0, 1.0), "r": Color(1.0, 1.0, 1.0), "sat": 1.0, "bri": 1.0, "vig": 0.25, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 1.0},
+	"glen": {"l": Color(0.96, 1.07, 1.02), "r": Color(0.7, 0.76, 0.92), "sat": 0.95, "bri": 0.93, "vig": 0.4, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 1.4},
+	"war": {"l": Color(0.98, 1.0, 0.94), "r": Color(1.22, 0.88, 0.84), "sat": 1.1, "bri": 1.0, "vig": 0.3, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 0.3},
+	"cyber": {"l": Color(0.58, 0.84, 1.16), "r": Color(0.68, 1.0, 1.3), "sat": 0.55, "bri": 1.0, "vig": 0.4, "scan": 0.16, "digital": 1.0, "dleft": 0.0, "blend": 0.2},
+	"build": {"l": Color(0.7, 0.9, 1.25), "r": Color(0.82, 1.06, 1.38), "sat": 0.6, "bri": 1.06, "vig": 0.5, "scan": 0.22, "digital": 1.0, "dleft": 0.0, "blend": 0.8},
+	"climax": {"l": Color(0.92, 1.06, 1.3), "r": Color(1.0, 1.14, 1.42), "sat": 0.85, "bri": 1.16, "vig": 0.3, "scan": 0.1, "digital": 1.0, "dleft": 0.0, "blend": 0.1},
+	"finish": {"l": Color(0.7, 0.9, 1.2), "r": Color(0.76, 1.0, 1.26), "sat": 0.62, "bri": 1.0, "vig": 0.45, "scan": 0.14, "digital": 1.0, "dleft": 0.0, "blend": 0.8},
+	"outro": {"l": Color(0.55, 0.72, 0.98), "r": Color(0.6, 0.78, 1.04), "sat": 0.3, "bri": 0.62, "vig": 0.75, "scan": 0.1, "digital": 0.6, "dleft": 0.0, "blend": 0.9},
+	"fusion": {"l": Color(1.06, 1.12, 0.9), "r": Color(0.84, 1.06, 1.32), "sat": 1.32, "bri": 1.06, "vig": 0.3, "scan": 0.04, "digital": 0.8, "dleft": 0.6, "blend": 0.12},
+}
+## The big hits: the flash (colour, strength), the jolt, the colour of the lightning, the
+## colour split and the glitch bands.
+const HITS := {
+	"chord": {"flash": Color(1.0, 1.0, 1.0), "alpha": 0.5, "shake": 0.35, "bolt": Color(1.0, 0.85, 0.45), "split": 0.006, "glitch": 0.0},
+	"war": {"flash": Color(1.0, 0.5, 0.4), "alpha": 0.3, "shake": 0.25, "bolt": Color(1.0, 0.4, 0.3), "split": 0.005, "glitch": 0.0},
+	"cyber": {"flash": Color(0.75, 1.0, 1.0), "alpha": 0.45, "shake": 0.4, "bolt": Color(0.4, 0.95, 1.0), "split": 0.014, "glitch": 1.0},
+	"climax": {"flash": Color(1.0, 1.0, 1.0), "alpha": 0.5, "shake": 0.45, "bolt": Color(0.7, 0.95, 1.0), "split": 0.016, "glitch": 0.7},
+	"fusion": {"flash": Color(1.0, 0.95, 0.75), "alpha": 0.55, "shake": 0.5, "bolt": Color(1.0, 0.85, 0.5), "split": 0.018, "glitch": 0.5},
+}
+const ZOOM_BUILD := 0.07  # how far the build-up pushes in
+const CLASH_X := 884.0  # where the two armies meet
+const LETTERBOX := 84.0
+
 const GOLD := Color("f2c14e")
 const CREAM := Color("fff6e0")
 const EDGE := Color("07080f")
@@ -44,6 +85,23 @@ var selected := 0
 var leaving := false
 var crash_done := false
 var call_done := false
+## The cue sheet and the music clock (a number of seconds >= 0 here overrides the clock).
+var sync: Sync
+var override_time := -1.0
+var song_t := 0.0
+var prev_song_t := -1.0
+var looped := false
+var call_flash := 0.0
+var kick_pulse := 0.0
+var drum_pulse := 0.0
+var shine := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0])
+var grade: ColorRect
+var logo_mat: ShaderMaterial
+var heroes_mat: ShaderMaterial
+var enemies_mat: ShaderMaterial
+var window_mat: ShaderMaterial
+var bar_top: ColorRect
+var bar_bottom: ColorRect
 var art: Control
 var heroes: TextureRect
 var enemies: TextureRect
@@ -53,7 +111,7 @@ var menu: Control
 var item_labels: Array[Label] = []
 var item_glows: Array[Label] = []
 var cursor: Label
-var fx: Node2D
+var fx: TitleFx
 var flash: ColorRect
 var curtain: ColorRect
 var music := AudioStreamPlayer.new()
@@ -72,13 +130,34 @@ func _ready() -> void:
 	art.size = VIEW
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(art)
+	sync = Sync.new()
+	if not sync.load_sheet():
+		push_warning("title theme cue sheet missing: the title screen will not follow the music")
+		sync = null
+	art.pivot_offset = VIEW / 2
 	_layer(BACKGROUND)
 	fx = TitleFx.new()
 	art.add_child(fx)
 	heroes = _layer(HEROES)
+	heroes_mat = _shade(heroes, LAYER_SHADER)
 	enemies = _layer(ENEMIES)
+	enemies_mat = _shade(enemies, LAYER_SHADER)
+	# The sparks fly in front of the army.
+	fx.sparks.reparent(art)
+	art.move_child(fx.sparks, enemies.get_index() + 1)
+	bar_top = _bar()
+	bar_bottom = _bar()
 	logo = _layer(LOGO)
+	logo_mat = _shade(logo, LOGO_SHADER)
+	logo_mat.set_shader_parameter("shine", shine)
 	window = _layer(WINDOW)
+	window_mat = _shade(window, LAYER_SHADER)
+	grade = ColorRect.new()
+	grade.size = VIEW
+	grade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grade.material = ShaderMaterial.new()
+	(grade.material as ShaderMaterial).shader = GRADE_SHADER
+	add_child(grade)
 	_build_menu()
 	flash = ColorRect.new()
 	flash.color = Color(1, 1, 1, 0)
@@ -105,6 +184,22 @@ func _layer(texture: Texture2D) -> TextureRect:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(rect)
 	return rect
+
+func _shade(rect: TextureRect, shader: Shader) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	rect.material = material
+	return material
+
+## A letterbox bar (see _follow_music): above the army, under the logo.
+func _bar() -> ColorRect:
+	var bar := ColorRect.new()
+	bar.color = Color.BLACK
+	bar.size = Vector2(VIEW.x + 240, 120)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.visible = false
+	art.add_child(bar)
+	return bar
 
 func _build_menu() -> void:
 	menu = Control.new()
@@ -215,43 +310,181 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	clock += delta
 	reveal = maxf(reveal + delta, clock)
-	_update_reveal()
-	# The fanfare's last chord: a white flash and a jolt, in time with the music.
-	if not crash_done and clock >= CRASH_TIME:
+	call_flash = maxf(0.0, call_flash - delta * 1.8)
+	var flash_color := Color(1, 1, 1, call_flash)
+	var jolt := 0.0
+	if sync != null:
+		var look := _follow_music(_song_time())
+		if look.flash.a > call_flash:
+			flash_color = look.flash
+		jolt = look.jolt
+	# Without the cue sheet the fanfare's last chord still flashes and jolts the screen.
+	elif not crash_done and clock >= CRASH_TIME:
 		crash_done = true
-		flash.color.a = maxf(flash.color.a, 0.55)
+		call_flash = 0.55
+		flash_color.a = 0.55
 		shake = 0.35
-	flash.color.a = maxf(0.0, flash.color.a - delta * 1.8)
 	shake = maxf(0.0, shake - delta)
-	art.position = Vector2(sin(clock * 83.0), cos(clock * 71.0)) * 10.0 * shake
+	flash.color = flash_color
+	art.position = Vector2(sin(clock * 83.0), cos(clock * 71.0)) * 10.0 * maxf(shake, jolt)
+	_update_reveal()
 	# The selected item breathes a gold glow.
 	for i in item_glows.size():
 		var on := i == selected
 		item_glows[i].add_theme_color_override("font_outline_color", Color(GOLD, (0.28 + 0.12 * sin(clock * 3.0)) if on else 0.0))
 	cursor.modulate.a = 0.75 + 0.25 * sin(clock * 6.0)
 
+## Where the song is, in seconds of the file (folded into the loop): what the speakers
+## are playing now, from the audio clock (interpolated between mixes, less the output
+## latency); the screen's own clock if the audio is not running.
+func _song_time() -> float:
+	if override_time >= 0.0:
+		return sync.wrap(override_time)
+	if music.playing and not (clock > 1.0 and music.get_playback_position() <= 0.0):
+		var heard := music.get_playback_position() + AudioServer.get_time_since_last_mix() - AudioServer.get_output_latency()
+		return sync.wrap(maxf(heard, 0.0))
+	return sync.wrap(clock)
+
+## Moves the picture with the music at song time t. Cues that just happened (a note,
+## a hit) start their particles; everything else is a function of how long ago the
+## latest kick, drum or hit was, so it is right whatever the frame rate. Returns the
+## hit's flash and jolt for _process.
+func _follow_music(t: float) -> Dictionary:
+	if prev_song_t >= 0.0 and t < prev_song_t - 1.0:
+		looped = true
+	if prev_song_t >= 0.0:
+		_spawn_cues(prev_song_t, t)
+	if t >= prev_song_t or t < prev_song_t - 1.0:
+		prev_song_t = t
+	song_t = t
+	# The kick and the war drums pulse the picture.
+	kick_pulse = sync.pulse("kick", t, 9.0)
+	drum_pulse = sync.pulse("drum", t, 7.0)
+	# The part of the song sets the colours (and how digital the rain is).
+	var look := _grade_at(t)
+	var energy := sync.energy(t)
+	var hit := sync.last("hit", t)
+	var since_hit: float = t - float(hit[0]) if not hit.is_empty() and float(hit[0]) <= t else INF
+	var mood: Dictionary = HITS.get(str(hit[2]), HITS.fusion) if not hit.is_empty() else HITS.fusion
+	var flash_a: float = mood.alpha * exp(-since_hit * 5.5) if since_hit < 2.0 else 0.0
+	var split: float = mood.split * exp(-since_hit * 8.0) if since_hit < 2.0 else 0.0
+	var tear: float = mood.glitch * clampf(1.0 - since_hit / 0.25, 0.0, 1.0)
+	var jolt: float = mood.shake * clampf(1.0 - since_hit / 0.4, 0.0, 1.0)
+	var flare := exp(-since_hit * 6.0) if since_hit < 2.0 else 0.0
+	var gradient: ShaderMaterial = grade.material
+	gradient.set_shader_parameter("gain_left", Vector3(look.l.r, look.l.g, look.l.b))
+	gradient.set_shader_parameter("gain_right", Vector3(look.r.r, look.r.g, look.r.b))
+	gradient.set_shader_parameter("saturation", look.sat)
+	gradient.set_shader_parameter("brightness", look.bri * (0.92 + 0.08 * energy))
+	gradient.set_shader_parameter("vignette", look.vig)
+	gradient.set_shader_parameter("scan", look.scan)
+	gradient.set_shader_parameter("aberration", split)
+	gradient.set_shader_parameter("glitch", tear)
+	gradient.set_shader_parameter("pulse", kick_pulse * 0.5)
+	fx.digital = look.digital
+	fx.digital_left = look.dleft
+	fx.energy = energy
+	# The Prison army's lights: red on the war drums, cyan on the cyber kicks.
+	enemies_mat.set_shader_parameter("red_glow", drum_pulse * 1.4)
+	enemies_mat.set_shader_parameter("cyan_glow", kick_pulse * look.digital * 1.1)
+	heroes_mat.set_shader_parameter("lift", kick_pulse * 0.3)
+	heroes_mat.set_shader_parameter("wave", kick_pulse * 0.004)
+	heroes_mat.set_shader_parameter("wave_phase", t * 5.0)
+	window_mat.set_shader_parameter("lift", kick_pulse * 0.9)
+	# ALAKAZAR: each letter lights when the melody plays its note, and the logo flares and
+	# a glint crosses it on a big hit.
+	shine.fill(0.0)
+	for row in sync.recent("note", t, 1.2):
+		var letter := sync.letter_of(row)
+		shine[letter] = maxf(shine[letter], exp(-(t - float(row[0])) * 3.2))
+	logo_mat.set_shader_parameter("shine", shine)
+	logo_mat.set_shader_parameter("flare", flare)
+	logo_mat.set_shader_parameter("sweep", 400.0 + since_hit * 2800.0 if since_hit < 0.55 else -1.0)
+	# The build-up pushes the camera in; the climax lets go with a rebound.
+	var build := sync.start_of("build")
+	var climax := sync.start_of("climax")
+	var zoom := 1.0
+	if t >= climax:
+		zoom += ZOOM_BUILD * 0.45 * exp(-(t - climax) * 2.5)
+	elif t >= build:
+		zoom += ZOOM_BUILD * pow((t - build) / (climax - build), 2.0)
+	art.scale = Vector2.ONE * zoom
+	# Letterbox bars close in on the outro and are thrown open by the fusion's hit.
+	var bars := 0.0
+	var closing := sync.start_of("finish") + 1.0
+	var fusion := sync.start_of("fusion")
+	if t >= fusion:
+		bars = LETTERBOX * exp(-(t - fusion) * 9.0)
+	elif t >= closing:
+		bars = LETTERBOX * smoothstep(closing, sync.start_of("outro"), t)
+	bar_top.visible = bars > 0.5
+	bar_bottom.visible = bars > 0.5
+	bar_top.position = Vector2(-120, bars - 120)
+	bar_bottom.position = Vector2(-120, VIEW.y - bars)
+	return {"flash": Color(mood.flash, flash_a), "jolt": jolt}
+
+## Starts the particles of the cues that came up between two readings of the clock.
+func _spawn_cues(from: float, to: float) -> void:
+	for row in sync.fresh("hit", from, to):
+		fx.strike(HITS.get(str(row[2]), HITS.fusion).bolt, float(row[1]))
+	for row in sync.fresh("harp", from, to):
+		fx.twinkle(int(row[1]))
+	for row in sync.fresh("clap", from, to):
+		fx.spark_burst(randf_range(930.0, 1700.0), 5, Color(0.55, 1.0, 1.0, 0.8), 0.6)
+	for row in sync.fresh("note", from, to):
+		var pitch := int(row[1])
+		match int(row[3]):
+			0, 1:
+				fx.pop_fly(pitch + int(float(row[0]) * 10.0))
+			2:
+				fx.spark_burst(lerpf(930.0, 1700.0, clampf((pitch - 72) / 18.0, 0.0, 1.0)), 11, Color(0.5, 1.0, 1.0, 0.9))
+			_:
+				# The fusion tune: gold sparks over the forest, cyan over the city.
+				var x := lerpf(140.0, 1700.0, clampf((pitch - 70) / 16.0, 0.0, 1.0))
+				fx.spark_burst(x, 9, Color(1.0, 0.88, 0.45, 0.9) if x < CLASH_X else Color(0.5, 1.0, 1.0, 0.9))
+				if x < CLASH_X:
+					fx.pop_fly(pitch)
+
+## The grade at song time t: the part's own, eased in from the part before it.
+func _grade_at(t: float) -> Dictionary:
+	var index := sync.section_index(t)
+	var current: Dictionary = GRADES.get(str(sync.sections[index][0]), GRADES.fanfare)
+	var before: int = index - 1
+	if index == 0:
+		before = 0
+	elif index == 1 and looped:
+		before = sync.sections.size() - 1  # round again: the glen comes out of the fusion
+	var previous: Dictionary = GRADES.get(str(sync.sections[before][0]), current)
+	var f := smoothstep(0.0, 1.0, (t - sync.section_start(t)) / maxf(current.blend, 0.01))
+	var mixed := {}
+	for key in current:
+		if key != "blend":
+			mixed[key] = lerp(previous[key], current[key], f)
+	return mixed
+
 ## Where everything stands at this point of the intro (also after a skip).
 func _update_reveal() -> void:
 	curtain.color.a = 1.0 - _ease(reveal, 0.0, 1.6) if not leaving else curtain.color.a
 	var arrive := _ease(reveal, CALL_TIME - 1.2, CALL_TIME)
-	var bob := sin(clock * 1.6) * 3.0
+	var bob := sin(clock * 1.6) * 3.0 - kick_pulse * 7.0
 	heroes.position = ART_SHIFT + HEROES_SHIFT + Vector2(-80 * (1.0 - arrive), bob)
 	heroes.modulate.a = arrive
-	enemies.position = ART_SHIFT + ENEMIES_SHIFT + Vector2(80 * (1.0 - arrive), sin(clock * 1.2 + 1.0) * 3.0)
+	enemies.position = ART_SHIFT + ENEMIES_SHIFT + Vector2(80 * (1.0 - arrive) + drum_pulse * 7.0, sin(clock * 1.2 + 1.0) * 3.0)
 	enemies.modulate.a = arrive
 	# The logo drops in on the brass call, a little large, and settles.
 	var land := _ease(reveal, CALL_TIME - 0.12, CALL_TIME + 0.25)
 	logo.modulate.a = land
-	var swell := 1.0 + 0.12 * (1.0 - land)
+	var swell := 1.0 + 0.12 * (1.0 - land) + 0.03 * kick_pulse
 	logo.pivot_offset = Vector2(960, 150)
 	logo.scale = Vector2.ONE * swell
 	if not call_done and reveal >= CALL_TIME:
 		call_done = true
-		flash.color.a = maxf(flash.color.a, 0.35)
+		call_flash = maxf(call_flash, 0.35)
 	var shown := _ease(reveal, MENU_TIME - 0.5, MENU_TIME)
 	window.modulate.a = shown
 	menu.modulate.a = shown
 	fx.modulate.a = _ease(reveal, 0.3, 1.8)
+	fx.sparks.modulate.a = fx.modulate.a
 
 static func _ease(t: float, from: float, to: float) -> float:
 	return ease(clampf((t - from) / (to - from), 0.0, 1.0), 0.4)
@@ -351,36 +584,3 @@ func _close_achievements() -> void:
 
 func _exit_tree() -> void:
 	music.stop()
-
-## Fireflies drifting in the moonlit forest (left) and rain slanting through the
-## neon prison city (right), over the painted background.
-class TitleFx extends Node2D:
-	var flies: Array = []
-	var drops: Array = []
-	var time := 0.0
-
-	func _ready() -> void:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 2207
-		for i in 34:
-			flies.append([Vector2(rng.randf_range(20, 820), rng.randf_range(330, 1040)), rng.randf_range(0, TAU), rng.randf_range(0.5, 1.2)])
-		for i in 150:
-			drops.append([Vector2(rng.randf_range(880, 1760), rng.randf_range(0, 1080)), rng.randf_range(900, 1300), rng.randf_range(14, 26)])
-
-	func _process(delta: float) -> void:
-		time += delta
-		queue_redraw()
-
-	func _draw() -> void:
-		for fly in flies:
-			var phase: float = fly[1] + time * fly[2]
-			var at: Vector2 = fly[0] + Vector2(sin(phase * 0.7) * 26, cos(phase * 0.5) * 18)
-			var glow := 0.35 + 0.65 * maxf(0.0, sin(phase * 1.8))
-			draw_circle(at, 7, Color(0.75, 1.0, 0.45, 0.10 * glow))
-			draw_circle(at, 2.6, Color(0.92, 1.0, 0.62, 0.85 * glow))
-		for drop in drops:
-			var speed: float = drop[1]
-			var y := fposmod(drop[0].y + time * speed, 1100.0) - 20.0
-			var x: float = drop[0].x - (y - drop[0].y) * 0.12
-			var x0 := fposmod(x - 880.0, 880.0) + 880.0
-			draw_line(Vector2(x0, y), Vector2(x0 - drop[2] * 0.12, y - drop[2]), Color(1.0, 0.8, 0.9, 0.22), 2)

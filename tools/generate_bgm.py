@@ -209,6 +209,11 @@ class Mix:
         self.n = int(round(seconds * RATE))
         self.wrap = wrap
         self.buses = {}
+        self.cues = []  # (kind, seconds, *values): what the game syncs its visuals to
+
+    def cue(self, kind, at_seconds, *values):
+        """Log a musical event (a kick, a melody note, a big hit...) for the cue sheet."""
+        self.cues.append((kind, at_seconds) + values)
 
     def bus(self, name):
         return self.buses.setdefault(name, [0.0] * self.n)
@@ -1654,9 +1659,11 @@ def _title_fanfare(mix, rng, bar):
         mix.put("brass", t0 + 8 * STEP, brass_chord(TITLE_CALL_CHORDS[min(b + 1, 3)] if b == 2 else TITLE_CALL_CHORDS[b], 8, 0.045, 2200))
         for st, ln, nt in phrase:
             mix.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.13, grace="G5" if ln >= 2 else None))
+            mix.cue("note", t0 + st * STEP, midi(nt), ln * STEP, 0)
         for s in (0, 8):
             mix.put("drum", t0 + s * STEP, timpani(rng, "D2" if s == 0 else "A1", 0.42))
             mix.put("kick", t0 + s * STEP, kick(0.55))
+            mix.cue("kick", t0 + s * STEP, 0.55)
         for s in range(12, 16):
             mix.put("snare", t0 + s * STEP, pipe_snare(rng, 0.1))
             mix.put("snare", t0 + (s + 0.5) * STEP, pipe_snare(rng, 0.08))
@@ -1667,6 +1674,9 @@ def _title_fanfare(mix, rng, bar):
     mix.put("drum", t0, war_drum(rng, 0.5, 46))
     mix.put("brass", t0, brass_chord(["D2", "A2", "D3", "A3", "D4", "F4", "A4"], 12, 0.05, 2800))
     mix.put("lead", t0, pipes("D5", 12 * STEP, 0.13, grace="A5"))
+    mix.cue("note", t0, midi("D5"), 12 * STEP, 0)
+    mix.cue("kick", t0, 1.0)
+    mix.cue("hit", t0, 1.0, "chord")
     mix.put("bass", t0, synth("D1", bar * 0.75, "saw", detune=(-6, 6), vol=0.35, decay=1.0,
                               sustain=0.6, release=0.3, cutoff=(1400, 400, 0.4)))
     for k in range(8):
@@ -1791,6 +1801,8 @@ def arp_backdrop(loop, t0, chord, kind="harp", vol=0.06, shape=(0, 1, 2, 3, 2, 3
         note = midi(chord["arp"][k]) + 12
         voice = harp(note, vol) if kind == "harp" else pluck(note, 3000, vol * 0.9)
         loop.put("arp", t0 + i * 2 * STEP, voice)
+        if kind == "harp":
+            loop.cue("harp", t0 + i * 2 * STEP, note)
 
 
 def arp_fill(loop, t0, chord, vol=0.08, start=8):
@@ -1842,9 +1854,11 @@ def title_march():
                 for s, v in {0: 0.6, 6: 0.4, 8: 0.55, 14: 0.4}.items():
                     if war(s):
                         loop.put("drum", t0 + s * STEP, war_drum(rng, v, 52 if s % 8 == 0 else 60))
+                        loop.cue("drum", t0 + s * STEP, v)
                 for s in (0, 8):
                     if war(s):
                         loop.put("kick", t0 + s * STEP, kick(0.7))
+                        loop.cue("kick", t0 + s * STEP, 0.7)
                         kicks.append(t0 + s * STEP)
                 if idx < 2:
                     loop.put("bass", t0, synth(root, bar * 0.92, "saw", detune=(-6, 6), vol=0.15, attack=0.25,
@@ -1861,10 +1875,13 @@ def title_march():
                         loop.put("bass", t0 + s2 * STEP, bass_note(root + [0, 0, 12, 0, 0, 7, 12, 7][s2], 1, 0.06 + 0.045 * (s2 - 4)))
                     loop.put("drum", t0 + 4 * STEP, war_drum(rng, 0.18))
                     loop.put("drum", t0 + 6 * STEP, war_drum(rng, 0.3))
+                    loop.cue("drum", t0 + 4 * STEP, 0.18)
+                    loop.cue("drum", t0 + 6 * STEP, 0.3)
                     for i in range(6):
                         octave, k = divmod(i, 4)
                         loop.put("arp", t0 + (6 + i / 3.0) * STEP, pluck(midi(chord["arp"][k]) + 12 * (octave + 1), 3000 + 250 * i, 0.04 + 0.012 * i))
                     loop.put("fx", t0 + 8 * STEP, crash(rng, 1.6, 0.09))
+                    loop.cue("hit", t0 + 8 * STEP, 0.7, "war")
                 if idx < 6:
                     arp_backdrop(loop, t0, chord, "harp", 0.09 if idx < 2 else 0.075)
                 if idx == 6:
@@ -1875,6 +1892,7 @@ def title_march():
                         loop.put("snare", t0 + (8 + k * 0.5) * STEP, pipe_snare(rng, 0.05 + 0.012 * k))
                 for ev in KOMURO_TUNE[idx]:
                     st, ln, nt = ev[0], ev[1], ev[2]
+                    loop.cue("note", t0 + st * STEP, midi(nt), ln * STEP, 0 if len(ev) > 3 else 1)
                     if len(ev) > 3:
                         loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.1))
                         continue
@@ -1892,6 +1910,7 @@ def title_march():
                 kick_steps = () if outro else (0, 4, 8) if idx == 6 else (0, 4, 8, 12)
                 for s in kick_steps:
                     loop.put("kick", t0 + s * STEP, kick(1.0))
+                    loop.cue("kick", t0 + s * STEP, 1.0)
                     edm_kicks.append(t0 + s * STEP)
                 if not outro:
                     limit = 12 if idx == 6 else 16
@@ -1904,6 +1923,7 @@ def title_march():
                     for s in (4, 12):
                         if not (s == 12 and (breaking or idx == 6)):
                             loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.27))
+                            loop.cue("clap", t0 + s * STEP, 0.27)
                 else:
                     # The outro: a falling noise, then the build-up into the fusion.
                     loop.put("fx", t0, riser(rng, 12 * STEP, vol=0.07)[::-1])
@@ -1923,8 +1943,10 @@ def title_march():
                 if idx == 0:
                     loop.put("fx", t0, crash(rng, 2.4, 0.18))
                     loop.put("kick", t0, sub_boom(0.45))
+                    loop.cue("hit", t0, 1.0, "cyber")
                 if idx == 4:
                     loop.put("fx", t0, crash(rng, 2.0, 0.15))
+                    loop.cue("hit", t0, 1.0, "climax")
                 # Offbeat bass (the pump), and a 16th-note pluck arp over the triad.
                 if outro:
                     loop.put("edm_bass", t0, edm_bass(root, 10, 0.35))
@@ -1950,6 +1972,7 @@ def title_march():
                     # The last note of each phrase (D6, the leading tone D#6, the final E6) is
                     # thrown into an echo that trails on.
                     bus = "tail" if idx in (3, 4, 5, 6) and st == 12 else "lead"
+                    loop.cue("note", t0 + st * STEP, m, ln * STEP, 2)
                     loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
                     if idx in (4, 5, 6):
                         loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
@@ -1962,6 +1985,7 @@ def title_march():
                 if idx < 5:
                     for s in ((0, 4, 8, 12) if full else (0, 8)):
                         loop.put("kick", t0 + s * STEP, kick(0.85 if full else 0.6))
+                        loop.cue("kick", t0 + s * STEP, 0.85 if full else 0.6)
                         kicks.append(t0 + s * STEP)
                     for s in (2, 6, 10, 14):
                         loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.06, 6500, 14000, 0.07 if full else 0.04))
@@ -1975,6 +1999,7 @@ def title_march():
                 if idx == 0:
                     loop.put("fx", t0, crash(rng, 2.2, 0.15))
                     loop.put("kick", t0, kick(1.0))
+                    loop.cue("hit", t0, 1.2, "fusion")
                     landing_hit(loop, t0, chord)
                 if idx < 6:
                     if idx < 5:
@@ -1993,6 +2018,7 @@ def title_march():
                 if idx in (3, 5):
                     arp_fill(loop, t0, chord, 0.06, start=12)
                 for st, ln, nt in FUSION_TUNE[idx]:
+                    loop.cue("note", t0 + st * STEP, midi(nt), ln * STEP, 3)
                     if idx < 5:
                         loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12 if idx < 4 else 0.08, grace="A5" if ln >= 3 else None))
                         loop.put("lead", t0 + st * STEP, lead(midi(nt) - 12, ln, vol=0.07 if idx < 4 else 0.04))
@@ -2051,6 +2077,7 @@ def title_theme(opening="rolloff"):
     if "loop" not in _MARCH:
         loop = with_tempo(TITLE_MARCH_BPM, title_march)
         _MARCH["loop"] = [sum(b[i] for b in loop.buses.values()) for i in range(loop.n)]
+        _MARCH["cues"] = loop.cues
     head = [sum(b[i] for b in intro.buses.values()) for i in range(intro.n)]
     # The march is dense; keep it a little under the fanfare so the call lands.
     body = [x * 0.78 for x in _MARCH["loop"]]
@@ -2064,7 +2091,53 @@ def title_theme(opening="rolloff"):
     # the outro's fall and the whole build-up, so the quiet outro goes straight into the hit
     # (the cut ends exactly on the hit, so no noise from the build-up is left in front of it).
     joined.cut = (41.85, intro.n / RATE + 15 * 240.0 / TITLE_MARCH_BPM)
+    joined.cue_sheet = title_cue_sheet(intro.cues, _MARCH["cues"], intro.n / RATE, joined.cut,
+                                       joined.n / RATE - (joined.cut[1] - joined.cut[0]))
     return joined
+
+
+# The sections the visuals grade by: (name, march bar counted from the march's start,
+# step within that bar). The fanfare is the part before the march.
+TITLE_SECTIONS = [("glen", 0, 0), ("war", 2, 8), ("cyber", 7, 0), ("build", 10, 0), ("climax", 11, 0),
+                  ("finish", 12, 0), ("outro", 14, 0), ("fusion", 15, 0)]
+# How hard the music is playing, as (bar, step, 0-1) knots; the visuals scale their glow
+# and particle counts by it. The fusion thins out bar by bar (see the taper in title_march).
+TITLE_ENERGY = [(0, 0, 0.35), (2, 6, 0.35), (2, 8, 0.75), (7, 0, 0.9), (10, 0, 0.95), (11, 0, 1.0),
+                (12, 0, 0.85), (14, 0, 0.5), (14, 12, 0.35), (15, 0, 1.0), (19, 0, 1.0),
+                (20, 0, 0.8), (21, 0, 0.62), (22, 0, 0.5)]
+
+
+def title_cue_sheet(fanfare, march, march_start, cut, length):
+    """What the title screen syncs to: every event of the finished file, in its seconds,
+    as a dict that tools can dump to JSON. `fanfare` times are the file's own; `march`
+    times are from the loop's start (the march follows the fanfare at `march_start`).
+    The stretch `cut` has been taken out of the finished file: events inside it are
+    dropped and everything after it moves up. Kinds: kick, drum (war drum), clap, hit
+    (a big impact, with its mood), note (MIDI pitch, length, voice), harp."""
+    bar = 240.0 / TITLE_MARCH_BPM
+    gap = cut[1] - cut[0]
+
+    def moved(t):
+        # (an event on the cut's far edge, the fusion's first hit, is kept: 1 microsecond
+        # of slack for the float sums)
+        if cut[0] <= t < cut[1] - 1e-6:
+            return None
+        return t - gap if t >= cut[1] - 1e-6 else t
+
+    def at_bar(b, step):
+        return moved(march_start + b * bar + step * bar / 16)
+
+    sheet = {"length": round(length, 3), "loop_start": round(march_start, 3), "events": {}}
+    for kind, t, *values in list(fanfare) + [(k, march_start + t) + tuple(v) for k, t, *v in march]:
+        t = moved(t)
+        if t is not None:
+            sheet["events"].setdefault(kind, []).append([round(t, 3)] + [round(v, 3) if isinstance(v, float) else v for v in values])
+    for rows in sheet["events"].values():
+        rows.sort(key=lambda row: row[0])
+    sheet["sections"] = [["fanfare", 0.0]] + [[name, round(at_bar(b, st), 3)] for name, b, st in TITLE_SECTIONS]
+    sheet["energy"] = [[0.0, 0.25], [2.4, 0.5], [9.6, 0.9]] + [[round(at_bar(b, st), 3), v] for b, st, v in TITLE_ENERGY
+                                                               if at_bar(b, st) is not None]
+    return sheet
 
 
 def main():
@@ -2085,13 +2158,22 @@ def main():
               "king_rage_sting.ogg": lambda: with_tempo(120, king_rage_sting),
               "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
               "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting),
-              "title_theme.ogg": lambda: with_tempo(100, lambda: title_theme(os.environ.get("TITLE_OPENING", "roll")))}
+              "title_theme.ogg": lambda: with_tempo(100, lambda: title_theme(os.environ.get("TITLE_OPENING", "roll"))),
+              # Only the title theme's cue sheet (the .ogg is left alone: the shipped one is
+              # a hand-cut version of the generator's file).
+              "title_theme.cues.json": lambda: with_tempo(100, lambda: title_theme(os.environ.get("TITLE_OPENING", "roll")))}
     only = sys.argv[1:]
     for name, render in tracks.items():
         if only and name not in only:
             continue
         path = os.path.join(OUT_DIR, name)
         mix = render()
+        if name.endswith(".cues.json"):
+            import json
+            with open(path, "w") as f:
+                json.dump(mix.cue_sheet, f, separators=(",", ":"))
+            print(f"{name}: {sum(len(r) for r in mix.cue_sheet['events'].values())} events")
+            continue
         mix.write(path)
         cut = getattr(mix, "cut", None)
         seconds = mix.n / RATE - ((cut[1] - cut[0]) if cut else 0.0)
