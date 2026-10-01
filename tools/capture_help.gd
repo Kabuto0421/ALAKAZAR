@@ -236,12 +236,6 @@ func capture_all() -> void:
 	act(Vector2i(1, 1))
 	await frames(3)
 	await shot("cannon_b", board())
-	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
-	for turns in [3, 2, 1]:
-		m.walls[Vector2i(1, 1)] = turns
-		await shot("fade_%d" % turns, board())
-	m.walls.clear()
-	await shot("fade_0", board())
 	# --- 敵にもAP ---
 	setup([["heavy", Vector2i(2, 1)]], Vector2i(0, 1))
 	await shot("eap1_a", board())

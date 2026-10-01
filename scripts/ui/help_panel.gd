@@ -12,22 +12,23 @@ const GOLD := Color("ffd35b")
 const MUTED := preload("res://scripts/run/rarity.gd").INFO
 
 const Shot = preload("res://scripts/ui/help_shot.gd")
+const Rules = preload("res://scripts/battle_model.gd")
 ## Each page: a title, a short lead that states the rule, and up to three
 ## screenshot flipbooks (with a tag per frame) that show it happening.
 const PAGES := [
 	{"title": "基本", "lead": "あなたのターンにはAPが2つ。APの数だけ、今の武器の範囲（光るマス）で「移動」「攻撃」「妖精を置く」ができる。", "items": [
-		{"shots": ["basic_move_a", "basic_move_b"], "tags": ["AP 2", "移動 −1 AP"], "caption": "移動", "sub": "光るマスへ"},
-		{"shots": ["basic_attack_a", "basic_attack_b"], "tags": ["AP 2", "攻撃 −1 AP"], "caption": "攻撃", "sub": "敵を押す。自分は動かない"},
-		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く", "sub": "光るマスに置く"},
+		{"shots": ["basic_move_a", "basic_move_b"], "tags": ["AP 2", "移動 −1 AP"], "caption": "移動"},
+		{"shots": ["basic_attack_a", "basic_attack_b"], "tags": ["AP 2", "攻撃 −1 AP"], "caption": "攻撃"},
+		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く"},
 	]},
 	{"title": "AP（行動力）", "lead": "移動・攻撃はAP1、妖精はカードのAP（ほとんど1）。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
 		{"shots": ["loop_0", "loop_1", "loop_2", "loop_3", "loop_4"], "tags": ["あなたのターン AP 2", "移動 −1 AP", "攻撃 −1 AP → 0", "敵のターン", "またあなたのターン AP 2"], "caption": "2回動いたら敵の番", "sub": "敵が動くとAPが2に戻る。これのくり返し", "wide": true},
-		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP", "sub": "光るマスが変わる"},
+		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP"},
 	]},
 	{"title": "武器", "lead": "武器は3本まで。武器ごとに動ける方向と攻撃力が違う。いろんな方向の武器を集めて、組み合わせて戦おう。", "items": [
-		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "縦跳剣", "桂馬剣"], "caption": "動ける方向が違う", "sub": "下のカードの図が範囲"},
-		{"shots": ["power_a", "power_b"], "tags": ["ハンマー 攻撃3", "攻撃 −1 AP"], "caption": "攻撃力も違う", "sub": "カードの「攻撃N」"},
-		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["縦跳剣", "移動 −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる", "sub": "動いてから、別の武器で殴る"},
+		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "縦跳剣", "桂馬剣"], "caption": "動ける方向が違う"},
+		{"shots": ["power_a", "power_b"], "tags": ["ハンマー 攻撃3", "攻撃 −1 AP"], "caption": "攻撃力も違う"},
+		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["縦跳剣", "移動 −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる"},
 	]},
 	{"title": "特殊効果", "lead": "一部の武器には特別な効果がある。白い枠は魔法陣。カードの「押出」「滑る」などのタグも見よう。", "items": [
 		{"shots": ["circle_a", "circle_b", "circle_c"], "tags": ["囲める場所が光る", "発動", "99ダメージ"], "caption": "魔法陣", "sub": "歩いた跡で囲むと99ダメージ"},
@@ -36,20 +37,19 @@ const PAGES := [
 	]},
 	{"title": "妖精", "lead": "妖精はいっしょに戦う相棒。各戦闘1回ずつ力を貸してくれて、呼ぶとAP1（0 APの妖精もいる）。置ける場所は今の武器の範囲（光るマス）で、持ち替えると変わる。", "items": [
 		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "呼ぶとAP1", "sub": "1戦闘1回（次の戦闘でまた呼べる）"},
-		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第", "sub": "水色のマスに置ける"},
+		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第"},
 	]},
-	{"title": "設置系の妖精", "lead": "壁・大砲・隠密妖精などの設置系は、置いたターンを含めて3ターンで消える。右下の数字が残りのターン。", "items": [
-		{"shots": ["fade_3", "fade_2", "fade_1", "fade_0"], "tags": ["残り3", "残り2", "残り1", "消えた"], "caption": "3ターンで消える"},
+	{"title": "設置系の妖精", "lead": "壁・大砲・隠密妖精などの設置系は、置いたターンを含めて%dターンで消える。右下の数字が残りのターン。" % Rules.WALL_TURNS, "items": [
 		{"shots": ["cannon_a", "cannon_b"], "tags": ["大砲", "叩く −1 AP"], "caption": "大砲は武器で叩くと発射", "sub": "向きの直線上の敵すべてに1"},
 	]},
 	{"title": "敵にもAPがある", "lead": "敵にもAPがあり、移動も攻撃も1AP。同じ2マス先からでも、AP1の敵は寄るだけ、AP2の敵は寄ってそのまま殴ってくる。", "items": [
-		{"shots": ["eap1_a", "eap1_b"], "tags": ["敵AP 1", "敵 移動 −1 → 終わり"], "caption": "AP1の敵", "sub": "寄ってきて終わり"},
-		{"shots": ["eap2_a", "eap2_b"], "tags": ["敵AP 2", "敵 移動→攻撃"], "caption": "AP2の敵", "sub": "動いてから殴ってくる"},
-		{"shots": ["inspect_ap"], "caption": "敵に乗せると情報", "sub": "HP・AP・動き・攻撃範囲"},
+		{"shots": ["eap1_a", "eap1_b"], "tags": ["敵AP 1", "敵 移動 −1 → 終わり"], "caption": "AP1の敵"},
+		{"shots": ["eap2_a", "eap2_b"], "tags": ["敵AP 2", "敵 移動→攻撃"], "caption": "AP2の敵"},
+		{"shots": ["inspect_ap"], "caption": "敵に乗せると情報"},
 	]},
 	{"title": "危険を読む", "lead": "！が付いた敵は、あなたが今の場所にいると次のターンに攻撃してくる。！が消える場所へ動けば避けられる。", "items": [
 		{"shots": ["threat_rule"], "caption": "！は次に殴られる"},
-		{"shots": ["dodge_0", "dodge_1", "dodge_2", "dodge_3"], "tags": ["！が付いた", "避ける場所へ", "移動 −1 AP", "敵のターン：無傷"], "caption": "実践：避ける", "sub": "寄られても殴られない"},
+		{"shots": ["dodge_0", "dodge_1", "dodge_2", "dodge_3"], "tags": ["！が付いた", "避ける場所へ", "移動 −1 AP", "敵のターン：無傷"], "caption": "実践：避ける"},
 	]},
 ]
 
