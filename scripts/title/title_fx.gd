@@ -168,7 +168,7 @@ func draw_motes(canvas: CanvasItem) -> void:
 			canvas.draw_circle(mote[0], mote[5] * (0.5 + 0.5 * fade), color)
 
 func _draw_rain() -> void:
-	var count := int(lerpf(70.0, 150.0, energy))
+	var count := int(lerpf(8.0, 150.0, pow(energy, 1.5)))
 	var slant_a := 1.0 - digital
 	for n in count:
 		var drop: Array = _drops[n]
@@ -181,7 +181,7 @@ func _draw_rain() -> void:
 		if digital > 0.01:
 			_draw_digital(drop, y, Color(0.35, 1.0, 0.85), digital)
 	if digital_left > 0.01:
-		for n in int(lerpf(30.0, 70.0, energy)):
+		for n in int(lerpf(4.0, 70.0, pow(energy, 1.5))):
 			var drop: Array = _left_drops[n]
 			_draw_digital(drop, fposmod(drop[0].y + time * drop[1], 1100.0) - 20.0, Color(0.7, 1.0, 0.45), digital_left)
 
