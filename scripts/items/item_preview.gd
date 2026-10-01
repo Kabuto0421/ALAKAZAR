@@ -512,8 +512,18 @@ static func _holy(time: float, accent: Color) -> void:
 		_flash(Vector2(1,0), RED, _ph(p, 0.52, 0.62), 2.0)
 	else:
 		cv.draw_rect(Rect2(Vector2(1,0) * C + Vector2(2,2), Vector2.ONE * (C * 2 - 4)), Color(accent, 0.25 * (1.0 - _ph(p, 0.62, 0.8))))
-		for knight: Vector2 in [Vector2(1,0), Vector2(2,1)]:
+		var knights: Array[Vector2] = [Vector2(1,0), Vector2(2,1)]
+		# They step in four directions (the green tiles), twice a turn.
+		var walks := _ph(p, 0.74, 0.8)
+		for knight in knights:
+			_ally_reach(knight, [Vector2(-1,0), Vector2(1,0), Vector2(0,-1), Vector2(0,1)], walks)
+		for knight in knights:
 			_region(Units.HOLY_KNIGHT, Rect2(152,22,80,80), knight, _ph(p, 0.62, 0.72))
+			# Their strength, under each: 2 HP and 2 AP.
+			var tag := _ph(p, 0.7, 0.78)
+			if tag > 0.0:
+				_say(_center(knight) + Vector2(0, -C * 0.34), "HP2", 11, Color(RED, tag))
+				_say(_center(knight) + Vector2(0, C * 0.34), "AP2", 11, Color(GOLD, tag))
 	_enemy(Vector2(3,1), 1.0 - _ph(p, 0.3, 0.42))
 	_pop(Vector2(3,1), "−1", _ph(p, 0.18, 0.5))
 	# Another enemy breaks it.

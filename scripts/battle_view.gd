@@ -120,6 +120,13 @@ var aim := Vector2i.UP
 var direction_buttons: Array[Button] = []
 var cancel_button: Button
 var rules_button: Button
+## 「タイトルへ」: the first press asks "もう一度押すと戻る"; a second press within a few seconds
+## leaves the battle (the run is lost).
+var title_button: Button
+const TITLE_LABEL := "タイトルへ"
+const TITLE_SURE := "本当に戻る？"
+const TITLE_SCENE := "res://title.tscn"
+var title_asked_at := -100.0
 var bgm: Node
 var sfx: Node
 
@@ -165,6 +172,7 @@ func _make_ui() -> void:
 			grid_buttons.append(tile_button)
 	end_button = _button(ui,Rect2(24,580,280,58),"ターン終了 [SPACE]",_enemy_turn)
 	rules_button = _button(ui,Rect2(802,34,142,36),"遊び方 [H]",_toggle_rules)
+	title_button = _button(ui,Rect2(956,34,172,36),TITLE_LABEL,_title_pressed)
 	cancel_button = _button(ui,Rect2(832,552,296,42),"取消 [Esc]",_cancel_item)
 	var arrow_positions := ITEM_ARROW_POSITIONS
 	var arrows := ["↑","→","↓","←"]
@@ -200,6 +208,18 @@ func _make_ui() -> void:
 	ui.add_child.call_deferred(help)
 	inventory_ui.item_selected.connect(_select_item)
 	inventory_ui.open_changed.connect(_cancel_item)
+
+func _title_pressed() -> void:
+	if clock - title_asked_at > 3.0:
+		title_asked_at = clock
+		title_button.text = TITLE_SURE
+		title_button.add_theme_color_override("font_color",Color("ff987f"))
+		return
+	_leave_to_title()
+
+func _leave_to_title() -> void:
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file(TITLE_SCENE)
 
 func _button(parent: Control, rect: Rect2, title: String, callback: Callable) -> Button:
 	var button := Button.new()
@@ -1067,6 +1087,10 @@ func _update_time_overlay(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	clock += delta
+	if title_button.text == TITLE_SURE and clock - title_asked_at > 3.0:
+		title_button.text = TITLE_LABEL
+		title_button.remove_theme_color_override("font_color")
+		title_button.add_theme_color_override("font_color",INK)
 	_update_time_overlay(delta)
 	if chain_shake > 0.0 or quake_shake > 0.0:
 		chain_shake -= delta
@@ -2087,9 +2111,24 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
-		_text(Vector2(852,480),"壊すと執行兵2体",19,CYAN)
-		_draw_threat(enemy,526)
-	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+		_text(Vector2(852,476),"壊すと執行兵が2体出る",19,CYAN)
+		_draw_released_soldier()
+		_draw_threat(enemy,568)
+	_text(Vector2(852,592 if enemy.type == "prison" else 574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+
+## What a broken moving prison lets out: the executioner with its HP 2 and AP 2, and the
+## four directions it walks in.
+func _draw_released_soldier() -> void:
+	var type: Dictionary = Rules.TYPES.executioner
+	draw_set_transform(Vector2(884,500),0,Vector2.ONE*0.9)
+	UnitView.draw_boss(self,"executioner",2,false,Color.WHITE,0.9,0)
+	draw_set_transform(Vector2.ZERO,0,Vector2.ONE)
+	for i in int(type.hp):
+		_draw_heart(Vector2(926+i*22,500),18,Color("ff5b62"),true)
+	_text(Vector2(984,508),"AP",18,GOLD)
+	for i in int(type.ap):
+		draw_rect(Rect2(1014+i*22,491,18,19),GOLD)
+	_text(Vector2(852,544),"上下左右に1マスずつ動く",17,CYAN)
 
 ## Things placed on the board (fairies' devices, pits, mines, the magic circle),
 ## for the inspector: {title, icon (fairy id or ""), turns, state, lines, color}.

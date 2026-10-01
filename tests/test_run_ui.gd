@@ -93,6 +93,14 @@ func run() -> void:
 	view.help.close()
 	await process_frame
 	verify(not view.help.visible and not view.show_rules,"Closing the manual returns to the battle")
+	# The battle has a way back to the title: the first press only asks (so a stray click cannot end the run).
+	verify(view.title_button!=null and view.title_button.text==view.TITLE_LABEL,"The battle screen has a title button")
+	view.title_button.pressed.emit()
+	verify(view.title_button.text==view.TITLE_SURE and is_instance_valid(view),"Pressing it once asks for a second press and stays in the battle")
+	view.title_asked_at=-100.0
+	view.clock=0.0
+	view._process(0.0)
+	verify(view.title_button.text==view.TITLE_LABEL,"...and the question lapses after a few seconds")
 	verify(view.actors[-1].facing==1 and view.model.enemies.all(func(e): return view.actors[e.id].facing==3),"Player faces right and enemy sprites face left")
 	verify(not view.model.turn_to(0),"Rotation and paid equip buttons were removed")
 	verify(view.inventory_ui.quick_buttons[0].position.x==24 and view.weapon_buttons[0].position.y>=620,"Fairies are on the left; weapons moved below board")
