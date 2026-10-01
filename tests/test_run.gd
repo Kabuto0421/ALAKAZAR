@@ -94,7 +94,7 @@ func _initialize() -> void:
 	run.replace(2)
 	verify(run.state==Run.State.BATTLE and m.owned_weapons.size()==3 and m.owned_weapons[2]==new_weapon,"Replacement keeps exactly three weapons and advances")
 	verify(m.board_size==5 and m.enemies.size()==5,"Second encounter uses a 5x5 board")
-	verify(m.enemies.filter(func(e): return e.type=="miner").size()==1 and m.enemies.filter(func(e): return e.type=="cavalry").is_empty(),"Second encounter adds a miner but still no cavalry")
+	verify(m.enemies.filter(func(e): return e.type=="gold").size()==1 and m.enemies.filter(func(e): return e.type=="miner").is_empty() and m.enemies.filter(func(e): return e.type=="cavalry").is_empty(),"Second encounter adds a gold general (no mine yet) but still no cavalry")
 	verify(m.enemies.all(func(e): return not e.type in Rules.RANGED),"Early fights have no javelins or archers")
 	m.enemies.clear()
 	m.check_outcome()
@@ -293,6 +293,7 @@ func _initialize() -> void:
 	_analyst()
 	_loner_fairies()
 	_generals()
+	_habits()
 	_abyss()
 	_gravity()
 	_glutton()
@@ -1724,6 +1725,21 @@ func _loner_fairies() -> void:
 	m.phase = Rules.Phase.ENEMY
 	m.rook_charge(rook)
 	verify(rook.cell == Vector2i(3,2) and wedge.cell == Vector2i(2,2),"Without the player in the lane, enemies still block the charge")
+
+func _habits() -> void:
+	# The inspector tells how each soldier tends to act: every entry is a real enemy, two lines.
+	verify(Rules.HABITS.keys().all(func(type): return Rules.TYPES.has(type) and Rules.HABITS[type].size() == 2),"Every habit is for a real enemy and has two lines")
+	verify(Rules.HABITS.miner[0].contains("離れる"),"The mine soldier is said to back away from the player")
+	# It really does: next to the player it steps back to keep its distance.
+	var m := fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(2,2)
+	var miner: Dictionary = m.make_enemy("miner",Vector2i(3,2),0)
+	m.enemies.append(miner)
+	var planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m,0)
+	verify(m.distance(miner.cell,m.player.cell) > 1,"A mine soldier next to the player backs away")
 
 func _generals() -> void:
 	# Gold: every neighbour but the two back diagonals (front = left). Silver: front three and back diagonals.

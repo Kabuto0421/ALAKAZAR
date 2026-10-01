@@ -2215,7 +2215,12 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,520),"突撃準備：次の敵ターンに突撃",19,GOLD)
 	elif enemy.get("state","") == "aim":
 		_text(Vector2(852,520),"弓を構えている：次に射る",19,GOLD)
-	_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+	# Its habits, under the status lines (when nothing else is using them).
+	if Rules.HABITS.has(enemy.type) and int(enemy.get("frozen",0)) <= 0 and not model.time_stopped() and not (enemy.type == "king" or enemy.type == "fortress"):
+		var habits: Array = Rules.HABITS[enemy.type]
+		_text(Vector2(852,546),habits[0],17,Color("e5dfc5"))
+		_text(Vector2(852,567),habits[1],17,Color("e5dfc5"))
+	_text(Vector2(852,592),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",16,MUTED)
 
 func _draw_heart(center: Vector2, size: float, color: Color, filled: bool) -> void:
 	var half := size * 0.5

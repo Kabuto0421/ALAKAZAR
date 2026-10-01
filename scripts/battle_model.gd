@@ -83,6 +83,22 @@ const TYPES = {
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 }
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
+## How each soldier tends to act, in two short lines for the inspector (taken from the
+## enemy planner: its "intent" and the rules it follows).
+const HABITS := {
+	"infantry": ["仲間と囲むように接近", "囲んだら突撃してくる"],
+	"recruit": ["まっすぐ近づいて", "隣に来たら攻撃"],
+	"heavy": ["毎ターン前進して", "隣に来たら攻撃"],
+	"miner": ["近づくと離れる(距離3)", "2回目の行動で地雷設置"],
+	"cavalry": ["跳んで接近し、", "着地した所を攻撃"],
+	"horse": ["跳んで接近し、", "着地した所を攻撃"],
+	"javelin": ["同じ列に来ると投擲。", "届く所まで歩いてくる"],
+	"archer": ["照準を合わせ、次の", "ターンに左へ一直線"],
+	"shield": ["盾を構えて前進。", "真左の攻撃は防ぐ"],
+	"analyst": ["殴られた武器を覚え、", "同じ武器を無効化"],
+	"gold": ["将棋の金の動きで", "近づいて攻撃"],
+	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
+}
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
