@@ -12,6 +12,8 @@ var m
 var ids: Array
 
 func _init() -> void:
+	# The screenshots use fairies; they must not unlock them in the player's fairy book.
+	load("res://scripts/fairy_book.gd").recording = false
 	load("res://scripts/battle_view.gd").help_seen = true
 	root.size = Vector2i(1728, 1080)
 	view = RunView.new()

@@ -11,6 +11,9 @@ const COLORS := [Color("c98b5a"), Color("5fe08a"), Color("4fb4ff"), Color("ffc93
 ## summaries, notes, 選ぶ →): one crisp colour instead of item colours and greys.
 const INFO := Color("4fb4ff")
 
+## The fairies of the first picks (and the other plain ones). A new fairy goes in exactly
+## one of these four lists: the tests fail until it does.
+const COMMON_FAIRIES: Array[String] = ["magic_bolt", "stealth_fairy", "acorn_fairy", "wall_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "slash_fairy", "capacitor_fairy"]
 ## Mid and late fairies.
 const UNCOMMON_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "freeze_fairy", "blessing_fairy"]
 const RARE_FAIRIES: Array[String] = ["axe_spirit", "meteor_fairy", "abyss_spirit", "warp_fairy"]

@@ -70,30 +70,32 @@ static func grid(id: String, plus: bool) -> Vector2i:
 
 ## Draws the example for `id` fitted into `rect` (centred, at most twice its size).
 ## `plus`: 1 shows the class-up version, 0 the base one, -1 whatever the model has.
-static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float, rect: Rect2 = Rect2(848,228,268,100), plus: int = -1) -> void:
+## Returns false when there is no example for `id` (a new fairy needs one: the tests check).
+static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float, rect: Rect2 = Rect2(848,228,268,100), plus: int = -1) -> bool:
 	if id == "knockback":
 		board = Vector2i(5,1)
 		_fit(canvas, rect)
 		_board(Color("b8d7c5"))
 		_knockback(time)
 		canvas.draw_set_transform(Vector2.ZERO)
-		return
+		return true
 	if id == "circle" or id == "circle_diagonal":
 		board = Vector2i(5,3)
 		_fit(canvas, rect)
 		_board(Color("b8c8ff"))
 		_circle(time, id == "circle_diagonal")
 		canvas.draw_set_transform(Vector2.ZERO)
-		return
+		return true
 	var item: Resource = model.item_definition(id)
 	if item == null:
-		return
+		return false
 	var upgraded: bool = model.is_plus(id) if plus < 0 else plus == 1
 	board = grid(id, upgraded)
 	_fit(canvas, rect)
 	_board(item.color)
 	var accent: Color = item.color
 	var art: Texture2D = item.icon
+	var drawn := true
 	match id:
 		"magic_bolt": _magic_bolt(time, accent, art)
 		"stealth_fairy": _stealth(time, accent, art, upgraded)
@@ -121,7 +123,9 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"guardian_fairy": _guardian(time)
 		"time_fairy": _time_stop(time, art)
 		"glutton_fairy": _glutton(time)
+		_: drawn = false
 	canvas.draw_set_transform(Vector2.ZERO)
+	return drawn
 
 # --- The examples -------------------------------------------------------------
 

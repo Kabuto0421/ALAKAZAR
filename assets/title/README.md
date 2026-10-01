@@ -28,3 +28,8 @@ Godot でタイトル画面を組むための素材です。メニューの文�
 - 選択していない項目: クリーム色 #fff6e0
 
 正確な矩形は `layout.json` にあります。見た目は `title_screen_reference.png` に合わせてください。
+
+
+## 1体ずつの画像（units/ と units.json）
+
+主人公・妖精・敵を1体ずつ切り出した画像（全35体）と、その位置・重ね順（`units.json`）です。ゲームでは主人公側（23体）をこれで組み、**戦闘で使った妖精だけ色づく**ようにしています（`scripts/title/title_roster.gd`、`scripts/fairy_book.gd`）。敵側はまだ `layer_20_enemies.png` を使っています。`layer_10_heroes.png` は今は使っていません（完成形の参考用）。

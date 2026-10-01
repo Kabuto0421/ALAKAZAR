@@ -34,6 +34,8 @@ func run() -> void:
 	# The first-battle manual would cover the board; it is checked on its own below.
 	load("res://scripts/battle_view.gd").help_seen = true
 	root.size=Vector2i(1728,1080)
+	# The tests must not leave anything in the player's fairy book.
+	load("res://scripts/fairy_book.gd").recording=false
 	# The title screen: the project starts there; two big menu items, the title theme
 	# loops from the march (after the fanfare), and 実績 opens its page.
 	verify(ProjectSettings.get_setting("application/run/main_scene") == "res://title.tscn","The game starts on the title screen")
@@ -55,6 +57,8 @@ func run() -> void:
 	await process_frame
 	await check_title_sync()
 	check_title_extras()
+	await check_fairy_book()
+	await check_every_fairy_is_complete()
 	await check_defeat_goes_to_title()
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
@@ -302,7 +306,7 @@ func check_title_extras() -> void:
 	var Model = load("res://scripts/battle_model.gd")
 	var missing: Array = Extras.missing()
 	verify(missing.any(func(item): return item.id=="time_fairy"),"The time fairy, not in the art, is set out on the title screen")
-	verify(Extras.IN_ART.all(func(id): return Model.ITEMS.any(func(item): return item.id==id)),"Every fairy the art is said to show exists")
+	verify(Extras.in_art().all(func(id): return Model.ITEMS.any(func(item): return item.id==id)),"Every fairy the art is said to show exists")
 	verify(missing.size()<=Extras.capacity(),"There is room for every fairy the art does not show")
 	var image: Image = load("res://assets/title/layer_10_heroes.png").get_image()
 	var logo: Image = load("res://assets/title/layer_30_logo.png").get_image()
@@ -333,4 +337,128 @@ func check_defeat_goes_to_title() -> void:
 	buttons = view.find_children("*","Button",true,false)
 	verify(buttons.any(func(b): return b.text=="初期ビルドを選び直す →"),"...while a cleared run still offers a new build")
 	view.queue_free()
+	await process_frame
+
+
+# A fairy stands in the dark on the title screen until it has been used in a battle.
+func check_fairy_book() -> void:
+	var Book = load("res://scripts/fairy_book.gd")
+	var Roster = load("res://scripts/title/title_roster.gd")
+	var Model = load("res://scripts/battle_model.gd")
+	var Extras = load("res://scripts/title/title_extras.gd")
+	var units: Array = Roster.heroes()
+	verify(units.size()==23 and units.all(func(u): return u.texture!=null and u.rect.size.x>0),"Every hero-side picture of the title art loads (23)")
+	verify(Roster.shown_items().all(func(id): return Model.ITEMS.any(func(item): return item.id==id)),"...and each fairy among them is a fairy of the game")
+	var covered: Array = Roster.shown_items()
+	covered.append_array(Extras.missing().map(func(item): return item.id))
+	verify(Model.ITEMS.all(func(item): return covered.has(item.id)),"Every fairy of the game is on the title screen, as a picture or set out by itself")
+	# The book: first use is noted once, kept in the file, and announced once.
+	Book.path="user://fairy_book_test.cfg"
+	Book.recording=true
+	Book.reset_memory()
+	verify(not Book.has_used("wall_fairy") and Book.unseen().is_empty(),"Nothing is used at first")
+	verify(Book.record_use("wall_fairy") and not Book.record_use("wall_fairy") and Book.has_used("wall_fairy"),"The first use is recorded (once)")
+	verify(Book.unseen()==["wall_fairy"],"...and waits to be shown on the title screen")
+	Book.reset_memory()
+	Book._loaded=false
+	verify(Book.has_used("wall_fairy"),"...and is still there after the game is restarted")
+	# The title screen.
+	var title = load("res://title.tscn").instantiate()
+	root.add_child(title)
+	await process_frame
+	title.music.stop()
+	title.reveal=title.MENU_TIME+5.0
+	title._update_reveal()
+	var by_item := func(screen, item: String) -> Dictionary:
+		for unit in screen.hero_units:
+			if unit.item==item:
+				return unit
+		return {}
+	verify(by_item.call(title,"wall_fairy").node.modulate==Color.WHITE and by_item.call(title,"meteor_fairy").node.modulate==Extras.LOCKED,"A used fairy is in colour, an unused one a silhouette")
+	verify(by_item.call(title,"").node.modulate==Color.WHITE,"The hero is always in colour")
+	verify(Book.unseen().is_empty(),"The title screen has announced what it showed")
+	title.queue_free()
+	await process_frame
+	# A fairy used since the last time waits in the dark, then pops out after the menu appears.
+	Book.record_use("meteor_fairy")
+	title = load("res://title.tscn").instantiate()
+	root.add_child(title)
+	await process_frame
+	title.music.stop()
+	title.reveal=title.MENU_TIME
+	title._update_reveal()
+	verify(by_item.call(title,"meteor_fairy").node.modulate==Extras.LOCKED,"A newly used fairy waits in the dark while the menu appears...")
+	title.reveal=title.MENU_TIME+0.5
+	title._update_reveal()
+	verify(by_item.call(title,"meteor_fairy").node.modulate==Color.WHITE and by_item.call(title,"meteor_fairy").node.scale.x>1.1,"...then steps out with a pop")
+	title.reveal=title.MENU_TIME+3.0
+	title._update_reveal()
+	verify(is_equal_approx(by_item.call(title,"meteor_fairy").node.scale.x,1.0),"...and settles")
+	title.queue_free()
+	await process_frame
+	Book.recording=false
+	Book.path=Book.SAVE_PATH
+	Book.reset_memory()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://fairy_book_test.cfg"))
+
+
+# The checklist for a new fairy: if one is added to the game and any of these is forgotten,
+# this fails and names the fairy. (Its record in the fairy book needs nothing: it is kept by
+# the fairy's id; and the title screen sets an unpictured fairy out by itself.)
+func check_every_fairy_is_complete() -> void:
+	var Model = load("res://scripts/battle_model.gd")
+	var Preview = load("res://scripts/items/item_preview.gd")
+	var Rarity = load("res://scripts/run/rarity.gd")
+	var Card = load("res://scripts/run/choice_card.gd")
+	var Extras = load("res://scripts/title/title_extras.gd")
+	var Roster = load("res://scripts/title/title_roster.gd")
+	var m = Model.new()
+	m.reset(0)
+	# The example animations may only draw while their canvas is redrawing.
+	var canvas := Control.new()
+	root.add_child(canvas)
+	var drawn := {}
+	var asking := {"id": ""}
+	canvas.draw.connect(func():
+		if asking.id != "":
+			drawn[asking.id] = Preview.paint(canvas, m, asking.id, 0.5))
+	var problems: Array[String] = []
+	for item in Model.ITEMS:
+		var id: String = item.id
+		asking.id = id
+		canvas.queue_redraw()
+		await process_frame
+		await process_frame
+		if item.icon == null or item.effect == null or item.title=="" or item.description=="" or item.summary=="":
+			problems.append("%s: item data (icon, effect, title, description, summary)" % id)
+		for text in [m.fairy_description(id), m.fairy_summary(id)]:
+			if "{" in text or "}" in text:
+				problems.append("%s: a {placeholder} in its text is not filled (text_values)" % id)
+		if not Model.PLUS_TEXT.has(id):
+			problems.append("%s: no class-up text (PLUS_TEXT)" % id)
+		else:
+			for text in [m.fairy_description(id, 1), m.fairy_summary(id, 1)]:
+				if "{" in text:
+					problems.append("%s: a {placeholder} in its class-up text is not filled" % id)
+		if not drawn.get(id, false):
+			problems.append("%s: no example animation (ItemPreview.paint)" % id)
+		var listed := 0
+		for list in [Rarity.COMMON_FAIRIES, Rarity.UNCOMMON_FAIRIES, Rarity.RARE_FAIRIES, Rarity.SUPER_RARE_FAIRIES]:
+			listed += 1 if list.has(id) else 0
+		if listed != 1:
+			problems.append("%s: not in exactly one rarity list (Rarity.*_FAIRIES)" % id)
+		if not Roster.shown_items().has(id) and not Extras.missing().any(func(other): return other.id==id):
+			problems.append("%s: nowhere on the title screen" % id)
+		var card = Card.new()
+		card.size = Vector2(300, 350)
+		card.offer = {"kind": "fairy", "value": id}
+		card.model = m
+		canvas.add_child(card)
+		if card.get_child_count() < 3:
+			problems.append("%s: its reward card drew nothing" % id)
+		card.queue_free()
+	for problem in problems:
+		printerr("NEW FAIRY CHECK: ", problem)
+	verify(problems.is_empty(),"Every fairy has its item data, texts, example animation, rarity, title spot and card (%d problems)" % problems.size())
+	canvas.queue_free()
 	await process_frame

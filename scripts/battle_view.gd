@@ -38,6 +38,7 @@ const Catalog = preload("res://scripts/run/weapon_catalog.gd")
 const DirectionSheet = preload("res://scripts/items/direction_sheet.gd")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
 const MagicCircleFx = preload("res://scripts/fx/magic_circle_fx.gd")
+const FairyBook = preload("res://scripts/fairy_book.gd")
 const AbyssFx = preload("res://scripts/fx/abyss_fx.gd")
 const GuardianFx = preload("res://scripts/fx/guardian_fx.gd")
 const ChainFx = preload("res://scripts/fx/chain_fx.gd")
@@ -606,7 +607,10 @@ func _confirm_direction(direction: Vector2i) -> void:
 	_commit_item(item_origin,direction)
 
 func _commit_item(cell: Vector2i, direction: Vector2i) -> void:
+	var used := selected_item
 	if model.use_item(selected_item,cell,direction,selected_item_slot):
+		# The title screen lets a fairy out of its silhouette once it has been used.
+		FairyBook.record_use(used)
 		_cancel_item()
 		_finish_player_action(false)
 

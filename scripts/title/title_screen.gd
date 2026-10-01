@@ -23,7 +23,8 @@ const LOGO_SHADER = preload("res://scripts/title/title_logo.gdshader")
 const LAYER_SHADER = preload("res://scripts/title/title_layer.gdshader")
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const BACKGROUND = preload("res://assets/title/layer_00_background.png")
-const HEROES = preload("res://assets/title/layer_10_heroes.png")
+const Roster = preload("res://scripts/title/title_roster.gd")
+const FairyBook = preload("res://scripts/fairy_book.gd")
 const ENEMIES = preload("res://assets/title/layer_20_enemies.png")
 const LOGO = preload("res://assets/title/layer_30_logo.png")
 const WINDOW = preload("res://assets/title/layer_40_menu_window.png")
@@ -106,7 +107,11 @@ var window_mat: ShaderMaterial
 var bar_top: ColorRect
 var bar_bottom: ColorRect
 var art: Control
-var heroes: TextureRect
+var heroes: Control
+## The hero side, one picture each: {id, item, node}; and the fairies used since the title
+## was last shown (they step out of their silhouettes after the menu appears).
+var hero_units: Array[Dictionary] = []
+var fresh_items: Array[String] = []
 var extras: Node2D
 var enemies: TextureRect
 var logo: TextureRect
@@ -142,8 +147,7 @@ func _ready() -> void:
 	_layer(BACKGROUND)
 	fx = TitleFx.new()
 	art.add_child(fx)
-	heroes = _layer(HEROES)
-	heroes_mat = _shade(heroes, LAYER_SHADER)
+	_build_heroes()
 	# Fairies the art does not show yet stand in the free sky above them.
 	extras = TitleExtras.new()
 	heroes.add_child(extras)
@@ -191,6 +195,30 @@ func _layer(texture: Texture2D) -> TextureRect:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	art.add_child(rect)
 	return rect
+
+## The hero and the fairies, one picture each, in their places on the art. A fairy that has
+## not been used yet stands in the dark; the ones used since the title was last shown wait
+## in the dark too, and step out of it just after the menu appears (_update_reveal).
+func _build_heroes() -> void:
+	heroes = Control.new()
+	heroes.size = Vector2(1920, 1080)
+	heroes.position = ART_SHIFT
+	heroes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.add_child(heroes)
+	heroes_mat = ShaderMaterial.new()
+	heroes_mat.shader = LAYER_SHADER
+	fresh_items = FairyBook.unseen()
+	FairyBook.mark_seen()
+	for unit in Roster.heroes():
+		var rect := TextureRect.new()
+		rect.texture = unit.texture
+		rect.position = unit.rect.position
+		rect.size = unit.rect.size
+		rect.pivot_offset = rect.size / 2.0
+		rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rect.material = heroes_mat
+		heroes.add_child(rect)
+		hero_units.append({"id": unit.id, "item": unit.item, "node": rect})
 
 func _shade(rect: TextureRect, shader: Shader) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
@@ -476,6 +504,7 @@ func _update_reveal() -> void:
 	var bob := sin(clock * 1.6) * 3.0 - kick_pulse * 7.0
 	heroes.position = ART_SHIFT + HEROES_SHIFT + Vector2(-80 * (1.0 - arrive), bob)
 	heroes.modulate.a = arrive
+	_update_unlocks()
 	enemies.position = ART_SHIFT + ENEMIES_SHIFT + Vector2(80 * (1.0 - arrive) + drum_pulse * 7.0, sin(clock * 1.2 + 1.0) * 3.0)
 	enemies.modulate.a = arrive
 	# The logo drops in on the brass call, a little large, and settles.
@@ -492,6 +521,22 @@ func _update_reveal() -> void:
 	menu.modulate.a = shown
 	fx.modulate.a = _ease(reveal, 0.3, 1.8)
 	fx.sparks.modulate.a = fx.modulate.a
+
+## Each fairy in colour once it has been used, as a silhouette before; the newly used ones
+## step out of the dark just after the menu appears, with a little pop.
+func _update_unlocks() -> void:
+	var pop := reveal - (MENU_TIME + 0.4)
+	for unit in hero_units:
+		var rect: TextureRect = unit.node
+		var item: String = unit.item
+		var used := item == "" or FairyBook.has_used(item)
+		if used and item in fresh_items and pop < 0.0:
+			used = false
+		rect.modulate = Color.WHITE if used else TitleExtras.LOCKED
+		var grow := 1.0
+		if used and item in fresh_items and pop < 0.7:
+			grow = 1.0 + 0.4 * pow(1.0 - pop / 0.7, 2.0)
+		rect.scale = Vector2.ONE * grow
 
 static func _ease(t: float, from: float, to: float) -> float:
 	return ease(clampf((t - from) / (to - from), 0.0, 1.0), 0.4)
