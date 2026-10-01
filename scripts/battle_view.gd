@@ -2110,7 +2110,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.mines.has(cell):
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
-		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2の突進は落ちず%dダメージ" % Rules.PIT_BUMP_DAMAGE, "動くと届く範囲に合わせて", "奈落も変わる"]}
+		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2は落ちず手前で止まる", "動くと届く範囲に合わせて", "奈落も変わる"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):

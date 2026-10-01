@@ -45,7 +45,6 @@ const BLESS_HEAL := 1
 ## 時の妖精: enemy turns that time stands still for.
 const TIME_STOP_TURNS := 1
 ## 奈落: what a charging 2x2 takes for stumbling over a pit.
-const PIT_BUMP_DAMAGE := 2
 ## Class-ups beyond one: the meteor fairy can be upgraded four times.
 const MAX_PLUS = {"meteor_fairy": 4}
 ## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
@@ -203,7 +202,7 @@ const PLUS_TEXT := {
 	"guardian_fairy": ["HP{hp_plus}で降臨する", "攻撃範囲に2×2の守護神（HP{hp_plus}・\nAP{ally_ap}）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+{guardian_bonus}で呼び直す。暴食も来る。"],
 	"slash_fairy": ["上下2マスに加え、3マス幅の斬撃を飛ばす", "向きを選ぶ。置いたマスの上下2マスと\n3マス幅×5マスの斬撃を同時に\n飛ばす。当たった敵すべてに1。\n大砲に当たると誘爆させる。"],
 	"gravity_fairy": ["もっと遠くから引き寄せ、{push_plus}マス弾く", "空きマスならどこでも置ける。\n範囲外なら、もっと遠く（周囲\n{pull_plus}マス）から1マス引き寄せる。\n攻撃範囲なら、周りの敵を\n{push_plus}マス弾く。ダメージなし。"],
-	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず{pit_bump}ダメージ。"],
+	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2は落ちず、手前で止まる。"],
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
 	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。\n大砲に当たると誘爆。"],
 	"time_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回止められる", "自分のマスを押して呼ぶ。\n時が止まり、次の敵のターン\n（{time_stop}ターン）は敵が誰も動かず、\n攻撃もしない。\n味方は動ける。毎戦闘{uses_plus}回。"],
@@ -566,7 +565,7 @@ static func text_values(id: String) -> Dictionary:
 		"wolf_bite": WOLF_BITE, "wolf_crowded": WOLF_CROWDED_BITE,
 		"pull": GRAVITY_PULL, "pull_plus": GRAVITY_PULL + 1, "push": GRAVITY_PUSH, "push_plus": GRAVITY_PUSH + 1,
 		"swap_ap": SHADOW_SWAP_AP, "swap_ap_plus": maxi(0, SHADOW_SWAP_AP - 1),
-		"bless_heal": BLESS_HEAL, "pit_bump": PIT_BUMP_DAMAGE, "time_stop": TIME_STOP_TURNS,
+		"bless_heal": BLESS_HEAL, "time_stop": TIME_STOP_TURNS,
 	}
 	for item in ITEMS:
 		if item.id == id:
@@ -1413,20 +1412,46 @@ func gravity(cell: Vector2i) -> void:
 	check_outcome()
 
 ## Enemies within `radius` (not already touching) take one step towards the centre,
-## nearest first. No damage, but mines and pits along the way still count.
+## nearest first (a 2x2 or a 3x3 too: measured from its nearest tile, and it can only
+## be drawn straight). No damage, but mines and pits along the way still count.
 func _gravity_pull(center: Vector2i, radius: int) -> void:
+	var gap_of := func(e: Dictionary) -> int:
+		var best := 999
+		for c in footprint(e):
+			best = mini(best, maxi(absi(c.x - center.x), absi(c.y - center.y)))
+		return best
 	var movers: Array = enemies.filter(func(e: Dictionary) -> bool:
-		var gap: Vector2i = (e.cell - center).abs()
-		return e.hp > 0 and int(e.get("size", 1)) == 1 and maxi(gap.x, gap.y) >= 2 and maxi(gap.x, gap.y) <= radius)
-	movers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return distance(a.cell, center) < distance(b.cell, center))
+		var gap: int = gap_of.call(e)
+		return e.hp > 0 and not e.type in IMMOVABLE and gap >= 2 and gap <= radius)
+	movers.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return footprint_distance(a, center) < footprint_distance(b, center))
 	for enemy in movers:
 		if enemy.hp <= 0 or terminal():
 			continue
-		var toward := Vector2i(signi(center.x - enemy.cell.x), signi(center.y - enemy.cell.y))
+		var big := int(enemy.get("size", 1)) > 1
+		var nearest: Vector2i = enemy.cell
+		for c in footprint(enemy):
+			if distance(c, center) < distance(nearest, center):
+				nearest = c
+		var toward := Vector2i(signi(center.x - nearest.x), signi(center.y - nearest.y))
 		var tries: Array = [toward]
-		if toward.x != 0 and toward.y != 0:
+		if big:
+			# Straight only: along the axis it is furthest from the centre.
+			var gap: Vector2i = center - nearest
+			tries = [Vector2i(signi(gap.x), 0) if absi(gap.x) >= absi(gap.y) else Vector2i(0, signi(gap.y))]
+		elif toward.x != 0 and toward.y != 0:
 			tries.append_array([Vector2i(toward.x, 0), Vector2i(0, toward.y)])
 		for step in tries:
+			if step == Vector2i.ZERO:
+				continue
+			if big:
+				# Too big to fall: a pit, like any obstacle, just stops it.
+				var front := _front_cells(enemy, step)
+				if front.any(func(c: Vector2i) -> bool: return not inside(c) or blocked(c) or c == player.cell or c == center or (not enemy_at(c).is_empty() and enemy_at(c).id != enemy.id)):
+					continue
+				events.append({"kind":"pull", "cell":enemy.cell + step, "id":-2, "from":enemy.cell})
+				enemy.cell += step
+				trigger_mine(enemy)
+				break
 			var next: Vector2i = enemy.cell + step
 			if next == center or not inside(next) or next == player.cell or not enemy_at(next).is_empty():
 				continue
@@ -2381,12 +2406,8 @@ func rook_charge(enemy: Dictionary) -> bool:
 			if not inside(cell):
 				stop = true
 			elif pits.has(cell):
-				# Too big to fall: stumbling over the abyss costs 2 and fills it.
-				pits.erase(cell)
-				events.append({"kind":"fall", "cell":cell, "id":-2})
-				damage_enemy(enemy, PIT_BUMP_DAMAGE)
-				if enemy.hp <= 0:
-					stop = true
+				# Too big to fall: it stops where it stands, at the edge of the abyss.
+				stop = true
 			elif _smash(cell):
 				# Placed things in the lane are smashed, and the charge stops there.
 				stop = true

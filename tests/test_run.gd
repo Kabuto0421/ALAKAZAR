@@ -296,6 +296,7 @@ func _initialize() -> void:
 	_habits()
 	_abyss()
 	_gravity()
+	_gravity_big()
 	_glutton()
 	_prison_king()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
@@ -1822,13 +1823,32 @@ func _abyss() -> void:
 	rm.pits.append(Vector2i(3,2))
 	rm.phase = Rules.Phase.ENEMY
 	rm.rook_charge(rook)
-	verify(rook.hp == 3 and not rm.pits.has(Vector2i(3,2)),"A charging rook stumbles over the pit for 2 and fills it")
+	verify(rook.hp == 5 and rook.cell == Vector2i(4,2) and rm.pits.has(Vector2i(3,2)),"A charging rook is too big to fall: it stays where it stands, the abyss untouched")
 	# The abyss closes after five turns.
 	for k in Rules.WALL_TURNS - 1:
 		m.tick_walls()
 	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open until its last turn")
 	m.tick_walls()
 	verify(m.abyss_turns == 0 and m.pits.is_empty(),"...and then closes")
+
+func _gravity_big() -> void:
+	# Gravity works on a 2x2 too: it is drawn straight in, and a pit only stops it.
+	var m := fixture()
+	m.enemies.clear()
+	m.weapon = 0
+	m.player.cell = Vector2i(0,5)
+	var rook: Dictionary = m.make_enemy("rook",Vector2i(3,1),0)
+	m.enemies.append(rook)
+	m.gravity(Vector2i(1,2))
+	verify(rook.cell == Vector2i(2,1),"A 2x2 is pulled one tile towards the gravity (straight)")
+	m = fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(0,5)
+	rook = m.make_enemy("rook",Vector2i(3,1),0)
+	m.enemies.append(rook)
+	m.pits.assign([Vector2i(2,1),Vector2i(2,2)])
+	m.gravity(Vector2i(1,2))
+	verify(rook.cell == Vector2i(3,1) and rook.hp == 3,"...and a pit in the way only stops it: it does not fall")
 
 func _gravity() -> void:
 	# Outside the weapon's range it pulls enemies within 2 tiles one step in, without damage.
