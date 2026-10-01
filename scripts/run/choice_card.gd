@@ -248,7 +248,13 @@ func _ready() -> void:
 		# Straight from the battle rules (the item data and its class-up).
 		var ap: int = model.fairy_ap_cost(fairy_id, 1 if plus else 0)
 		var uses: int = model.fairy_uses(fairy_id, 1 if plus else 0)
-		_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else Rarity.INFO)
+		if model.fairy_ap_cost(fairy_id, 0) == 0:
+			# A free fairy: "0 AP" is the news, so it gets a tag of its own.
+			var free := _pill(Vector2(14,y-3),"0 AP",GREEN)
+			free.add_theme_font_size_override("font_size",18)
+			_label(Vector2(22+free.get_minimum_size().x,y),"毎戦闘 %d回" % uses,15,GREEN if base_description != "" else Rarity.INFO)
+		else:
+			_label(Vector2(14,y),"%d AP / 毎戦闘 %d回" % [ap, uses],15,GREEN if base_description != "" else Rarity.INFO)
 	if note != "":
 		var note_label := _label(Vector2(14,y+22),note,16,note_color)
 		_fit_width(note_label,size.x-24)

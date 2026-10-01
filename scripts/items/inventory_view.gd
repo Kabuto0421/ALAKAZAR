@@ -15,6 +15,7 @@ var costs: Array[Label] = []
 var keys: Array[Label] = []
 var pluses: Array[Label] = []
 var badges: Array[Control] = []
+var free_tags: Array[Label] = []
 const PlusBadge = preload("res://scripts/items/plus_badge.gd")
 const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
@@ -61,7 +62,18 @@ func setup(rules: RefCounted) -> void:
 		summary.add_theme_constant_override("line_spacing",-3)
 		summary.custom_minimum_size = Vector2(SUMMARY_WIDTH,0)
 		costs.append(summary)
-		var key := _label(button,Vector2(250,8),str(slot+4),15)
+		# A fairy that costs nothing says so, on a tag over the foot of its icon.
+		var free := _label(button,Vector2(12,60),"0 AP",16)
+		free.add_theme_color_override("font_color",Color("0c181b"))
+		var tag := StyleBoxFlat.new()
+		tag.bg_color = Color("7dff9a")
+		tag.set_corner_radius_all(4)
+		tag.content_margin_left = 5
+		tag.content_margin_right = 5
+		free.add_theme_stylebox_override("normal",tag)
+		free.visible = false
+		free_tags.append(free)
+		var key := _label(button,Vector2(250,8),str(slot+1),15)
 		key.modulate = Rarity.INFO
 		keys.append(key)
 		var frame := RarityFrame.new()
@@ -117,6 +129,7 @@ func refresh(can_use: bool, selected: String) -> void:
 		var button := quick_buttons[slot]
 		var present := slot < hand.size()
 		button.disabled = not present or not enabled
+		free_tags[slot].visible = present and model.fairy_ap_cost(hand[slot],0) == 0
 		badges[slot].visible = present and model.is_plus(hand[slot])
 		pluses[slot].visible = badges[slot].visible
 		frames[slot].visible = present

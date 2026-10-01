@@ -1121,7 +1121,21 @@ func _input(event: InputEvent) -> void:
 			_update_controls()
 		get_viewport().set_input_as_handled()
 
+## Weapon slots 1-3 on the keyboard.
+const WEAPON_KEYS := [KEY_J, KEY_K, KEY_L]
+
+## The mouse wheel steps through the weapons (down: next, up: previous, round the three).
+func _wheel_weapon(direction: int) -> void:
+	var count: int = model.owned_weapons.size()
+	if count < 2 or busy or show_rules or model.phase != Rules.Phase.PLAYER:
+		return
+	var at: int = model.owned_weapons.find(model.weapon)
+	_equip(model.owned_weapons[posmod(at + direction, count)])
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		_wheel_weapon(1 if event.button_index == MOUSE_BUTTON_WHEEL_DOWN else -1)
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE and (selected_weapon >= 0 or show_history):
 			selected_weapon = -1
@@ -1141,8 +1155,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_B:
 			inventory_ui.toggle()
 			return
-		if event.keycode in [KEY_4,KEY_5,KEY_6]:
-			inventory_ui.activate_slot(event.keycode-KEY_4)
+		# Fairies are 1-3; weapons are J, K, L (and the mouse wheel).
+		if event.keycode in [KEY_1,KEY_2,KEY_3]:
+			inventory_ui.activate_slot(event.keycode-KEY_1)
 			return
 		if item_origin != Vector2i(-1,-1):
 			var directions := {KEY_UP:Vector2i.UP,KEY_RIGHT:Vector2i.RIGHT,KEY_DOWN:Vector2i.DOWN,KEY_LEFT:Vector2i.LEFT}
@@ -1151,8 +1166,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				return
 		if event.keycode == KEY_R:
 			_start(model.level,true)
-		elif event.keycode in [KEY_1,KEY_2,KEY_3]:
-			var slot: int = event.keycode-KEY_1
+		elif WEAPON_KEYS.has(event.keycode):
+			var slot: int = WEAPON_KEYS.find(event.keycode)
 			if slot < model.owned_weapons.size():
 				_equip(model.owned_weapons[slot])
 		elif event.keycode == KEY_SPACE:
@@ -1605,7 +1620,7 @@ func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
 	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
-		_text(Vector2(555,605),"タップか1〜3キーで装備・0 AP",18,MUTED)
+		_text(Vector2(555,605),"タップ・J K L・ホイールで装備・0 AP",18,MUTED)
 	for slot in range(model.owned_weapons.size()):
 		var index: int = model.owned_weapons[slot]
 		var weapon: Dictionary = Rules.WEAPONS[index]
@@ -1725,7 +1740,12 @@ func _draw_intel() -> void:
 			_text(Vector2(854+_text_width(item.title,26),133),"+",26,GOLD)
 			SpiritIcon.paint_plus(self,Vector2(954,138),22)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
-		_text(Vector2(992,187),"%d AP" % model.fairy_ap_cost(selected_item),24,GOLD)
+		if model.fairy_ap_cost(selected_item,0) == 0:
+			# A free fairy: the cost is the news.
+			draw_rect(Rect2(988,162,92,34),Color("7dff9a"))
+			_text(Vector2(996,188),"0 AP",30,Color("0c181b"))
+		else:
+			_text(Vector2(992,187),"%d AP" % model.fairy_ap_cost(selected_item),24,GOLD)
 		# Choosing a direction, the board already previews the shot: the example makes
 		# way so the text and the prompt sit above the arrow buttons.
 		var choosing := item_origin != Vector2i(-1,-1)

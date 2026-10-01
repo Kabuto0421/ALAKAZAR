@@ -154,6 +154,31 @@ func run() -> void:
 	var sounds: Array = ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse"]
 	verify(sounds.all(func(n): return battle.sfx.has(n) and ResourceLoader.exists("res://assets/audio/sfx/%s.ogg" % n)),"Every remaining sound effect has its file")
 	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
+	# Weapons: J, K, L and the mouse wheel; fairies: 1, 2, 3.
+	var weapon_count: int = battle.model.owned_weapons.size()
+	if weapon_count >= 2:
+		var press := func(code: Key) -> void:
+			var key := InputEventKey.new()
+			key.keycode = code
+			key.pressed = true
+			battle._unhandled_input(key)
+		var wheel := func(button: MouseButton) -> void:
+			var scroll := InputEventMouseButton.new()
+			scroll.button_index = button
+			scroll.pressed = true
+			battle._unhandled_input(scroll)
+		press.call(KEY_K)
+		verify(battle.model.weapon==battle.model.owned_weapons[1],"K equips the second weapon")
+		press.call(KEY_J)
+		verify(battle.model.weapon==battle.model.owned_weapons[0],"J equips the first weapon")
+		wheel.call(MOUSE_BUTTON_WHEEL_DOWN)
+		verify(battle.model.weapon==battle.model.owned_weapons[1],"The wheel down steps to the next weapon")
+		wheel.call(MOUSE_BUTTON_WHEEL_UP)
+		wheel.call(MOUSE_BUTTON_WHEEL_UP)
+		verify(battle.model.weapon==battle.model.owned_weapons[weapon_count-1],"The wheel up from the first weapon wraps to the last")
+		press.call(KEY_1)
+		verify(battle.model.weapon==battle.model.owned_weapons[weapon_count-1],"1 no longer switches weapons")
+	verify(battle.inventory_ui.keys[0].text=="1" and battle.inventory_ui.keys[2].text=="3","The fairy slots are labelled 1, 2 and 3")
 	# Summoned allies explain themselves under the cursor, like enemies.
 	var free_cell := Vector2i(-1,-1)
 	for y in battle.model.board_size:
