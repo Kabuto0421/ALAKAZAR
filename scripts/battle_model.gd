@@ -171,7 +171,7 @@ var fairy_plus: Dictionary = {}
 ## Class-ups: [the short line, the full text]. {name}s are filled by fairy_text().
 const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
-	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に1。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
+	"stealth_fairy": ["刺しても消えず、ダメージ{stealth_plus}", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に{stealth_plus}。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
 	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{turns}ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め{turns}ターン\n完全な障害物として残る。"],
@@ -560,7 +560,7 @@ static func fairy_text(id: String, text: String) -> String:
 static func text_values(id: String) -> Dictionary:
 	var values := {
 		"turns": WALL_TURNS, "freeze": FREEZE_TURNS, "freeze_plus": FREEZE_TURNS + 1,
-		"abyss_plus": WALL_TURNS + 2, "meteor": METEOR_DAMAGE, "charge": CAPACITOR_FULL,
+		"abyss_plus": WALL_TURNS + 2, "meteor": METEOR_DAMAGE, "stealth_plus": STEALTH_PLUS_DAMAGE, "charge": CAPACITOR_FULL,
 		"bite": CIRCLE_DAMAGE, "growth": GLUTTON_GROWTH, "guardian_bonus": GUARDIAN_BONUS_HP,
 		"knight_hp": HOLY_KNIGHT_HP, "knight_ap": HOLY_KNIGHT_AP,
 		"wolf_bite": WOLF_BITE, "wolf_crowded": WOLF_CROWDED_BITE,
@@ -757,6 +757,9 @@ func damage_enemy(enemy: Dictionary, amount: int, travel: Vector2i = Vector2i.ZE
 	if enemy.hp <= 0:
 		kills += 1
 
+## 隠密妖精+: its strike hits for one more.
+const STEALTH_PLUS_DAMAGE := 2
+
 func trigger_fairies() -> void:
 	# Placement order, then enemy ID, resolves simultaneous opportunities.
 	var ordered := enemies.duplicate()
@@ -774,7 +777,7 @@ func trigger_fairies() -> void:
 					fairies.erase(cell)
 					fairy_turns.erase(cell)
 				events.append({"kind": "ambush", "cell": cell, "id": -2})
-				damage_enemy(enemy, 1)
+				damage_enemy(enemy, STEALTH_PLUS_DAMAGE if stays else 1)
 				break
 	check_outcome()
 

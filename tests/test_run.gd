@@ -1098,7 +1098,10 @@ func _class_ups() -> void:
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.UP) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Magic bolt+ hits both ways along its line")
 	# Stealth+: strikes and stays (once per enemy turn).
 	m = _plus_room("stealth_fairy",[Vector2i(2,1),Vector2i(2,3)])
-	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and (_hurt(m,Vector2i(2,1)) or _hurt(m,Vector2i(2,3))) and m.fairies.has(Vector2i(2,2)),"Stealth fairy+ strikes and stays")
+	m.enemies[0].hp = 9
+	m.enemies[1].hp = 9
+	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and m.fairies.has(Vector2i(2,2)),"Stealth fairy+ strikes and stays")
+	verify(m.enemies.filter(func(e): return e.hp == 7).size() == 1,"...for 2 damage")
 	verify(m.fairy_uses("stealth_fairy") == 1 and m.fairy_ap_cost("stealth_fairy") == 1,"Stealth fairy+ keeps its AP and uses")
 	# Acorn+: HP 2 and diagonal attacks.
 	m = _plus_room("acorn_fairy",[Vector2i(3,3)])

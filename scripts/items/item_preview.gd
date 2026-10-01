@@ -96,7 +96,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 	var art: Texture2D = item.icon
 	match id:
 		"magic_bolt": _magic_bolt(time, accent, art)
-		"stealth_fairy": _stealth(time, accent, art)
+		"stealth_fairy": _stealth(time, accent, art, upgraded)
 		"acorn_fairy": _acorn(time, art)
 		"warp_fairy": _warp(time, accent, art)
 		"wall_fairy": _wall(time, art)
@@ -142,17 +142,17 @@ static func _magic_bolt(time: float, accent: Color, art: Texture2D) -> void:
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.1, hit + 0.25))
 		_pop(enemy, "−1", _ph(p, hit, hit + 0.3))
 
-## Blocks its tile; the first enemy to step next to it takes 1 and the fairy is gone.
-static func _stealth(time: float, accent: Color, art: Texture2D) -> void:
+## Blocks its tile; the first enemy to step next to it takes 1 and the fairy is gone (class-up: 2, and it stays).
+static func _stealth(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 2.8)
 	for side: Vector2 in [Vector2(1,1), Vector2(3,1), Vector2(2,0), Vector2(2,2)]:
 		_tint(side, Color(accent, 0.14))
 	var enemy := Vector2(4,1).lerp(Vector2(3,1), _ph(p, 0.05, 0.4))
-	_art(art, Vector2(2,1), 1.0 - _ph(p, 0.5, 0.65))
+	_art(art, Vector2(2,1), 1.0 if plus else 1.0 - _ph(p, 0.5, 0.65))
 	if p > 0.45 and p < 0.6:
 		cv.draw_line(_center(Vector2(2,1)), _center(enemy), accent, 5)
 	_enemy(enemy, 1.0 - _ph(p, 0.55, 0.7))
-	_pop(Vector2(3,1), "−1", _ph(p, 0.45, 0.8))
+	_pop(Vector2(3,1), "−2" if plus else "−1", _ph(p, 0.45, 0.8))
 
 ## A small ally: it walks to the nearest enemy and bites for 1.
 static func _acorn(time: float, art: Texture2D) -> void:
