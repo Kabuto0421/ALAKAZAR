@@ -276,7 +276,7 @@ class Mix:
         if region:
             lo, hi = int(region[0] * RATE), min(int(region[1] * RATE), len(data))
             seg = data[lo:hi].astype(numpy.float64)
-            ceiling = 0.92
+            ceiling = 0.88
 
             def limited(gain):
                 return numpy.tanh(seg * gain / ceiling) * ceiling
@@ -1702,12 +1702,16 @@ CYBER_HOOK = [
 ]
 
 
-def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
+def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95, drive=0.0):
     """The EDM lead: seven detuned saws, opened up by the filter, slightly slurred."""
     m = midi(note) if isinstance(note, str) else note
-    return synth(m, steps * STEP * gate, "saw", detune=(-26, -15, -7, 0, 7, 15, 26), vol=vol,
-                 attack=0.006, decay=0.3, sustain=0.8, release=0.1,
-                 cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from)
+    raw = synth(m, steps * STEP * gate, "saw", detune=(-26, -15, -7, 0, 7, 15, 26), vol=vol,
+                attack=0.006, decay=0.3, sustain=0.8, release=0.1,
+                cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from)
+    if drive > 0:
+        # Pushed into a clipper: the lead bites instead of floating.
+        return [math.tanh(x / vol * drive) * vol * 0.9 for x in raw]
+    return raw
 
 
 def edm_stab(notes, vol=0.06, steps=1.5):
@@ -1722,7 +1726,7 @@ def edm_bass(note, steps=2, vol=0.5):
     m = midi(note) if isinstance(note, str) else note
     saw = synth(m, steps * STEP * 0.9, "saw", detune=(-8, 8), vol=vol, attack=0.004, decay=0.12,
                 sustain=0.7, release=0.03, cutoff=(1000, 450, 0.1))
-    sub = synth(m, steps * STEP * 0.9, "sine", vol=vol * 1.1, attack=0.004, decay=0.3,
+    sub = synth(m, steps * STEP * 0.9, "sine", vol=vol * 0.55, attack=0.004, decay=0.3,
                 sustain=0.9, release=0.03, cutoff=(600, 600, 1.0))
     return [a + b for a, b in zip(saw, sub)]
 
@@ -1736,6 +1740,88 @@ def sub_boom(vol=0.8):
         t = i / RATE
         phase += (38 + 125 * math.exp(-t * 6)) / RATE
         out[i] = math.sin(2 * math.pi * phase) * math.exp(-t * 2.4) * vol * min(1.0, i / 30)
+    return out
+
+
+def wobble_bass(note, steps, period_steps=2.0, vol=0.45):
+    """The growl: two detuned saws through a low-pass that an LFO opens and closes
+    every `period_steps`, then hard into a clipper. It snarls on every wobble."""
+    m = midi(note) if isinstance(note, str) else note
+    gate = steps * STEP
+    n = int((gate + 0.03) * RATE)
+    base = hz(m)
+    per = period_steps * STEP
+    p1 = p2 = y1 = y2 = 0.0
+    out = [0.0] * n
+    for i in range(n):
+        t = i / RATE
+        p1 = (p1 + base / RATE) % 1.0
+        p2 = (p2 + base * 1.007 / RATE) % 1.0
+        x = 0.5 * (2 * p1 - 1) + 0.5 * (2 * p2 - 1)
+        lfo = 0.5 + 0.5 * math.sin(2 * math.pi * t / per - math.pi / 2)
+        a = lp_coef(260 + 3400 * lfo * lfo)
+        y1 += a * (x - y1)
+        y2 += a * (y1 - y2)
+        env = min(1.0, t / 0.004) * (1.0 if t < gate else max(0.0, 1 - (t - gate) / 0.03))
+        out[i] = math.tanh(y2 * 3.2) * 0.55 * env * vol
+    return out
+
+
+def screech(note, steps, vol=0.11):
+    """A screaming high lead: a saw stack diving into its note, with a vibrato that
+    speeds up, clipped so it bites."""
+    m = midi(note) if isinstance(note, str) else note
+    raw = synth(m, steps * STEP * 0.95, "saw", detune=(-18, 0, 18), vol=1.0, attack=0.01, decay=0.4,
+                sustain=0.85, release=0.08, cutoff=(9000, 6000, 0.3),
+                pitch=lambda t: 1 + 0.12 * math.exp(-t * 10) + 0.012 * math.sin(2 * math.pi * (5 + 6 * t) * t))
+    return [math.tanh(x * 2.4) * vol for x in raw]
+
+
+def zap(rng, seconds=0.5, vol=0.1, up=False):
+    """A laser sweep: a saw and a sine diving (or, `up`, climbing) between 7 kHz and
+    150 Hz, with a little noise on top."""
+    n = int(seconds * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    y = 0.0
+    for i in range(n):
+        k = i / n
+        f = 150 + 6850 * (math.exp(-4.5 * k) if not up else math.exp(-4.5 * (1 - k)))
+        phase = (phase + f / RATE) % 1.0
+        y += lp_coef(9000) * (rng.uniform(-1, 1) - y)
+        env = (k if up else 1 - k) ** 0.6 * min(1.0, i / 40)
+        out[i] = (0.6 * (2 * phase - 1) + 0.5 * math.sin(2 * math.pi * phase) + 0.15 * y) * env * vol
+    return out
+
+
+FORMANTS = {"ah": (800, 1150), "oh": (500, 900), "ee": (300, 2300)}
+
+
+def vox_chop(note, vowel, steps=1, vol=0.1):
+    """A synthetic vocal chop: a saw through two formant resonators ("ah", "oh",
+    "ee"), cut short; it sits in the gaps of the hook like a shouted word."""
+    m = midi(note) if isinstance(note, str) else note
+    n = int((steps * STEP + 0.05) * RATE)
+    base = hz(m)
+    res = []
+    for f, bw in zip(FORMANTS[vowel], (90, 130)):
+        r = math.exp(-math.pi * bw / RATE)
+        res.append([2 * r * math.cos(2 * math.pi * f / RATE), -r * r, 1 - r])
+    y = [[0.0, 0.0], [0.0, 0.0]]
+    phase = 0.0
+    out = [0.0] * n
+    for i in range(n):
+        t = i / RATE
+        phase = (phase + base * (1 + 0.015 * math.sin(2 * math.pi * 6 * t)) / RATE) % 1.0
+        x = 2 * phase - 1
+        total = 0.0
+        for k, (c1, c2, g) in enumerate(res):
+            v = g * x + c1 * y[k][0] + c2 * y[k][1]
+            y[k][1], y[k][0] = y[k][0], v
+            total += v
+        gate = steps * STEP
+        env = min(1.0, t / 0.004) * (math.exp(-t * 7) * 0.6 + 0.4 if t < gate else max(0.0, 0.4 * (1 - (t - gate) / 0.05)))
+        out[i] = math.tanh(total * 2.0) * env * vol
     return out
 
 
@@ -1864,14 +1950,15 @@ def title_march():
                     if breaking and s == 12:
                         continue
                     loop.put("kick", t0 + s * STEP, kick(1.0))
+                    loop.put("kick", t0 + s * STEP, noise_hit(rng, 0.014, 2500, 12000, 0.4))
                     edm_kicks.append(t0 + s * STEP)
                 for s in (2, 6, 10, 14):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.08))
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.12))
                 for s in (1, 3, 5, 7, 9, 11, 13, 15):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 8000, 15000, 0.03))
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 8000, 15000, 0.05))
                 for s in (4, 12):
                     if not (breaking and s == 12):
-                        loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.2))
+                        loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.3))
                 if breaking or idx == 6:
                     first = 12 if breaking else 8
                     for k in range((16 - first) * 2):
@@ -1879,30 +1966,57 @@ def title_march():
                     loop.put("fx", t0 + first * STEP, riser(rng, (16 - first) * STEP, vol=0.1))
                 if idx == 0:
                     loop.put("fx", t0, crash(rng, 2.4, 0.18))
-                    loop.put("kick", t0, sub_boom(0.8))
+                    loop.put("kick", t0, sub_boom(0.45))
+                    loop.put("fx", t0, zap(rng, 0.7, 0.2))
                 if idx == 4:
                     loop.put("fx", t0, crash(rng, 2.0, 0.15))
+                    loop.put("kick", t0, sub_boom(0.4))
+                    loop.put("fx", t0, zap(rng, 0.6, 0.2))
+                if breaking:
+                    loop.put("fx", t0 + 12 * STEP, zap(rng, 4 * STEP, 0.18, up=True))
                 # Offbeat bass (the pump), and a 16th-note pluck arp over the triad.
+                # From the second drop (and the back half of bar 3) a growling wobble takes
+                # over the first half of the bar.
+                wobble_first = idx >= 4
+                wobble_second = idx == 2
+                if wobble_first:
+                    loop.put("edm_bass", t0, wobble_bass(root + 12, 8, 2.0, 0.42))
+                if wobble_second:
+                    loop.put("edm_bass", t0 + 8 * STEP, wobble_bass(root + 12, 8, 2.0, 0.42))
                 for s in (2, 6, 10, 14):
+                    if (wobble_first and s < 8) or (wobble_second and s >= 8):
+                        continue
                     if idx >= 4 and s == 14:
                         loop.put("edm_bass", t0 + s * STEP, edm_bass(root + 12, 1, 0.45))
                     else:
                         loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
-                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 2800 + 1600 * (idx / 6), vol=0.055))
+                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3200 + 2200 * (idx / 6), vol=0.1))
                 loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075))
                 if idx >= 4:
                     notes = [midi(n) + 12 for n in chord["arp"][:3]]
                     for s in (0, 3, 6, 10):
-                        loop.put("edm_stab", t0 + s * STEP, edm_stab(notes, 0.05))
+                        loop.put("edm_stab", t0 + s * STEP, edm_stab(notes, 0.12))
+                    # Shouted vocal chops in the gaps of the hook.
+                    vowels = {4: ("ah", "ah", "oh"), 5: ("ee", "ee", "oh"), 6: ("ah", "oh", "ee")}[idx]
+                    for s, v in zip((2, 6, 10), vowels):
+                        loop.put("chop", t0 + s * STEP, vox_chop(midi(chord["arp"][2]) + 12, v, 1.2, 0.15))
                 # The supersaw lead hook (the second half with an octave behind it).
                 prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
                     m = midi(nt)
-                    loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.12, glide_from=prev if ln >= 4 else None))
+                    if breaking and st >= 12:
+                        continue
+                    loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.2, glide_from=prev if ln >= 4 else None, drive=2.2))
+                    loop.put("lead", t0 + st * STEP, supersaw(m + 12, ln, 0.09, 8000))
                     if idx >= 4:
-                        loop.put("lead", t0 + st * STEP, supersaw(m - 12, ln, 0.06, 3200))
+                        loop.put("lead", t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
                     prev = m
+                if breaking:
+                    loop.put("lead", t0 + 12 * STEP, screech("A5", 4, 0.18))
+                if idx in (1, 5):
+                    # A screaming note rides over the end of the bar.
+                    loop.put("lead", t0 + 12 * STEP, screech(midi("E6") if idx == 1 else midi("B5") + 12, 4, 0.12))
             else:
                 # --- cyber + Celtic together, thinning out toward the glen ---
                 full = idx < 4
@@ -1962,6 +2076,7 @@ def title_march():
     loop.duck("edm_stab", edm_kicks, 0.6, length=0.2)
     loop.duck("edm_bass", edm_kicks, 0.85, length=0.13)
     loop.duck("arp", edm_kicks, 0.35, length=0.14)
+    loop.duck("chop", edm_kicks, 0.5, length=0.18)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
     for first, last, gain in ((7, 14, 0.85), (14, 18, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
