@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "axe_spirit"
 title = "風斧精霊"
-description = "レア・2×2。選んだマスを\n含む2×2から向きへ突進。\n当たった敵に1、押し出して\nぶつけるとさらに1。消える。"
+description = "レア・2×2。選んだマスを\n含む2×2から向きへ突進。\n当たった敵に1、押し出して\nぶつけるとさらに1。消える。大砲に当たると誘爆。"
 summary = "2×2で突進し敵を押し出す"
 color = Color(0.36, 0.86, 0.5, 1)
 directional = true

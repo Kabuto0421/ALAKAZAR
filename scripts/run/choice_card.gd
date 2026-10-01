@@ -23,7 +23,7 @@ const CARD_TEXT := {
 	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で{wolf_bite}ダメージ、隣に仲間がいると{wolf_crowded}ダメージ。届くマスではすねる",
 	"shadow_stitch": "届かないマスに影を置き、{swap_ap} APで入れ替わる",
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（{bite}ダメージ）",
-	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージ）。クラスアップで落ちる数が増える",
+	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージ、大砲は誘爆）。クラスアップで数が増える",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+{guardian_bonus}）",
 	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる。育てれば癒やしの力も…？",
 	"capacitor_fairy": "叩かれる・撃たれると1溜まり、{charge}つで4方向に放電",

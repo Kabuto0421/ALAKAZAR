@@ -8,7 +8,7 @@
 script = ExtResource("1")
 id = "slash_fairy"
 title = "斬撃精霊"
-description = "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n置いたマスの上下2マスを斬る。\n当たった敵すべてに1。"
+description = "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n置いたマスの上下2マスを斬る。\n当たった敵すべてに1。\n大砲に当たると誘爆させる。"
 summary = "上下2マスを斬って1"
 color = Color(0.75, 0.95, 0.55, 1)
 directional = false

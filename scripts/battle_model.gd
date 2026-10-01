@@ -185,11 +185,11 @@ const PLUS_TEXT := {
 	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+{bless_heal}", "攻撃範囲の空きマスに置く。\n周囲5×5が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+{bless_heal}。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"guardian_fairy": ["HP{hp_plus}で降臨する", "攻撃範囲に2×2の守護神（HP{hp_plus}・\nAP{ally_ap}）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+{guardian_bonus}で呼び直す。暴食も来る。"],
-	"slash_fairy": ["上下2マスに加え、3マス幅の斬撃を飛ばす", "向きを選ぶ。置いたマスの上下2マスと\n3マス幅×5マスの斬撃を同時に\n飛ばす。当たった敵すべてに1。"],
+	"slash_fairy": ["上下2マスに加え、3マス幅の斬撃を飛ばす", "向きを選ぶ。置いたマスの上下2マスと\n3マス幅×5マスの斬撃を同時に\n飛ばす。当たった敵すべてに1。\n大砲に当たると誘爆させる。"],
 	"gravity_fairy": ["もっと遠くから引き寄せ、{push_plus}マス弾く", "空きマスならどこでも置ける。\n範囲外なら、もっと遠く（周囲\n{pull_plus}マス）から1マス引き寄せる。\n攻撃範囲なら、周りの敵を\n{push_plus}マス弾く。ダメージなし。"],
 	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず{pit_bump}ダメージ。"],
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
-	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。"],
+	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。\n大砲に当たると誘爆。"],
 	"time_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回止められる", "自分のマスを押して呼ぶ。\n時が止まり、次の敵のターン\n（{time_stop}ターン）は敵が誰も動かず、\n攻撃もしない。\n味方は動ける。毎戦闘{uses_plus}回。"],
 	"capacitor_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n{charge}溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
@@ -549,7 +549,7 @@ func _upgraded(id: String, plus: int) -> bool:
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return fairy_text("meteor_fairy", "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に{meteor}ダメージ。\n自分と味方は無事。" % n)
+	return fairy_text("meteor_fairy", "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に{meteor}ダメージ。\n自分と味方は無事。\n落ちた所の大砲は誘爆する。" % n)
 
 ## Fairy texts never write a number the rules own: they write {name} and this fills it
 ## from the constants above and the fairy's item data, so changing a value (a fairy's
@@ -1355,6 +1355,8 @@ func axe_charge(cell: Vector2i, direction: Vector2i) -> void:
 	strike_guard = guard
 	events.append({"kind":"axe", "cell":start, "id":-2, "dir":direction, "to":axe.cell})
 	add_log("風斧精霊の突進")
+	# Where it stopped: a cannon right in front of it goes off.
+	_detonate(_cannons_in(_front_cells(axe, direction)))
 	check_outcome()
 
 ## Cells the axe will sweep, for the placement preview.
@@ -1577,6 +1579,12 @@ func meteor_strike() -> void:
 				kills += 1
 				add_log("隕石が%sを押し潰した" % TYPES[enemy.type].name)
 	add_log("隕石が%d個落ちた" % picks.size())
+	var cannons_hit: Array = []
+	for center in picks:
+		for cannon in _cannons_in(square_around(center, 1)):
+			if not cannons_hit.has(cannon):
+				cannons_hit.append(cannon)
+	_detonate(cannons_hit)
 	check_outcome()
 
 ## Re-dig: every empty tile outside all weapons' reach is a pit (occupied tiles are spared).
@@ -2189,6 +2197,7 @@ func side_slash_cells(origin: Vector2i) -> Array[Vector2i]:
 
 func side_slash(origin: Vector2i) -> void:
 	_slash_hit(side_slash_cells(origin), Vector2i.DOWN)
+	_detonate(_cannons_in(side_slash_cells(origin)))
 
 func front_slash(origin: Vector2i, direction: Vector2i) -> void:
 	_slash_hit(front_slash_cells(origin, direction), direction)
@@ -2196,6 +2205,39 @@ func front_slash(origin: Vector2i, direction: Vector2i) -> void:
 ## 飛刃精霊 (the slash's class-up): the three-lane wave flies to the edge.
 func slash(origin: Vector2i, direction: Vector2i) -> void:
 	_slash_hit(slash_cells(origin, direction), direction)
+	# A lane stops at a cannon: the cannon it ran into goes off.
+	var hit: Array = _cannons_in(side_slash_cells(origin))
+	var side := Vector2i(-direction.y, direction.x)
+	for k in [-1, 0, 1]:
+		var cell: Vector2i = origin + side * k + direction
+		for step in SLASH_REACH:
+			if not inside(cell):
+				break
+			var cannon := cannon_at(cell)
+			if not cannon.is_empty():
+				if not hit.has(cannon):
+					hit.append(cannon)
+				break
+			if blocked(cell):
+				break
+			cell += direction
+	_detonate(hit)
+
+## Damage-dealing fairies set off the cannons they strike: a chain, like a cannon shot
+## that passed through them.
+func _cannons_in(cells: Array) -> Array:
+	var found: Array = []
+	for cell in cells:
+		var cannon := cannon_at(cell)
+		if not cannon.is_empty() and not found.has(cannon):
+			found.append(cannon)
+	return found
+
+func _detonate(cannons_hit: Array) -> void:
+	if cannons_hit.is_empty():
+		return
+	start_chain()
+	_resonate(cannons_hit, [])
 
 func _slash_hit(cells: Array[Vector2i], direction: Vector2i) -> void:
 	for cell in cells:

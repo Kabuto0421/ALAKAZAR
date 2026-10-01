@@ -384,6 +384,27 @@ func _new_fairies() -> void:
 	verify(not m.enemy_at(Vector2i(2,4)).is_empty(),"Slash reaches only one tile up and down")
 	verify(m.side_slash_cells(Vector2i(2,2)) == [Vector2i(2,1),Vector2i(2,3)],"Slash area is up and down")
 
+	# Damage-dealing fairies set off the cannons they strike (a chain).
+	m = fixture()
+	m.enemies.clear()
+	m.cannons.clear()
+	m.place_cannon(Vector2i(2,3),Vector2i.RIGHT,"lance")
+	var far_foe: Dictionary = m.make_enemy("heavy",Vector2i(4,3),0)
+	far_foe.hp = 9
+	m.enemies.append(far_foe)
+	m.side_slash(Vector2i(2,2))
+	verify(far_foe.hp == 8,"A slash that strikes a cannon sets it off")
+	m = fixture()
+	m.enemies.clear()
+	m.cannons.clear()
+	m.fairy_plus["slash_fairy"] = true
+	m.place_cannon(Vector2i(3,2),Vector2i.DOWN,"lance")
+	far_foe = m.make_enemy("heavy",Vector2i(3,4),0)
+	far_foe.hp = 9
+	m.enemies.append(far_foe)
+	m.slash(Vector2i(1,2),Vector2i.RIGHT)
+	verify(far_foe.hp == 8,"The class-up wave sets off the cannon its lane runs into")
+
 	# 斬撃精霊+ (class-up): a 3-wide, 5-long wave in the chosen direction; lanes stop at blockers.
 	m = fixture()
 	m.enemies.clear()
