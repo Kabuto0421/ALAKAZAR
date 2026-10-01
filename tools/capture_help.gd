@@ -40,7 +40,9 @@ func weapon(id: String) -> void:
 	m.owned_weapons.assign([0, ids.find("vault"), index])
 	m.weapon = index
 
-func setup(foes: Array, you: Vector2i, weapon_id: String = "forward") -> void:
+## The examples use the silver general's sword (the widest plain reach) unless the picture is
+## about a particular weapon (directions, combos, hammer, push, circle, fairy range).
+func setup(foes: Array, you: Vector2i, weapon_id: String = "silver") -> void:
 	m.phase = m.Phase.PLAYER
 	m.enemies.clear()
 	for k in foes.size():
@@ -175,7 +177,7 @@ func enemy_turn() -> void:
 
 func capture_all() -> void:
 	# --- 基本: with the AP panel, each action costs 1 ---
-	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "front_diagonal")
+	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "silver")
 	await shot("basic_move_a", [PANEL, board()])
 	act(Vector2i(1, 2))
 	await shot("basic_move_b", [PANEL, board()])
