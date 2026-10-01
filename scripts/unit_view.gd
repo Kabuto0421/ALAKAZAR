@@ -144,8 +144,10 @@ func _process(delta: float) -> void:
 			z_index = 2
 	if hit_elapsed >= 0.0:
 		hit_elapsed += delta
-		if hit_elapsed >= 0.16:
+		if hit_elapsed >= HIT_TIME:
 			hit_elapsed = -1.0
+	if material is ShaderMaterial:
+		(material as ShaderMaterial).set_shader_parameter("white", 1.0 if hit_elapsed >= 0.0 and hit_elapsed < HIT_WHITE else 0.0)
 	if anim != "":
 		anim_time += delta
 		# Death holds its last frame; the others drop back to the idle loop.
@@ -202,10 +204,19 @@ func sword_attack_duration() -> float:
 func sword_impact_time() -> float:
 	return SwordMotion.impact_time(sword_attack_facing)
 
+## Taking damage: a white blink, then red, while the body is knocked back along the
+## blow, squashes and wobbles; bigger units are knocked harder.
+const HIT_TIME := 0.3
+const HIT_WHITE := 0.075
+const HIT_SHADER := preload("res://scripts/fx/hit_flash.gdshader")
 func play_hit_reaction(direction: Vector2) -> void:
-	hit_direction = direction.normalized()
+	hit_direction = direction.normalized() if direction != Vector2.ZERO else Vector2.RIGHT
 	hit_elapsed = 0.0
-	flash = 0.12
+	flash = HIT_TIME
+	if material == null:
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = HIT_SHADER
+		material = shader_material
 
 ## 金将兵・銀将兵: a living shogi piece, its point towards its front (left).
 static func draw_general(canvas: CanvasItem, kind: String, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
@@ -240,8 +251,15 @@ func _draw() -> void:
 	else:
 		draw_circle(Vector2(0,22),19,Color(0,0,0,0.35))
 	if hit_elapsed >= 0.0:
-		draw_set_transform((hit_direction * sin(hit_elapsed / 0.16 * PI) * 4.0).round())
+		var k := hit_elapsed / HIT_TIME
+		var shove := sin(minf(k * 2.2, 1.0) * PI) * (6.0 + 3.0 * span)
+		var wobble := sin(k * PI * 6.0) * (1.0 - k) * (2.0 + span)
+		var squash := 0.14 * sin(minf(k * 3.0, 1.0) * PI)
+		draw_set_transform((hit_direction * shove + hit_direction.orthogonal() * wobble).round(), 0.0, Vector2(1.0 + squash, 1.0 - squash))
 	var tint := Color("ff997e") if flash > 0 else Color.WHITE
+	if hit_elapsed >= HIT_WHITE:
+		# After the white blink the body burns red and cools back.
+		tint = Color(1.0, 0.38, 0.34).lerp(Color.WHITE, (hit_elapsed - HIT_WHITE) / (HIT_TIME - HIT_WHITE))
 	if kind == "player":
 		if weapon_row == 2 and sword_attack_elapsed >= 0.0:
 			var frame := SwordMotion.frame_at(sword_attack_facing, sword_attack_elapsed)

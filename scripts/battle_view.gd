@@ -493,8 +493,9 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 		_feedback(true)
 		var hit_direction := Vector2(weapon_action.destination - weapon_action.origin)
 		for event in model.events:
-			if event.kind == "hit" and actors.has(event.id):
-				actors[event.id].play_hit_reaction(hit_direction)
+			# Hits further down a cannon chain react when their shot lands.
+			if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
+				_react_to_hit(event, hit_direction)
 		queue_redraw()
 		await get_tree().create_timer(duration - impact_time).timeout
 	else:
@@ -789,6 +790,11 @@ func _feedback(weapon_attack: bool = false) -> void:
 			# A collision jolts the board a little.
 			chain_shake = 0.12
 			chain_shake_power = 5.0
+		if event.kind == "hit" and int(event.id) >= 0 and actors.has(int(event.id)):
+			flash.span = int(actors[int(event.id)].span)
+			flash.life = maxf(flash.life, 0.62)
+			if not weapon_attack and flash.get("delay", 0.0) <= 0.0:
+				_react_to_hit(event)
 		flash.max_life = flash.life
 		flashes.append(flash)
 		if event.kind == "circle":
@@ -813,8 +819,27 @@ func _feedback(weapon_attack: bool = false) -> void:
 			var base := TILE/64.0
 			swell.tween_property(eater,"scale",Vector2.ONE*base*(1.35 if event.kind == "devour" else 1.2),0.12)
 			swell.tween_property(eater,"scale",Vector2.ONE*base,0.35).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
-		if actors.has(event.id) and event.kind not in ["plant", "charge_end", "heal"]:
+		if actors.has(event.id) and event.kind not in ["plant", "charge_end", "heal"] and not (event.kind == "hit" and int(event.id) >= 0):
 			actors[event.id].flash = 0.18
+
+## An enemy taking damage: it blinks white, burns red and is knocked along the blow
+## (the unit does that), and the board jolts, harder for bigger enemies.
+func _react_to_hit(event: Dictionary, direction: Vector2 = Vector2.ZERO) -> void:
+	var id := int(event.id)
+	if id < 0 or not actors.has(id):
+		return
+	var actor: Node2D = actors[id]
+	if direction == Vector2.ZERO:
+		direction = Vector2(event.get("dir", Vector2i.ZERO))
+	if direction == Vector2.ZERO and actors.has(-1):
+		direction = actor.position - actors[-1].position
+	actor.play_hit_reaction(direction)
+	var power := 3.0 + 2.0 * int(actor.span)
+	if chain_shake <= 0.14:
+		chain_shake = 0.14
+		chain_shake_power = power
+	else:
+		chain_shake_power = maxf(chain_shake_power, power)
 
 ## 守護神の妖精: the board dims, a pillar of light drops the guardian in, and each ally
 ## it calls fades in on its beat as a streak of light reaches it.
@@ -1018,6 +1043,8 @@ func _process(delta: float) -> void:
 			flashes[i].delay -= delta
 			if flashes[i].delay <= 0.0 and flashes[i].kind == "chain":
 				_chain_burst(flashes[i])
+			if flashes[i].delay <= 0.0 and flashes[i].kind in ["hit", "weapon_hit"]:
+				_react_to_hit(flashes[i])
 			continue
 		flashes[i].life -= delta
 		if flashes[i].life <= 0:
@@ -1160,8 +1187,9 @@ func _draw_board() -> void:
 	var extent := Vector2.ONE*model.board_size*TILE
 	# The 8x8 board sits flush between the panels, so its frame is thinner.
 	var rim := 4.0 if model.board_size >= 8 else 10.0
-	draw_rect(Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2),Color("252820"))
-	draw_rect(Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2),Color("4d5443"),false,3)
+	var frame := Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2)
+	draw_rect(frame,Color("252820"))
+	_draw_field_frame(frame)
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
@@ -1417,6 +1445,31 @@ func _draw_clock_face(center: Vector2, radius: float, color: Color, turn: float)
 	var tremble := sin(clock*40.0)*0.012
 	draw_line(center,center+Vector2.from_angle(-PI/2+TAU*(turn+tremble))*radius*0.78,color,3)
 	draw_line(center,center+Vector2.from_angle(-PI/2+TAU*0.33)*radius*0.5,color,5)
+
+## The battlefield's outer frame: a clear light-blue line with a soft glow outside it,
+## brighter corner brackets and a faint inner line, breathing very slowly. The 8x8
+## and larger boards sit flush between the panels, so there it keeps inside its rim.
+const FIELD_BLUE := Color("7fe6ff")
+func _draw_field_frame(frame: Rect2) -> void:
+	var breath := 0.85 + 0.15 * sin(clock * 1.6)
+	var compact := model.board_size >= 8
+	if compact:
+		frame = frame.grow(-2.0)
+	else:
+		for k in 4:
+			draw_rect(frame.grow(2.0 + k * 3.0), Color(FIELD_BLUE, (0.2 - k * 0.045) * breath), false, 3)
+	draw_rect(frame, Color(FIELD_BLUE, 0.95), false, 3)
+	draw_rect(frame.grow(-5.0), Color(FIELD_BLUE, 0.22), false, 1)
+	var arm := 18.0 if compact else 26.0
+	var bright := Color("d8f8ff")
+	for corner in [frame.position, Vector2(frame.end.x, frame.position.y), frame.end, Vector2(frame.position.x, frame.end.y)]:
+		var sx := 1.0 if corner.x <= frame.get_center().x else -1.0
+		var sy := 1.0 if corner.y <= frame.get_center().y else -1.0
+		var tip: Vector2 = corner + Vector2(-sx, -sy) * (0.0 if compact else 3.0)
+		draw_line(tip, tip + Vector2(sx * arm, 0), bright, 5)
+		draw_line(tip, tip + Vector2(0, sy * arm), bright, 5)
+		if not compact:
+			draw_rect(Rect2(tip - Vector2.ONE * 3.5, Vector2.ONE * 7), bright)
 
 ## Curved clockwise arrow from the vane's current aim to the aim it takes after firing.
 func _draw_turn_hint(center: Vector2, dir: Vector2i) -> void:
@@ -2166,12 +2219,52 @@ func _draw_flashes() -> void:
 				draw_string_outline(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, 6, Color(0.05, 0.03, 0.02, 1.0 - rise))
 				draw_string(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(BUMP, 1.0 - rise))
 			continue
+		var on_enemy: bool = effect.kind in ["hit", "weapon_hit"] and int(effect.get("id", -2)) >= 0
+		if on_enemy:
+			_draw_enemy_hit(effect, fade)
+			continue
 		if effect.kind != "weapon_hit":
 			draw_texture_rect_region(EFFECTS,Rect2(pos-Vector2(32,32),Vector2(64,64)),Rect2(16*24,row*24,24,24),Color(1,1,1,fade))
 		if effect.get("damage", 1) >= Rules.CIRCLE_DAMAGE:
 			_draw_big_damage(pos, fade, int(effect.damage))
 		elif effect.kind != "plant":
 			_text(pos+Vector2(9,-26-(1-fade)*20),"−1",22,Color(1,0.65,0.4,fade))
+
+## An enemy taking damage, sized to its footprint (1x1, 2x2, 3x3): a white flash on
+## its tiles, a ring and sparks bursting out, the hit sprite, and a big damage number
+## that pops up with a bounce.
+const HIT_RED := Color("ff5b4a")
+func _draw_enemy_hit(effect: Dictionary, fade: float) -> void:
+	var span := int(effect.get("span", 1))
+	var t := 1.0 - fade
+	var center := _center(effect.cell) + Vector2.ONE * TILE * (span - 1) / 2.0
+	var size := TILE * span
+	# The struck tiles blink white, then the burst fades.
+	if t < 0.25:
+		draw_rect(Rect2(center - Vector2.ONE * size / 2, Vector2.ONE * size), Color(1, 0.96, 0.88, 0.55 * (1.0 - t / 0.25)))
+	var burst := ease(minf(t * 2.2, 1.0), 0.35)
+	draw_arc(center, size * (0.3 + 0.45 * burst), 0, TAU, 40, Color(1, 1, 1, 0.9 * fade), 4.0 + span, true)
+	draw_arc(center, size * (0.22 + 0.36 * burst), 0, TAU, 40, Color(HIT_RED, 0.8 * fade), 3.0 + span, true)
+	var seed_value := int(effect.cell.x) * 31 + int(effect.cell.y) * 17
+	for k in 8 + span * 2:
+		var angle := k * TAU / (8 + span * 2) + float((seed_value + k * 7) % 10) * 0.05
+		var from := center + Vector2.from_angle(angle) * size * (0.18 + 0.3 * burst)
+		var to := center + Vector2.from_angle(angle) * size * (0.3 + 0.55 * burst)
+		draw_line(from, to, Color(1, 0.85, 0.45, fade) if k % 2 == 0 else Color(1, 1, 1, fade), 2.0 + span * 0.5)
+	if effect.kind != "weapon_hit":
+		var art := 64.0 * (0.8 + 0.4 * span)
+		draw_texture_rect_region(EFFECTS,Rect2(center-Vector2.ONE*art/2,Vector2.ONE*art),Rect2(16*24,0,24,24),Color(1,1,1,fade))
+	var amount := int(effect.get("damage", int(effect.get("hp_before", 1)) - int(effect.get("hp", 0)) if effect.has("hp_before") else 1))
+	if amount >= Rules.CIRCLE_DAMAGE:
+		_draw_big_damage(center, fade, amount)
+		return
+	# The number: pops big, settles, rises and fades.
+	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - t / 0.18) if t < 0.18 else 1.0
+	var font_size := int((30 + 6 * span) * pop)
+	var text := "−%d" % maxi(amount, 1)
+	var at := center + Vector2(size * 0.18, -size * 0.32 - ease(t, 0.6) * 26)
+	draw_string_outline(ui_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 8, Color(0.08, 0.02, 0.02, fade))
+	draw_string(ui_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 0.86, 0.4, fade) if t < 0.12 else Color(HIT_RED.lightened(0.25), fade))
 
 ## 隕石妖精, in the fairy's own colours: a charcoal rock veined with lava streaks in
 ## from the upper left on a red-orange-cream flame, then the 3x3 turns to molten

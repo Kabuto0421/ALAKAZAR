@@ -959,7 +959,7 @@ func _player_action(cell: Vector2i) -> bool:
 			var damage := weapon_damage(weapon)
 			if damage > 0:
 				target.hp -= damage
-				events.append({"kind": "hit", "cell": target.cell, "id": target.id})
+				events.append({"kind": "hit", "cell": target.cell, "id": target.id, "damage": damage})
 			add_log("%sで%sを攻撃" % [WEAPONS[weapon].short, TYPES[target.type].name])
 			if target.type == "analyst" and target.hp > 0:
 				target.learned = weapon
