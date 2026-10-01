@@ -1761,7 +1761,7 @@ func _draw_intel() -> void:
 			_text(Vector2(854+_text_width(item.title,26),133),"+",26,GOLD)
 			SpiritIcon.paint_plus(self,Vector2(954,138),22)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
-		if model.fairy_ap_cost(selected_item,0) == 0:
+		if model.fairy_ap_cost(selected_item) == 0:
 			# A free fairy: the cost is the news.
 			draw_rect(Rect2(988,162,92,34),Color("7dff9a"))
 			_text(Vector2(996,188),"0 AP",30,Color("0c181b"))

@@ -553,31 +553,45 @@ static func _shadow(time: float, art: Texture2D, plus: bool) -> void:
 	if swap > 0.0:
 		_say(_center(Vector2(2.5,0)), "%d AP" % maxi(0, Rules.SHADOW_SWAP_AP - (1 if plus else 0)), 16, GOLD)
 
-## Summoned where no weapon reaches (here: holding silver); it moves and bites like
-## a silver general facing right. Alone it bites for 2,
-## next to you or another ally for 1, and on a tile a weapon reaches it sulks.
+## Summoned within your weapon's reach (here: holding silver). While a weapon reaches it,
+## it sulks; once you walk away it moves and bites like a silver general facing right:
+## alone for 2, next to you or another ally for 1.
 static func _wolf(time: float) -> void:
-	var p := _cycle(time, 5.4)
+	var p := _cycle(time, 6.0)
 	var phase := mini(int(p * 3), 2)
 	var q := fmod(p * 3, 1.0)
-	_reach(Vector2i(1,1))
-	_player(Vector2(1,1))
 	match phase:
 		0:
-			_enemy(Vector2(4,1), 1.0 - _ph(q, 0.55, 0.7))
-			# A silver bite: up-right, lunging toward the prey and back.
-			var lunge := sin(_ph(q, 0.3, 0.5) * PI) * 0.3
-			_wolf_art(Vector2(3,2) + Vector2(lunge, -lunge), 1)
-			_pop(Vector2(4,1), "−2", _ph(q, 0.4, 0.8), RED, 0, 24)
+			# Placed on a tile the sword reaches: it sulks.
+			_reach(Vector2i(1,1))
+			_player(Vector2(1,1))
+			_enemy(Vector2(3,0))
+			if q < 0.3:
+				_cursor(Vector2(2,1), true)
+			else:
+				_art(Units.WOLF_SULK, Vector2(2,1), _ph(q, 0.3, 0.4))
+				_say(_center(Vector2(2,1)) + Vector2(10,-12), "…", 20, Color.WHITE)
 		1:
-			_enemy(Vector2(2,0))
-			cv.draw_line(_center(Vector2(1,0)), _center(Vector2(1,1)), Color(GREEN, 0.8), 3)
-			_wolf_art(Vector2(1,0) + Vector2(sin(_ph(q, 0.3, 0.45) * PI) * 0.25, 0), 1)
-			_pop(Vector2(2,0), "−1", _ph(q, 0.35, 0.8))
+			# You step back: no weapon reaches it any more, so it hunts (a silver bite, up-right).
+			var walk := _ph(q, 0.0, 0.3)
+			var at := Vector2(1,1).lerp(Vector2(0,1), walk)
+			_reach(Vector2i(1,1) if walk < 1.0 else Vector2i(0,1))
+			_player(at)
+			_enemy(Vector2(3,0), 1.0 - _ph(q, 0.8, 0.95))
+			var lunge := sin(_ph(q, 0.5, 0.7) * PI) * 0.3
+			if q < 0.4:
+				_art(Units.WOLF_SULK, Vector2(2,1))
+			else:
+				_wolf_art(Vector2(2,1) + Vector2(lunge, -lunge), 1)
+			_pop(Vector2(3,0), "−2", _ph(q, 0.6, 1.0), RED, 0, 24)
 		2:
-			_enemy(Vector2(3,1))
-			_art(Units.WOLF_SULK, Vector2(2,1))
-			_say(_center(Vector2(2,1)) + Vector2(10,-12), "…", 20, Color.WHITE)
+			# With company beside it the bite is weaker.
+			_reach(Vector2i(0,1))
+			_player(Vector2(0,1))
+			_enemy(Vector2(3,0))
+			_art(Units.ACORN, Vector2(2,2))
+			_wolf_art(Vector2(2,1) + Vector2(sin(_ph(q, 0.3, 0.45) * PI) * 0.25, -sin(_ph(q, 0.3, 0.45) * PI) * 0.25), 1)
+			_pop(Vector2(3,0), "−1", _ph(q, 0.35, 0.8))
 	_steps(phase)
 
 ## Called from your own tile: for five turns every empty tile (no enemy, no

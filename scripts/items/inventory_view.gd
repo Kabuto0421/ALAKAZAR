@@ -129,7 +129,7 @@ func refresh(can_use: bool, selected: String) -> void:
 		var button := quick_buttons[slot]
 		var present := slot < hand.size()
 		button.disabled = not present or not enabled
-		free_tags[slot].visible = present and model.fairy_ap_cost(hand[slot],0) == 0
+		free_tags[slot].visible = present and model.fairy_ap_cost(hand[slot]) == 0
 		badges[slot].visible = present and model.is_plus(hand[slot])
 		pluses[slot].visible = badges[slot].visible
 		frames[slot].visible = present
