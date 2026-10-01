@@ -397,6 +397,7 @@ func _new_fairies() -> void:
 	verify(not m.enemy_at(Vector2i(4,3)).is_empty(),"A wall stops a lane")
 	verify(not m.enemy_at(Vector2i(4,4)).is_empty(),"The wave is only three lanes wide")
 	verify(m.slash_cells(Vector2i(0,2),Vector2i.RIGHT).filter(func(c): return c.y == 2).size() == 5,"...and five tiles long")
+	verify(m.slash_cells(Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,1)) and m.slash_cells(Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,3)),"...and it keeps the plain slash's tiles above and below")
 	m.fairy_plus["slash_fairy"] = 1
 	verify(m.is_directional("slash_fairy") and m.item_definition("flying_slash") == null,"斬撃精霊+ asks for a direction; the flying slash is no longer a fairy of its own")
 

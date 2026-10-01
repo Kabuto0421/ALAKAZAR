@@ -185,7 +185,7 @@ const PLUS_TEXT := {
 	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+{bless_heal}", "攻撃範囲の空きマスに置く。\n周囲5×5が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+{bless_heal}。"],
 	"meteor_fairy": ["隕石が2個落ちる", ""],
 	"guardian_fairy": ["HP{hp_plus}で降臨する", "攻撃範囲に2×2の守護神（HP{hp_plus}・\nAP{ally_ap}）を呼ぶ。この戦闘で召喚\nした妖精を種類ごとに1体ずつ\nHP+{guardian_bonus}で呼び直す。暴食も来る。"],
-	"slash_fairy": ["3マス幅の斬撃を飛ばす", "向きを選び、3マス幅×5マスの\n斬撃を飛ばす。当たった敵\nすべてに1。"],
+	"slash_fairy": ["上下2マスに加え、3マス幅の斬撃を飛ばす", "向きを選ぶ。置いたマスの上下2マスと\n3マス幅×5マスの斬撃を同時に\n飛ばす。当たった敵すべてに1。"],
 	"gravity_fairy": ["もっと遠くから引き寄せ、{push_plus}マス弾く", "空きマスならどこでも置ける。\n範囲外なら、もっと遠く（周囲\n{pull_plus}マス）から1マス引き寄せる。\n攻撃範囲なら、周りの敵を\n{push_plus}マス弾く。ダメージなし。"],
 	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず{pit_bump}ダメージ。"],
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
@@ -2147,11 +2147,13 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 				damage_enemy(enemy, 1, direction)
 	_resonate(passed, fired)
 
-## Three parallel lanes: the lane through the placed tile and its two neighbours.
+## Three parallel lanes: the lane through the placed tile and its two neighbours; the
+## plain slash's tiles above and below the placed tile are cut as well.
 func slash_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if not CARDINALS.has(direction):
 		return result
+	result.append_array(side_slash_cells(origin))
 	var side := Vector2i(-direction.y, direction.x)
 	for k in [-1, 0, 1]:
 		for cell in ray_cells(origin + side * k, direction).slice(0, SLASH_REACH):

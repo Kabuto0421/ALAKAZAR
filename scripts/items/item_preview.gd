@@ -313,6 +313,16 @@ static func _flying_slash(time: float, accent: Color) -> void:
 	_art(FLYING_SLASH, Vector2(0,1))
 	if p < 0.22:
 		_arrow(_center(Vector2(0,1)) + Vector2(16,0), _center(Vector2(1,1)) + Vector2(10,0), accent, 4)
+	# The plain slash's cut above and below the spirit comes along.
+	var cut := _ph(p, 0.22, 0.34)
+	if cut > 0.0 and cut < 1.0:
+		for end: Vector2 in [Vector2(0,0), Vector2(0,2)]:
+			var tip := _center(Vector2(0,1)).lerp(_center(end), cut)
+			cv.draw_line(tip - Vector2(14, 0), tip + Vector2(14, 0), Color.WHITE, 4)
+			cv.draw_line(_center(Vector2(0,1)), tip, accent, 3)
+	for enemy: Vector2 in [Vector2(0,0), Vector2(0,2)]:
+		_enemy(enemy, 1.0 - _ph(p, 0.34, 0.46))
+		_pop(enemy, "−1", _ph(p, 0.26, 0.6))
 	var k := _ph(p, 0.22, 0.65)
 	var front := C * (1.0 + k * 5.0)
 	if k > 0.0:
