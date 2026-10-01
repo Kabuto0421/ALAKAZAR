@@ -714,6 +714,8 @@ func _sync_units(animate: bool) -> void:
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
 		view.time_stopped = id >= 0 and model.time_stopped()
+		# The stopped world is drawn over the enemies but under you and your allies.
+		view.z_index = 0 if id >= 0 and model.time_stopped() else 2
 		view.reel = int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
@@ -1015,8 +1017,43 @@ func _shown_hp(id: int, hp: int) -> int:
 			shown = int(step[1])
 	return shown
 
+## 時の妖精: the board loses its colour while time stands still (a screen-reading
+## overlay above the enemies, below the player and the allies), with a negative flash
+## as it stops and a quick bleed back when it runs again.
+const TimeStopShader = preload("res://scripts/fx/time_stop.gdshader")
+var time_overlay: ColorRect
+var time_amount := 0.0
+var time_negative := 0.0
+var time_was_stopped := false
+func _update_time_overlay(delta: float) -> void:
+	var stopped: bool = model != null and model.time_stopped()
+	if stopped and not time_was_stopped:
+		time_negative = 1.0
+	time_was_stopped = stopped
+	time_amount = move_toward(time_amount, 1.0 if stopped else 0.0, delta * (2.5 if stopped else 4.0))
+	time_negative = move_toward(time_negative, 0.0, delta * 2.2)
+	if time_amount <= 0.0 and time_negative <= 0.0:
+		if time_overlay != null:
+			time_overlay.visible = false
+		return
+	if time_overlay == null:
+		time_overlay = ColorRect.new()
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = TimeStopShader
+		time_overlay.material = shader_material
+		time_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		time_overlay.z_index = 1
+		add_child(time_overlay)
+	time_overlay.visible = true
+	var rim := 4.0 if model.board_size >= 8 else 10.0
+	time_overlay.position = BOARD - Vector2.ONE * rim
+	time_overlay.size = Vector2.ONE * (model.board_size * TILE + rim * 2)
+	(time_overlay.material as ShaderMaterial).set_shader_parameter("amount", time_amount)
+	(time_overlay.material as ShaderMaterial).set_shader_parameter("negative", time_negative)
+
 func _process(delta: float) -> void:
 	clock += delta
+	_update_time_overlay(delta)
 	if chain_shake > 0.0 or quake_shake > 0.0:
 		chain_shake -= delta
 		quake_shake -= delta
@@ -1428,12 +1465,11 @@ func _draw_board() -> void:
 		var side := Vector2(-aim.y,aim.x)*8
 		draw_colored_polygon(PackedVector2Array([end+Vector2(aim)*8,end-Vector2(aim)*7+side,end-Vector2(aim)*7-side]),GOLD)
 
-## 時の妖精: while time stands still the board is washed in sepia, with a still clock
+## 時の妖精: while time stands still (the colour is drained by the overlay) a still clock
 ## face behind it whose second hand trembles but never moves on.
 const TIME_GOLD := Color("ffcf52")
 func _draw_time_stop_board() -> void:
 	var extent := Vector2.ONE*model.board_size*TILE
-	draw_rect(Rect2(BOARD,extent),Color(0.55,0.42,0.2,0.16))
 	_draw_clock_face(BOARD+extent/2,extent.x*0.36,Color(TIME_GOLD,0.22),0.0)
 
 ## A clock face: ring, twelve ticks and two hands (the long one at `turn` of a revolution).
