@@ -1040,8 +1040,8 @@ func _class_ups() -> void:
 	tf.enemies.append_array([near_foe, far_foe])
 	tf.fairy_loadout.assign(["time_fairy"])
 	tf.refill_fairies()
-	tf.player.ap = 0
-	verify(tf.fairy_ap_cost("time_fairy") == 0 and tf.use_item("time_fairy", tf.player.cell) and tf.time_stopped(),"The time fairy stops time for 0 AP")
+	tf.player.ap = 1
+	verify(tf.fairy_ap_cost("time_fairy") == 1 and tf.fairy_ap_cost("time_fairy", 1) == 0 and tf.use_item("time_fairy", tf.player.cell) and tf.time_stopped() and tf.player.ap == 0,"The time fairy stops time for 1 AP (0 AP once classed up)")
 	var tplanner := Planner.new()
 	var far_cell: Vector2i = far_foe.cell
 	tplanner.begin(tf)

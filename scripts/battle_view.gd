@@ -1219,8 +1219,6 @@ func _draw() -> void:
 	if model.abyss_turns > 0:
 		_text(Vector2(40,262) if model.board_size >= 8 else Vector2(352,156),"奈落 あと%dターン" % model.abyss_turns,18,Color("b8a8ff"))
 		status_y += 22.0
-	if model.time_stopped():
-		_text((Vector2(40,262) if model.board_size >= 8 else Vector2(352,156))+Vector2(0,status_y),"時間停止：次の敵ターンは誰も動かない",18,TIME_GOLD)
 	var countdown := model.siege_countdown()
 	if model.rule_siege:
 		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
