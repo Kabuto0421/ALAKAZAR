@@ -31,6 +31,13 @@ static func unlock(id: String) -> bool:
 	_save()
 	return true
 
+## Forget every unlock, in memory and on disk (the trial version does this at every launch).
+static func wipe() -> void:
+	_unlocked = {}
+	_loaded = true
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+
 static func _load() -> void:
 	if _loaded:
 		return

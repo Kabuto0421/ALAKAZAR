@@ -58,6 +58,7 @@ func run() -> void:
 	await check_title_sync()
 	check_title_extras()
 	await check_fairy_book()
+	check_launch_reset()
 	await check_every_fairy_is_complete()
 	await check_defeat_goes_to_title()
 	app=load("res://main.tscn").instantiate()
@@ -462,3 +463,29 @@ func check_every_fairy_is_complete() -> void:
 	verify(problems.is_empty(),"Every fairy has its item data, texts, example animation, rarity, title spot and card (%d problems)" % problems.size())
 	canvas.queue_free()
 	await process_frame
+
+
+# The trial version forgets fairies and achievements at every launch (but only once per launch).
+func check_launch_reset() -> void:
+	var Book = load("res://scripts/fairy_book.gd")
+	var Reset = load("res://scripts/launch_reset.gd")
+	Book.path="user://fairy_book_test.cfg"
+	Book.recording=true
+	Book.reset_memory()
+	Book.record_use("wall_fairy")
+	verify(FileAccess.file_exists("user://fairy_book_test.cfg"),"A used fairy is kept in the file")
+	Reset.started=false
+	Reset.start_session()
+	verify(not Book.has_used("wall_fairy") and not FileAccess.file_exists("user://fairy_book_test.cfg"),"A new launch forgets it (memory and file)")
+	Book.record_use("meteor_fairy")
+	Reset.start_session()
+	verify(Book.has_used("meteor_fairy"),"...but only once: coming back to the title does not wipe")
+	# With recording off (tests, tools) nothing is touched.
+	Book.recording=false
+	Reset.started=false
+	Reset.start_session()
+	verify(Book.has_used("meteor_fairy"),"The tests and tools never wipe the player's data")
+	Reset.started=true
+	Book.reset_memory()
+	Book.path=Book.SAVE_PATH
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://fairy_book_test.cfg"))

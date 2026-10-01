@@ -25,6 +25,7 @@ const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const BACKGROUND = preload("res://assets/title/layer_00_background.png")
 const Roster = preload("res://scripts/title/title_roster.gd")
 const FairyBook = preload("res://scripts/fairy_book.gd")
+const LaunchReset = preload("res://scripts/launch_reset.gd")
 const ENEMIES = preload("res://assets/title/layer_20_enemies.png")
 const LOGO = preload("res://assets/title/layer_30_logo.png")
 const WINDOW = preload("res://assets/title/layer_40_menu_window.png")
@@ -128,6 +129,8 @@ var achievements_page: Control
 var shake := 0.0
 
 func _ready() -> void:
+	# The trial version starts from nothing at every launch (once; not on coming back here).
+	LaunchReset.start_session()
 	size = VIEW
 	clip_contents = true
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

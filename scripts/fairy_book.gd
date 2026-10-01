@@ -50,6 +50,12 @@ static func used_count() -> int:
 	_load()
 	return _used.size()
 
+## Forget everything, in memory and on disk (the trial version does this at every launch).
+static func wipe() -> void:
+	reset_memory()
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
 ## Forget everything in memory (the tests start from nothing; the file is untouched).
 static func reset_memory() -> void:
 	_used = {}
