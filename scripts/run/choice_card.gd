@@ -23,7 +23,7 @@ const CARD_TEXT := {
 	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で{wolf_bite}ダメージ、隣に仲間がいると{wolf_crowded}ダメージ。届くマスではすねる",
 	"shadow_stitch": "届かないマスに影を置き、{swap_ap} APで入れ替わる",
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（{bite}ダメージ）",
-	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージを受ける）",
+	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージ）。クラスアップで落ちる数が増える",
 	"guardian_fairy": "1試合の中で召喚した妖精を一斉に呼ぶ（HP+{guardian_bonus}）",
 	"blessing_fairy": "3×3の中にいれば、攻撃が上下左右（十字）にも広がる。育てれば癒やしの力も…？",
 	"capacitor_fairy": "叩かれる・撃たれると1溜まり、{charge}つで4方向に放電",
@@ -134,7 +134,9 @@ func _ready() -> void:
 		var detail := _label(Vector2(14,0),description,15,Color("e5dfc5"))
 		_wrap_label(detail,size.x-28)
 		var text_height := _text_height(detail, 15)
-		var side := clampf(y-4-74-text_height-2,56.0,minf(140,size.x-40))
+		# The magic circle's example (a 5x3 board) takes room under the diagram.
+		var circle_room := clampf((size.x-24)*3.0/5.0,60.0,96.0) if circle else 0.0
+		var side := clampf(y-4-74-text_height-2-circle_room,56.0,minf(140,size.x-40))
 		diagram.position = Vector2((size.x-side)/2,68)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
@@ -158,6 +160,19 @@ func _ready() -> void:
 			demo.size = Vector2(size.x-24,50)
 			add_child(demo)
 			detail_top += 52
+			detail.position.y = detail_top
+		if circle and text_height+circle_room <= y-4-detail_top:
+			var circle_demo := FairyDemo.new()
+			circle_demo.model = model
+			# The bishop's diamond for a weapon that slides diagonally, the rook's ring otherwise.
+			var diagonal: bool = Weapons.slides(int(offer.value)).any(func(d: Vector2i) -> bool: return d.x != 0 and d.y != 0)
+			circle_demo.id = "circle_diagonal" if diagonal else "circle"
+			circle_demo.legend = "例：" + ("斜めに滑る武器" if diagonal else "縦横に動く武器")
+			circle_demo.legend_color = Color("d8e2ee")
+			circle_demo.position = Vector2(12,detail_top)
+			circle_demo.size = Vector2(size.x-24,circle_room)
+			add_child(circle_demo)
+			detail_top += int(circle_room)+2
 			detail.position.y = detail_top
 		_fit(detail,y-4-detail_top)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1

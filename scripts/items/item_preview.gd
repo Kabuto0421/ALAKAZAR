@@ -78,6 +78,13 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		_knockback(time)
 		canvas.draw_set_transform(Vector2.ZERO)
 		return
+	if id == "circle" or id == "circle_diagonal":
+		board = Vector2i(5,3)
+		_fit(canvas, rect)
+		_board(Color("b8c8ff"))
+		_circle(time, id == "circle_diagonal")
+		canvas.draw_set_transform(Vector2.ZERO)
+		return
 	var item: Resource = model.item_definition(id)
 	if item == null:
 		return
@@ -362,6 +369,106 @@ static func _knockback(time: float) -> void:
 	_enemy(at, 1.0 - (_ph(q, 0.78, 0.9) if into_enemy else 0.0))
 	_bump(Vector2(3,0), Vector2(4,0), q, 0.42, into_enemy)
 	_steps(0 if into_enemy else 1, 2)
+
+## The magic circle weapon, as it plays in the battle (times are the real ones): each move
+## leaves white chalk on the tiles it passes; the move that closes a ring around an enemy
+## ignites the line (0.45 s), a sigil opens and gathers over the captured tiles, and at
+## 1.45 s come the white flash, pillars of light, the shockwave and "99".
+## `diagonal`: the bishop's diamond of four (which encloses its centre); otherwise the
+## rook's ring of eight, walked in four slides.
+static func _circle(time: float, diagonal: bool) -> void:
+	var stops: Array[Vector2] = []
+	var ring: Array[Vector2] = []
+	if diagonal:
+		stops.assign([Vector2(2,0), Vector2(1,1), Vector2(2,2), Vector2(3,1)])
+		ring.assign([Vector2(2,0), Vector2(3,1), Vector2(2,2), Vector2(1,1)])
+	else:
+		stops.assign([Vector2(1,0), Vector2(3,0), Vector2(3,2), Vector2(1,2), Vector2(1,0)])
+		ring.assign([Vector2(1,0), Vector2(2,0), Vector2(3,0), Vector2(3,1), Vector2(3,2), Vector2(2,2), Vector2(1,2), Vector2(1,1)])
+	var middle := Vector2(2,1)
+	var moves := stops.size() - 1
+	var first := 0.5
+	var step := 1.0  # a move every second, each taking 0.6
+	var close := first + (moves - 1) * step + 0.6
+	var burst := close + 1.45
+	var t := fposmod(time, burst + 2.2)
+	# The chalk: every tile walked over so far (a tile turns white as the move passes it).
+	var chalk: Array[Vector2] = []
+	var at := stops[0]
+	for k in moves:
+		var k_t := _ph(t, first + k * step, first + k * step + 0.6)
+		if k_t > 0.0:
+			var from := stops[k]
+			var to := stops[k + 1]
+			var length := int(maxf(absf(to.x - from.x), absf(to.y - from.y)))
+			var direction := Vector2(signf(to.x - from.x), signf(to.y - from.y))
+			var passed := int(roundf(k_t * length))
+			for n in (passed + 1):
+				var tile := from + direction * n
+				if not chalk.has(tile):
+					chalk.append(tile)
+			at = from.lerp(to, k_t)
+	if t < burst:
+		for tile in chalk:
+			_tint(tile, Color(0.94, 0.95, 1.0, 0.6))
+			cv.draw_rect(Rect2(tile * C + Vector2.ONE * 3, Vector2.ONE * (C - 6)), Color("fffdf2"), false, 2)
+	_player(at)
+	_enemy(middle, 1.0 - _ph(t, burst + 0.1, burst + 0.3))
+	var c := _center(middle)
+	if t >= close and t < burst + 0.9:
+		var fall := 1.0 if t < burst else clampf(1.0 - (t - burst) / 0.5, 0.0, 1.0)
+		# A spark races round the white line, lighting it tile by tile.
+		var lit := int(_ph(t, close, close + 0.45) * ring.size())
+		for k in mini(lit + 1, ring.size()):
+			cv.draw_rect(Rect2(ring[k] * C + Vector2.ONE * 3, Vector2.ONE * (C - 6)), Color(GOLD, fall), false, 3)
+			if k > 0:
+				cv.draw_line(_center(ring[k - 1]), _center(ring[k]), Color(1, 1, 1, fall), 3)
+		if lit >= ring.size():
+			cv.draw_line(_center(ring[ring.size() - 1]), _center(ring[0]), Color(1, 1, 1, fall), 3)
+		# The sigil opens over the captured ground, turning faster as it gathers.
+		var open := 1.0 - pow(1.0 - _ph(t, close + 0.27, close + 0.77), 3.0)
+		var gather := _ph(t, close + 0.8, burst)
+		var r := C * 1.4 * open * (1.0 - 0.18 * gather)
+		var fade := 1.0 if t < burst else clampf(1.0 - (t - burst) / 0.9, 0.0, 1.0)
+		if r > 2.0 and fade > 0.0:
+			var spin := time * 1.6
+			cv.draw_circle(c, r, Color(1, 1, 1, 0.07 * fade))
+			cv.draw_arc(c, r, 0, TAU, 64, Color("e4eeff", fade), 2, true)
+			cv.draw_arc(c, r * 0.88, 0, TAU, 64, Color(1, 1, 1, 0.7 * fade), 1.5, true)
+			for flip in [0.0, PI]:
+				var tri := PackedVector2Array()
+				for k in 4:
+					tri.append(c + Vector2.from_angle(spin + flip + k * TAU / 3 - PI / 2) * r * 0.62)
+				cv.draw_polyline(tri, Color(1, 1, 1, 0.95 * fade), 2, true)
+			cv.draw_arc(c, r * 0.62, 0, TAU, 40, Color(GOLD, fade), 1.5, true)
+			cv.draw_circle(c, 3 + gather * 8, Color(1, 1, 1, (0.5 + 0.5 * gather) * fade))
+	if t >= burst:
+		var b := t - burst
+		var captured: Array[Vector2] = [middle]
+		captured.append_array(ring)
+		# Pillars of light on every captured tile, then the flash and the shockwave.
+		var pillar := clampf(1.0 - b / 1.1, 0.0, 1.0)
+		for cell in captured:
+			var x := _center(cell).x
+			var w := C * (0.9 - b * 0.5)
+			if pillar > 0.0 and w > 0.0:
+				cv.draw_rect(Rect2(x - w / 2, 0, w, _center(cell).y + C / 2), Color(1, 1, 1, 0.22 * pillar))
+				cv.draw_rect(Rect2(x - w / 4, 0, w / 2, _center(cell).y + C / 2), Color("e4eeff", 0.35 * pillar))
+				cv.draw_rect(Rect2(x - w / 10, 0, w / 5, _center(cell).y + C / 2), Color(1, 1, 1, 0.9 * pillar))
+		var flash := clampf(1.0 - b / 0.35, 0.0, 1.0)
+		if flash > 0.0:
+			cv.draw_rect(Rect2(Vector2.ZERO, Vector2(board) * C), Color(1, 0.98, 0.92, 0.8 * flash))
+		var wave := clampf(1.0 - b / 0.9, 0.0, 1.0)
+		if wave > 0.0:
+			var reach := C * 1.4 * (1.0 + b * 4.0)
+			cv.draw_arc(c, reach, 0, TAU, 64, Color(1, 1, 1, wave), 4, true)
+			cv.draw_arc(c, reach * 0.94, 0, TAU, 64, Color("e4eeff", wave), 2, true)
+		# The big gold 99 pops over the enemy and floats up.
+		var alpha := clampf(1.0 - (b - 0.9) / 0.5, 0.0, 1.0)
+		if alpha > 0.0:
+			var size := int(26 * (1.0 + 0.6 * maxf(0.0, 1.0 - b / 0.18)))
+			_say(c - Vector2(0, 12 + b * 18), "99", size, Color(GOLD, alpha))
+	_steps(mini(moves, int(maxf(0.0, (t - first) / step))) if t < close else moves, moves + 1)
 
 ## The collision between two tiles at `at` (0..1 of the cycle). Into another enemy:
 ## a burst, "ドン", and a "−1" in the collision colour on both. Into anything else:
