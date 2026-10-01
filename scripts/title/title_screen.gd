@@ -77,6 +77,8 @@ const EDGE := Color("07080f")
 const ITEM_CENTERS := [Vector2(864, 939), Vector2(864, 1013)]
 const ITEM_SIZE := Vector2(402, 66)
 const ITEM_FONT_SIZE := 56
+## The ▶ glyph sits a little high in its line: nudged down to the text's middle.
+const CURSOR_DROP := 3.0
 
 var clock := 0.0
 ## How far the reveal has got (jumps ahead when the player skips the intro).
@@ -261,7 +263,7 @@ func _select(index: int) -> void:
 		item_labels[i].add_theme_color_override("font_color", GOLD if i == selected else CREAM)
 	var label := item_labels[selected]
 	var width := FONT.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT_SIZE).x
-	cursor.position = Vector2(ITEM_CENTERS[selected].x - width / 2 - 64, ITEM_CENTERS[selected].y - 33)
+	cursor.position = Vector2(ITEM_CENTERS[selected].x - width / 2 - 64, ITEM_CENTERS[selected].y - 33 + CURSOR_DROP)
 	cursor.size = Vector2(48, 66)
 	cursor.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
