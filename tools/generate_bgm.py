@@ -1658,7 +1658,7 @@ DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
 #                            thins out bar by bar until only whistle and harp are left,
 #                            and the loop returns to the glen. (G -> Am closes the loop.)
 KOMURO = ["Am", "F", "G", "C", "Am", "F", "G"]
-CYBER_CHORDS = ["Em", "C", "D", "G", "Em", "C", "D"]
+CYBER_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D"]
 FUSION_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D", "G"]
 # "w" marks a tin-whistle note; the rest are pipes.
 KOMURO_TUNE = [
@@ -1670,32 +1670,61 @@ KOMURO_TUNE = [
     [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "C6"), (12, 4, "F5")],
     [(0, 4, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 3, "G5")],
 ]
-# The cyber riff: heavy and low (E4-A5), chugging 16ths on the root and a minor, blue
-# line on top (F and A# are the tension notes), played by a distorted saw with a
-# distorted bass under it. Open fifths below, so nothing in the harmony is bright.
+# The EDM hook (supersaw lead) over Em C G D | Em C D: a dark minor tune on the 3+3+2
+# syncopation, a four-bar statement and then a higher, busier answer into the fusion.
 CYBER_HOOK = [
-    [(0, 1, "E4"), (1, 1, "E4"), (3, 1, "E4"), (4, 2, "G4"), (6, 1, "F4"), (7, 1, "E4"), (8, 2, "B4"), (10, 2, "A4"), (12, 4, "G4")],
-    [(0, 1, "C5"), (1, 1, "C5"), (3, 1, "C5"), (4, 2, "E5"), (6, 2, "D5"), (8, 2, "B4"), (10, 2, "G4"), (12, 4, "E4")],
-    [(0, 1, "D5"), (1, 1, "D5"), (3, 1, "D5"), (4, 2, "F5"), (6, 1, "E5"), (7, 1, "D5"), (8, 2, "A4"), (10, 2, "C5"), (12, 4, "A4")],
-    [(0, 1, "G4"), (1, 1, "G4"), (3, 1, "G4"), (4, 2, "A#4"), (6, 2, "G4"), (8, 4, "D5"), (12, 2, "C5"), (14, 2, "B4")],
-    [(0, 1, "E5"), (1, 1, "E5"), (3, 1, "E5"), (4, 2, "G5"), (6, 1, "F5"), (7, 1, "E5"), (8, 2, "B4"), (10, 2, "E5"), (12, 4, "G5")],
-    [(0, 1, "C5"), (1, 1, "C5"), (3, 1, "C5"), (4, 2, "G5"), (6, 2, "F5"), (8, 2, "E5"), (10, 2, "C5"), (12, 4, "B4")],
-    [(0, 1, "D5"), (1, 1, "D5"), (3, 1, "D5"), (4, 2, "A5"), (6, 2, "F5"), (8, 2, "E5"), (10, 2, "D5"), (12, 2, "C5"), (14, 2, "B4")],
+    [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "A5"), (12, 4, "G5")],
+    [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 4, "G5")],
+    [(0, 3, "D5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "D6"), (12, 4, "B5")],
+    [(0, 3, "A5"), (3, 3, "F#5"), (6, 2, "D5"), (8, 2, "E5"), (10, 2, "F#5"), (12, 4, "A5")],
+    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "B5"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "E6")],
+    [(0, 2, "C6"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "G5"), (10, 2, "C6"), (12, 4, "E6")],
+    [(0, 2, "D6"), (2, 2, "A5"), (4, 2, "F#5"), (6, 2, "A5"), (8, 8, "D6")],
 ]
 
 
-def grit_lead(note, steps, vol=0.12):
-    """A distorted saw lead: three detuned saws pushed hard into a clipper, so the
-    riff snarls instead of singing."""
-    raw = synth(note, steps * STEP * 0.85, "saw", detune=(-14, 0, 14), vol=1.0, attack=0.004,
-                decay=0.12, sustain=0.75, release=0.04, cutoff=(4200, 2200, 0.1))
-    return [math.tanh(x * 3.2) * vol for x in raw]
+def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
+    """The EDM lead: seven detuned saws, opened up by the filter, slightly slurred."""
+    m = midi(note) if isinstance(note, str) else note
+    return synth(m, steps * STEP * gate, "saw", detune=(-26, -15, -7, 0, 7, 15, 26), vol=vol,
+                 attack=0.006, decay=0.3, sustain=0.8, release=0.1,
+                 cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from)
 
 
-def power_pad(chord, seconds, vol=0.07, cutoff=1500):
-    """Open fifths and octaves only (no third): neither bright nor sad."""
-    root = midi(chord["bass"])
-    return pad_chord([root + 12, root + 19, root + 24, root + 31], seconds, cutoff=cutoff, vol=vol)
+def edm_stab(notes, vol=0.06, steps=1.5):
+    """A short supersaw chord hit (the offbeat stab that sits in the pump)."""
+    voices = [synth(n, steps * STEP, "saw", detune=(-22, -11, 0, 11, 22), vol=vol, attack=0.003,
+                    decay=0.12, sustain=0.1, release=0.05, cutoff=(5200, 1400, 0.08)) for n in notes]
+    return [sum(v) for v in zip(*voices)]
+
+
+def edm_bass(note, steps=2, vol=0.5):
+    """The offbeat bass: a saw with its top filtered off over a sine sub."""
+    m = midi(note) if isinstance(note, str) else note
+    saw = synth(m, steps * STEP * 0.9, "saw", detune=(-8, 8), vol=vol, attack=0.004, decay=0.12,
+                sustain=0.7, release=0.03, cutoff=(1000, 450, 0.1))
+    sub = synth(m, steps * STEP * 0.9, "sine", vol=vol * 1.1, attack=0.004, decay=0.3,
+                sustain=0.9, release=0.03, cutoff=(600, 600, 1.0))
+    return [a + b for a, b in zip(saw, sub)]
+
+
+def sub_boom(vol=0.8):
+    """The impact on the drop: a sine falling from 160 Hz to 38 Hz."""
+    n = int(1.3 * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += (38 + 125 * math.exp(-t * 6)) / RATE
+        out[i] = math.sin(2 * math.pi * phase) * math.exp(-t * 2.4) * vol * min(1.0, i / 30)
+    return out
+
+
+def edm_snare(rng, vol=0.2):
+    """A layered snare/clap for beats 2 and 4."""
+    clap = noise_hit(rng, 0.14, 1100, 7000, vol, bursts=3)
+    body = snare(rng, vol * 0.7)
+    return [a + (body[i] if i < len(body) else 0.0) for i, a in enumerate(clap)]
 
 
 # The fusion tune (pipes over the cyber band), a long line in G major / E minor.
@@ -1709,7 +1738,6 @@ FUSION_TUNE = [
     [(0, 2, "A5"), (2, 2, "F#5"), (4, 2, "D5"), (6, 2, "F#5"), (8, 8, "A5")],
     [(0, 4, "G5"), (4, 4, "D5"), (8, 8, "B4")],
 ]
-TITLE_PCS_G = [7, 9, 11, 0, 2, 4, 6]  # G major / E minor
 
 
 def arp_backdrop(loop, t0, chord, kind="harp", vol=0.06, shape=(0, 1, 2, 3, 2, 3, 2, 1)):
@@ -1739,6 +1767,7 @@ def title_march():
     loop.put("drone", 0.0, pipe_drones(7 * bar - 0.7, 0.03))
     loop.put("drone", (14 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
     kicks = []
+    edm_kicks = []
     at = 0
     for name, count in sizes:
         for idx in range(count):
@@ -1796,6 +1825,7 @@ def title_march():
                 if idx == 6:
                     arp_fill(loop, t0, chord, 0.09, start=10)
                     loop.put("fx", t0 + 4 * STEP, riser(rng, 12 * STEP, vol=0.1))
+                    loop.put("fx", t0 + 8 * STEP, crash(rng, 8 * STEP, 0.16)[::-1])
                     for k in range(12):
                         loop.put("snare", t0 + (8 + k * 0.5) * STEP, pipe_snare(rng, 0.05 + 0.012 * k))
                 for ev in KOMURO_TUNE[idx]:
@@ -1806,32 +1836,54 @@ def title_march():
                     loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="G5" if ln >= 2 and midi(nt) < midi("G5") else None))
                     loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.1, 2800))
             elif name == "cyber":
-                # --- full cyber: no pipes, whistle, harp, bodhran or drones ---
+                # --- EDM: no Celtic sound at all ---
+                # The drop (bars 1-4) and the second drop (5-7, a stab on the offbeat). Bar 4
+                # breaks for half a bar: the kick drops out, a snare roll and a riser lift
+                # into the second drop.
+                breaking = idx == 3
                 for s in (0, 4, 8, 12):
-                    loop.put("kick", t0 + s * STEP, kick(0.9))
-                    kicks.append(t0 + s * STEP)
+                    if breaking and s == 12:
+                        continue
+                    loop.put("kick", t0 + s * STEP, kick(1.0))
+                    edm_kicks.append(t0 + s * STEP)
                 for s in (2, 6, 10, 14):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.06, 6500, 14000, 0.07))
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.13, 7000, 15000, 0.08))
                 for s in (1, 3, 5, 7, 9, 11, 13, 15):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 14000, 0.03))
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 8000, 15000, 0.03))
                 for s in (4, 12):
-                    loop.put("clap", t0 + s * STEP, noise_hit(rng, 0.12, 1200, 6500, 0.16, bursts=3))
+                    if not (breaking and s == 12):
+                        loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.2))
+                if breaking or idx == 6:
+                    first = 12 if breaking else 8
+                    for k in range((16 - first) * 2):
+                        loop.put("snare", t0 + (first + k * 0.5) * STEP, pipe_snare(rng, 0.04 + 0.2 * k / ((16 - first) * 2)))
+                    loop.put("fx", t0 + first * STEP, riser(rng, (16 - first) * STEP, vol=0.1))
                 if idx == 0:
-                    loop.put("fx", t0, crash(rng, 2.2, 0.16))
-                    loop.put("kick", t0, kick(1.0))
-                for s in range(16):
-                    if s % 4 != 0:
-                        loop.put("bass", t0 + s * STEP, dirty_bass(root + (12 if s % 8 == 6 else 0), 1, 0.5))
-                for i, off in enumerate([0, 7, 12, 7] * 4):
-                    loop.put("arp", t0 + i * STEP, pluck(root + 24 + off, 1900 + 1400 * (idx / 6), vol=0.07))
-                loop.put("pad", t0, power_pad(chord, bar - 0.1, vol=0.08, cutoff=1400))
+                    loop.put("fx", t0, crash(rng, 2.4, 0.18))
+                    loop.put("kick", t0, sub_boom(0.8))
+                if idx == 4:
+                    loop.put("fx", t0, crash(rng, 2.0, 0.15))
+                # Offbeat bass (the pump), and a 16th-note pluck arp over the triad.
+                for s in (2, 6, 10, 14):
+                    if idx >= 4 and s == 14:
+                        loop.put("edm_bass", t0 + s * STEP, edm_bass(root + 12, 1, 0.45))
+                    else:
+                        loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
+                for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
+                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 2800 + 1600 * (idx / 6), vol=0.055))
+                loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075))
+                if idx >= 4:
+                    notes = [midi(n) + 12 for n in chord["arp"][:3]]
+                    for s in (0, 3, 6, 10):
+                        loop.put("edm_stab", t0 + s * STEP, edm_stab(notes, 0.05))
+                # The supersaw lead hook (the second half with an octave behind it).
+                prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
-                    loop.put("lead", t0 + st * STEP, grit_lead(midi(nt), ln, vol=0.15))
-                    loop.put("lead", t0 + st * STEP, dirty_bass(midi(nt) - 24, ln, 0.35))
-                if idx % 4 == 3:
-                    arp_fill(loop, t0, chord, 0.08, start=12)
-                if idx == 6:
-                    loop.put("fx", t0 + 8 * STEP, riser(rng, 8 * STEP, vol=0.1))
+                    m = midi(nt)
+                    loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.12, glide_from=prev if ln >= 4 else None))
+                    if idx >= 4:
+                        loop.put("lead", t0 + st * STEP, supersaw(m - 12, ln, 0.06, 3200))
+                    prev = m
             else:
                 # --- cyber + Celtic together, thinning out toward the glen ---
                 full = idx < 4
@@ -1886,8 +1938,13 @@ def title_march():
     loop.echo("arp", STEP * 3, 0.3, 0.35)
     loop.duck("pad", kicks, 0.3)
     loop.duck("bass", kicks, 0.2, length=0.1)
+    # The EDM part pumps hard: pad, stabs and bass all duck on every kick.
+    loop.duck("edm_pad", edm_kicks, 0.78, length=0.24)
+    loop.duck("edm_stab", edm_kicks, 0.6, length=0.2)
+    loop.duck("edm_bass", edm_kicks, 0.85, length=0.13)
+    loop.duck("arp", edm_kicks, 0.35, length=0.14)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
-    for first, last, gain in ((7, 14, 1.2), (14, 18, 1.25)):
+    for first, last, gain in ((7, 14, 0.85), (14, 18, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
