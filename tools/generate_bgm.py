@@ -1493,6 +1493,8 @@ TITLE_CHORDS = {
     "G": {"bass": "G1", "pad": ["G2", "B2", "D3", "G3"], "arp": ["G3", "B3", "D4", "G4"]},
     "Am": {"bass": "A1", "pad": ["A2", "C3", "E3", "A3"], "arp": ["A3", "C4", "E4", "A4"]},
     "F": {"bass": "F1", "pad": ["F2", "A2", "C3", "F3"], "arp": ["F3", "A3", "C4", "F4"]},
+    "Em": {"bass": "E2", "pad": ["E3", "G3", "B3", "E4"], "arp": ["E4", "G4", "B4", "E5"]},
+    "D": {"bass": "D2", "pad": ["D3", "F#3", "A3", "D4"], "arp": ["D4", "F#4", "A4", "D5"]},
 }
 TITLE_PROGRESSION = ["Dm", "C", "Dm", "Am", "Dm", "C", "G", "Am"]
 TITLE_PCS = [2, 4, 5, 7, 9, 11, 0]  # D Dorian
@@ -1646,46 +1648,50 @@ TITLE_MARCH_BPM = 116
 # IV), C and Am.
 KOMURO = ["Am", "F", "G", "C"]
 DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
-# The Komuro tune. A fourth item "w" plays that note on the tin whistle (default: pipes).
-# The phrases do not line up with the bars on purpose: the first march bar's pipe call
-# (12.0 s) hands over to a gentle whistle line at step 8 of bar 1 (13.0 s); that line
-# runs through the F bar and half of the G bar, and at step 8 of bar 3 (17.1 s) the
-# pipes and brass come back with a punchy dotted phrase. Then two more phrases, each
-# with its own rhythm: syncopated, then a sweeping run to a long held note.
+# --- the march's three parts (116 BPM, 22 bars, looping from the first) --------------
+# glen   (7 bars, 12.0 s)  : Celtic. A gentle whistle and harp melody, then at step 8 of
+#                            bar 3 (17.1 s) pipes, brass and the war drums come in.
+#                            Chords Am F G C Am F G (the notes of D Dorian).
+# cyber  (7 bars, ~26.5 s) : no Celtic sound at all. Modulates through G (the pivot) to
+#                            G major / E minor with a Komuro progression Em C D G.
+# fusion (8 bars, ~41 s)   : cyber and Celtic together over Em C G D Em C D G, then it
+#                            thins out bar by bar until only whistle and harp are left,
+#                            and the loop returns to the glen. (G -> Am closes the loop.)
+KOMURO = ["Am", "F", "G", "C", "Am", "F", "G"]
+CYBER_CHORDS = ["Em", "C", "D", "G", "Em", "C", "D"]
+FUSION_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D", "G"]
+# "w" marks a tin-whistle note; the rest are pipes.
 KOMURO_TUNE = [
-    [(0, 4, "E5"), (4, 2, "A5"), (6, 2, "G5"), (8, 2, "E5", "w"), (10, 2, "G5", "w"), (12, 2, "A5", "w"), (14, 2, "G5", "w")],
+    [(0, 4, "E5", "w"), (4, 2, "A5", "w"), (6, 2, "G5", "w"), (8, 2, "E5", "w"), (10, 2, "G5", "w"), (12, 2, "A5", "w"), (14, 2, "G5", "w")],
     [(0, 3, "A5", "w"), (3, 1, "G5", "w"), (4, 2, "F5", "w"), (6, 2, "A5", "w"), (8, 2, "C6", "w"), (10, 2, "A5", "w"), (12, 4, "F5", "w")],
     [(0, 2, "G5", "w"), (2, 2, "B5", "w"), (4, 4, "D6", "w"), (8, 3, "D6"), (11, 1, "C6"), (12, 2, "B5"), (14, 2, "G5")],
     [(0, 3, "E5"), (3, 1, "G5"), (4, 2, "C6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "E5")],
     [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "D6"), (12, 2, "C6"), (14, 2, "B5")],
     [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "C6"), (12, 4, "F5")],
-    [(0, 4, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 2, "A5"), (14, 2, "G5")],
-    [(0, 8, "C6"), (8, 2, "G5"), (10, 2, "E5"), (12, 4, "C5")],
+    [(0, 4, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 3, "G5")],
 ]
-# The Dorian tune over Dm G Dm C Dm G C Dm: a long singing line that climbs in the
-# first half and comes home in the second.
-DORIAN_TUNE = [
-    [(0, 2, "D5"), (2, 2, "F5"), (4, 2, "A5"), (6, 2, "G5"), (8, 2, "F5"), (10, 2, "E5"), (12, 4, "D5")],
-    [(0, 2, "G5"), (2, 2, "B5"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "B5"), (10, 2, "A5"), (12, 4, "G5")],
-    [(0, 3, "A5"), (3, 1, "G5"), (4, 2, "F5"), (6, 2, "E5"), (8, 2, "D5"), (10, 2, "E5"), (12, 4, "F5")],
-    [(0, 2, "E5"), (2, 2, "G5"), (4, 2, "C6"), (6, 2, "B5"), (8, 4, "A5"), (12, 4, "G5")],
-    [(0, 4, "D6"), (4, 2, "C6"), (6, 2, "A5"), (8, 2, "F5"), (10, 2, "A5"), (12, 4, "D6")],
-    [(0, 2, "B5"), (2, 2, "D6"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 4, "A5")],
-    [(0, 2, "G5"), (2, 2, "E5"), (4, 2, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 2, "A5"), (14, 2, "G5")],
-    [(0, 4, "A5"), (4, 2, "F5"), (6, 2, "E5"), (8, 8, "D5")],
+# The cyber hook (saw lead): bright, riding the beat, over Em C D G Em C D.
+CYBER_HOOK = [
+    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "B5")],
+    [(0, 2, "C6"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "C6"), (8, 4, "G5"), (12, 4, "E5")],
+    [(0, 2, "D6"), (2, 2, "F#6"), (4, 2, "E6"), (6, 2, "D6"), (8, 4, "A5"), (12, 4, "D6")],
+    [(0, 4, "B5"), (4, 2, "D6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "D6")],
+    [(0, 2, "E6"), (3, 2, "E6"), (6, 2, "D6"), (8, 2, "B5"), (10, 2, "G5"), (12, 4, "B5")],
+    [(0, 2, "E6"), (3, 2, "E6"), (6, 2, "D6"), (8, 2, "C6"), (10, 2, "G5"), (12, 4, "E5")],
+    [(0, 4, "D6"), (4, 4, "E6"), (8, 2, "D6"), (10, 2, "A5"), (12, 2, "F#5"), (14, 2, "A5")],
 ]
-# The cyber part's hook: syncopated and leaping over the same chords, so the pipes
-# ride the beat instead of marching.
-CYBER_TUNE = [
-    [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "D6"), (8, 2, "C6"), (10, 2, "A5"), (12, 4, "F5")],
-    [(0, 2, "B5"), (3, 2, "B5"), (6, 2, "D6"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "D6")],
-    [(0, 2, "F5"), (2, 2, "A5"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "A5"), (10, 2, "F5"), (12, 2, "A5"), (14, 2, "D6")],
-    [(0, 4, "C6"), (4, 2, "B5"), (6, 2, "G5"), (8, 2, "E5"), (10, 2, "G5"), (12, 4, "C6")],
-    [(0, 2, "D6"), (3, 2, "D6"), (6, 2, "A5"), (8, 2, "F5"), (10, 2, "D5"), (12, 4, "A5")],
-    [(0, 2, "G5"), (3, 2, "B5"), (6, 2, "D6"), (8, 4, "D6"), (12, 2, "C6"), (14, 2, "B5")],
-    [(0, 2, "C6"), (2, 2, "G5"), (4, 2, "E5"), (6, 2, "G5"), (8, 4, "C6"), (12, 4, "B5")],
-    [(0, 4, "A5"), (4, 4, "F5"), (8, 8, "D5")],
+# The fusion tune (pipes over the cyber band), a long line in G major / E minor.
+FUSION_TUNE = [
+    [(0, 2, "E5"), (2, 2, "G5"), (4, 2, "B5"), (6, 2, "A5"), (8, 2, "G5"), (10, 2, "F#5"), (12, 4, "E5")],
+    [(0, 2, "E5"), (2, 2, "G5"), (4, 2, "C6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "E5")],
+    [(0, 2, "D5"), (2, 2, "G5"), (4, 2, "B5"), (6, 2, "D6"), (8, 2, "B5"), (10, 2, "G5"), (12, 4, "B5")],
+    [(0, 3, "A5"), (3, 1, "F#5"), (4, 2, "D5"), (6, 2, "F#5"), (8, 2, "A5"), (10, 2, "D6"), (12, 4, "A5")],
+    [(0, 4, "B5"), (4, 2, "A5"), (6, 2, "G5"), (8, 4, "E5"), (12, 4, "G5")],
+    [(0, 2, "G5"), (2, 2, "E5"), (4, 2, "C5"), (6, 2, "E5"), (8, 4, "G5"), (12, 4, "C6")],
+    [(0, 2, "A5"), (2, 2, "F#5"), (4, 2, "D5"), (6, 2, "F#5"), (8, 8, "A5")],
+    [(0, 4, "G5"), (4, 4, "D5"), (8, 8, "B4")],
 ]
+TITLE_PCS_G = [7, 9, 11, 0, 2, 4, 6]  # G major / E minor
 
 
 def arp_backdrop(loop, t0, chord, kind="harp", vol=0.06, shape=(0, 1, 2, 3, 2, 3, 2, 1)):
@@ -1706,149 +1712,159 @@ def arp_fill(loop, t0, chord, vol=0.08, start=8):
 
 
 def title_march():
-    """The looping war march after the fanfare, at 116 BPM, four parts:
-    komuro  - 8 bars of the Komuro progression (Am F G C twice): the pipes on the
-              rising tune over war drums, a marching snare, strings sawing in 16ths,
-              low brass punching; the second pass sweeps higher with brass;
-    dorian  - 8 bars back in the Dorian chords (Dm G Dm C Dm G C Dm): the battle,
-              pipes and brass on the tune in harmony, timpani, crashes, a whistle;
-    cyber   - 8 bars over the same Dorian chords, cyber-Celtic: four-on-the-floor
-              kick, hats and claps, a rolling saw bass and a pluck arp under the pipes
-              and a detuned saw lead;
-    charge  - 4 bars of Komuro again, the snare rolling up and a riser, back to the top."""
+    """The looping march after the fanfare (see the plan above). 22 bars at 116 BPM."""
     rng = random.Random(97)
     bar = 16 * STEP
-    plan = [("komuro", 8), ("dorian", 8), ("cyber", 8), ("charge", 4)]
-    total = sum(n for _, n in plan)
+    sizes = [("glen", 7), ("cyber", 7), ("fusion", 8)]
+    total = sum(n for _, n in sizes)
     loop = Mix(total * bar, wrap=True)
-    loop.put("drone", 0.0, pipe_drones(16 * bar, 0.04))
-    loop.put("drone", 16 * bar, pipe_drones(12 * bar, 0.035))
+    loop.put("drone", 0.0, pipe_drones(7 * bar - 0.7, 0.03))
+    loop.put("drone", (14 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
     kicks = []
     at = 0
-    for name, count in plan:
+    for name, count in sizes:
         for idx in range(count):
             t0 = at * bar
-            names = KOMURO if name in ("komuro", "charge") else DORIAN
-            chord = TITLE_CHORDS[names[idx % len(names)]]
+            if name == "glen":
+                chord = TITLE_CHORDS[KOMURO[idx]]
+            elif name == "cyber":
+                chord = TITLE_CHORDS[CYBER_CHORDS[idx]]
+            else:
+                chord = TITLE_CHORDS[FUSION_CHORDS[idx]]
             root = midi(chord["bass"])
-            dorian = name == "dorian"
-            cyber = name == "cyber"
-            charge = name == "charge"
-            second = name == "komuro" and idx >= 4
-            # --- war drums and the bass drum ---
-            if not cyber:
-                taiko = {0: 0.6, 6: 0.4, 8: 0.55, 14: 0.4}
-                if dorian:
-                    taiko.update({3: 0.35, 11: 0.35})
-                for s, v in taiko.items():
-                    loop.put("drum", t0 + s * STEP, war_drum(rng, v, 52 if s % 8 == 0 else 60))
+            if name == "glen":
+                # --- gentle at first (whistle, harp, a soft bodhran), war from 17.1 s ---
+                def war(s: int) -> bool:
+                    return idx > 2 or (idx == 2 and s >= 8)
+                for s in (0, 6, 8, 14):
+                    if not war(s):
+                        loop.put("drum", t0 + s * STEP, bodhran(0.16 if s % 8 == 0 else 0.09, accent=s == 0))
+                for s in range(16):
+                    if war(s):
+                        v = 0.2 if s % 4 == 0 else 0.07 if s % 2 == 0 else 0.05
+                        loop.put("snare", t0 + s * STEP, pipe_snare(rng, v))
+                        figure = [0, 0, 12, 0, 0, 7, 12, 7]
+                        loop.put("bass", t0 + s * STEP, bass_note(root + figure[s % 8], 1, 0.3 if s % 4 == 0 else 0.22))
+                        if s in (0, 3, 6, 8, 11, 14):
+                            loop.put("brass", t0 + s * STEP, brass(root + 12, 2, 0.07, 1600))
+                for s, v in {0: 0.6, 6: 0.4, 8: 0.55, 14: 0.4}.items():
+                    if war(s):
+                        loop.put("drum", t0 + s * STEP, war_drum(rng, v, 52 if s % 8 == 0 else 60))
                 for s in (0, 8):
-                    loop.put("kick", t0 + s * STEP, kick(0.7))
-                    kicks.append(t0 + s * STEP)
-                if dorian:
-                    loop.put("drum", t0, timpani(rng, chord["bass"].replace("1", "2"), 0.45))
-                if (dorian and idx % 4 == 0) or (idx == 0 and name == "komuro"):
-                    loop.put("fx", t0, crash(rng, 1.8, 0.12))
-            else:
-                for s in (0, 4, 8, 12):
-                    loop.put("kick", t0 + s * STEP, kick(0.85))
-                    kicks.append(t0 + s * STEP)
-                for s in (2, 6, 10, 14):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.06, 6500, 14000, 0.07))
-                for s in (1, 3, 5, 7, 9, 11, 13, 15):
-                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 14000, 0.025))
-                for s in (4, 12):
-                    loop.put("clap", t0 + s * STEP, noise_hit(rng, 0.12, 1200, 6500, 0.15, bursts=3))
-                if idx == 0:
-                    loop.put("fx", t0, crash(rng, 1.8, 0.12))
-                if idx == 7:
-                    loop.put("fx", t0, riser(rng, bar, vol=0.09))
-            # --- the pipe-band snare: marching 16ths, accents, rolls ---
-            if charge:
-                for s in range(16):
-                    v = 0.06 + 0.17 * (idx * 16 + s) / 64
-                    loop.put("snare", t0 + s * STEP, pipe_snare(rng, v))
-                    loop.put("snare", t0 + (s + 0.5) * STEP, pipe_snare(rng, v * 0.75))
-                if idx == count - 1:
-                    loop.put("fx", t0, riser(rng, bar, vol=0.12))
-            elif not cyber:
-                for s in range(16):
-                    v = 0.2 if s % 4 == 0 else 0.07 if s % 2 == 0 else 0.05
-                    loop.put("snare", t0 + s * STEP, pipe_snare(rng, v * (1.2 if dorian else 1.0)))
-                if idx % 2 == 1:
-                    for k in range(8):
-                        loop.put("snare", t0 + (12 + k * 0.5) * STEP, pipe_snare(rng, 0.06 + 0.02 * k))
-            # --- bass ---
-            if cyber:
-                # The cyber bass: saw, rolling on the off-16ths between the kicks.
-                for s in range(16):
-                    if s % 4 != 0:
-                        loop.put("bass", t0 + s * STEP, bass_note(root + (12 if s % 8 == 6 else 0), 1, 0.34))
-                for i, k in enumerate([0, 2, 1, 3, 2, 1, 3, 2] * 2):
-                    loop.put("arp", t0 + i * STEP, pluck(chord["arp"][k], 2400 + 1600 * (idx / 7), vol=0.07))
-                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1500, vol=0.07))
-            else:
-                figure = [0, 0, 12, 0, 0, 7, 12, 7]
-                for s in range(16):
-                    loop.put("bass", t0 + s * STEP, bass_note(root + figure[s % 8], 1, 0.3 if s % 4 == 0 else 0.22))
-                if not charge:
-                    for s in (0, 3, 6, 8, 11, 14):
-                        loop.put("brass", t0 + s * STEP, brass(root + 12, 2, 0.07 if (dorian or second) else 0.05, 1600))
-                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1800 if dorian else 1200, vol=0.05))
-                if dorian:
-                    for s in (4, 12):
-                        loop.put("brass", t0 + s * STEP, brass_chord(chord["pad"][1:], 1, 0.05, 3200))
-            # --- melodies ---
-            if name == "komuro":
+                    if war(s):
+                        loop.put("kick", t0 + s * STEP, kick(0.7))
+                        kicks.append(t0 + s * STEP)
+                if idx < 2:
+                    loop.put("bass", t0, synth(root, bar * 0.92, "saw", detune=(-6, 6), vol=0.15, attack=0.25,
+                                               decay=1.0, sustain=0.8, release=0.3, cutoff=(700, 500, 1.0)))
+                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1100 if idx < 2 else 1700, vol=0.04 if idx < 2 else 0.055))
+                if idx == 2:
+                    loop.put("fx", t0 + 8 * STEP, crash(rng, 1.6, 0.1))
+                if idx < 6:
+                    arp_backdrop(loop, t0, chord, "harp", 0.09 if idx < 2 else 0.075)
+                if idx == 2:
+                    arp_fill(loop, t0, chord, 0.075, start=8)
+                if idx == 6:
+                    arp_fill(loop, t0, chord, 0.09, start=10)
+                    loop.put("fx", t0 + 4 * STEP, riser(rng, 12 * STEP, vol=0.1))
+                    for k in range(12):
+                        loop.put("snare", t0 + (8 + k * 0.5) * STEP, pipe_snare(rng, 0.05 + 0.012 * k))
                 for ev in KOMURO_TUNE[idx]:
                     st, ln, nt = ev[0], ev[1], ev[2]
                     if len(ev) > 3:
                         loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.1))
                         continue
                     loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="G5" if ln >= 2 and midi(nt) < midi("G5") else None))
-                    if second or idx == 2 or idx == 3:
-                        loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.1, 2800))
-            elif dorian:
-                for st, ln, nt in DORIAN_TUNE[idx]:
-                    if idx in (2, 3):
-                        # Bars 3-4 hand the tune to the whistle, over a thinner band.
-                        loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.1))
-                        continue
-                    loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.11, grace="A5" if ln >= 3 else None))
-                    loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.12, 3000))
-                    loop.put("lead", t0 + st * STEP, brass(lower_third(midi(nt), TITLE_PCS) - 12, ln, 0.07, 2600))
-                loop.put("whistle", t0, whistle(midi(chord["arp"][3]) + 12, bar * 0.45, vol=0.05))
-                loop.put("whistle", t0 + 8 * STEP, whistle(midi(chord["arp"][2]) + 12, bar * 0.45, vol=0.05))
-            elif cyber:
-                for st, ln, nt in CYBER_TUNE[idx]:
-                    loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="A5" if ln >= 3 else None))
+                    loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.1, 2800))
+            elif name == "cyber":
+                # --- full cyber: no pipes, whistle, harp, bodhran or drones ---
+                for s in (0, 4, 8, 12):
+                    loop.put("kick", t0 + s * STEP, kick(0.9))
+                    kicks.append(t0 + s * STEP)
+                for s in (2, 6, 10, 14):
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.06, 6500, 14000, 0.07))
+                for s in (1, 3, 5, 7, 9, 11, 13, 15):
+                    loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 14000, 0.03))
+                for s in (4, 12):
+                    loop.put("clap", t0 + s * STEP, noise_hit(rng, 0.12, 1200, 6500, 0.16, bursts=3))
+                if idx == 0:
+                    loop.put("fx", t0, crash(rng, 2.2, 0.16))
+                    loop.put("kick", t0, kick(1.0))
+                for s in range(16):
+                    if s % 4 != 0:
+                        loop.put("bass", t0 + s * STEP, bass_note(root + (12 if s % 8 == 6 else 0), 1, 0.36))
+                for i, k in enumerate([0, 2, 1, 3, 2, 1, 3, 2] * 2):
+                    loop.put("arp", t0 + i * STEP, pluck(chord["arp"][k], 2600 + 1800 * (idx / 6), vol=0.075))
+                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1600, vol=0.075))
+                for st, ln, nt in CYBER_HOOK[idx]:
+                    loop.put("lead", t0 + st * STEP, lead(midi(nt), ln, vol=0.13))
                     loop.put("lead", t0 + st * STEP, lead(midi(nt) - 12, ln, vol=0.08))
                     if idx >= 4:
-                        loop.put("lead", t0 + st * STEP, lead(lower_third(midi(nt), TITLE_PCS), ln, vol=0.05))
+                        loop.put("lead", t0 + st * STEP, lead(lower_third(midi(nt), TITLE_PCS_G), ln, vol=0.06))
+                if idx % 4 == 3:
+                    arp_fill(loop, t0, chord, 0.08, start=12)
+                if idx == 6:
+                    loop.put("fx", t0 + 8 * STEP, riser(rng, 8 * STEP, vol=0.1))
             else:
-                for ev in KOMURO_TUNE[idx]:
-                    loop.put("lead", t0 + ev[0] * STEP, pipes(ev[2], ev[1] * STEP * 0.97, 0.09 + 0.012 * idx))
-            # --- arpeggios: a flowing harp under the long lines, and a run at each phrase end ---
-            if name == "komuro" or dorian:
-                arp_backdrop(loop, t0, chord, "harp", 0.07 if not second else 0.085)
-            if name == "komuro" and idx in (0, 2):
-                # The bridge into the next phrase (13.0 s and 17.1 s): a run of sixteenths.
-                arp_fill(loop, t0, chord, 0.075, start=8)
-            if idx % 4 == 3 and name in ("komuro", "dorian", "cyber"):
-                arp_fill(loop, t0, chord, 0.08, start=10 if name == "dorian" else 12)
-            if cyber and idx % 2 == 1:
-                arp_backdrop(loop, t0, chord, "pluck", 0.04, shape=(0, 2, 1, 3, 2, 3, 1, 2))
+                # --- cyber + Celtic together, thinning out toward the glen ---
+                full = idx < 4
+                if idx < 5:
+                    for s in ((0, 4, 8, 12) if full else (0, 8)):
+                        loop.put("kick", t0 + s * STEP, kick(0.85 if full else 0.6))
+                        kicks.append(t0 + s * STEP)
+                    for s in (2, 6, 10, 14):
+                        loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.06, 6500, 14000, 0.07 if full else 0.04))
+                    if full:
+                        for s in (1, 3, 5, 7, 9, 11, 13, 15):
+                            loop.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 14000, 0.03))
+                        for s in (4, 12):
+                            loop.put("clap", t0 + s * STEP, noise_hit(rng, 0.12, 1200, 6500, 0.14, bursts=3))
+                    for s in (0, 6, 8, 14):
+                        loop.put("drum", t0 + s * STEP, bodhran(0.2 if s % 8 == 0 else 0.12, accent=s == 0))
+                if idx == 0:
+                    loop.put("fx", t0, crash(rng, 2.2, 0.15))
+                    loop.put("kick", t0, kick(1.0))
+                if idx < 6:
+                    if idx < 5:
+                        for s in range(16):
+                            if s % 4 != 0:
+                                loop.put("bass", t0 + s * STEP, bass_note(root + (12 if s % 8 == 6 else 0), 1, 0.32))
+                    else:
+                        loop.put("bass", t0, synth(root, bar * 0.92, "saw", detune=(-6, 6), vol=0.15, attack=0.25,
+                                                   decay=1.0, sustain=0.8, release=0.3, cutoff=(700, 500, 1.0)))
+                    if idx < 5:
+                        for i, k in enumerate([0, 2, 1, 3, 2, 1, 3, 2] * 2):
+                            loop.put("arp", t0 + i * STEP, pluck(chord["arp"][k], 2800, vol=0.06 if full else 0.04))
+                pad_vol = [0.07, 0.07, 0.07, 0.07, 0.06, 0.05, 0.045, 0.04][idx]
+                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1500 if idx < 5 else 1000, vol=pad_vol))
+                arp_backdrop(loop, t0, chord, "harp", 0.05 if idx < 4 else 0.08)
+                if idx in (3, 5):
+                    arp_fill(loop, t0, chord, 0.06, start=12)
+                for st, ln, nt in FUSION_TUNE[idx]:
+                    if idx < 5:
+                        loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12 if idx < 4 else 0.08, grace="A5" if ln >= 3 else None))
+                        loop.put("lead", t0 + st * STEP, lead(midi(nt) - 12, ln, vol=0.07 if idx < 4 else 0.04))
+                    if idx >= 3:
+                        loop.put("whistle", t0 + st * STEP, whistle(midi(nt) + (12 if idx < 5 else 0), ln * STEP * 0.95, vol=0.07 if idx < 5 else 0.1))
+                # Taper: each bar a little quieter than the last.
+                fade = [1.0, 1.0, 1.0, 1.0, 0.92, 0.78, 0.64, 0.52][idx]
+                lo, hi = int(t0 * RATE), int((t0 + bar) * RATE)
+                if fade < 1.0:
+                    for buf in loop.buses.values():
+                        for i in range(lo, min(hi, len(buf))):
+                            buf[i] *= fade
             at += 1
     loop.echo("lead", STEP * 3, 0.2, 0.2)
     loop.echo("whistle", STEP * 3, 0.35, 0.4)
     loop.echo("arp", STEP * 3, 0.3, 0.35)
     loop.duck("pad", kicks, 0.3)
     loop.duck("bass", kicks, 0.2, length=0.1)
-    # The cyber part has no war drums to carry it: lift it to the level of the rest.
-    lo, hi = int(16 * bar * RATE), int(24 * bar * RATE)
-    for buf in loop.buses.values():
-        for i in range(lo, min(hi, len(buf))):
-            buf[i] *= 1.4
+    # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
+    for first, last, gain in ((7, 14, 1.4), (14, 18, 1.25)):
+        lo, hi = int(first * bar * RATE), int(last * bar * RATE)
+        for buf in loop.buses.values():
+            for i in range(lo, min(hi, len(buf))):
+                buf[i] *= gain
     return loop
 
 
