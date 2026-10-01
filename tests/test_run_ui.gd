@@ -44,6 +44,7 @@ func run() -> void:
 	var title = load("res://title.tscn").instantiate()
 	root.add_child(title)
 	await process_frame
+	verify(title.enemies.texture == title.ENEMIES,"The king stands on the title screen before he is beaten")
 	verify(title.item_labels.size() == 2 and title.item_labels[0].text == "GAME START" and title.item_labels[1].text == "実績","Title menu: GAME START and 実績")
 	verify(title.item_labels.all(func(l): return l.get_theme_font_size("font_size") >= 52),"The menu items are big")
 	verify(title.music.playing and title.MUSIC.loop and title.MUSIC.loop_offset > 10.0,"The title theme plays and loops after its fanfare")
@@ -66,6 +67,7 @@ func run() -> void:
 	check_title_extras()
 	await check_fairy_book()
 	check_launch_reset()
+	await check_fallen_king()
 	await check_every_fairy_is_complete()
 	await check_defeat_goes_to_title()
 	app=load("res://main.tscn").instantiate()
@@ -535,3 +537,17 @@ func check_launch_reset() -> void:
 	Book.reset_memory()
 	Book.path=Book.SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://fairy_book_test.cfg"))
+
+## Beating the Prison King changes the title screen: his rubble replaces him.
+func check_fallen_king() -> void:
+	var Ach = load("res://scripts/title/achievements.gd")
+	Ach.recording = false
+	Ach.reset_memory()
+	Ach.unlock("alakazar_king")
+	var screen = load("res://title.tscn").instantiate()
+	root.add_child(screen)
+	await process_frame
+	verify(screen.enemies.texture == screen.ENEMIES_FALLEN,"After ALAKAZAR's KING the title shows the fallen king")
+	screen.queue_free()
+	await process_frame
+	Ach.reset_memory()

@@ -27,6 +27,9 @@ const Roster = preload("res://scripts/title/title_roster.gd")
 const FairyBook = preload("res://scripts/fairy_book.gd")
 const LaunchReset = preload("res://scripts/launch_reset.gd")
 const ENEMIES = preload("res://assets/title/layer_20_enemies.png")
+## Once the Prison King has been beaten (ALAKAZAR's KING): he lies in rubble where he stood
+## (tools/make_fallen_king.py).
+const ENEMIES_FALLEN = preload("res://assets/title/layer_20_enemies_fallen.png")
 const LOGO = preload("res://assets/title/layer_30_logo.png")
 const WINDOW = preload("res://assets/title/layer_40_menu_window.png")
 const MUSIC = preload("res://assets/audio/bgm/title_theme.ogg")
@@ -154,7 +157,7 @@ func _ready() -> void:
 	# Fairies the art does not show yet stand in the free sky above them.
 	extras = TitleExtras.new()
 	heroes.add_child(extras)
-	enemies = _layer(ENEMIES)
+	enemies = _layer(ENEMIES_FALLEN if Achievements.is_unlocked("alakazar_king") else ENEMIES)
 	enemies_mat = _shade(enemies, LAYER_SHADER)
 	# The sparks fly in front of the army.
 	fx.sparks.reparent(art)
