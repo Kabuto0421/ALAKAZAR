@@ -58,12 +58,42 @@ def bolt(d, a, b, color, width=5, seed=1):
     d.line(pts, fill=(255, 255, 255, 255), width=max(1, width - 3))
 
 
-# 妖精マスター: the first three fairies in a triangle
+# 妖精マスター: every fairy there is, packed edge to edge (read from items/*.tres)
+import glob
+import re
+paths = []
+for f in sorted(glob.glob("items/*.tres")):
+    m = re.search(r'path="res://(assets/sprites/spirits/[^"]+\.png)"', open(f).read())
+    if m:
+        paths.append(m.group(1))
 bg = frame((43, 220, 200))
-put(bg, sprite(SPR % "magic_bolt_fairy"), S / 2, 78, 104)
-put(bg, sprite(SPR % "stealth_fairy"), S / 2 - 58, 170, 104)
-put(bg, sprite(SPR % "acorn_fairy"), S / 2 + 58, 170, 104)
+rows = [5, 4, 5, 4, 4]
+assert sum(rows) >= len(paths), "more fairies than the icon has room for: add a row"
+cell = 47
+y = 128 - cell * len(rows) / 2 + cell / 2
+k = 0
+for count in rows:
+    x0 = 128 - cell * count / 2 + cell / 2
+    for i in range(count):
+        if k < len(paths):
+            put(bg, sprite(paths[k]), x0 + i * cell, y, cell)
+            k += 1
+    y += cell
 save(bg, "fairy_master")
+
+# Not earned yet: a question mark in the same frame (red for Y O U　 D I E D).
+from PIL import ImageFont
+def locked(name, glow, border=(242, 193, 78)):
+    bg = frame(glow, border)
+    d = ImageDraw.Draw(bg)
+    font = ImageFont.truetype("assets/fonts/DotGothic16-Regular.ttf", 170)
+    box = d.textbbox((0, 0), "?", font=font)
+    at = (128 - (box[0] + box[2]) / 2, 128 - (box[1] + box[3]) / 2)
+    d.text(at, "?", font=font, fill=glow + (70,), stroke_width=8, stroke_fill=glow + (40,))
+    d.text(at, "?", font=font, fill=(214, 224, 230, 255))
+    save(bg, name)
+locked("locked", (120, 140, 160))
+locked("locked_red", (255, 40, 40), (190, 40, 40))
 
 # ザ・ワールド: the time fairy
 bg = frame((200, 170, 255))

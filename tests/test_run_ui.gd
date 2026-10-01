@@ -519,7 +519,10 @@ func check_launch_reset() -> void:
 	verify(FileAccess.file_exists("user://fairy_book_test.cfg"),"A used fairy is kept in the file")
 	Reset.started=false
 	Reset.start_session()
-	verify(not Book.has_used("wall_fairy") and not FileAccess.file_exists("user://fairy_book_test.cfg"),"A new launch forgets it (memory and file)")
+	if Reset.DEMO_RESET:
+		verify(not Book.has_used("wall_fairy") and not FileAccess.file_exists("user://fairy_book_test.cfg"),"A new launch forgets it (memory and file)")
+	else:
+		verify(Book.has_used("wall_fairy") and FileAccess.file_exists("user://fairy_book_test.cfg"),"With the trial reset switched off, a new launch keeps the records")
 	Book.record_use("meteor_fairy")
 	Reset.start_session()
 	verify(Book.has_used("meteor_fairy"),"...but only once: coming back to the title does not wipe")

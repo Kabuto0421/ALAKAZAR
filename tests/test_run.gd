@@ -855,7 +855,7 @@ func _expiring_and_rewards() -> void:
 	verify(target.hp == 7,"The acorn next to the cannon fires it instead of walking")
 	# Rarity: four tiers; the glutton is super rare, new fairies come up more often.
 	var Rarity = load("res://scripts/run/rarity.gd")
-	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton super rare, meteor rare, magic bolt common")
+	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton and meteor super rare, magic bolt common")
 	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
 	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.RARE and Rarity.tier({"kind":"weapon","value":wids.find("mallet")}) == Rarity.UNCOMMON,"Rook spear super rare; the hammers sit one tier up (hammer rare, mallet uncommon)")
 	verify(Rarity.tier({"kind":"fairy","value":"holy_spirit"}) == Rarity.SUPER_RARE,"The holy spirit is super rare")

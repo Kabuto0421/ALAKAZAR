@@ -546,6 +546,8 @@ static func _ease(t: float, from: float, to: float) -> float:
 
 # --- 実績 ---------------------------------------------------------------------
 
+const LOCKED_ICON := "res://assets/achievements/locked.png"
+
 func _open_achievements() -> void:
 	achievements_page = Control.new()
 	achievements_page.size = VIEW
@@ -593,15 +595,14 @@ func _open_achievements() -> void:
 			icon.custom_minimum_size = Vector2(120, 120)
 			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			if entry.has("icon"):
-				icon.texture = load(entry.icon)
-			icon.modulate = Color.WHITE if unlocked else Color(0.3, 0.34, 0.4, 1.0)
+			# Until it is earned: a "？" icon (the same frame colour for Y O U　 D I E D).
+			icon.texture = load(entry.icon if unlocked else entry.get("locked_icon", LOCKED_ICON))
 			row.add_child(icon)
 			var text := VBoxContainer.new()
 			text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			text.alignment = BoxContainer.ALIGNMENT_CENTER
 			row.add_child(text)
-			text.add_child(_row_label(("★ " if unlocked else "☆ ") + ("？？？" if hidden else str(entry.title)), 44, Color(str(entry.get("title_color", "f4d56f"))) if unlocked else Color("8a949a")))
+			text.add_child(_row_label(("★ " if unlocked else "☆ ") + (str(entry.title) if unlocked else "？？？"), 44, Color(str(entry.get("title_color", "f4d56f"))) if unlocked else Color(str(entry.get("title_color", "8a949a")))))
 			text.add_child(_row_label("？？？" if hidden else str(entry.get("description", "")), 30, CREAM if unlocked else Color("6f797e")))
 			# A counting one shows how far it has got.
 			var progress := Achievements.progress(entry.id)

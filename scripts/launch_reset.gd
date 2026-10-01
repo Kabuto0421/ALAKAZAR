@@ -6,7 +6,7 @@ extends RefCounted
 ## start_session() is called by the title screen and does its work once per launch (coming
 ## back to the title after a defeat does not wipe anything).
 
-const DEMO_RESET := true
+const DEMO_RESET := false
 const FairyBook = preload("res://scripts/fairy_book.gd")
 const Achievements = preload("res://scripts/title/achievements.gd")
 
