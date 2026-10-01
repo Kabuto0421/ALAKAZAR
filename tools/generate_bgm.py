@@ -1698,10 +1698,13 @@ CYBER_HOOK = [
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 4, "G5")],
     [(0, 3, "D5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "D6"), (12, 4, "B5")],
     [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "B5"), (8, 2, "A5"), (10, 2, "F#5"), (12, 4, "D#5")],
-    [(0, 4, "E5"), (4, 2, "B5"), (6, 2, "E6"), (8, 2, "D6"), (10, 2, "B5"), (12, 4, "G5")],
-    [(0, 2, "C6"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "G5"), (10, 2, "C6"), (12, 4, "E6")],
-    [(0, 2, "A5"), (2, 2, "F#5"), (4, 2, "D#5"), (6, 2, "F#5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D#5")],
+    [(0, 4, "E5"), (4, 2, "B5"), (6, 2, "E6"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "E6")],
+    [(0, 2, "G6"), (3, 2, "G6"), (6, 2, "B6"), (8, 4, "B6"), (12, 4, "G6")],
+    [(0, 2, "F#6"), (3, 2, "F#6"), (6, 2, "B6"), (8, 2, "A5"), (10, 2, "F#5"), (12, 4, "D#5")],
 ]
+# The kime: the hook's 3+3+2 hits (steps 0, 3, 6) in the last two bars, at the top of
+# the song. The whole band hits with them and the arpeggio steps aside.
+KIME_STEPS = (0, 3, 6)
 
 
 def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
@@ -1899,6 +1902,8 @@ def title_march():
                     else:
                         loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
+                    if idx in (5, 6) and i < 8:
+                        continue
                     loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (idx / 6), vol=0.085))
                 loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075))
                 if idx >= 4:
@@ -1912,10 +1917,23 @@ def title_march():
                     # The last note of a phrase (the leading tone D#) is thrown into an echo
                     # that trails over the landing.
                     bus = "tail" if idx in (3, 6) and st == 12 else "lead"
-                    loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
+                    kime = idx in (5, 6) and st in KIME_STEPS
+                    loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.24 if kime else 0.19, glide_from=prev if ln >= 4 else None))
                     if idx >= 4:
-                        loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
+                        loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.14 if kime else 0.1, 3200))
+                    if kime:
+                        # Thickened to the top of the song: a fifth below and two octaves down.
+                        loop.put(bus, t0 + st * STEP, supersaw(m - 5, ln, 0.1, 4200))
+                        loop.put(bus, t0 + st * STEP, supersaw(m - 24, ln, 0.1, 1800))
+                        # And the band hits with it, in unison: the chord, the bass, the clap.
+                        loop.put("landing", t0 + st * STEP, edm_stab([midi(chord["bass"]) + 24] + [midi(n) + 12 for n in chord["arp"][:3]], 0.12, steps=2))
+                        if st != 0:
+                            loop.put("edm_bass", t0 + st * STEP, edm_bass(root, 1, 0.5))
+                            loop.put("clap", t0 + st * STEP, edm_snare(rng, 0.22))
                     prev = m
+                if idx == 5:
+                    loop.put("fx", t0, crash(rng, 2.4, 0.16))
+                    loop.put("kick", t0, sub_boom(0.3))
                 if idx == 4:
                     landing_hit(loop, t0, chord)
             else:
