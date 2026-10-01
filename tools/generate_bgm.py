@@ -1702,27 +1702,12 @@ CYBER_HOOK = [
 ]
 
 
-def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95, pitch=None):
+def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
     """The EDM lead: seven detuned saws, opened up by the filter, slightly slurred."""
     m = midi(note) if isinstance(note, str) else note
     return synth(m, steps * STEP * gate, "saw", detune=(-26, -15, -7, 0, 7, 15, 26), vol=vol,
                  attack=0.006, decay=0.3, sustain=0.8, release=0.1,
-                 cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from, pitch=pitch)
-
-
-def lowpass_close(buf, lo, hi, f_start, f_end):
-    """Close a two-pole low-pass over a stretch of a bus, from f_start down to f_end
-    (exponentially): the sound muffles and sinks, ready to burst open again."""
-    n = hi - lo
-    if n <= 0:
-        return
-    y1 = y2 = buf[lo]
-    for i in range(n):
-        f = f_start * (f_end / f_start) ** (i / n)
-        a = lp_coef(f)
-        y1 += a * (buf[lo + i] - y1)
-        y2 += a * (y1 - y2)
-        buf[lo + i] = y2
+                 cutoff=(bright, bright * 0.55, 0.25), glide_from=glide_from)
 
 
 def edm_stab(notes, vol=0.06, steps=1.5):
@@ -1914,12 +1899,6 @@ def title_march():
                 prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
                     m = midi(nt)
-                    if breaking and st >= 12:
-                        # The tape stop: the last note of the first drop winds down in pitch and
-                        # dies as the break closes the filter on it.
-                        span = ln * STEP * 0.95
-                        loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.19, pitch=lambda t, span=span: max(0.12, max(0.0, 1.0 - t / span) ** 1.6)))
-                        continue
                     loop.put("lead", t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
                     if idx >= 4:
                         loop.put("lead", t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
@@ -1983,19 +1962,6 @@ def title_march():
     loop.duck("edm_stab", edm_kicks, 0.6, length=0.2)
     loop.duck("edm_bass", edm_kicks, 0.85, length=0.13)
     loop.duck("arp", edm_kicks, 0.35, length=0.14)
-    # --- three ways of dropping the sound ---
-    # (1) The held breath: the last 2 steps of the glen go completely silent, so the drop
-    #     lands out of nothing (the sub impact and the crash come in on the downbeat).
-    lo, hi = int((6 * bar + 14 * STEP) * RATE), int(7 * bar * RATE)
-    for buf in loop.buses.values():
-        for i in range(lo, min(hi, len(buf))):
-            buf[i] = 0.0
-    # (2) The filter close: in the second half of the break bar the pad, stabs, lead and
-    #     arpeggio sink through a closing low-pass, so the second drop opens it all at once.
-    lo, hi = int((10 * bar + 8 * STEP) * RATE), int(11 * bar * RATE)
-    for name in ("lead", "edm_pad", "edm_stab", "arp"):
-        if name in loop.buses:
-            lowpass_close(loop.buses[name], lo, hi, 9000.0, 260.0)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
     for first, last, gain in ((7, 14, 1.04), (14, 18, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
