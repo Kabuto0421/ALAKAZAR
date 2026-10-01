@@ -1679,7 +1679,7 @@ DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
 #                            thins out bar by bar until only whistle and harp are left,
 #                            and the loop returns to the glen. (G -> Am closes the loop.)
 KOMURO = ["Am", "F", "G", "C", "Am", "F", "G"]
-CYBER_CHORDS = ["Em", "C", "G", "B", "Em", "C", "B"]
+CYBER_CHORDS = ["Em", "C", "G", "B", "Em"]
 FUSION_CHORDS = ["Em", "C", "G", "D", "Em", "C", "D", "G"]
 # "w" marks a tin-whistle note; the rest are pipes.
 KOMURO_TUNE = [
@@ -1697,14 +1697,9 @@ CYBER_HOOK = [
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "A5"), (12, 4, "G5")],
     [(0, 3, "E5"), (3, 3, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 4, "G5")],
     [(0, 3, "D5"), (3, 3, "G5"), (6, 2, "B5"), (8, 4, "D6"), (12, 4, "B5")],
-    [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "B5"), (8, 2, "A5"), (10, 2, "F#5"), (12, 4, "D#5")],
-    [(0, 4, "E5"), (4, 2, "B5"), (6, 2, "E6"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "E6")],
-    [(0, 2, "G6"), (3, 2, "G6"), (6, 2, "B6"), (8, 4, "B6"), (12, 4, "G6")],
-    [(0, 2, "F#6"), (3, 2, "F#6"), (6, 2, "B6"), (8, 2, "A5"), (10, 2, "F#5"), (12, 4, "D#5")],
+    [(0, 3, "F#5"), (3, 3, "A5"), (6, 2, "B5"), (8, 2, "A5"), (10, 2, "B5"), (12, 4, "D#6")],
+    [(0, 3, "E6"), (3, 3, "B5"), (6, 2, "G5"), (8, 2, "A5"), (10, 2, "B5"), (12, 2, "E6")],
 ]
-# The kime: the hook's 3+3+2 hits (steps 0, 3, 6) in the last two bars, at the top of
-# the song. The whole band hits with them and the arpeggio steps aside.
-KIME_STEPS = (0, 3, 6)
 
 
 def supersaw(note, steps, vol=0.12, bright=5000, glide_from=None, gate=0.95):
@@ -1793,11 +1788,11 @@ def title_march():
     """The looping march after the fanfare (see the plan above). 22 bars at 116 BPM."""
     rng = random.Random(97)
     bar = 16 * STEP
-    sizes = [("glen", 7), ("cyber", 7), ("fusion", 8)]
+    sizes = [("glen", 7), ("cyber", 5), ("fusion", 8)]
     total = sum(n for _, n in sizes)
     loop = Mix(total * bar, wrap=True)
     loop.put("drone", 0.0, pipe_drones(7 * bar - 0.7, 0.03))
-    loop.put("drone", (14 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
+    loop.put("drone", (12 + 6) * bar, pipe_drones(2 * bar, 0.03, swell=1.0))
     kicks = []
     edm_kicks = []
     at = 0
@@ -1885,8 +1880,8 @@ def title_march():
                 for s in (4, 12):
                     if not (breaking and s == 12):
                         loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.27))
-                if breaking or idx == 6:
-                    first = 12 if breaking else 8
+                if breaking:
+                    first = 12
                     for k in range((16 - first) * 2):
                         loop.put("snare", t0 + (first + k * 0.5) * STEP, pipe_snare(rng, 0.04 + 0.2 * k / ((16 - first) * 2)))
                     loop.put("fx", t0 + first * STEP, riser(rng, (16 - first) * STEP, vol=0.1))
@@ -1902,9 +1897,7 @@ def title_march():
                     else:
                         loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
-                    if idx in (5, 6) and i < 8:
-                        continue
-                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (idx / 6), vol=0.085))
+                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (idx / 4), vol=0.085))
                 loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075))
                 if idx >= 4:
                     notes = [midi(n) + 12 for n in chord["arp"][:3]]
@@ -1914,26 +1907,13 @@ def title_march():
                 prev = None
                 for st, ln, nt in CYBER_HOOK[idx]:
                     m = midi(nt)
-                    # The last note of a phrase (the leading tone D#) is thrown into an echo
-                    # that trails over the landing.
-                    bus = "tail" if idx in (3, 6) and st == 12 else "lead"
-                    kime = idx in (5, 6) and st in KIME_STEPS
-                    loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.24 if kime else 0.19, glide_from=prev if ln >= 4 else None))
+                    # The last notes of the phrases (the leading tone D#, then the final E6) are
+                    # thrown into an echo that trails on.
+                    bus = "tail" if idx in (3, 4) and st == 12 else "lead"
+                    loop.put(bus, t0 + st * STEP, supersaw(m, ln, 0.19, glide_from=prev if ln >= 4 else None))
                     if idx >= 4:
-                        loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.14 if kime else 0.1, 3200))
-                    if kime:
-                        # Thickened to the top of the song: a fifth below and two octaves down.
-                        loop.put(bus, t0 + st * STEP, supersaw(m - 5, ln, 0.1, 4200))
-                        loop.put(bus, t0 + st * STEP, supersaw(m - 24, ln, 0.1, 1800))
-                        # And the band hits with it, in unison: the chord, the bass, the clap.
-                        loop.put("landing", t0 + st * STEP, edm_stab([midi(chord["bass"]) + 24] + [midi(n) + 12 for n in chord["arp"][:3]], 0.12, steps=2))
-                        if st != 0:
-                            loop.put("edm_bass", t0 + st * STEP, edm_bass(root, 1, 0.5))
-                            loop.put("clap", t0 + st * STEP, edm_snare(rng, 0.22))
+                        loop.put(bus, t0 + st * STEP, supersaw(m - 12, ln, 0.1, 3200))
                     prev = m
-                if idx == 5:
-                    loop.put("fx", t0, crash(rng, 2.4, 0.16))
-                    loop.put("kick", t0, sub_boom(0.3))
                 if idx == 4:
                     landing_hit(loop, t0, chord)
             else:
@@ -1998,7 +1978,7 @@ def title_march():
     loop.duck("edm_bass", edm_kicks, 0.85, length=0.13)
     loop.duck("arp", edm_kicks, 0.35, length=0.14)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
-    for first, last, gain in ((7, 14, 1.04), (14, 18, 1.25)):
+    for first, last, gain in ((7, 12, 1.04), (12, 16, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
