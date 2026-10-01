@@ -142,7 +142,7 @@ static func _magic_bolt(time: float, accent: Color, art: Texture2D) -> void:
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.1, hit + 0.25))
 		_pop(enemy, "−1", _ph(p, hit, hit + 0.3))
 
-## Blocks its tile; the first enemy to step next to it takes 1 and the fairy is gone (class-up: 2, and it stays).
+## Blocks its tile; the first enemy to step next to it takes 2 and the fairy is gone (class-up: it stays).
 static func _stealth(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 2.8)
 	for side: Vector2 in [Vector2(1,1), Vector2(3,1), Vector2(2,0), Vector2(2,2)]:
@@ -152,7 +152,7 @@ static func _stealth(time: float, accent: Color, art: Texture2D, plus: bool) -> 
 	if p > 0.45 and p < 0.6:
 		cv.draw_line(_center(Vector2(2,1)), _center(enemy), accent, 5)
 	_enemy(enemy, 1.0 - _ph(p, 0.55, 0.7))
-	_pop(Vector2(3,1), "−2" if plus else "−1", _ph(p, 0.45, 0.8))
+	_pop(Vector2(3,1), "−2", _ph(p, 0.45, 0.8))
 
 ## A small ally: it walks to the nearest enemy and bites for 1.
 static func _acorn(time: float, art: Texture2D) -> void:

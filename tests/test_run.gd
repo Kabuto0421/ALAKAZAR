@@ -1118,6 +1118,11 @@ func _class_ups() -> void:
 	var m := _plus_room("magic_bolt",[Vector2i(2,0),Vector2i(2,5)])
 	verify(m.use_item("magic_bolt",Vector2i(2,2),Vector2i.UP) and _hurt(m,Vector2i(2,0)) and _hurt(m,Vector2i(2,5)),"Magic bolt+ hits both ways along its line")
 	# Stealth+: strikes and stays (once per enemy turn).
+	m = _plus_room("stealth_fairy",[Vector2i(2,1)])
+	m.fairy_plus.erase("stealth_fairy")
+	m.enemies[0].hp = 9
+	m.use_item("stealth_fairy",Vector2i(2,2))
+	verify(m.enemies[0].hp == 7 and not m.fairies.has(Vector2i(2,2)),"The plain stealth fairy hits for 2 and is gone")
 	m = _plus_room("stealth_fairy",[Vector2i(2,1),Vector2i(2,3)])
 	m.enemies[0].hp = 9
 	m.enemies[1].hp = 9
