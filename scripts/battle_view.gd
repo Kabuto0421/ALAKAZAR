@@ -1661,6 +1661,8 @@ func _draw_big_ghost(cell: Vector2i, direction: Vector2i) -> void:
 	if selected_item == "axe_spirit":
 		var frame: int = Rules.CARDINALS.find(direction)
 		draw_texture_rect_region(AXE_DASH, Rect2(center - Vector2.ONE * 62, Vector2.ONE * 124), Rect2(maxi(frame, 0) * 224, 0, 224, 224), Color(1, 1, 1, 0.85))
+	elif selected_item == "guardian_fairy":
+		draw_texture_rect(UnitView.GUARDIAN, Rect2(center - Vector2(64, 75), Vector2.ONE * 127), false, Color(1, 1, 1, 0.7))
 	else:
 		draw_texture_rect(UnitView.HOLY_SPIRIT, Rect2(center - Vector2(62, 68), Vector2.ONE * 124), false, Color(1, 1, 1, 0.7))
 
