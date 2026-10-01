@@ -36,6 +36,8 @@ func run() -> void:
 	root.size=Vector2i(1728,1080)
 	# The tests must not leave anything in the player's fairy book.
 	load("res://scripts/fairy_book.gd").recording=false
+	# ...and must not depend on what an earlier run left in it.
+	load("res://scripts/fairy_book.gd").reset_memory()
 	# The title screen: the project starts there; two big menu items, the title theme
 	# loops from the march (after the fanfare), and 実績 opens its page.
 	verify(ProjectSettings.get_setting("application/run/main_scene") == "res://title.tscn","The game starts on the title screen")

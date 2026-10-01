@@ -8,8 +8,9 @@ const SAVE_PATH := "user://fairy_book.cfg"
 
 ## Where it is kept (the tests point it somewhere else).
 static var path := SAVE_PATH
-## Off for the tests and the screenshot tools, so they leave the player's book alone.
-static var recording := true
+## Off for the tests (they run headless) and the screenshot tools (which turn it off), so
+## they leave the player's book alone.
+static var recording := DisplayServer.get_name() != "headless"
 
 static var _used: Dictionary = {}
 static var _seen: Dictionary = {}

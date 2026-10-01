@@ -14,7 +14,7 @@ const DEFINITIONS: Array[Dictionary] = [
 ]
 
 ## Off for the tests and the screenshot tools: unlocking then only counts in memory.
-static var recording := true
+static var recording := DisplayServer.get_name() != "headless"
 
 const Rules = preload("res://scripts/battle_model.gd")
 const FairyBook = preload("res://scripts/fairy_book.gd")
