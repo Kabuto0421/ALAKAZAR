@@ -9,7 +9,7 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
 	preload("res://items/glutton_fairy.tres"), preload("res://items/freeze_fairy.tres"), preload("res://items/blessing_fairy.tres"),
-	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres")]
+	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres"), preload("res://items/time_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## Ally unit types, for logs (enemies use TYPES).
@@ -42,6 +42,8 @@ const GRAVITY_PUSH := 1
 const SHADOW_SWAP_AP := 1
 ## 加護の妖精+: HP healed for ending the turn on the blessed ground.
 const BLESS_HEAL := 1
+## 時の妖精: enemy turns that time stands still for.
+const TIME_STOP_TURNS := 1
 ## 奈落: what a charging 2x2 takes for stumbling over a pit.
 const PIT_BUMP_DAMAGE := 2
 ## Class-ups beyond one: the meteor fairy can be upgraded four times.
@@ -188,6 +190,7 @@ const PLUS_TEXT := {
 	"abyss_spirit": ["{abyss_plus}ターン続く奈落", "自分のマスを押して呼ぶ。\n{abyss_plus}ターン、どの武器も届かない\n空きマスがすべて奈落になる。\n押し込んだ敵は落ちて即撃破。\n2×2の突進は落ちず{pit_bump}ダメージ。"],
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
 	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。"],
+	"time_fairy": ["毎戦闘{uses_plus}回、時を止められる", "自分のマスを押して呼ぶ。\n時が止まり、次の敵のターン\n（{time_stop}ターン）は敵が誰も動かず、\n攻撃もしない。\n味方は動ける。毎戦闘{uses_plus}回。"],
 	"capacitor_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n{charge}溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
@@ -224,6 +227,8 @@ var cannons: Array[Dictionary] = []
 var shadow: Dictionary = {}
 ## 奈落の精霊: while abyss_turns > 0, every empty tile no carried weapon reaches is a pit.
 var abyss_turns := 0
+## 時の妖精: enemy turns left in which no enemy acts.
+var time_stop := 0
 ## 加護の妖精: {cell, turns, radius}. While the player stands in it, attacks also hit up and down.
 var blessing: Dictionary = {}
 ## Ally kinds summoned by fairies this battle, in order (the guardian calls them all back).
@@ -275,6 +280,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	blessing = {}
 	summoned_kinds.clear()
 	abyss_turns = 0
+	time_stop = 0
 	pits.clear()
 	fallen.clear()
 	ruins.clear()
@@ -560,7 +566,7 @@ static func text_values(id: String) -> Dictionary:
 		"wolf_bite": WOLF_BITE, "wolf_crowded": WOLF_CROWDED_BITE,
 		"pull": GRAVITY_PULL, "pull_plus": GRAVITY_PULL + 1, "push": GRAVITY_PUSH, "push_plus": GRAVITY_PUSH + 1,
 		"swap_ap": SHADOW_SWAP_AP, "swap_ap_plus": maxi(0, SHADOW_SWAP_AP - 1),
-		"bless_heal": BLESS_HEAL, "pit_bump": PIT_BUMP_DAMAGE,
+		"bless_heal": BLESS_HEAL, "pit_bump": PIT_BUMP_DAMAGE, "time_stop": TIME_STOP_TURNS,
 	}
 	for item in ITEMS:
 		if item.id == id:
@@ -1480,6 +1486,16 @@ func summon_abyss() -> void:
 	add_log("奈落が口を開けた")
 	dig_abyss()
 
+## 時の妖精: time stands still for the next enemy turn(s): no enemy moves or strikes
+## (the siege and the shadow's strike wait too). Allies still act.
+func stop_time() -> void:
+	time_stop = maxi(time_stop, TIME_STOP_TURNS)
+	events.append({"kind":"time_stop", "cell":player.cell, "id":-2})
+	add_log("時が止まった")
+
+func time_stopped() -> bool:
+	return time_stop > 0
+
 ## 氷結妖精: every enemy in the 3x3 around the cell is frozen for FREEZE_TURNS enemy turns.
 func freeze(cell: Vector2i) -> void:
 	var turns := FREEZE_TURNS + (1 if is_plus("freeze_fairy") else 0)
@@ -1957,6 +1973,10 @@ func tick_walls() -> void:
 	for enemy in enemies:
 		if int(enemy.get("frozen", 0)) > 0:
 			enemy.frozen -= 1
+	if time_stop > 0:
+		time_stop -= 1
+		if time_stop == 0:
+			add_log("時が動き出した")
 	if not shadow.is_empty():
 		shadow.turns -= 1
 		shadow.ready = true
@@ -2426,7 +2446,7 @@ func siege_countdown() -> int:
 
 ## Start of the enemy turn: a due ring closes, then everyone inside the siege takes 1.
 func siege_tick() -> void:
-	if not rule_siege or terminal():
+	if not rule_siege or terminal() or time_stopped():
 		return
 	if round_number % SIEGE_EVERY == 0 and siege_rings < siege_max():
 		siege_rings += 1
@@ -2768,6 +2788,8 @@ func _leave_shadow(enemy: Dictionary) -> void:
 
 ## A shadow cuts a player who stands next to it, once, then fades.
 func shadow_strike() -> void:
+	if time_stopped():
+		return
 	for shadow in enemies:
 		if shadow.type != "shadow" or shadow.hp <= 0:
 			continue

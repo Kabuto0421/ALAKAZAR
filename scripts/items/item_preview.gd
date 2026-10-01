@@ -57,6 +57,7 @@ const CROPS := {
 	"vane_cannon": Rect2(0.021, 0.076, 0.890, 0.890),
 	"wall_fairy": Rect2(0.102, 0.150, 0.798, 0.798),
 	"warp_fairy": Rect2(0.133, 0.148, 0.734, 0.734),
+	"time_fairy": Rect2(0.045, 0.045, 0.910, 0.910),
 }
 
 static var cv: CanvasItem
@@ -111,6 +112,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"blessing_fairy": _blessing(time, accent, art, upgraded)
 		"meteor_fairy": _meteor(time, art, int(model.meteor_count()) + (1 if upgraded and not model.is_plus(id) else 0))
 		"guardian_fairy": _guardian(time)
+		"time_fairy": _time_stop(time, art)
 		"glutton_fairy": _glutton(time)
 	canvas.draw_set_transform(Vector2.ZERO)
 
@@ -563,7 +565,7 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 		_enemy(enemy)
 		if frost >= 1.0:
 			_art(Units.FROZEN_OVERLAY, enemy, 0.8)
-			_say(enemy * C + Vector2(C - 8, C - 6), str(4 if plus else 3), 14, Color("c8f4ff"))
+			_say(enemy * C + Vector2(C - 8, C - 6), str(Rules.FREEZE_TURNS + (1 if plus else 0)), 14, Color("c8f4ff"))
 
 ## Blessed ground for five turns: while you stand in its 3x3, your hits also land
 ## on the four tiles around the struck one (a cross). Step out and they do not.
@@ -633,6 +635,29 @@ static func _meteor(time: float, art: Texture2D, count: int) -> void:
 		var hit: float = hits.get(enemy, 2.0)
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.12, hit + 0.24))
 		_pop(enemy, "−3", _ph(p, hit, hit + 0.35), RED, 0, 20)
+
+## Called from your own tile: time stops, and on the enemies' turn nobody moves (the
+## other half of the loop shows the same enemies stepping in when time runs).
+static func _time_stop(time: float, art: Texture2D) -> void:
+	var p := _cycle(time, 4.4)
+	var stopped := p < 0.62
+	var call := _ph(p, 0.04, 0.16)
+	_player(Vector2(0,1))
+	_art(art, Vector2(0,0), call)
+	if stopped and call >= 1.0:
+		cv.draw_rect(Rect2(Vector2.ZERO, Vector2(5,3) * C), Color(0.55, 0.42, 0.2, 0.22))
+		var center := Vector2(2.5, 1.5) * C
+		var ring := 1.0 - _ph(p, 0.52, 0.62)
+		var gold := Color("ffcf52")
+		cv.draw_arc(center, C * 1.2, 0, TAU, 40, Color(gold, 0.55 * ring), 3, true)
+		var sweep := ease(_ph(p, 0.16, 0.3), 0.3) * 1.25
+		cv.draw_line(center, center + Vector2.from_angle(-PI / 2 + TAU * sweep) * C, Color(gold, 0.8 * ring), 3)
+		_say(Vector2(2.5, 0.35) * C, "停止", 16, gold)
+	# The enemies' turn: frozen in place while time stands still, a step closer after.
+	var step := 0.0 if stopped else _ph(p, 0.7, 0.85)
+	for enemy: Vector2 in [Vector2(3,1), Vector2(4,0), Vector2(4,2)]:
+		_enemy(enemy + Vector2(-step, 0))
+	_steps(0 if stopped else 1, 2)
 
 ## A 2x2 guardian lands, and one of each fairy summoned this battle comes back
 ## around it with +1 HP.

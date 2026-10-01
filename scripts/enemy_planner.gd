@@ -72,8 +72,8 @@ func beat(model: RefCounted, index: int) -> void:
 			continue
 		if enemy.type == "shadow":
 			continue
-		# 氷結妖精: a frozen enemy does nothing this turn.
-		if model.frozen(enemy):
+		# 氷結妖精: a frozen enemy does nothing this turn (時の妖精: nobody does).
+		if model.frozen(enemy) or model.time_stopped():
 			enemy.ap = 0
 			continue
 		if enemy.type == "slot":

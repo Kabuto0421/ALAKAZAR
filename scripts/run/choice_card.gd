@@ -34,7 +34,7 @@ const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capaci
 const PLACES := {
 	"shadow_stitch": "届かない所", "lone_wolf": "届かない所",
 	"gravity_fairy": "どこでも", "warp_fairy": "どこでも",
-	"abyss_spirit": "自分のマス", "meteor_fairy": "自分のマス",
+	"abyss_spirit": "自分のマス", "meteor_fairy": "自分のマス", "time_fairy": "自分のマス",
 }
 ## Examples drawn with the silver general's sword (they are about weapon reach).
 const SILVER_EXAMPLES := ["shadow_stitch", "lone_wolf", "abyss_spirit", "gravity_fairy", "meteor_fairy"]

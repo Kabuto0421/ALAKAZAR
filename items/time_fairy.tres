@@ -1,0 +1,17 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/time_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/time_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "time_fairy"
+title = "時の妖精"
+ap_cost = 0
+description = "自分のマスを押して呼ぶ。\n時が止まり、次の敵のターン\n（{time_stop}ターン）は敵が誰も動かず、\n攻撃もしない。\n味方はふだんどおり動ける。"
+summary = "敵のターンを{time_stop}回止める"
+color = Color(1, 0.8, 0.32, 1)
+target = 4
+effect = ExtResource("2")
+icon = ExtResource("3")

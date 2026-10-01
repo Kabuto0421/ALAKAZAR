@@ -14,7 +14,7 @@ const INFO := Color("4fb4ff")
 ## Mid and late fairies.
 const UNCOMMON_FAIRIES: Array[String] = ["gravity_fairy", "shadow_stitch", "lone_wolf", "freeze_fairy", "blessing_fairy"]
 const RARE_FAIRIES: Array[String] = ["axe_spirit", "meteor_fairy", "abyss_spirit", "warp_fairy"]
-const SUPER_RARE_FAIRIES: Array[String] = ["glutton_fairy", "guardian_fairy", "holy_spirit"]
+const SUPER_RARE_FAIRIES: Array[String] = ["glutton_fairy", "guardian_fairy", "holy_spirit", "time_fairy"]
 ## Weapons rarer than their pool (by id); 飛車槍・角剣 are super rare as late weapons.
 const UNCOMMON_WEAPONS: Array[String] = ["vertical", "front_diagonal"]
 const RARE_WEAPONS: Array[String] = ["cross", "diagonal", "gold", "silver"]

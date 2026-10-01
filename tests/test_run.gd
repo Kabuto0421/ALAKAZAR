@@ -1030,6 +1030,32 @@ func _hurt(m: RefCounted, cell: Vector2i) -> bool:
 	return not enemy.is_empty() and enemy.hp < m.TYPES.heavy.hp
 
 func _class_ups() -> void:
+	# 時の妖精: 0 AP from your own tile; on the next enemy turn nobody moves or strikes,
+	# then time runs again. Classed up it comes twice per battle.
+	var tf := fixture()
+	tf.enemies.clear()
+	tf.player.cell = Vector2i(2,2)
+	var near_foe: Dictionary = tf.make_enemy("heavy", Vector2i(3,2), 0)
+	var far_foe: Dictionary = tf.make_enemy("infantry", Vector2i(5,5), 1)
+	tf.enemies.append_array([near_foe, far_foe])
+	tf.fairy_loadout.assign(["time_fairy"])
+	tf.refill_fairies()
+	tf.player.ap = 0
+	verify(tf.fairy_ap_cost("time_fairy") == 0 and tf.use_item("time_fairy", tf.player.cell) and tf.time_stopped(),"The time fairy stops time for 0 AP")
+	var tplanner := Planner.new()
+	var far_cell: Vector2i = far_foe.cell
+	tplanner.begin(tf)
+	tplanner.beat(tf,0)
+	tplanner.beat(tf,1)
+	tplanner.finish(tf)
+	verify(tf.player.hp == 5 and far_foe.cell == far_cell and not tf.time_stopped(),"While time stands still no enemy moves or strikes; then it runs again")
+	tplanner.begin(tf)
+	tplanner.beat(tf,0)
+	tplanner.beat(tf,1)
+	tplanner.finish(tf)
+	verify(tf.player.hp < 5 or far_foe.cell != far_cell,"The turn after, the enemies act again")
+	verify(tf.fairy_uses("time_fairy", 1) == 2 and tf.fairy_ap_cost("time_fairy", 1) == 0,"Time fairy+: twice per battle, still 0 AP")
+	verify(Run.Rarity.tier({"kind":"fairy","value":"time_fairy"}) == Run.Rarity.SUPER_RARE and Run.new().reward_fairy_pool.has("time_fairy"),"The time fairy is a super rare reward")
 	# Fairy texts read their numbers from the rules: nothing is left unfilled, and the
 	# numbers match the data (so changing a value changes every text that quotes it).
 	var tx := fixture()

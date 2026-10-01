@@ -80,6 +80,8 @@ var kind := "player"
 var sulking := false
 ## 氷結妖精: enemy turns this unit stays frozen (0 = not frozen).
 var frozen := 0
+## 時の妖精: time stands still for this enemy (a small stopped clock by its head).
+var time_stopped := false
 ## A sulking wolf turns its back on the player: true when the player is to its right.
 var sulk_flip := false
 var hp := 5
@@ -419,6 +421,12 @@ func _draw_status() -> void:
 			var arm := Vector2.from_angle(k*PI/3)*6
 			status_layer.draw_line(badge+Vector2(8,10)-arm,badge+Vector2(8,10)+arm,Color("bff0ff"),2)
 		status_layer.draw_string(BADGE_FONT,badge+Vector2(15,16),str(frozen),HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color("e8fbff"))
+	if time_stopped and frozen <= 0:
+		var clock_at := Vector2(-22-grow,-26-grow)
+		status_layer.draw_circle(clock_at,10,Color(0.12,0.09,0.03,0.92))
+		status_layer.draw_arc(clock_at,10,0,TAU,20,Color("ffcf52"),2,true)
+		status_layer.draw_line(clock_at,clock_at+Vector2(0,-7),Color("ffcf52"),2)
+		status_layer.draw_line(clock_at,clock_at+Vector2(5,2),Color("ffcf52"),2)
 	if charge_warning:
 		var at := Vector2(10+grow,-32-grow)
 		status_layer.draw_rect(Rect2(at,Vector2(22,28)), Color("191e29"))

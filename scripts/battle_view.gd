@@ -712,6 +712,7 @@ func _sync_units(animate: bool) -> void:
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
+		view.time_stopped = id >= 0 and model.time_stopped()
 		view.reel = int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
@@ -1135,8 +1136,12 @@ func _draw() -> void:
 		_text(Vector2(40,208),turn_text,22,CYAN if not busy else GOLD)
 	else:
 		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
+	var status_y := 0.0
 	if model.abyss_turns > 0:
 		_text(Vector2(40,262) if model.board_size >= 8 else Vector2(352,156),"奈落 あと%dターン" % model.abyss_turns,18,Color("b8a8ff"))
+		status_y += 22.0
+	if model.time_stopped():
+		_text((Vector2(40,262) if model.board_size >= 8 else Vector2(352,156))+Vector2(0,status_y),"時間停止：次の敵ターンは誰も動かない",18,TIME_GOLD)
 	var countdown := model.siege_countdown()
 	if model.rule_siege:
 		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
@@ -1379,6 +1384,8 @@ func _draw_board() -> void:
 	_draw_shove_preview()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
+	if model.time_stopped():
+		_draw_time_stop_board()
 	if Rules.BIG_FAIRIES.has(selected_item):
 		if item_origin != Vector2i(-1,-1):
 			_draw_big_ghost(item_origin,aim)
@@ -1392,6 +1399,24 @@ func _draw_board() -> void:
 		draw_line(start,end,GOLD,5)
 		var side := Vector2(-aim.y,aim.x)*8
 		draw_colored_polygon(PackedVector2Array([end+Vector2(aim)*8,end-Vector2(aim)*7+side,end-Vector2(aim)*7-side]),GOLD)
+
+## 時の妖精: while time stands still the board is washed in sepia, with a still clock
+## face behind it whose second hand trembles but never moves on.
+const TIME_GOLD := Color("ffcf52")
+func _draw_time_stop_board() -> void:
+	var extent := Vector2.ONE*model.board_size*TILE
+	draw_rect(Rect2(BOARD,extent),Color(0.55,0.42,0.2,0.16))
+	_draw_clock_face(BOARD+extent/2,extent.x*0.36,Color(TIME_GOLD,0.22),0.0)
+
+## A clock face: ring, twelve ticks and two hands (the long one at `turn` of a revolution).
+func _draw_clock_face(center: Vector2, radius: float, color: Color, turn: float) -> void:
+	draw_arc(center,radius,0,TAU,64,color,4,true)
+	for k in 12:
+		var a := k*TAU/12
+		draw_line(center+Vector2.from_angle(a)*radius*0.86,center+Vector2.from_angle(a)*radius*(0.96 if k % 3 else 1.0),color,3 if k % 3 == 0 else 2)
+	var tremble := sin(clock*40.0)*0.012
+	draw_line(center,center+Vector2.from_angle(-PI/2+TAU*(turn+tremble))*radius*0.78,color,3)
+	draw_line(center,center+Vector2.from_angle(-PI/2+TAU*0.33)*radius*0.5,color,5)
 
 ## Curved clockwise arrow from the vane's current aim to the aim it takes after firing.
 func _draw_turn_hint(center: Vector2, dir: Vector2i) -> void:
@@ -1620,7 +1645,7 @@ func _draw_intel() -> void:
 		var text_top := 252.0 if choosing else 352.0
 		for i in range(lines.size()):
 			_text(Vector2(850,text_top+i*25),lines[i],18,INK)
-		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else 490.0),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if selected_item == "abyss_spirit" else "配置先を選択",23,item.color)
+		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else 490.0),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if item.target == Rules.ItemDefinition.Target.SELF else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	var ally := _preview_ally()
@@ -2087,6 +2112,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"解析済み：%s（効かない）" % Rules.WEAPONS[learned].name if learned >= 0 else "殴った武器を覚えて無効化",18,Color("7fffd0"))
 	if int(enemy.get("frozen",0)) > 0:
 		_text(Vector2(852,546),"凍結中：あと%dターン動けない" % int(enemy.frozen),19,Color("9fe4ff"))
+	elif model.time_stopped():
+		_text(Vector2(852,546),"時間停止：次の敵ターンは動けない",19,TIME_GOLD)
 	_draw_threat(enemy,489)
 	# What it is up to right now, under the warning.
 	if enemy.type == "miner":
@@ -2296,13 +2323,21 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 	var t := 1.0 - fade
 	var dir := Vector2(effect.get("dir", Vector2i.ZERO))
 	match effect.kind:
+		"time_stop":
+			# 時の妖精: a golden clock swells over the board, its hand sweeps and stops dead.
+			var extent := Vector2.ONE*model.board_size*TILE
+			var middle := BOARD+extent/2
+			draw_rect(Rect2(BOARD,extent),Color(1.0,0.9,0.6,0.35*fade*fade))
+			var radius := extent.x*(0.2+0.18*ease(minf(t*2.0,1.0),0.4))
+			_draw_clock_face(middle,radius,Color(TIME_GOLD,minf(1.0,fade*1.6)),ease(minf(t*1.6,1.0),0.3)*1.5)
+			_text(middle+Vector2(-48,radius+40),"時間停止",24,Color(TIME_GOLD,fade))
 		"freeze":
 			# Frost spreading over the 3x3.
 			for tile in effect.get("cells", []):
