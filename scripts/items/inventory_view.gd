@@ -157,8 +157,14 @@ func refresh(can_use: bool, selected: String) -> void:
 		quick_icons[slot].queue_redraw()
 		names[slot].text = item.title
 		names[slot].modulate = Color.WHITE if count > 0 else Color("768c87")
-		# What it does, in one line; the AP cost and single use are the same for every fairy.
-		costs[slot].text = model.fairy_summary(hand[slot]) if count > 0 else "使用済み・次戦で回復"
+		# What it does, in one line (a classed-up fairy shows its uses and AP instead).
+		if count <= 0:
+			costs[slot].text = "使用済み・次戦で回復"
+		elif model.is_plus(hand[slot]):
+			# A classed-up fairy: uses left / uses per battle, and the AP it costs.
+			costs[slot].text = "残り %d/%d回 ・ %d AP" % [count, model.fairy_uses(hand[slot]), model.fairy_ap_cost(hand[slot])]
+		else:
+			costs[slot].text = model.fairy_summary(hand[slot])
 		# One line at 16px, or a little smaller (not under 14px); a longer one breaks onto
 		# two lines after a separator or particle.
 		var font: Font = costs[slot].get_theme_font("font")

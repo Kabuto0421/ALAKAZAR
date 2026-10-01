@@ -554,12 +554,12 @@ static func _shadow(time: float, art: Texture2D, plus: bool) -> void:
 		_say(_center(Vector2(2.5,0)), "%d AP" % maxi(0, Rules.SHADOW_SWAP_AP - (1 if plus else 0)), 16, GOLD)
 
 ## Summoned within your weapon's reach (here: holding silver). While a weapon reaches it,
-## it sulks; once you walk away it moves and bites like a silver general facing right:
-## alone for 2, next to you or another ally for 1.
+## it sulks; once you walk away it moves and bites (1 damage) like a silver general
+## facing right.
 static func _wolf(time: float) -> void:
-	var p := _cycle(time, 6.0)
-	var phase := mini(int(p * 3), 2)
-	var q := fmod(p * 3, 1.0)
+	var p := _cycle(time, 4.4)
+	var phase := mini(int(p * 2), 1)
+	var q := fmod(p * 2, 1.0)
 	match phase:
 		0:
 			# Placed on a tile the sword reaches: it sulks.
@@ -572,27 +572,18 @@ static func _wolf(time: float) -> void:
 				_art(Units.WOLF_SULK, Vector2(2,1), _ph(q, 0.3, 0.4))
 				_say(_center(Vector2(2,1)) + Vector2(10,-12), "…", 20, Color.WHITE)
 		1:
-			# You step back: no weapon reaches it any more, so it hunts (a silver bite, up-right).
-			var walk := _ph(q, 0.0, 0.3)
-			var at := Vector2(1,1).lerp(Vector2(0,1), walk)
+			# You step back: no weapon reaches it any more, so it moves and attacks.
+			var walk := _ph(q, 0.0, 0.25)
 			_reach(Vector2i(1,1) if walk < 1.0 else Vector2i(0,1))
-			_player(at)
-			_enemy(Vector2(3,0), 1.0 - _ph(q, 0.8, 0.95))
-			var lunge := sin(_ph(q, 0.5, 0.7) * PI) * 0.3
+			_player(Vector2(1,1).lerp(Vector2(0,1), walk))
+			_enemy(Vector2(3,0), 1.0 - _ph(q, 0.85, 0.97))
+			var lunge := sin(_ph(q, 0.55, 0.75) * PI) * 0.3
 			if q < 0.4:
 				_art(Units.WOLF_SULK, Vector2(2,1))
 			else:
 				_wolf_art(Vector2(2,1) + Vector2(lunge, -lunge), 1)
-			_pop(Vector2(3,0), "−2", _ph(q, 0.6, 1.0), RED, 0, 24)
-		2:
-			# With company beside it the bite is weaker.
-			_reach(Vector2i(0,1))
-			_player(Vector2(0,1))
-			_enemy(Vector2(3,0))
-			_art(Units.ACORN, Vector2(2,2))
-			_wolf_art(Vector2(2,1) + Vector2(sin(_ph(q, 0.3, 0.45) * PI) * 0.25, -sin(_ph(q, 0.3, 0.45) * PI) * 0.25), 1)
-			_pop(Vector2(3,0), "−1", _ph(q, 0.35, 0.8))
-	_steps(phase)
+			_pop(Vector2(3,0), "−1", _ph(q, 0.65, 1.0))
+	_steps(phase, 2)
 
 ## Called from your own tile: for five turns every empty tile (no enemy, no
 ## obstacle) that no weapon reaches is a pit (here: holding silver). Enemies cannot

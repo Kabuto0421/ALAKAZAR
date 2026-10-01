@@ -1664,18 +1664,9 @@ func _loner_fairies() -> void:
 	corners.sort_custom(func(a, b): return a.distance_to(Vector2(home)) > b.distance_to(Vector2(home)))
 	m.player.cell = corners[0]
 	m.act_allies()
-	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 3,"Alone, it takes a silver step and bites once for 2 (2 AP)")
+	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 4,"It takes a silver step and bites once for 1 (2 AP)")
 	m.tick_walls()
 	verify(m.allies.size() == 1,"The wolf does not fade with the turn count")
-	var crowd: Vector2i = Vector2i(-1,-1)
-	for direction in Rules.CARDINALS:
-		var cell: Vector2i = wolf.cell + direction
-		if crowd == Vector2i(-1,-1) and m.inside(cell) and not m.blocked(cell) and cell != m.player.cell and m.enemy_at(cell).is_empty() and m.distance(cell, prey.cell) > 1:
-			crowd = cell
-	prey.hp = 5
-	m.allies.append({"id":-50, "type":"holy_knight", "cell":crowd, "hp":1, "ap":0, "facing":2})
-	m.act_allies()
-	verify(prey.hp == 3,"With company beside it, each bite drops to 1 (two bites)")
 	m.allies = m.allies.filter(func(a): return a.type == "wolf")
 	# Class-up: free to summon, no extra use.
 	m.fairy_plus["lone_wolf"] = true

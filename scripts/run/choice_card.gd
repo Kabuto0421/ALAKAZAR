@@ -20,7 +20,7 @@ const KIND_COLORS := {"召喚": Color("7dff9a"), "設置": Color("9fd8ff"), "使
 ## written as {name} and filled by the battle model (fairy_text), like the item texts.
 const CARD_TEXT := {
 	"abyss_spirit": "武器の届かない空きマス（敵・障害物なし）が奈落に。動くと変わる",
-	"lone_wolf": "届かないマスに召喚。銀の動き。噛むと単独で{wolf_bite}ダメージ、隣に仲間がいると{wolf_crowded}ダメージ。届くマスではすねる",
+	"lone_wolf": "攻撃範囲内に召喚。銀の動き。噛むと{wolf_bite}ダメージ。届くマスではすねて動かず、届かないマスで移動・攻撃する",
 	"shadow_stitch": "届かないマスに影を置き、{swap_ap} APで入れ替わる",
 	"glutton_fairy": "1×1なら敵も味方もあなたも喰う（{bite}ダメージ）",
 	"meteor_fairy": "自分の武器の範囲のマスの中からランダムに3×3の隕石を落とす（敵のみが{meteor}ダメージ、大砲は誘爆）。クラスアップで数が増える",

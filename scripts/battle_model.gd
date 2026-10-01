@@ -33,8 +33,7 @@ const GUARDIAN_BONUS_HP := 1
 ## 暴食妖精: HP gained per bite.
 const GLUTTON_GROWTH := 1
 ## 一匹狼の妖精: a bite alone / with someone next to it.
-const WOLF_BITE := 2
-const WOLF_CROWDED_BITE := 1
+const WOLF_BITE := 1
 ## 重力妖精: pull reach and push distance (one more each, classed up).
 const GRAVITY_PULL := 2
 const GRAVITY_PUSH := 1
@@ -194,7 +193,7 @@ const PLUS_TEXT := {
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["置くのも入れ替わりも{cost_plus} AP", "全武器の範囲外の空きマスに\n影を縫い止める。{turns}ターン残る。\n{swap_ap_plus} APで影と入れ替わる\n（1ターン1回）。"],
-	"lone_wolf": ["{cost_plus} APで呼べる", "攻撃範囲内の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で{wolf_bite}、隣に誰かいると{wolf_crowded}。\n武器が届く所ではすねる。"],
+	"lone_wolf": ["{cost_plus} APで呼べる", "攻撃範囲内の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に{wolf_bite}。\n武器が届く所ではすねて動かず、\n届かない所で移動・攻撃する。"],
 	"glutton_fairy": ["{cost_plus} APで呼べる", "攻撃範囲に召喚。HP{hp_plus}・AP{ally_ap}。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと{bite}ダメージ、HP+{growth}。"],
 	"freeze_fairy": ["{freeze_plus}ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n{freeze_plus}ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+{bless_heal}", "攻撃範囲の空きマスに置く。\n周囲5×5が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+{bless_heal}。"],
@@ -579,7 +578,7 @@ static func text_values(id: String) -> Dictionary:
 		"abyss_plus": WALL_TURNS + 2, "meteor": METEOR_DAMAGE, "stealth": STEALTH_DAMAGE, "charge": CAPACITOR_FULL,
 		"bite": CIRCLE_DAMAGE, "growth": GLUTTON_GROWTH, "guardian_bonus": GUARDIAN_BONUS_HP,
 		"knight_hp": HOLY_KNIGHT_HP, "knight_ap": HOLY_KNIGHT_AP,
-		"wolf_bite": WOLF_BITE, "wolf_crowded": WOLF_CROWDED_BITE,
+		"wolf_bite": WOLF_BITE,
 		"pull": GRAVITY_PULL, "pull_plus": GRAVITY_PULL + 1, "push": GRAVITY_PUSH, "push_plus": GRAVITY_PUSH + 1,
 		"swap_ap": SHADOW_SWAP_AP, "swap_ap_plus": maxi(0, SHADOW_SWAP_AP - 1),
 		"bless_heal": BLESS_HEAL, "time_stop": TIME_STOP_TURNS,
@@ -1762,19 +1761,8 @@ func summon_wolf(cell: Vector2i) -> void:
 	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wolf"})
 
-## True when someone (the player or another ally) stands right next to the wolf.
-func wolf_crowded(wolf: Dictionary) -> bool:
-	for direction in CARDINALS:
-		var cell: Vector2i = wolf.cell + direction
-		if cell == player.cell:
-			return true
-		var other := ally_at(cell)
-		if not other.is_empty() and other.id != wolf.id:
-			return true
-	return false
-
 ## Within any weapon's reach the wolf sulks. Otherwise it spends its 3 AP one at a
-## time: a bite on an enemy it reaches (2 alone, 1 with company), or a silver step
+## time: a bite on an enemy it reaches (1 damage), or a silver step
 ## toward one. (The class-up only makes it free to summon.)
 func _wolf_action(wolf: Dictionary) -> void:
 	wolf.sulking = all_reach().has(wolf.cell)
@@ -1789,7 +1777,7 @@ func _wolf_action(wolf: Dictionary) -> void:
 			wolf.ap -= 1
 			var target: Dictionary = prey.enemy
 			events.append({"kind":"bite", "cell":wolf.cell + prey.dir, "id":-2})
-			damage_enemy(target, WOLF_CROWDED_BITE if wolf_crowded(wolf) else WOLF_BITE, prey.dir)
+			damage_enemy(target, WOLF_BITE, prey.dir)
 			add_log("一匹狼の妖精が噛みついた")
 			check_outcome()
 			continue

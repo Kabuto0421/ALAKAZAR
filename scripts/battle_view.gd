@@ -1933,7 +1933,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 		"wolf":
 			moves = Rules.WOLF_MOVES
 			strikes = Rules.WOLF_MOVES
-			lines = ["銀の動き・右向き固定", "AP%d：1歩か1噛みでAP1" % Rules.ally_ap("wolf"), "噛むと単独で%dダメージ" % Rules.WOLF_BITE, "隣に誰かいると%dダメージ" % Rules.WOLF_CROWDED_BITE, "武器が届く所ではすねる"]
+			lines = ["銀の動き・右向き固定", "AP%d：1歩か1噛みでAP1" % Rules.ally_ap("wolf"), "噛むと%dダメージ" % Rules.WOLF_BITE, "武器が届く所ではすねて動かず、", "届かない所で移動・攻撃"]
 			var sulking: bool = model.all_reach().has(ally.cell)
 			intent = "すねている…（動かない）" if sulking else "群れずに噛みつく"
 		"glutton":
