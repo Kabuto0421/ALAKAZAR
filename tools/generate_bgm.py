@@ -1646,28 +1646,63 @@ TITLE_MARCH_BPM = 116
 # IV), C and Am.
 KOMURO = ["Am", "F", "G", "C"]
 DORIAN = ["Dm", "G", "Dm", "C", "Dm", "G", "C", "Dm"]
-# The Komuro tune: two passes, the second sweeping higher (4 bars each, Am F G C).
+# The Komuro tune. A fourth item "w" plays that note on the tin whistle (default: pipes).
+# The phrases do not line up with the bars on purpose: the first march bar's pipe call
+# (12.0 s) hands over to a gentle whistle line at step 8 of bar 1 (13.0 s); that line
+# runs through the F bar and half of the G bar, and at step 8 of bar 3 (17.1 s) the
+# pipes and brass come back with a punchy dotted phrase. Then two more phrases, each
+# with its own rhythm: syncopated, then a sweeping run to a long held note.
 KOMURO_TUNE = [
-    [(0, 3, "A4"), (3, 1, "C5"), (4, 2, "E5"), (6, 2, "C5"), (8, 3, "A4"), (11, 1, "C5"), (12, 4, "E5")],
-    [(0, 3, "A4"), (3, 1, "C5"), (4, 2, "F5"), (6, 2, "C5"), (8, 3, "A4"), (11, 1, "C5"), (12, 4, "F5")],
-    [(0, 3, "B4"), (3, 1, "D5"), (4, 2, "G5"), (6, 2, "D5"), (8, 3, "B4"), (11, 1, "D5"), (12, 4, "G5")],
-    [(0, 3, "C5"), (3, 1, "E5"), (4, 2, "G5"), (6, 2, "E5"), (8, 4, "C5"), (12, 2, "D5"), (14, 2, "E5")],
-    [(0, 2, "E5"), (2, 2, "A5"), (4, 4, "C6"), (8, 2, "B5"), (10, 2, "A5"), (12, 4, "E5")],
-    [(0, 2, "F5"), (2, 2, "A5"), (4, 4, "C6"), (8, 2, "A5"), (10, 2, "F5"), (12, 4, "C5")],
-    [(0, 2, "G5"), (2, 2, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 4, "D5")],
-    [(0, 4, "E6"), (4, 4, "C6"), (8, 4, "G5"), (12, 4, "E5")],
+    [(0, 4, "E5"), (4, 2, "A5"), (6, 2, "G5"), (8, 2, "E5", "w"), (10, 2, "G5", "w"), (12, 2, "A5", "w"), (14, 2, "G5", "w")],
+    [(0, 3, "A5", "w"), (3, 1, "G5", "w"), (4, 2, "F5", "w"), (6, 2, "A5", "w"), (8, 2, "C6", "w"), (10, 2, "A5", "w"), (12, 4, "F5", "w")],
+    [(0, 2, "G5", "w"), (2, 2, "B5", "w"), (4, 4, "D6", "w"), (8, 3, "D6"), (11, 1, "C6"), (12, 2, "B5"), (14, 2, "G5")],
+    [(0, 3, "E5"), (3, 1, "G5"), (4, 2, "C6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "E5")],
+    [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "D6"), (12, 2, "C6"), (14, 2, "B5")],
+    [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "C6"), (12, 4, "F5")],
+    [(0, 4, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 2, "A5"), (14, 2, "G5")],
+    [(0, 8, "C6"), (8, 2, "G5"), (10, 2, "E5"), (12, 4, "C5")],
 ]
-# The Dorian tune over Dm G Dm C Dm G C Dm.
+# The Dorian tune over Dm G Dm C Dm G C Dm: a long singing line that climbs in the
+# first half and comes home in the second.
 DORIAN_TUNE = [
-    TITLE_TUNE[0],
-    [(0, 3, "B4"), (3, 1, "D5"), (4, 2, "G5"), (6, 2, "D5"), (8, 3, "B4"), (11, 1, "D5"), (12, 4, "G5")],
-    TITLE_TUNE[4],
-    TITLE_TUNE[1],
-    TITLE_TUNE[0],
-    [(0, 3, "G5"), (3, 1, "A5"), (4, 2, "G5"), (6, 2, "D5"), (8, 3, "B4"), (11, 1, "D5"), (12, 4, "G5")],
-    TITLE_TUNE[1],
-    TITLE_TUNE[7],
+    [(0, 2, "D5"), (2, 2, "F5"), (4, 2, "A5"), (6, 2, "G5"), (8, 2, "F5"), (10, 2, "E5"), (12, 4, "D5")],
+    [(0, 2, "G5"), (2, 2, "B5"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "B5"), (10, 2, "A5"), (12, 4, "G5")],
+    [(0, 3, "A5"), (3, 1, "G5"), (4, 2, "F5"), (6, 2, "E5"), (8, 2, "D5"), (10, 2, "E5"), (12, 4, "F5")],
+    [(0, 2, "E5"), (2, 2, "G5"), (4, 2, "C6"), (6, 2, "B5"), (8, 4, "A5"), (12, 4, "G5")],
+    [(0, 4, "D6"), (4, 2, "C6"), (6, 2, "A5"), (8, 2, "F5"), (10, 2, "A5"), (12, 4, "D6")],
+    [(0, 2, "B5"), (2, 2, "D6"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 4, "A5")],
+    [(0, 2, "G5"), (2, 2, "E5"), (4, 2, "G5"), (6, 2, "C6"), (8, 4, "B5"), (12, 2, "A5"), (14, 2, "G5")],
+    [(0, 4, "A5"), (4, 2, "F5"), (6, 2, "E5"), (8, 8, "D5")],
 ]
+# The cyber part's hook: syncopated and leaping over the same chords, so the pipes
+# ride the beat instead of marching.
+CYBER_TUNE = [
+    [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "D6"), (8, 2, "C6"), (10, 2, "A5"), (12, 4, "F5")],
+    [(0, 2, "B5"), (3, 2, "B5"), (6, 2, "D6"), (8, 2, "G5"), (10, 2, "B5"), (12, 4, "D6")],
+    [(0, 2, "F5"), (2, 2, "A5"), (4, 2, "D6"), (6, 2, "C6"), (8, 2, "A5"), (10, 2, "F5"), (12, 2, "A5"), (14, 2, "D6")],
+    [(0, 4, "C6"), (4, 2, "B5"), (6, 2, "G5"), (8, 2, "E5"), (10, 2, "G5"), (12, 4, "C6")],
+    [(0, 2, "D6"), (3, 2, "D6"), (6, 2, "A5"), (8, 2, "F5"), (10, 2, "D5"), (12, 4, "A5")],
+    [(0, 2, "G5"), (3, 2, "B5"), (6, 2, "D6"), (8, 4, "D6"), (12, 2, "C6"), (14, 2, "B5")],
+    [(0, 2, "C6"), (2, 2, "G5"), (4, 2, "E5"), (6, 2, "G5"), (8, 4, "C6"), (12, 4, "B5")],
+    [(0, 4, "A5"), (4, 4, "F5"), (8, 8, "D5")],
+]
+
+
+def arp_backdrop(loop, t0, chord, kind="harp", vol=0.06, shape=(0, 1, 2, 3, 2, 3, 2, 1)):
+    """A flowing eighth-note arpeggio of the chord under the melody (harp or pluck)."""
+    for i, k in enumerate(shape):
+        note = midi(chord["arp"][k]) + 12
+        voice = harp(note, vol) if kind == "harp" else pluck(note, 3000, vol * 0.9)
+        loop.put("arp", t0 + i * 2 * STEP, voice)
+
+
+def arp_fill(loop, t0, chord, vol=0.08, start=8):
+    """A run of sixteenths up through the chord, two octaves, landing high: it fills
+    the gap at the end of a phrase."""
+    base = [midi(n) for n in chord["arp"]]
+    for i in range(16 - start):
+        octave, k = divmod(i, 4)
+        loop.put("arp", t0 + (start + i) * STEP, pluck(base[k] + 12 * (octave + 1), 3200 + 300 * i, vol * (0.8 + 0.04 * i)))
 
 
 def title_march():
@@ -1765,26 +1800,44 @@ def title_march():
                         loop.put("brass", t0 + s * STEP, brass_chord(chord["pad"][1:], 1, 0.05, 3200))
             # --- melodies ---
             if name == "komuro":
-                for st, ln, nt in KOMURO_TUNE[idx]:
+                for ev in KOMURO_TUNE[idx]:
+                    st, ln, nt = ev[0], ev[1], ev[2]
+                    if len(ev) > 3:
+                        loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.1))
+                        continue
                     loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="G5" if ln >= 2 and midi(nt) < midi("G5") else None))
-                    if second:
+                    if second or idx == 2 or idx == 3:
                         loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.1, 2800))
             elif dorian:
                 for st, ln, nt in DORIAN_TUNE[idx]:
+                    if idx in (2, 3):
+                        # Bars 3-4 hand the tune to the whistle, over a thinner band.
+                        loop.put("whistle", t0 + st * STEP, whistle(nt, ln * STEP * 0.95, vol=0.1))
+                        continue
                     loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.11, grace="A5" if ln >= 3 else None))
                     loop.put("lead", t0 + st * STEP, brass(midi(nt) - 12, ln, 0.12, 3000))
                     loop.put("lead", t0 + st * STEP, brass(lower_third(midi(nt), TITLE_PCS) - 12, ln, 0.07, 2600))
                 loop.put("whistle", t0, whistle(midi(chord["arp"][3]) + 12, bar * 0.45, vol=0.05))
                 loop.put("whistle", t0 + 8 * STEP, whistle(midi(chord["arp"][2]) + 12, bar * 0.45, vol=0.05))
             elif cyber:
-                for st, ln, nt in DORIAN_TUNE[idx]:
+                for st, ln, nt in CYBER_TUNE[idx]:
                     loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.12, grace="A5" if ln >= 3 else None))
                     loop.put("lead", t0 + st * STEP, lead(midi(nt) - 12, ln, vol=0.08))
                     if idx >= 4:
                         loop.put("lead", t0 + st * STEP, lead(lower_third(midi(nt), TITLE_PCS), ln, vol=0.05))
             else:
-                for st, ln, nt in KOMURO_TUNE[idx]:
-                    loop.put("lead", t0 + st * STEP, pipes(nt, ln * STEP * 0.97, 0.09 + 0.012 * idx))
+                for ev in KOMURO_TUNE[idx]:
+                    loop.put("lead", t0 + ev[0] * STEP, pipes(ev[2], ev[1] * STEP * 0.97, 0.09 + 0.012 * idx))
+            # --- arpeggios: a flowing harp under the long lines, and a run at each phrase end ---
+            if name == "komuro" or dorian:
+                arp_backdrop(loop, t0, chord, "harp", 0.07 if not second else 0.085)
+            if name == "komuro" and idx in (0, 2):
+                # The bridge into the next phrase (13.0 s and 17.1 s): a run of sixteenths.
+                arp_fill(loop, t0, chord, 0.075, start=8)
+            if idx % 4 == 3 and name in ("komuro", "dorian", "cyber"):
+                arp_fill(loop, t0, chord, 0.08, start=10 if name == "dorian" else 12)
+            if cyber and idx % 2 == 1:
+                arp_backdrop(loop, t0, chord, "pluck", 0.04, shape=(0, 2, 1, 3, 2, 3, 1, 2))
             at += 1
     loop.echo("lead", STEP * 3, 0.2, 0.2)
     loop.echo("whistle", STEP * 3, 0.35, 0.4)
