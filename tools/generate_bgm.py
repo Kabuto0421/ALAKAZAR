@@ -289,6 +289,15 @@ class Mix:
                 else:
                     high = mid
             data[lo:hi] = limited((low + high) / 2).astype(numpy.float32)
+        # A stretch to take out of the finished file (start s, end s): the two ends are
+        # joined with a 2 ms fade on each side so the join does not tick.
+        cut = getattr(self, "cut", None)
+        if cut:
+            lo, hi = int(round(cut[0] * RATE)), int(round(cut[1] * RATE))
+            fade = int(0.002 * RATE)
+            data[lo - fade:lo] *= numpy.linspace(1.0, 0.0, fade)
+            data[hi:hi + fade] *= numpy.linspace(0.0, 1.0, fade)
+            data = numpy.concatenate([data[:lo], data[hi:]])
         # Written in blocks: one large Vorbis write crashes some libsndfile builds.
         with soundfile.SoundFile(path, "w", RATE, 1, format="OGG", subtype="VORBIS",
                                  compression_level=getattr(self, "compression", COMPRESSION)) as f:
@@ -1893,10 +1902,16 @@ def title_march():
                         if not (s == 12 and (breaking or idx == 6)):
                             loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.27))
                 else:
-                    # The outro: a falling noise. The bar's master curve (see the end of this
-                    # function) fades it to a quiet floor by 42.0 s, then lets it shoot up
-                    # again to the full level by 43.0 s, where the fusion hits.
-                    loop.put("fx", t0, riser(rng, 8 * STEP, vol=0.07)[::-1])
+                    # The outro: a falling noise, then the build-up into the fusion.
+                    loop.put("fx", t0, riser(rng, 12 * STEP, vol=0.07)[::-1])
+                    loop.put("fx", t0 + 12 * STEP, riser(rng, 4 * STEP, vol=1.0))
+                    # A saw sweeping up from E4 through two octaves: the swell's pitch.
+                    loop.put("fx", t0 + 12 * STEP, synth("E4", 4 * STEP, "saw", detune=(-12, 0, 12), vol=0.14, attack=0.05,
+                                                         decay=1.0, sustain=1.0, release=0.03, cutoff=(6000, 6000, 1.0),
+                                                         pitch=lambda t: 1.0 + 3.0 * min(t / (4 * STEP), 1.0) ** 2))
+                    loop.put("fx", t0 + 12 * STEP, crash(rng, 4 * STEP, 0.9)[::-1])
+                    for k in range(8):
+                        loop.put("snare", t0 + (12 + k * 0.5) * STEP, pipe_snare(rng, 0.08 + 0.7 * (k / 8) ** 1.2))
                 if breaking:
                     first = 12
                     for k in range((16 - first) * 2):
@@ -1909,7 +1924,7 @@ def title_march():
                     loop.put("fx", t0, crash(rng, 2.0, 0.15))
                 # Offbeat bass (the pump), and a 16th-note pluck arp over the triad.
                 if outro:
-                    loop.put("edm_bass", t0, edm_bass(root, 16, 0.5))
+                    loop.put("edm_bass", t0, edm_bass(root, 10, 0.35))
                 else:
                     for s in (2, 6, 10) if idx == 6 else (2, 6, 10, 14):
                         if idx == 4 and s == 14:
@@ -1917,16 +1932,10 @@ def title_march():
                         else:
                             loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
-                    # In the second half of the outro the arpeggio climbs an octave for its last
-                    # four steps, so the rise has a pitch to it.
-                    octave = 12 if (outro and i >= 12) else 0
-                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12 + octave, 3000 + 1800 * (min(idx, 4) / 4) + (3000 if outro and i >= 8 else 0), vol=0.085 if not outro else 0.07 if i < 8 else 0.22))
-                if outro:
-                    # A dark pad for the fall, a brighter, fuller one for the rise.
-                    loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], 8 * STEP, cutoff=2400, vol=0.1))
-                    loop.put("edm_pad", t0 + 8 * STEP, pad_chord(chord["pad"] + [chord["arp"][0]], 8 * STEP, cutoff=6000, vol=0.4))
-                else:
-                    loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075))
+                    if outro and i >= 12:
+                        continue
+                    loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (min(idx, 4) / 4), vol=0.085 if not outro else 0.07))
+                loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075 if not outro else 0.1))
                 if idx in (4, 5, 6):
                     notes = [midi(n) + 12 for n in chord["arp"][:3]]
                     for s in (0, 3, 6, 10) if idx != 6 else (0, 3, 6):
@@ -2011,19 +2020,12 @@ def title_march():
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
                 buf[i] *= gain
-    # The last cyber bar's master curve (41.0-43.0 s): the first 8 steps fall on a cosine to a
-    # quiet floor of 0.08, the last 8 climb from it back to 1.0 on an accelerating curve,
-    # most of the rise in the final stretch, so it jumps up just before the fusion hits.
-    lo, end = int(14 * bar * RATE), int(15 * bar * RATE)
-    floor = 0.18
+    # The outro's fade-out: the first 12 steps (about 1.5 s) of the last cyber bar sink
+    # towards silence; the last 4 steps are the build-up and stay as they are.
+    lo, hi = int(14 * bar * RATE), int((14 * bar + 12 * STEP) * RATE)
     for buf in loop.buses.values():
-        for i in range(lo, min(end, len(buf))):
-            step = (i - lo) / (STEP * RATE)
-            if step < 8:
-                g = floor + (1 - floor) * 0.5 * (1.0 + math.cos(math.pi * step / 8))
-            else:
-                g = floor * (1.0 / floor) ** (((step - 8) / 8) ** 2)
-            buf[i] *= g
+        for i in range(lo, min(hi, len(buf))):
+            buf[i] *= 1.0 - 0.92 * (i - lo) / (hi - lo)
     return loop
 
 
@@ -2055,6 +2057,9 @@ def title_theme(opening="rolloff"):
     joined.buses = {"all": head + body}
     joined.loop_offset = intro.n / RATE
     joined.loudness = 1.05
+    # Cut 41.85-43.0 s out of the finished file: the end of the outro's fall and the whole
+    # build-up, so the quiet outro goes straight into the fusion's first hit.
+    joined.cut = (41.85, 43.0)
     return joined
 
 
@@ -2084,7 +2089,9 @@ def main():
         path = os.path.join(OUT_DIR, name)
         mix = render()
         mix.write(path)
-        print(f"{name}: {mix.n / RATE:.2f}s, {os.path.getsize(path) // 1024} KiB"
+        cut = getattr(mix, "cut", None)
+        seconds = mix.n / RATE - ((cut[1] - cut[0]) if cut else 0.0)
+        print(f"{name}: {seconds:.2f}s, {os.path.getsize(path) // 1024} KiB"
               + (f", loop from {mix.loop_offset:.4f}s" if getattr(mix, "loop_offset", None) else ""))
 
 
