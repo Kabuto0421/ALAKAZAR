@@ -22,7 +22,7 @@ const PAGES := [
 		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く"},
 	]},
 	{"title": "AP（行動力）", "lead": "移動・攻撃はAP1、妖精はカードのAP（ほとんど1）。APが0になるか「ターン終了」で敵のターン。武器の持ち替えはAPを使わない。", "items": [
-		{"shots": ["loop_0", "loop_1", "loop_2", "loop_3", "loop_4"], "tags": ["あなたのターン AP 2", "移動 −1 AP", "攻撃 −1 AP → 0", "敵のターン", "またあなたのターン AP 2"], "caption": "2回動いたら敵の番", "sub": "敵が動くとAPが2に戻る。これのくり返し", "wide": true},
+		{"shots": ["loop_0", "loop_1", "loop_2", "loop_3", "loop_4"], "tags": ["あなたのターン AP 2", "移動 −1 AP", "攻撃 −1 AP → 0", "敵のターン", "またあなたのターン AP 2"], "caption": "2回動いたら敵の番", "sub": "敵の動きが全て終わると、こちらのターン", "wide": true},
 		{"shots": ["switch_a", "switch_b"], "tags": ["前進剣", "持ち替え 0 AP"], "caption": "持ち替えは0AP"},
 	]},
 	{"title": "武器", "lead": "武器は3本まで。武器ごとに動ける方向と攻撃力が違う。いろんな方向の武器を集めて、組み合わせて戦おう。", "items": [
