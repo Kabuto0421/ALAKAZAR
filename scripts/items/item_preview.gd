@@ -112,7 +112,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 			else:
 				_slash(time, accent, art)
 		"axe_spirit": _axe(time, accent)
-		"holy_spirit": _holy(time, accent)
+		"holy_spirit": _holy(time, accent, upgraded)
 		"shadow_stitch": _shadow(time, art, upgraded)
 		"lone_wolf": _wolf(time)
 		"abyss_spirit": _abyss(time, accent, art)
@@ -502,8 +502,9 @@ static func _bump(shoved: Vector2, hit: Vector2, q: float, at: float, hurt: bool
 	_pop(shoved, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
 	_pop(hit, "−1", _ph(q, at + 0.08, at + 0.4), BUMP, 10)
 
-## A 2x2 ally that strikes what touches it; broken, two holy knights step out.
-static func _holy(time: float, accent: Color) -> void:
+## A 2x2 ally that strikes what touches it; broken, two holy knights step out (classed up:
+## four, one on each tile it covered).
+static func _holy(time: float, accent: Color, plus: bool) -> void:
 	var p := _cycle(time, 3.4)
 	if p < 0.62:
 		# It strikes (or steps towards) the tiles along its edges.
@@ -512,18 +513,25 @@ static func _holy(time: float, accent: Color) -> void:
 		_flash(Vector2(1,0), RED, _ph(p, 0.52, 0.62), 2.0)
 	else:
 		cv.draw_rect(Rect2(Vector2(1,0) * C + Vector2(2,2), Vector2.ONE * (C * 2 - 4)), Color(accent, 0.25 * (1.0 - _ph(p, 0.62, 0.8))))
-		var knights: Array[Vector2] = [Vector2(1,0), Vector2(2,1)]
+		var knights: Array[Vector2] = []
+		knights.assign([Vector2(1,0), Vector2(2,0), Vector2(1,1), Vector2(2,1)] if plus else [Vector2(1,0), Vector2(2,1)])
 		# They step in four directions (the green tiles), twice a turn.
 		var walks := _ph(p, 0.74, 0.8)
+		var seen := {}
 		for knight in knights:
-			_ally_reach(knight, [Vector2(-1,0), Vector2(1,0), Vector2(0,-1), Vector2(0,1)], walks)
+			for offset: Vector2 in [Vector2(-1,0), Vector2(1,0), Vector2(0,-1), Vector2(0,1)]:
+				if not knights.has(knight + offset) and not seen.has(knight + offset):
+					seen[knight + offset] = true
+					_ally_reach(knight, [offset], walks)
+		var tag := _ph(p, 0.7, 0.78)
 		for knight in knights:
 			_region(Units.HOLY_KNIGHT, Rect2(152,22,80,80), knight, _ph(p, 0.62, 0.72))
-			# Their strength, under each: 2 HP and 2 AP.
-			var tag := _ph(p, 0.7, 0.78)
-			if tag > 0.0:
+			# Their strength: 2 HP and 2 AP (one label under the four when there are four).
+			if tag > 0.0 and not plus:
 				_say(_center(knight) + Vector2(0, -C * 0.34), "HP2", 11, Color(RED, tag))
 				_say(_center(knight) + Vector2(0, C * 0.34), "AP2", 11, Color(GOLD, tag))
+		if plus and tag > 0.0:
+			_say(_center(Vector2(1.5,2)), "全員 HP2・AP2", 12, Color(GOLD, tag))
 	_enemy(Vector2(3,1), 1.0 - _ph(p, 0.3, 0.42))
 	_pop(Vector2(3,1), "−1", _ph(p, 0.18, 0.5))
 	# Another enemy breaks it.
