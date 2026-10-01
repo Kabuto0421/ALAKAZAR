@@ -76,7 +76,7 @@ func card() -> Rect2:
 	return Rect2(352 + slot * 260, 620, 248, 94)
 
 ## Saves several screen areas stacked top to bottom as one picture.
-func shot(name: String, areas) -> void:
+func shot(name: String, areas, left: Image = null) -> void:
 	bv.queue_redraw()
 	await frames(4)
 	var screen: Image = root.get_texture().get_image()
@@ -95,7 +95,67 @@ func shot(name: String, areas) -> void:
 	for piece in pieces:
 		out.blit_rect(piece, Rect2i(Vector2i.ZERO, piece.get_size()), Vector2i((width - piece.get_width()) / 2, y))
 		y += piece.get_height() + 6
+	if left != null:
+		# A picture standing at the left of the screenshot (the three weapons).
+		var wide := Image.create(left.get_width() + 10 + out.get_width(), maxi(left.get_height(), out.get_height()), false, screen.get_format())
+		wide.fill(Color("0c181b"))
+		wide.blit_rect(left, Rect2i(Vector2i.ZERO, left.get_size()), Vector2i(0, (wide.get_height() - left.get_height()) / 2))
+		wide.blit_rect(out, Rect2i(Vector2i.ZERO, out.get_size()), Vector2i(left.get_width() + 10, (wide.get_height() - out.get_height()) / 2))
+		out = wide
 	out.save_png("res://assets/help/%s.png" % name)
+
+## The three owned weapons as small range diagrams (no names), the equipped one framed in
+## gold: stands at the left of a screenshot so a weapon switch can be seen.
+func weapon_strip() -> Image:
+	var Diagram = load("res://scripts/run/range_diagram.gd")
+	var holder := Control.new()
+	holder.z_index = 200
+	holder.position = Vector2.ZERO
+	holder.size = Vector2(104, 312)
+	holder.scale = Vector2.ONE * SCALE
+	var back := ColorRect.new()
+	back.color = Color("0c181b")
+	back.size = holder.size
+	holder.add_child(back)
+	for slot in m.owned_weapons.size():
+		var index: int = m.owned_weapons[slot]
+		var frame := ColorRect.new()
+		frame.color = Color("ffd35b") if index == m.weapon else Color("2c4a44")
+		frame.position = Vector2(2, 2 + slot * 104)
+		frame.size = Vector2(100, 100)
+		holder.add_child(frame)
+		var inner := ColorRect.new()
+		inner.color = Color("0a1416")
+		inner.position = frame.position + Vector2(3, 3)
+		inner.size = Vector2(94, 94)
+		holder.add_child(inner)
+		var diagram = Diagram.new()
+		diagram.position = inner.position + Vector2(2, 2)
+		diagram.size = Vector2(90, 90)
+		diagram.offsets = view.run.Weapons.offsets(index)
+		diagram.slides = view.run.Weapons.slides(index)
+		diagram.echo = view.run.Weapons.hammer_echo(index)
+		diagram.hammer = view.run.Weapons.is_hammer(index)
+		diagram.accent = Color(m.WEAPONS[index].color)
+		holder.add_child(diagram)
+	# On a canvas layer above the battle screen's own, so nothing draws over it.
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	layer.add_child(holder)
+	root.add_child(layer)
+	await frames(4)
+	var image: Image = root.get_texture().get_image().get_region(Rect2i(Vector2i.ZERO, Vector2i(holder.size * SCALE)))
+	layer.queue_free()
+	await frames(2)
+	return image
+
+## Runs the battle view for `ms` milliseconds so an animation plays out.
+func play(ms: int) -> void:
+	bv.set_process(true)
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < ms:
+		await process_frame
+	bv.set_process(false)
 
 func act(cell: Vector2i) -> void:
 	m.player_action(cell)
@@ -157,11 +217,23 @@ func capture_all() -> void:
 	bv._sync_units(false)
 	bv._update_controls()
 	await shot("loop_4", turn_area)
-	setup([["heavy", Vector2i(3, 3)]], Vector2i(1, 1), "front_diagonal")
-	m.weapon = 0
-	await shot("switch_a", [PANEL, board(), card()])
-	m.weapon = ids.find("front_diagonal")
-	await shot("switch_b", [PANEL, board(), card()])
+	# [seg:end] Ending the turn without spending any AP.
+	setup([["heavy", Vector2i(2, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
+	m.enemies[0].hp = 5
+	await shot("end_a", turn_area)
+	planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m, 0)
+	planner.beat(m, 1)
+	bv.busy = true
+	bv._sync_units(false)
+	bv._feedback()
+	await frames(2)
+	await shot("end_b", turn_area)
+	planner.finish(m)
+	bv.busy = false
+	bv._sync_units(false)
+	bv._update_controls()
 	# --- 武器: directions, power, combining ---
 	for pick in [["dir_a", "forward"], ["dir_b", "vault"], ["dir_c", "knight"]]:
 		setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), pick[1])
@@ -173,45 +245,56 @@ func capture_all() -> void:
 	act(Vector2i(1, 1))
 	await frames(2)
 	await shot("power_b", [board(), card()])
+	# [seg:combo] Move with one weapon, switch (free), strike with another: the three weapons at the left.
 	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 3), "vault")
+	m.owned_weapons.assign([ids.find("forward"), ids.find("vault"), ids.find("front_diagonal")])
 	m.weapon = ids.find("vault")
-	await shot("combo_0", [PANEL, board(), card()])
+	await shot("combo_0", [PANEL, board()], await weapon_strip())
 	act(Vector2i(0, 1))
-	await shot("combo_1", [PANEL, board(), card()])
-	m.weapon = 0
-	await shot("combo_2", [PANEL, board(), card()])
+	await shot("combo_1", [PANEL, board()], await weapon_strip())
+	m.weapon = ids.find("forward")
+	await shot("combo_2", [PANEL, board()], await weapon_strip())
 	act(Vector2i(1, 1))
 	await frames(2)
-	await shot("combo_3", [PANEL, board(), card()])
-	# --- 滑る (shown with the special effects) ---
-	setup([["heavy", Vector2i(3, 1)]], Vector2i(0, 1), "rook_spear")
-	await shot("slide", [board(), card()])
+	await shot("combo_3", [PANEL, board()], await weapon_strip())
 	# --- 特殊効果 ---
-	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "shield")
-	m.enemies[0].hp = 5
-	m.obstacles.append(Vector2i(2, 1))
-	bv.queue_redraw()
-	await shot("push_a", [board(), card()])
+	# [seg:hammer] The hammer's area blow, as it plays in the battle.
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(1, 0)], ["heavy", Vector2i(1, 2)], ["heavy", Vector2i(2, 1)]], Vector2i(0, 1), "hammer")
+	for enemy in m.enemies:
+		enemy.hp = 5
+	bv.hover_cell = Vector2i(1, 1)
+	await shot("hammer_a", board())
+	bv.hover_cell = Vector2i(-9, -9)
 	act(Vector2i(1, 1))
-	await frames(2)
-	await shot("push_b", [board(), card()])
+	await play(330)
+	await shot("hammer_b", board())
+	await play(900)
+	await shot("hammer_c", board())
+	await frames(60)
+	# [seg:push] A shoved enemy that hits another enemy: both take 1.
+	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 1)]], Vector2i(0, 1), "shield")
+	for enemy in m.enemies:
+		enemy.hp = 5
+	bv.queue_redraw()
+	await shot("push_a", board())
+	act(Vector2i(1, 1))
+	await play(170)
+	await shot("push_b", board())
+	await play(330)
+	await shot("push_c", board())
+	await frames(60)
+	# [seg:circle] Walked tiles turn white; closing the ring... 99.
 	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "front_diagonal")
 	m.enchants[m.weapon] = "circle"
 	m.enemies[0].hp = 9
 	m.circle_tiles.assign([Vector2i(1, 0), Vector2i(2, 1)])
-	bv.hover_cell = Vector2i(1, 2)
+	bv.queue_redraw()
 	await shot("circle_a", board(40))
-	bv.hover_cell = Vector2i(-9, -9)
 	act(Vector2i(1, 2))
-	bv.set_process(true)
-	var start := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < 1050:
-		await process_frame
+	await play(1050)
 	await shot("circle_b", board(40))
-	while Time.get_ticks_msec() - start < 1600:
-		await process_frame
+	await play(550)
 	await shot("circle_c", board(40))
-	bv.set_process(false)
 	await frames(90)
 	# --- 妖精: 1 AP, placed in weapon range, once per fight, 3 turns ---
 	for pick in [["fairy_range_a", "forward"], ["fairy_range_b", "front_diagonal"]]:
@@ -220,6 +303,7 @@ func capture_all() -> void:
 		m.refill_fairies()
 		bv._select_item("wall_fairy", 0)
 		await shot(pick[0], [board(), card()])
+	# [seg:once] Calling a fairy costs 1 AP.
 	setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1))
 	m.fairy_loadout.assign(["wall_fairy", "cannon_fairy"])
 	m.refill_fairies()

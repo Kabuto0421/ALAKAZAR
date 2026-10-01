@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bgim86ailjn22"
-path="res://.godot/imported/switch_b.png-613a7285494212e51b655363a156b7fd.ctex"
+uid="uid://b032n22b6yals"
+path="res://.godot/imported/hammer_c.png-e452e9a0ca4fcb024ffff2501d0ba36e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/help/switch_b.png"
-dest_files=["res://.godot/imported/switch_b.png-613a7285494212e51b655363a156b7fd.ctex"]
+source_file="res://assets/help/hammer_c.png"
+dest_files=["res://.godot/imported/hammer_c.png-e452e9a0ca4fcb024ffff2501d0ba36e.ctex"]
 
 [params]
 
