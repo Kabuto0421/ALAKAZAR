@@ -1054,6 +1054,21 @@ func _class_ups() -> void:
 	tplanner.beat(tf,1)
 	tplanner.finish(tf)
 	verify(tf.player.hp < 5 or far_foe.cell != far_cell,"The turn after, the enemies act again")
+	# Allies are not frozen in time: a lone wolf and an acorn still act on a stopped turn.
+	var ta := fixture()
+	ta.enemies.clear()
+	ta.player.cell = Vector2i(0,0)
+	ta.owned_weapons.assign([0])
+	ta.weapon = 0
+	var prey: Dictionary = ta.make_enemy("heavy", Vector2i(5,2), 0)
+	prey.hp = 9
+	ta.enemies.append(prey)
+	ta.summon_wolf(Vector2i(3,4))
+	ta.summon_acorn(Vector2i(4,2))
+	ta.stop_time()
+	var wolf_from: Vector2i = ta.allies[0].cell
+	ta.act_allies()
+	verify(ta.time_stopped() and (ta.allies[0].cell != wolf_from or prey.hp < 9) and prey.hp < 9,"While time stands still the wolf and the acorn still act")
 	verify(tf.fairy_uses("time_fairy", 1) == 2 and tf.fairy_ap_cost("time_fairy", 1) == 0,"Time fairy+: twice per battle, still 0 AP")
 	verify(Run.Rarity.tier({"kind":"fairy","value":"time_fairy"}) == Run.Rarity.SUPER_RARE and Run.new().reward_fairy_pool.has("time_fairy"),"The time fairy is a super rare reward")
 	# Fairy texts read their numbers from the rules: nothing is left unfilled, and the
