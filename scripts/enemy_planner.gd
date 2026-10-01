@@ -12,9 +12,7 @@ func begin(model: RefCounted) -> void:
 	model.phase = Rules.Phase.ENEMY
 	# Rotorick's weapon verdict only binds the player's turn that just ended.
 	model.locked_slot = -1
-	# Rule A: the siege closes (on schedule) and burns whoever is inside it.
 	model.events.clear()
-	model.siege_tick()
 	model.bless_heal()
 	model.round_number += 1
 	staging.clear()

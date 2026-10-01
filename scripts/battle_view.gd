@@ -375,8 +375,7 @@ func _enemy_turn() -> void:
 	planner.begin(model)
 	_update_controls()
 	if not model.events.is_empty():
-		# Rule A: the siege closing and burning shows before the enemies move
-		# (and the blessed ground's heal at the end of the turn).
+		# The blessed ground's heal at the end of the turn shows before the enemies move.
 		_sync_units(true)
 		_feedback()
 		queue_redraw()
@@ -1215,14 +1214,8 @@ func _draw() -> void:
 		_text(Vector2(40,208),turn_text,22,CYAN if not busy else GOLD)
 	else:
 		_text(Vector2(352,126),turn_text,27,CYAN if not busy else GOLD)
-	var status_y := 0.0
 	if model.abyss_turns > 0:
 		_text(Vector2(40,262) if model.board_size >= 8 else Vector2(352,156),"奈落 あと%dターン" % model.abyss_turns,18,Color("b8a8ff"))
-		status_y += 22.0
-	var countdown := model.siege_countdown()
-	if model.rule_siege:
-		var siege_text := "包囲：この敵ターンで狭まる" if countdown == 0 else "包囲まで %dターン" % countdown if countdown > 0 else "包囲：これ以上狭まらない"
-		_text(Vector2(40,236) if model.board_size >= 8 else Vector2(560,126),siege_text,18,Color("ff8b8f") if countdown == 0 else MUTED)
 
 	if selected_item == "gravity_fairy" and model.item_targets("gravity_fairy").has(hover_cell) and not busy:
 		_text(Vector2(36,673),"引き寄せる（攻撃範囲）" if model.gravity_pulls(hover_cell) else "弾く（攻撃範囲外）",23,GRAVITY_PULL if model.gravity_pulls(hover_cell) else GRAVITY_PUSH)
@@ -1337,15 +1330,6 @@ func _draw_board() -> void:
 						edge_a += Vector2(0,6)
 						edge_b += Vector2(0,6)
 					draw_line(edge_a,edge_b,Color("1a1610"),2)
-			if model.sieged(cell):
-				# Rule A: the closed siege ring, dark red with a hatch.
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.35,0.02,0.05,0.55))
-				for k in range(3):
-					draw_line(pos+Vector2(4+k*20,60),pos+Vector2(20+k*20,4),Color(0.9,0.2,0.2,0.35),2)
-			elif model.siege_warning(cell):
-				# The ring that closes at the start of this enemy turn.
-				var blink := 0.45 + 0.35 * sin(clock * 6.0)
-				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(1,0.25,0.2,blink),false,2)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -2472,7 +2456,7 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "combo":1.0, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2684,9 +2668,6 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			var mouth := 26.0 * (1.0 - t * 0.7)
 			draw_circle(pos, mouth, Color(0.02, 0.0, 0.06, fade))
 			draw_arc(pos, mouth + 4, 0, TAU, 24, Color(0.62, 0.5, 1.0, fade), 3, true)
-		"combo":
-			# Rule C: the refund, rising over the player.
-			_text(pos + Vector2(-58, -40 - t * 24), "連撃！ AP+1", 24, Color(GOLD, fade))
 		"bite":
 			# Two rows of fangs snapping shut on the tile.
 			var close := minf(t * 2.5, 1.0)

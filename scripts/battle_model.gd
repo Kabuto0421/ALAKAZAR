@@ -238,14 +238,6 @@ var pits: Array[Vector2i] = []
 var fallen: Array[String] = []
 ## Where broken fortresses left their rubble (top-left of each 2x2), for the view.
 var ruins: Array[Vector2i] = []
-## Optional rules, all off by default (the run's start screen turns them on).
-## A: the siege ring closes in; B: enemy attacks also hit enemies; C: a multi-kill refunds 1 AP.
-var rule_siege := false
-var rule_friendly := false
-var rule_combo := false
-## Siege: every SIEGE_EVERY rounds the next ring from the edge closes; standing in it hurts.
-const SIEGE_EVERY := 4
-var siege_rings := 0
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
@@ -284,7 +276,6 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	pits.clear()
 	fallen.clear()
 	ruins.clear()
-	siege_rings = 0
 	locked_slot = -1
 	floor_cells.clear()
 	circle_tiles.clear()
@@ -402,13 +393,6 @@ func javelin_throw(enemy: Dictionary) -> bool:
 	enemy.intent = "投擲"
 	events.append({"kind":"javelin", "cell":player.cell, "from":enemy.cell, "id":-2})
 	_hit_player(enemy)
-	if rule_friendly and not terminal():
-		# Rule B: the spread also catches enemies standing in it.
-		for cell in javelin_cells(enemy):
-			var other := enemy_at(cell)
-			if not other.is_empty() and other.id != enemy.id:
-				damage_enemy(other, 1)
-		check_outcome()
 	return true
 
 func archer_aim(enemy: Dictionary) -> bool:
@@ -691,7 +675,6 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	if not item_targets(id).has(cell) or (is_directional(id) and not CARDINALS.has(direction)):
 		return false
 	events.clear()
-	var kills_before := kills
 	player.ap -= fairy_ap_cost(id)
 	inventory[id] -= 1
 	fairy_charges[slot] -= 1
@@ -701,7 +684,6 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	strike_guard = false
 	add_log("%sを使用" % fairy_title(id))
 	check_outcome()
-	_combo_check(kills_before)
 	dig_abyss()
 	return true
 
@@ -870,21 +852,10 @@ func equip(index: int) -> bool:
 	return true
 
 func player_action(cell: Vector2i) -> bool:
-	var before := kills
 	var done := _player_action(cell)
 	if done:
-		_combo_check(before)
 		dig_abyss()
 	return done
-
-## Rule C: one action that fells two or more enemies gives 1 AP back.
-func _combo_check(kills_before: int) -> void:
-	var felled := kills - kills_before
-	if not rule_combo or felled < 2 or terminal():
-		return
-	player.ap += 1
-	events.append({"kind":"combo", "cell":player.cell, "id":-2, "count":felled})
-	add_log("連撃！ %d体撃破 → AP+1" % felled)
 
 func _player_action(cell: Vector2i) -> bool:
 	if can_swap_shadow(cell):
@@ -1492,7 +1463,7 @@ func summon_abyss() -> void:
 	dig_abyss()
 
 ## 時の妖精: time stands still for the next enemy turn(s): no enemy moves or strikes
-## (the siege and the shadow's strike wait too). Allies still act.
+## (the shadow's strike waits too). Allies still act.
 func stop_time() -> void:
 	time_stop = maxi(time_stop, TIME_STOP_TURNS)
 	events.append({"kind":"time_stop", "cell":player.cell, "id":-2})
@@ -2405,11 +2376,6 @@ func rook_charge(enemy: Dictionary) -> bool:
 				stop = true
 			elif not ramming and not enemy_at(cell).is_empty() and enemy_at(cell).id != enemy.id:
 				stop = true
-				if rule_friendly:
-					# Rule B: the charge slams into the enemy in its way.
-					var other := enemy_at(cell)
-					events.append({"kind":"bump", "cell":cell, "id":-2, "dir":forward})
-					damage_enemy(other, 1)
 		if stop:
 			break
 		if ramming:
@@ -2421,11 +2387,6 @@ func rook_charge(enemy: Dictionary) -> bool:
 				if terminal():
 					break
 			if not chain.ok:
-				if rule_friendly:
-					# Rule B: enemies pinned against the edge or terrain are crushed.
-					for other in chain.enemies:
-						events.append({"kind":"bump", "cell":other.cell, "id":-2, "dir":forward})
-						damage_enemy(other, 1)
 				break
 			for other in chain.enemies:
 				other.cell += forward
@@ -2467,60 +2428,6 @@ func rook_charge(enemy: Dictionary) -> bool:
 	if not terminal() and enemy.hp > 0:
 		rook_brace(enemy)
 	return true
-
-# --- rule A: the siege ring --------------------------------------------------
-
-## Ring index from the edge: 0 is the outermost ring.
-func siege_layer(cell: Vector2i) -> int:
-	return mini(mini(cell.x, cell.y), mini(board_size - 1 - cell.x, board_size - 1 - cell.y))
-
-## Rings that may close: a 2x2 (or 3x3) centre always stays open.
-func siege_max() -> int:
-	return board_size / 2 - 1
-
-func sieged(cell: Vector2i) -> bool:
-	return rule_siege and siege_layer(cell) < siege_rings
-
-## The ring that closes at the start of this round's enemy turn.
-func siege_warning(cell: Vector2i) -> bool:
-	return rule_siege and siege_rings < siege_max() and round_number % SIEGE_EVERY == 0 and siege_layer(cell) == siege_rings
-
-## Player turns until the next ring closes (0 = this turn); -1 when no more rings close.
-func siege_countdown() -> int:
-	if not rule_siege or siege_rings >= siege_max():
-		return -1
-	return (SIEGE_EVERY - round_number % SIEGE_EVERY) % SIEGE_EVERY
-
-## Start of the enemy turn: a due ring closes, then everyone inside the siege takes 1.
-func siege_tick() -> void:
-	if not rule_siege or terminal() or time_stopped():
-		return
-	if round_number % SIEGE_EVERY == 0 and siege_rings < siege_max():
-		siege_rings += 1
-		add_log("包囲が狭まった")
-	if siege_rings == 0:
-		return
-	var hit_any := false
-	if sieged(player.cell):
-		player.hp -= 1
-		events.append({"kind":"burn", "cell":player.cell, "id":-2})
-		events.append({"kind":"hit", "cell":player.cell, "id":-1})
-		add_log("包囲の中 / HP −1")
-		hit_any = true
-	for enemy in enemies.duplicate():
-		if enemy.hp > 0 and not enemy.type in IMMOVABLE and footprint(enemy).any(func(c: Vector2i) -> bool: return sieged(c)):
-			events.append({"kind":"burn", "cell":enemy.cell, "id":-2})
-			damage_enemy(enemy, 1)
-			hit_any = true
-	for ally in allies:
-		if ally.hp > 0 and sieged(ally.cell):
-			ally.hp -= 1
-			events.append({"kind":"burn", "cell":ally.cell, "id":-2})
-			events.append({"kind":"hit", "cell":ally.cell, "id":ally.id})
-			hit_any = true
-	if hit_any:
-		_bury_allies()
-	check_outcome()
 
 ## What a ramming charge shoves one tile this step: the player and every enemy
 ## packed in front of the charger. ok is false when something in that chain is
