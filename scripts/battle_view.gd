@@ -954,7 +954,7 @@ func _update_controls() -> void:
 	bgm.set_layer("error" if reel == 5 else "jackpot" if reel == 7 else "normal")
 	# The Prison King's theme turns to its rage twin at half health.
 	bgm.set_king_rage(model.king_enraged())
-	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "ビルド選択へ →"
+	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "結果へ →"
 	for actor in actors.values():
 		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened
 	inventory_ui.model = model

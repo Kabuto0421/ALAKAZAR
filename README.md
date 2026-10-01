@@ -4,7 +4,7 @@
 
 ## 起動
 
-動作確認環境は **Godot 4.7.2（GDScript／GL Compatibility）** です。Godotで `project.godot` をインポートし、素材の読み込み後に **F5** で実行してください。**タイトル画面**（`title.tscn`）から始まり、「GAME START」で初期ビルド選択へ進みます。
+動作確認環境は **Godot 4.7.2（GDScript／GL Compatibility）** です。Godotで `project.godot` をインポートし、素材の読み込み後に **F5** で実行してください。**タイトル画面**（`title.tscn`）から始まり、「GAME START」で初期ビルド選択へ進みます（敵に倒されたときは、結果画面の「タイトルへ戻る」でこの画面に戻ります）。
 
 ### タイトル画面
 

@@ -55,6 +55,7 @@ func run() -> void:
 	await process_frame
 	await check_title_sync()
 	check_title_extras()
+	await check_defeat_goes_to_title()
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
 	await process_frame
@@ -316,3 +317,20 @@ func check_title_extras() -> void:
 		spots.append(Rect2(Extras.slot_center(index)-Vector2.ONE*Extras.SIZE/2,Vector2.ONE*Extras.SIZE))
 	verify(spots.all(func(r): return Extras.AREA.grow(2).encloses(r)),"Every slot lies inside the free space (with room to bob)")
 	verify(range(spots.size()).all(func(i): return range(i+1,spots.size()).all(func(j): return not spots[i].intersects(spots[j]))),"...and no two slots overlap")
+
+
+# Beaten by the enemy, the way back is the title screen (a cleared run still re-picks a build).
+func check_defeat_goes_to_title() -> void:
+	var view = load("res://scripts/run/run_view.gd").new()
+	root.add_child(view)
+	await process_frame
+	view.run.state=Run.State.LOST
+	view._render()
+	var buttons: Array = view.find_children("*","Button",true,false)
+	verify(buttons.any(func(b): return b.text=="タイトルへ戻る →") and not buttons.any(func(b): return b.text=="初期ビルドを選び直す →"),"After a defeat the button goes back to the title screen")
+	view.run.state=Run.State.FINISHED
+	view._render()
+	buttons = view.find_children("*","Button",true,false)
+	verify(buttons.any(func(b): return b.text=="初期ビルドを選び直す →"),"...while a cleared run still offers a new build")
+	view.queue_free()
+	await process_frame

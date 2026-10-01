@@ -147,7 +147,8 @@ func _render() -> void:
 			for slot in owned.size():
 				var weapon: Dictionary = run.battle.WEAPONS[int(owned[slot].value)]
 				_label(Vector2(260,320+slot*42),weapon.name+"  /  "+weapon.detail,23,Color(weapon.color))
-			_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →",_restart)
+			# Beaten: back to the title screen. A cleared run goes straight to a new build.
+			_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →" if won else "タイトルへ戻る →",_restart if won else _to_title)
 
 const CARD_TOP := 136.0
 const CARD_HEIGHT := 350.0
@@ -452,6 +453,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _battle_finished() -> void:
 	if run.finish_battle():
 		_render()
+
+const TITLE_SCENE := "res://title.tscn"
+
+func _to_title() -> void:
+	get_tree().change_scene_to_file(TITLE_SCENE)
 
 func _restart() -> void:
 	run.start()
