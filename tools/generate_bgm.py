@@ -2104,7 +2104,7 @@ TITLE_SECTIONS = [("glen", 0, 0), ("war", 2, 8), ("cyber", 7, 0), ("build", 10, 
 # and particle counts by it. The fusion thins out bar by bar (see the taper in title_march).
 TITLE_ENERGY = [(0, 0, 0.35), (2, 6, 0.35), (2, 8, 0.75), (7, 0, 0.9), (10, 0, 0.95), (11, 0, 1.0),
                 (12, 0, 0.85), (14, 0, 0.5), (14, 12, 0.35), (15, 0, 1.0), (19, 0, 1.0),
-                (19, 8, 0.92), (20, 0, 0.78), (21, 0, 0.64), (22, 0, 0.5), (22, 8, 0.38), (23, 0, 0.2)]
+                (19, 8, 0.92), (20, 0, 0.78), (21, 0, 0.64), (22, 0, 0.5), (22, 8, 0.3), (23, 0, 0.0)]
 
 
 def title_cue_sheet(fanfare, march, march_start, cut, length):
