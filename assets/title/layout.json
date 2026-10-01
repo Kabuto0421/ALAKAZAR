@@ -1,0 +1,25 @@
+{
+  "canvas": [1920, 1080],
+  "note": "All layer_*.png files are full 1920x1080 canvases. Stack them at (0,0) in this order.",
+  "layers": [
+    {"file": "layer_00_background.png", "z": 0},
+    {"file": "layer_10_heroes.png", "z": 10},
+    {"file": "layer_20_enemies.png", "z": 20},
+    {"file": "layer_30_logo.png", "z": 30},
+    {"file": "layer_40_menu_window.png", "z": 40}
+  ],
+  "menu_window_rect": {"x": 715, "y": 880, "w": 490, "h": 193},
+  "menu": {
+    "font": "res://assets/fonts/DotGothic16-Regular.ttf",
+    "font_size": 52,
+    "letter_spacing": 2,
+    "align": "center",
+    "outline": {"color": "#07080f", "size": 8},
+    "items": [
+      {"id": "game_start", "text": "GAME START", "rect": {"x": 759, "y": 908, "w": 402, "h": 62}, "center": [960, 939]},
+      {"id": "achievements", "text": "実績", "rect": {"x": 759, "y": 982, "w": 402, "h": 62}, "center": [960, 1013]}
+    ],
+    "selected": {"color": "#f2c14e", "cursor": "▶", "glow": "#f2c14e"},
+    "normal": {"color": "#fff6e0"}
+  }
+}

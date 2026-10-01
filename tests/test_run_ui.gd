@@ -34,6 +34,25 @@ func run() -> void:
 	# The first-battle manual would cover the board; it is checked on its own below.
 	load("res://scripts/battle_view.gd").help_seen = true
 	root.size=Vector2i(1728,1080)
+	# The title screen: the project starts there; two big menu items, the title theme
+	# loops from the march (after the fanfare), and 実績 opens its page.
+	verify(ProjectSettings.get_setting("application/run/main_scene") == "res://title.tscn","The game starts on the title screen")
+	var title = load("res://title.tscn").instantiate()
+	root.add_child(title)
+	await process_frame
+	verify(title.item_labels.size() == 2 and title.item_labels[0].text == "GAME START" and title.item_labels[1].text == "実績","Title menu: GAME START and 実績")
+	verify(title.item_labels.all(func(l): return l.get_theme_font_size("font_size") >= 52),"The menu items are big")
+	verify(title.music.playing and title.MUSIC.loop and title.MUSIC.loop_offset > 10.0,"The title theme plays and loops after its fanfare")
+	title.reveal = title.MENU_TIME
+	title.selected = 1
+	title._activate()
+	verify(is_instance_valid(title.achievements_page),"実績 opens the achievements page")
+	title._close_achievements()
+	verify(not is_instance_valid(title.achievements_page),"...and it closes")
+	var Achievements = load("res://scripts/title/achievements.gd")
+	verify(Achievements.all().is_empty() and Achievements.unlocked_count() == 0 and not Achievements.unlock("nothing"),"Achievements are ready but empty (unknown ids are ignored)")
+	title.queue_free()
+	await process_frame
 	app=load("res://main.tscn").instantiate()
 	root.add_child(app)
 	await process_frame
