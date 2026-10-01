@@ -37,9 +37,9 @@ const IN_ART: Array[String] = [
 ]
 ## The free space: above the fairies and left of the logo's shadow (checked against the
 ## art's pixels by the tests).
-const AREA := Rect2(90, 300, 800, 130)
-const SLOT := Vector2(76, 64)
-const SIZE := 54.0
+const AREA := Rect2(90, 292, 800, 142)
+const SLOT := Vector2(84, 71)
+const SIZE := 68.0
 
 var items: Array[Resource] = []
 var time := 0.0
@@ -52,10 +52,11 @@ static func missing() -> Array[Resource]:
 			result.append(item)
 	return result
 
-## Where the n-th extra fairy stands (its centre): left to right, then the next row.
+## Where the n-th extra fairy stands (its centre): left to right along the row just above
+## the painted fairies (the same left edge and spacing as theirs), then the row above that.
 static func slot_center(index: int) -> Vector2:
 	var columns := int(AREA.size.x / SLOT.x)
-	return AREA.position + Vector2((index % columns + 0.5) * SLOT.x, (index / columns + 0.5) * SLOT.y)
+	return Vector2(AREA.position.x + (index % columns + 0.5) * SLOT.x, AREA.end.y - (index / columns + 0.5) * SLOT.y)
 
 ## How many fit in the free space.
 static func capacity() -> int:
@@ -75,6 +76,5 @@ func _draw() -> void:
 		var item: Resource = items[index]
 		var bob := sin(time * 1.6 + index * 1.3) * 4.0
 		var at := slot_center(index) + Vector2(0, bob)
-		draw_circle(at, SIZE * 0.62, Color(item.color, 0.10 + 0.05 * sin(time * 2.0 + index)))
 		var texture: Texture2D = item.icon
 		draw_texture_rect_region(texture, Rect2(at - Vector2.ONE * SIZE / 2, Vector2.ONE * SIZE), ItemPreview._crop(texture))
