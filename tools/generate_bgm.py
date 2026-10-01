@@ -1670,16 +1670,34 @@ KOMURO_TUNE = [
     [(0, 2, "A5"), (3, 2, "A5"), (6, 2, "C6"), (8, 4, "C6"), (12, 4, "F5")],
     [(0, 4, "B5"), (4, 4, "D6"), (8, 2, "C6"), (10, 2, "B5"), (12, 3, "G5")],
 ]
-# The cyber hook (saw lead): bright, riding the beat, over Em C D G Em C D.
+# The cyber riff: heavy and low (E4-A5), chugging 16ths on the root and a minor, blue
+# line on top (F and A# are the tension notes), played by a distorted saw with a
+# distorted bass under it. Open fifths below, so nothing in the harmony is bright.
 CYBER_HOOK = [
-    [(0, 2, "B5"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "B5")],
-    [(0, 2, "C6"), (2, 2, "E6"), (4, 2, "D6"), (6, 2, "C6"), (8, 4, "G5"), (12, 4, "E5")],
-    [(0, 2, "D6"), (2, 2, "F#6"), (4, 2, "E6"), (6, 2, "D6"), (8, 4, "A5"), (12, 4, "D6")],
-    [(0, 4, "B5"), (4, 2, "D6"), (6, 2, "B5"), (8, 4, "G5"), (12, 4, "D6")],
-    [(0, 2, "E6"), (3, 2, "E6"), (6, 2, "D6"), (8, 2, "B5"), (10, 2, "G5"), (12, 4, "B5")],
-    [(0, 2, "E6"), (3, 2, "E6"), (6, 2, "D6"), (8, 2, "C6"), (10, 2, "G5"), (12, 4, "E5")],
-    [(0, 4, "D6"), (4, 4, "E6"), (8, 2, "D6"), (10, 2, "A5"), (12, 2, "F#5"), (14, 2, "A5")],
+    [(0, 1, "E4"), (1, 1, "E4"), (3, 1, "E4"), (4, 2, "G4"), (6, 1, "F4"), (7, 1, "E4"), (8, 2, "B4"), (10, 2, "A4"), (12, 4, "G4")],
+    [(0, 1, "C5"), (1, 1, "C5"), (3, 1, "C5"), (4, 2, "E5"), (6, 2, "D5"), (8, 2, "B4"), (10, 2, "G4"), (12, 4, "E4")],
+    [(0, 1, "D5"), (1, 1, "D5"), (3, 1, "D5"), (4, 2, "F5"), (6, 1, "E5"), (7, 1, "D5"), (8, 2, "A4"), (10, 2, "C5"), (12, 4, "A4")],
+    [(0, 1, "G4"), (1, 1, "G4"), (3, 1, "G4"), (4, 2, "A#4"), (6, 2, "G4"), (8, 4, "D5"), (12, 2, "C5"), (14, 2, "B4")],
+    [(0, 1, "E5"), (1, 1, "E5"), (3, 1, "E5"), (4, 2, "G5"), (6, 1, "F5"), (7, 1, "E5"), (8, 2, "B4"), (10, 2, "E5"), (12, 4, "G5")],
+    [(0, 1, "C5"), (1, 1, "C5"), (3, 1, "C5"), (4, 2, "G5"), (6, 2, "F5"), (8, 2, "E5"), (10, 2, "C5"), (12, 4, "B4")],
+    [(0, 1, "D5"), (1, 1, "D5"), (3, 1, "D5"), (4, 2, "A5"), (6, 2, "F5"), (8, 2, "E5"), (10, 2, "D5"), (12, 2, "C5"), (14, 2, "B4")],
 ]
+
+
+def grit_lead(note, steps, vol=0.12):
+    """A distorted saw lead: three detuned saws pushed hard into a clipper, so the
+    riff snarls instead of singing."""
+    raw = synth(note, steps * STEP * 0.85, "saw", detune=(-14, 0, 14), vol=1.0, attack=0.004,
+                decay=0.12, sustain=0.75, release=0.04, cutoff=(4200, 2200, 0.1))
+    return [math.tanh(x * 3.2) * vol for x in raw]
+
+
+def power_pad(chord, seconds, vol=0.07, cutoff=1500):
+    """Open fifths and octaves only (no third): neither bright nor sad."""
+    root = midi(chord["bass"])
+    return pad_chord([root + 12, root + 19, root + 24, root + 31], seconds, cutoff=cutoff, vol=vol)
+
+
 # The fusion tune (pipes over the cyber band), a long line in G major / E minor.
 FUSION_TUNE = [
     [(0, 2, "E5"), (2, 2, "G5"), (4, 2, "B5"), (6, 2, "A5"), (8, 2, "G5"), (10, 2, "F#5"), (12, 4, "E5")],
@@ -1759,11 +1777,22 @@ def title_march():
                                                decay=1.0, sustain=0.8, release=0.3, cutoff=(700, 500, 1.0)))
                 loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1100 if idx < 2 else 1700, vol=0.04 if idx < 2 else 0.055))
                 if idx == 2:
-                    loop.put("fx", t0 + 8 * STEP, crash(rng, 1.6, 0.1))
+                    # The lead-in to 17.1 s: a riser swells from step 2, the snare rolls up
+                    # from nothing, the bass and war drums creep in, and a quick pickup run
+                    # climbs to the downbeat, where the pipes land on the whistle's own note.
+                    loop.put("fx", t0 + 2 * STEP, riser(rng, 6 * STEP, vol=0.09))
+                    for k in range(8):
+                        loop.put("snare", t0 + (4 + k * 0.5) * STEP, pipe_snare(rng, 0.02 + 0.028 * k))
+                    for s2 in range(4, 8):
+                        loop.put("bass", t0 + s2 * STEP, bass_note(root + [0, 0, 12, 0, 0, 7, 12, 7][s2], 1, 0.06 + 0.045 * (s2 - 4)))
+                    loop.put("drum", t0 + 4 * STEP, war_drum(rng, 0.18))
+                    loop.put("drum", t0 + 6 * STEP, war_drum(rng, 0.3))
+                    for i in range(6):
+                        octave, k = divmod(i, 4)
+                        loop.put("arp", t0 + (6 + i / 3.0) * STEP, pluck(midi(chord["arp"][k]) + 12 * (octave + 1), 3000 + 250 * i, 0.04 + 0.012 * i))
+                    loop.put("fx", t0 + 8 * STEP, crash(rng, 1.6, 0.09))
                 if idx < 6:
                     arp_backdrop(loop, t0, chord, "harp", 0.09 if idx < 2 else 0.075)
-                if idx == 2:
-                    arp_fill(loop, t0, chord, 0.075, start=8)
                 if idx == 6:
                     arp_fill(loop, t0, chord, 0.09, start=10)
                     loop.put("fx", t0 + 4 * STEP, riser(rng, 12 * STEP, vol=0.1))
@@ -1792,15 +1821,13 @@ def title_march():
                     loop.put("kick", t0, kick(1.0))
                 for s in range(16):
                     if s % 4 != 0:
-                        loop.put("bass", t0 + s * STEP, bass_note(root + (12 if s % 8 == 6 else 0), 1, 0.36))
-                for i, k in enumerate([0, 2, 1, 3, 2, 1, 3, 2] * 2):
-                    loop.put("arp", t0 + i * STEP, pluck(chord["arp"][k], 2600 + 1800 * (idx / 6), vol=0.075))
-                loop.put("pad", t0, pad_chord(chord["pad"], bar - 0.1, cutoff=1600, vol=0.075))
+                        loop.put("bass", t0 + s * STEP, dirty_bass(root + (12 if s % 8 == 6 else 0), 1, 0.5))
+                for i, off in enumerate([0, 7, 12, 7] * 4):
+                    loop.put("arp", t0 + i * STEP, pluck(root + 24 + off, 1900 + 1400 * (idx / 6), vol=0.07))
+                loop.put("pad", t0, power_pad(chord, bar - 0.1, vol=0.08, cutoff=1400))
                 for st, ln, nt in CYBER_HOOK[idx]:
-                    loop.put("lead", t0 + st * STEP, lead(midi(nt), ln, vol=0.13))
-                    loop.put("lead", t0 + st * STEP, lead(midi(nt) - 12, ln, vol=0.08))
-                    if idx >= 4:
-                        loop.put("lead", t0 + st * STEP, lead(lower_third(midi(nt), TITLE_PCS_G), ln, vol=0.06))
+                    loop.put("lead", t0 + st * STEP, grit_lead(midi(nt), ln, vol=0.15))
+                    loop.put("lead", t0 + st * STEP, dirty_bass(midi(nt) - 24, ln, 0.35))
                 if idx % 4 == 3:
                     arp_fill(loop, t0, chord, 0.08, start=12)
                 if idx == 6:
@@ -1860,7 +1887,7 @@ def title_march():
     loop.duck("pad", kicks, 0.3)
     loop.duck("bass", kicks, 0.2, length=0.1)
     # The cyber and fusion parts carry no war drums: lift them to the level of the rest.
-    for first, last, gain in ((7, 14, 1.4), (14, 18, 1.25)):
+    for first, last, gain in ((7, 14, 1.2), (14, 18, 1.25)):
         lo, hi = int(first * bar * RATE), int(last * bar * RATE)
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
