@@ -23,19 +23,24 @@ const SUPER_RARE_WEAPONS: Array[String] = ["eight_knight"]
 static func tier(offer: Dictionary) -> int:
 	if offer.get("kind", "") == "weapon":
 		var index := int(offer.value)
-		var id: String = Weapons.DATA[index].id
-		if Weapons.is_late(index) or SUPER_RARE_WEAPONS.has(id):
-			return SUPER_RARE
-		if offer.get("enchant", "") == "circle" or Weapons.DATA[index].get("rare", false) or RARE_WEAPONS.has(id):
-			return RARE
-		if Weapons.is_mid(index) or Weapons.is_boss_reward(index) or Weapons.from_rotorick(index) or UNCOMMON_WEAPONS.has(id):
-			return UNCOMMON
-		return COMMON
+		# The hammers are one rarity above where they would otherwise sit.
+		return mini(_weapon_tier(offer) + (1 if Weapons.is_hammer(index) else 0), SUPER_RARE)
 	var id := str(offer.value)
 	if SUPER_RARE_FAIRIES.has(id):
 		return SUPER_RARE
 	if RARE_FAIRIES.has(id):
 		return RARE
 	if UNCOMMON_FAIRIES.has(id):
+		return UNCOMMON
+	return COMMON
+
+static func _weapon_tier(offer: Dictionary) -> int:
+	var index := int(offer.value)
+	var id: String = Weapons.DATA[index].id
+	if Weapons.is_late(index) or SUPER_RARE_WEAPONS.has(id):
+		return SUPER_RARE
+	if offer.get("enchant", "") == "circle" or Weapons.DATA[index].get("rare", false) or RARE_WEAPONS.has(id):
+		return RARE
+	if Weapons.is_mid(index) or Weapons.is_boss_reward(index) or Weapons.from_rotorick(index) or UNCOMMON_WEAPONS.has(id):
 		return UNCOMMON
 	return COMMON

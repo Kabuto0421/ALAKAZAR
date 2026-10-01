@@ -854,7 +854,7 @@ func _expiring_and_rewards() -> void:
 	var Rarity = load("res://scripts/run/rarity.gd")
 	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton super rare, meteor rare, magic bolt common")
 	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
-	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.UNCOMMON,"Rook spear super rare, hammer uncommon")
+	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.RARE and Rarity.tier({"kind":"weapon","value":wids.find("mallet")}) == Rarity.UNCOMMON,"Rook spear super rare; the hammers sit one tier up (hammer rare, mallet uncommon)")
 	verify(Rarity.tier({"kind":"fairy","value":"holy_spirit"}) == Rarity.SUPER_RARE,"The holy spirit is super rare")
 	# Fairy cards draw a rarity first: 激レア about 1% early, rising to 10% at the end.
 	var odds: Array = Run.FAIRY_TIER_ODDS
@@ -1382,7 +1382,7 @@ func _mechanic_weapons() -> void:
 	# 十字槌: a rare mid-game hammer that moves like the cross sword and spreads in a cross.
 	var cross_hammer: int = ids.find("cross_hammer")
 	verify(W.mid_pool().has(cross_hammer) and W.is_hammer(cross_hammer) and W.base_damage(cross_hammer) == 2,"The cross hammer is a mid-game hammer that hits for 2")
-	verify(Run.Rarity.tier({"kind":"weapon","value":cross_hammer}) == Run.Rarity.RARE,"...and a rare one")
+	verify(Run.Rarity.tier({"kind":"weapon","value":cross_hammer}) == Run.Rarity.SUPER_RARE,"...and a super rare one (hammers are a tier above)")
 	var ch := _weapon_room("cross_hammer",[Vector2i(2,1),Vector2i(1,1),Vector2i(3,1),Vector2i(2,0),Vector2i(3,2)])
 	verify(ch.hammer_area(Vector2i(2,1)).size() == 5,"Its blow covers the target and the four tiles around it")
 	verify(ch.player_action(Vector2i(1,1)) and ch.enemy_at(Vector2i(1,1)).hp == 3 and ch.enemy_at(Vector2i(2,1)).hp == 3 and ch.enemy_at(Vector2i(3,1)).hp == 5 and ch.enemy_at(Vector2i(2,0)).hp == 5,"Striking up: 2 to the target and to its side, nothing beyond the cross")
