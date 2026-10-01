@@ -1893,16 +1893,9 @@ def title_march():
                         if not (s == 12 and (breaking or idx == 6)):
                             loop.put("clap", t0 + s * STEP, edm_snare(rng, 0.27))
                 else:
-                    # The outro: a falling noise, then the build-up into the fusion.
-                    loop.put("fx", t0, riser(rng, 12 * STEP, vol=0.07)[::-1])
-                    loop.put("fx", t0 + 12 * STEP, riser(rng, 4 * STEP, vol=1.0))
-                    # A saw sweeping up from E4 through two octaves: the swell's pitch.
-                    loop.put("fx", t0 + 12 * STEP, synth("E4", 4 * STEP, "saw", detune=(-12, 0, 12), vol=0.14, attack=0.05,
-                                                         decay=1.0, sustain=1.0, release=0.03, cutoff=(6000, 6000, 1.0),
-                                                         pitch=lambda t: 1.0 + 3.0 * min(t / (4 * STEP), 1.0) ** 2))
-                    loop.put("fx", t0 + 12 * STEP, crash(rng, 4 * STEP, 0.9)[::-1])
-                    for k in range(8):
-                        loop.put("snare", t0 + (12 + k * 0.5) * STEP, pipe_snare(rng, 0.08 + 0.7 * (k / 8) ** 1.2))
+                    # The outro: a falling noise; it fades to silence by 42.0 s and the fusion
+                    # follows at 43.0 s with nothing in between.
+                    loop.put("fx", t0, riser(rng, 8 * STEP, vol=0.07)[::-1])
                 if breaking:
                     first = 12
                     for k in range((16 - first) * 2):
@@ -1923,7 +1916,7 @@ def title_march():
                         else:
                             loop.put("edm_bass", t0 + s * STEP, edm_bass(root, 2, 0.5))
                 for i, k in enumerate([0, 1, 2, 3, 2, 1, 2, 3] * 2):
-                    if outro and i >= 12:
+                    if outro and i >= 8:
                         continue
                     loop.put("arp", t0 + i * STEP, pluck(midi(chord["arp"][k]) + 12, 3000 + 1800 * (min(idx, 4) / 4), vol=0.085 if not outro else 0.07))
                 loop.put("edm_pad", t0, pad_chord(chord["pad"] + [chord["arp"][0]], bar - 0.1, cutoff=2400, vol=0.075 if not outro else 0.1))
@@ -2011,12 +2004,15 @@ def title_march():
         for buf in loop.buses.values():
             for i in range(lo, min(hi, len(buf))):
                 buf[i] *= gain
-    # The outro's fade-out: the first 12 steps (about 1.5 s) of the last cyber bar sink
-    # towards silence; the last 4 steps are the build-up and stay as they are.
-    lo, hi = int(14 * bar * RATE), int((14 * bar + 12 * STEP) * RATE)
+    # The outro's fade-out: the first 8 steps (about 1 s) of the last cyber bar sink to
+    # silence (a cosine curve), and the rest of the bar is left empty, so the fusion
+    # enters from nothing.
+    lo, end = int(14 * bar * RATE), int(15 * bar * RATE)
+    fade = int(8 * STEP * RATE)
     for buf in loop.buses.values():
-        for i in range(lo, min(hi, len(buf))):
-            buf[i] *= 1.0 - 0.92 * (i - lo) / (hi - lo)
+        for i in range(lo, min(end, len(buf))):
+            k = (i - lo) / fade
+            buf[i] *= 0.5 * (1.0 + math.cos(math.pi * k)) if k < 1.0 else 0.0
     return loop
 
 
