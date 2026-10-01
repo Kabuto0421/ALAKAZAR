@@ -1632,14 +1632,14 @@ func _loner_fairies() -> void:
 	m.place_shadow(spot)
 	var ap_now: int = m.player.ap
 	verify(m.fairy_ap_cost("shadow_stitch") == 0 and m.fairy_uses("shadow_stitch") == 1 and m.player_action(spot) and m.player.ap == ap_now,"The upgraded shadow: 0 AP to pin and to swap")
-	# 一匹狼の妖精: a lasting ally placed out of reach; it hunts alone and sulks within reach.
+	# 一匹狼の妖精: a lasting ally placed within reach; it hunts alone and sulks within reach.
 	m = fixture()
 	m.fairy_loadout.assign(["lone_wolf"])
 	m.refill_fairies()
 	m.enemies.clear()
 	reach = m.all_reach()
 	var wolf_spots: Array = m.item_targets("lone_wolf")
-	verify(not wolf_spots.is_empty() and wolf_spots.all(func(c): return not reach.has(c)),"The wolf is placed only where no weapon reaches")
+	verify(not wolf_spots.is_empty() and wolf_spots.all(func(c): return m.targets().has(c)),"The wolf is placed only within the weapon's reach")
 	# A tile out of reach with room for a silver step right and prey up-right of that.
 	var home := Vector2i(-1,-1)
 	for cell in wolf_spots:
@@ -1656,6 +1656,13 @@ func _loner_fairies() -> void:
 	verify(m.use_item("lone_wolf",home) and m.allies.size() == 1 and m.allies[0].type == "wolf","The wolf joins as an ally")
 	var wolf: Dictionary = m.allies[0]
 	verify(wolf.hp == 3 and Rules.summon_ap("lone_wolf") == 2,"The lone wolf has HP 3 and AP 2")
+	m.act_allies()
+	verify(wolf.sulking and wolf.cell == home and prey.hp == 5,"Placed within reach, it sulks at first")
+	# The player walks away: now no weapon reaches it, and it hunts.
+	var corners: Array = [Vector2i(0,0), Vector2i(m.board_size-1,0), Vector2i(0,m.board_size-1), Vector2i(m.board_size-1,m.board_size-1)]
+	corners = corners.filter(func(c): return m.enemy_at(c).is_empty() and not m.blocked(c) and c != home + Vector2i(1,0))
+	corners.sort_custom(func(a, b): return a.distance_to(Vector2(home)) > b.distance_to(Vector2(home)))
+	m.player.cell = corners[0]
 	m.act_allies()
 	verify(wolf.cell == home + Vector2i(1,0) and prey.hp == 3,"Alone, it takes a silver step and bites once for 2 (2 AP)")
 	m.tick_walls()

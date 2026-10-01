@@ -32,7 +32,7 @@ const CARD_TEXT := {
 const CHAIN_FAIRIES := ["cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy"]
 ## Where each fairy is placed (shown under its name); 武器の範囲 unless listed.
 const PLACES := {
-	"shadow_stitch": "届かない所", "lone_wolf": "届かない所",
+	"shadow_stitch": "届かない所", "lone_wolf": "武器の範囲",
 	"gravity_fairy": "どこでも", "warp_fairy": "どこでも",
 	"abyss_spirit": "自分のマス", "meteor_fairy": "自分のマス", "time_fairy": "自分のマス",
 }

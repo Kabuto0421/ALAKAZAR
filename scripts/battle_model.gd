@@ -194,7 +194,7 @@ const PLUS_TEXT := {
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["置くのも入れ替わりも{cost_plus} AP", "全武器の範囲外の空きマスに\n影を縫い止める。{turns}ターン残る。\n{swap_ap_plus} APで影と入れ替わる\n（1ターン1回）。"],
-	"lone_wolf": ["{cost_plus} APで呼べる", "全武器の範囲外の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で{wolf_bite}、隣に誰かいると{wolf_crowded}。\n武器が届く所ではすねる。"],
+	"lone_wolf": ["{cost_plus} APで呼べる", "攻撃範囲内の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に噛む。\n単独で{wolf_bite}、隣に誰かいると{wolf_crowded}。\n武器が届く所ではすねる。"],
 	"glutton_fairy": ["{cost_plus} APで呼べる", "攻撃範囲に召喚。HP{hp_plus}・AP{ally_ap}。\n金の動き・右向き固定。\n一番近い相手（1×1）に噛みつく。\n同距離ならあなたを優先。\n噛むと{bite}ダメージ、HP+{growth}。"],
 	"freeze_fairy": ["{freeze_plus}ターン凍らせる", "攻撃範囲のマスに置く。\n周囲3×3の敵が凍りつき、\n{freeze_plus}ターン動けず攻撃もしない。"],
 	"blessing_fairy": ["5×5に広がり、中でターンを終えるとHP+{bless_heal}", "攻撃範囲の空きマスに置く。\n周囲5×5が{turns}ターン加護の地に。\n中にいる間、攻撃が当たった\nマスの上下左右にも当たる。\n中でターンを終えるとHP+{bless_heal}。"],

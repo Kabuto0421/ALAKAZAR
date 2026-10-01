@@ -381,7 +381,7 @@ func check_defeat_goes_to_title() -> void:
 	view.run.state=Run.State.FINISHED
 	view._render()
 	buttons = view.find_children("*","Button",true,false)
-	verify(buttons.any(func(b): return b.text=="初期ビルドを選び直す →"),"...while a cleared run still offers a new build")
+	verify(buttons.any(func(b): return b.text=="初期ビルドを選び直す →") and buttons.any(func(b): return b.text=="タイトルへ戻る →"),"...while a cleared run offers a new build and the way back to the title")
 	view.queue_free()
 	await process_frame
 

@@ -148,8 +148,12 @@ func _render() -> void:
 			for slot in owned.size():
 				var weapon: Dictionary = run.battle.WEAPONS[int(owned[slot].value)]
 				_label(Vector2(260,320+slot*42),weapon.name+"  /  "+weapon.detail,23,Color(weapon.color))
-			# Beaten: back to the title screen. A cleared run goes straight to a new build.
-			_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →" if won else "タイトルへ戻る →",_restart if won else _to_title)
+			# Beaten: back to the title screen. A cleared run may also go straight to a new build.
+			if won:
+				_button(Vector2(260,515),Vector2(500,62),"初期ビルドを選び直す →",_restart)
+				_button(Vector2(260,595),Vector2(500,62),"タイトルへ戻る →",_to_title)
+			else:
+				_button(Vector2(260,515),Vector2(500,62),"タイトルへ戻る →",_to_title)
 
 const CARD_TOP := 136.0
 const CARD_HEIGHT := 350.0
