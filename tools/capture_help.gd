@@ -235,16 +235,20 @@ func capture_all() -> void:
 	bv._sync_units(false)
 	bv._update_controls()
 	# --- 武器: directions, power, combining ---
+	# [seg:dir] Weapons reach different tiles.
 	for pick in [["dir_a", "forward"], ["dir_b", "vault"], ["dir_c", "knight"]]:
 		setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), pick[1])
 		m.player.cell = Vector2i(1, 1)
 		bv._sync_units(false)
 		await shot(pick[0], [board(), card()])
+	# [seg:power] Weapons hit for different amounts: the hammer's blow as it plays now.
 	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 1), "hammer")
+	m.enemies[0].hp = 5
 	await shot("power_a", [board(), card()])
 	act(Vector2i(1, 1))
-	await frames(2)
+	await play(330)
 	await shot("power_b", [board(), card()])
+	await frames(60)
 	# [seg:combo] Move with one weapon, switch (free), strike with another: the three weapons at the left.
 	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 3), "vault")
 	m.owned_weapons.assign([ids.find("forward"), ids.find("vault"), ids.find("front_diagonal")])
@@ -296,7 +300,8 @@ func capture_all() -> void:
 	await play(550)
 	await shot("circle_c", board(40))
 	await frames(90)
-	# --- 妖精: 1 AP, placed in weapon range, once per fight, 3 turns ---
+	# --- 妖精: 1 AP, placed in weapon range, once per fight ---
+	# [seg:range] Where a fairy can go depends on the weapon.
 	for pick in [["fairy_range_a", "forward"], ["fairy_range_b", "front_diagonal"]]:
 		setup([["heavy", Vector2i(3, 3)]], Vector2i(1, 1), pick[1])
 		m.fairy_loadout.assign(["wall_fairy"])
