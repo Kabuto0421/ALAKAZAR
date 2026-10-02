@@ -48,7 +48,7 @@ const TIME_STOP_TURNS := 1
 const MAX_PLUS = {"meteor_fairy": 4}
 ## 氷結妖精: enemy turns a frozen enemy skips (one more upgraded).
 const FREEZE_TURNS := 3
-const METEOR_DAMAGE := 3
+const METEOR_DAMAGE := 2
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 5
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
@@ -1222,22 +1222,13 @@ func _bury_allies() -> void:
 				break
 	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 
-## Top-left of a free 2x2 block that contains `cell`, preferring blocks away
-## from the player; (-1,-1) when none fits.
+## The 2x2 block a big fairy takes when placed on `cell`: `cell` is its top-left tile, so the
+## block reaches right and down. (-1,-1) when any of its four tiles is taken or off the board.
 func big_anchor(cell: Vector2i) -> Vector2i:
-	var best := Vector2i(-1, -1)
-	var best_gap := -1.0
-	for offset in [Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(1,1)]:
-		var anchor: Vector2i = cell - offset
-		var free := true
-		for tile in footprint({"cell":anchor, "size":2}):
-			if not inside(tile) or blocked(tile) or tile == player.cell or not enemy_at(tile).is_empty():
-				free = false
-		var gap := (Vector2(anchor) + Vector2.ONE * 0.5).distance_to(Vector2(player.cell))
-		if free and gap > best_gap:
-			best = anchor
-			best_gap = gap
-	return best
+	for tile in footprint({"cell":cell, "size":2}):
+		if not inside(tile) or blocked(tile) or tile == player.cell or not enemy_at(tile).is_empty():
+			return Vector2i(-1, -1)
+	return cell
 
 func _note_summon(kind: String) -> void:
 	if not summoned_kinds.has(kind):
