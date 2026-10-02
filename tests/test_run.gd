@@ -2370,12 +2370,14 @@ func _storm_shark() -> void:
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)
 	t._storm_thunder()
-	verify(t.storm.centers.size() == 1 and t.storm.marks.size() >= 5 and t.storm.marks.all(func(c): return t.inside(c)) and Rules.THUNDER_SHAPES.has(t.storm.shape),"First, one sigil is marked (a ring, an X or a long cross)")
-	verify(absi(t.storm.centers[0].x - 4) <= 2 and absi(t.storm.centers[0].y - 4) <= 2,"...centred inside the 5x5 round the player")
-	verify(Rules.THUNDER_SHAPES.keys().all(func(k): return Rules.THUNDER_SHAPES[k].all(func(o): return absi(o.x) <= 2 and absi(o.y) <= 2)),"Every sigil fits a 5x5")
-	# The ring leaves a safe cross inside it.
-	var ring_cells: Array = Rules.THUNDER_SHAPES.ring
-	verify(not ring_cells.has(Vector2i(1,0)) and not ring_cells.has(Vector2i(0,1)) and ring_cells.has(Vector2i(0,0)),"The ring leaves the tiles beside its middle safe")
+	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 3 and t.storm.marks.all(func(c): return t.inside(c)),"First, three crosses are marked")
+	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2),"...each centred inside the 5x5 round the player")
+	verify(t.storm.centers.all(func(c): return t.storm.marks.has(c) and t.storm.marks.has(c + Vector2i.UP) or c.y == 0),"...each a middle and its neighbours")
+	var apart := true
+	for i in 3:
+		for j in range(i + 1, 3):
+			apart = apart and absi(t.storm.centers[i].x - t.storm.centers[j].x) + absi(t.storm.centers[i].y - t.storm.centers[j].y) >= 3
+	verify(apart,"...kept apart from each other when the board has room")
 	var marked: Array = t.storm.marks.duplicate()
 	t.player.cell = marked[0]
 	var thp: int = t.player.hp

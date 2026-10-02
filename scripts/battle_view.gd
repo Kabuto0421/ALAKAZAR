@@ -2598,45 +2598,41 @@ func _draw_storm_frame() -> void:
 	_draw_tsunami()
 	_draw_thunder_sigil()
 
-## The lightning sigil: the marked tiles joined by glowing lines into one shape (a ring round
-## a safe cross, a great X, or a long cross) with a bolt in its middle tile.
+## The lightning sigil: three magic circles (a ring, a cross of light and a bolt on each of the
+## three struck tiles) joined by glowing lines into one constellation.
 func _draw_thunder_sigil() -> void:
 	var marks: Array = model.storm.get("marks", [])
 	if marks.is_empty():
 		return
-	var center: Vector2i = model.storm.centers[0]
-	var shape: String = model.storm.get("shape", "cross")
+	var centers: Array = model.storm.get("centers", [])
 	var pulse := 0.65 + 0.35 * sin(clock * 9.0)
 	var u := TILE / 64.0
 	var core := Color(1.0, 0.98, 0.7, 0.95)
 	var glow := Color(1.0, 0.85, 0.2, 0.35 * pulse)
-	var lines: Array = []
-	match shape:
-		"ring":
-			var ring: Array = [Vector2i(0,-2), Vector2i(1,-1), Vector2i(2,0), Vector2i(1,1), Vector2i(0,2), Vector2i(-1,1), Vector2i(-2,0), Vector2i(-1,-1), Vector2i(0,-2)]
-			for i in range(ring.size() - 1):
-				lines.append([ring[i], ring[i + 1]])
-			for spoke in [Vector2i(0,-2), Vector2i(2,0), Vector2i(0,2), Vector2i(-2,0)]:
-				lines.append([Vector2i.ZERO, spoke])
-		"x":
-			lines = [[Vector2i(-2,-2), Vector2i(2,2)], [Vector2i(2,-2), Vector2i(-2,2)]]
-		_:
-			lines = [[Vector2i(-2,0), Vector2i(2,0)], [Vector2i(0,-2), Vector2i(0,2)]]
-	for line in lines:
-		var from_cell: Vector2i = center + line[0]
-		var to_cell: Vector2i = center + line[1]
-		if not model.inside(from_cell) or not model.inside(to_cell):
-			continue
-		draw_line(_center(from_cell), _center(to_cell), glow, 14.0 * u)
-		draw_line(_center(from_cell), _center(to_cell), core, 3.0 * u)
-	# Rune nodes on every marked tile and a ring round the middle.
-	for tile in marks:
-		draw_circle(_center(tile), 7.0 * u, glow)
-		draw_circle(_center(tile), 3.5 * u, core)
-	var middle := _center(center)
-	draw_arc(middle, TILE * 0.78, 0, TAU, 40, glow, 8.0 * u)
-	draw_arc(middle, TILE * 0.78, 0, TAU, 40, core, 2.5 * u)
-	draw_polyline(PackedVector2Array([middle + Vector2(7, -26) * u, middle + Vector2(-8, -3) * u, middle + Vector2(7, -1) * u, middle + Vector2(-6, 27) * u]), core, 4.0 * u)
+	# The links between the three circles: one closed figure.
+	if centers.size() >= 2:
+		var path := PackedVector2Array()
+		for center in centers:
+			path.append(_center(center))
+		path.append(_center(centers[0]))
+		draw_polyline(path, glow, 12.0 * u)
+		draw_polyline(path, Color(core, 0.8), 2.5 * u)
+		for i in range(centers.size()):
+			var a: Vector2 = _center(centers[i])
+			var b: Vector2 = _center(centers[(i + 1) % centers.size()])
+			draw_circle((a + b) / 2.0, 4.5 * u, core)
+	for center in centers:
+		var middle := _center(center)
+		# The arms of the cross, along the marked tiles.
+		for dir in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+			var end_cell: Vector2i = center + Vector2i(dir)
+			if model.inside(end_cell):
+				draw_line(middle, _center(end_cell), glow, 12.0 * u)
+				draw_line(middle, _center(end_cell), core, 3.0 * u)
+				draw_circle(_center(end_cell), 5.0 * u, core)
+		draw_arc(middle, TILE * 0.78, 0, TAU, 40, glow, 8.0 * u)
+		draw_arc(middle, TILE * 0.78, 0, TAU, 40, core, 2.5 * u)
+		draw_polyline(PackedVector2Array([middle + Vector2(7, -26) * u, middle + Vector2(-8, -3) * u, middle + Vector2(7, -1) * u, middle + Vector2(-6, 27) * u]), core, 4.0 * u)
 
 ## The tsunami: the tiles it covers washed in cyan, a curling crest drawn along its front
 ## edge with foam, ripples inside it, and where each thing it carries will land.

@@ -342,7 +342,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
-		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "ring"}
+		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "trio"}
 		storm_roll_wind()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
@@ -2750,7 +2750,7 @@ const STORM_BOSS := "storm_shark"
 const DIVE_CHANCE := 0.3
 const DIVE_DAMAGE := 2
 ## The storm: {wind: the way the tsunami will carry things, wave: the tiles it covers,
-## marks: the cells of the coming lightning sigil, centers: its middle, shape: which sigil};
+## marks: the cells of the coming lightning, centers: the three crosses' middles};
 ## empty when there is no storm.
 var storm: Dictionary = {}
 
@@ -2994,19 +2994,14 @@ func _storm_wind_push() -> void:
 	trigger_fairies()
 	check_outcome()
 
-## The lightning's sigils, as offsets round the centre (all inside 5x5): a ring round a safe
-## cross, a great X, and a long cross. One of them is drawn each time.
-const THUNDER_SHAPES := {
-	"ring": [Vector2i(0,0), Vector2i(0,-2), Vector2i(1,-1), Vector2i(2,0), Vector2i(1,1), Vector2i(0,2), Vector2i(-1,1), Vector2i(-2,0), Vector2i(-1,-1)],
-	"x": [Vector2i(0,0), Vector2i(1,1), Vector2i(2,2), Vector2i(-1,1), Vector2i(-2,2), Vector2i(1,-1), Vector2i(2,-2), Vector2i(-1,-1), Vector2i(-2,-2)],
-	"cross": [Vector2i(0,0), Vector2i(1,0), Vector2i(2,0), Vector2i(-1,0), Vector2i(-2,0), Vector2i(0,1), Vector2i(0,2), Vector2i(0,-1), Vector2i(0,-2)],
-}
-
+## The lightning: three places at once, each a cross of five tiles (the middle and its four
+## neighbours), joined on the board into one sigil. The three are spread out inside the 5x5 round
+## the player where they can be (no two touching).
 func _storm_thunder() -> void:
 	if not storm.marks.is_empty():
 		var cells: Array = storm.marks.duplicate()
 		for center in storm.centers:
-			events.append({"kind":"thunder", "id":-2, "cell":center, "cells":cells, "shape":storm.get("shape", "cross")})
+			events.append({"kind":"thunder", "id":-2, "cell":center, "cells":cells})
 		storm.marks = []
 		storm.centers = []
 		if cells.has(player.cell):
@@ -3016,18 +3011,28 @@ func _storm_thunder() -> void:
 			check_outcome()
 		return
 	var roll := _storm_rng("thunder")
-	var shape: String = THUNDER_SHAPES.keys()[roll.randi_range(0, THUNDER_SHAPES.size() - 1)]
 	var pool: Array = square_around(player.cell, 2)
-	var center: Vector2i = pool[roll.randi_range(0, pool.size() - 1)]
+	var centers: Array = []
+	var tries := 0
+	while centers.size() < 3 and not pool.is_empty() and tries < 60:
+		tries += 1
+		var pick: int = roll.randi_range(0, pool.size() - 1)
+		var spot: Vector2i = pool[pick]
+		# Keep the three crosses apart if there is room for that.
+		if tries < 40 and centers.any(func(c: Vector2i) -> bool: return absi(c.x - spot.x) + absi(c.y - spot.y) < 3):
+			continue
+		centers.append(spot)
+		pool.remove_at(pick)
 	var marks: Array = []
-	for offset in THUNDER_SHAPES[shape]:
-		var tile: Vector2i = center + offset
-		if inside(tile) and not marks.has(tile):
-			marks.append(tile)
-	storm.centers = [center]
-	storm.shape = shape
+	for center in centers:
+		for offset in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var tile: Vector2i = center + offset
+			if inside(tile) and not marks.has(tile):
+				marks.append(tile)
+	storm.centers = centers
+	storm.shape = "trio"
 	storm.marks = marks
-	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":center, "shape":shape})
+	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0]})
 	add_log("雷の魔法陣…")
 
 # --- Rotorick: the slot boss --------------------------------------------------
