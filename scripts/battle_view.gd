@@ -1326,6 +1326,7 @@ func _draw_board() -> void:
 			dive_cells.append_array(enemy.dive_area)
 			dive_core.append_array(model.footprint({"cell":enemy.dive_anchor, "size":2}))
 	var storm_marks: Array = model.storm.get("marks", [])
+	var storm_groups: Array = model.storm.get("groups", [])
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -1376,14 +1377,13 @@ func _draw_board() -> void:
 				var flick := 0.34 + 0.14 * sin(clock * 12.0 + x * 1.7 + y)
 				draw_rect(Rect2(pos,Vector2(64,64)),Color(1.0,0.93,0.35,flick))
 				var edge := Color(1.0,0.97,0.6,0.98)
-				if not storm_marks.has(cell + Vector2i.UP):
-					draw_line(pos+Vector2(0,1),pos+Vector2(64,1),edge,4)
-				if not storm_marks.has(cell + Vector2i.DOWN):
-					draw_line(pos+Vector2(0,63),pos+Vector2(64,63),edge,4)
-				if not storm_marks.has(cell + Vector2i.LEFT):
-					draw_line(pos+Vector2(1,0),pos+Vector2(1,64),edge,4)
-				if not storm_marks.has(cell + Vector2i.RIGHT):
-					draw_line(pos+Vector2(63,0),pos+Vector2(63,64),edge,4)
+				var bolt: Array = []
+				for group in storm_groups:
+					if group.has(cell):
+						bolt = group
+				for side in [[Vector2i.UP,pos+Vector2(0,1),pos+Vector2(64,1)],[Vector2i.DOWN,pos+Vector2(0,63),pos+Vector2(64,63)],[Vector2i.LEFT,pos+Vector2(1,0),pos+Vector2(1,64)],[Vector2i.RIGHT,pos+Vector2(63,0),pos+Vector2(63,64)]]:
+					if not bolt.has(cell + side[0]):
+						draw_line(side[1],side[2],edge,4)
 			if model.cat_zone_at(cell):
 				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
@@ -2657,8 +2657,10 @@ func _draw_tsunami_rush(effect: Dictionary, t: float, fade: float) -> void:
 	var n := model.board_size
 	var wdir: Vector2i = effect.dir
 	var u := TILE / 64.0
-	var sweep := ease(clampf(t / 0.7, 0.0, 1.0), 0.6)
-	var alpha := 1.0 if t < 0.7 else clampf(1.0 - (t - 0.7) / 0.3, 0.0, 1.0)
+	# One band of water runs the whole way across and off the far side: its front first, its
+	# tail right behind, so the board is clear again once it has gone by.
+	var sweep := clampf(t, 0.0, 1.0)
+	var alpha := 1.0
 	var to_world := func(a: float, lane: float) -> Vector2:
 		var p := Vector2(a, lane)
 		if wdir == Vector2i.LEFT:
@@ -2668,24 +2670,33 @@ func _draw_tsunami_rush(effect: Dictionary, t: float, fade: float) -> void:
 		elif wdir == Vector2i.UP:
 			p = Vector2(lane, float(n) - a)
 		return BOARD + p * TILE
-	var base := lerpf(-2.5, float(n) + 2.0, sweep)
-	var layers := [[0.0, Color(0.45, 0.95, 1.0, 0.55)], [-1.1, Color(0.25, 0.7, 0.95, 0.5)], [-2.4, Color(0.12, 0.45, 0.8, 0.5)]]
+	var base := lerpf(-2.0, float(n) + 4.5, sweep)
+	# [front lag, band thickness, colour]
+	var layers := [[0.0, 4.2, Color(0.45, 0.95, 1.0, 0.55)], [-0.9, 3.4, Color(0.25, 0.7, 0.95, 0.5)], [-1.8, 2.6, Color(0.12, 0.45, 0.8, 0.5)]]
 	var crest_points := PackedVector2Array()
+	var tail_points := PackedVector2Array()
 	for layer in layers:
 		var lag: float = layer[0]
-		var poly := PackedVector2Array()
+		var thick: float = layer[1]
+		var front := PackedVector2Array()
+		var tail := PackedVector2Array()
 		for step in range(0, 41):
 			var lane := float(step) / 40.0 * float(n)
 			var bulge := sin(clampf((lane - 0.5) / float(n - 1), 0.0, 1.0) * PI) * 1.9
-			var edge := clampf(base + lag + bulge, 0.0, float(n))
-			poly.append(to_world.call(edge, lane))
+			var f := clampf(base + lag + bulge, 0.0, float(n))
+			var r := clampf(base + lag + bulge - thick, 0.0, float(n))
+			front.append(to_world.call(f, lane))
+			tail.append(to_world.call(r, lane))
 			if lag == 0.0:
 				crest_points.append(to_world.call(base + bulge, lane))
-		poly.append(to_world.call(0.0, float(n)))
-		poly.append(to_world.call(0.0, 0.0))
-		if poly.size() >= 4:
-			var color: Color = layer[1]
-			draw_colored_polygon(poly, Color(color, color.a * alpha))
+				tail_points.append(to_world.call(base + bulge - thick, lane))
+		tail.reverse()
+		var poly := PackedVector2Array()
+		poly.append_array(front)
+		poly.append_array(tail)
+		if poly.size() >= 4 and Geometry2D.triangulate_polygon(poly).size() >= 3:
+			var color: Color = layer[2]
+			draw_colored_polygon(poly, color)
 	# Foam along the crest and spray thrown ahead of it.
 	var clipped := PackedVector2Array()
 	for point in crest_points:
@@ -2693,6 +2704,12 @@ func _draw_tsunami_rush(effect: Dictionary, t: float, fade: float) -> void:
 			clipped.append(point)
 	if clipped.size() >= 2:
 		draw_polyline(clipped, Color(0.95, 1.0, 1.0, 0.95 * alpha), 7.0 * u)
+	var tail_clipped := PackedVector2Array()
+	for point in tail_points:
+		if Rect2(BOARD - Vector2.ONE * 6, Vector2.ONE * float(n) * TILE + Vector2.ONE * 12).has_point(point):
+			tail_clipped.append(point)
+	if tail_clipped.size() >= 2:
+		draw_polyline(tail_clipped, Color(0.85, 1.0, 1.0, 0.55), 4.0 * u)
 	var forward := Vector2(wdir)
 	for i in range(0, crest_points.size(), 2):
 		var point: Vector2 = crest_points[i]
@@ -2714,7 +2731,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"tsunami":1.5, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:

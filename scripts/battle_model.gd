@@ -342,7 +342,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
-		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "bolts"}
+		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "groups": [], "shape": "bolts"}
 		storm_roll_wind()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
@@ -3003,8 +3003,8 @@ func _storm_wind_push() -> void:
 	trigger_fairies()
 	check_outcome()
 
-## One lightning bolt as offsets round its middle tile (a zigzag five tiles tall, eight tiles).
-const THUNDER_BOLT := [Vector2i(0,-2), Vector2i(1,-2), Vector2i(0,-1), Vector2i(-1,0), Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(-1,2)]
+## One lightning bolt as offsets round its middle tile (a lightning bolt, six tiles, four tall).
+const THUNDER_BOLT := [Vector2i(0,-2), Vector2i(1,-2), Vector2i(0,-1), Vector2i(-1,0), Vector2i(0,0), Vector2i(-1,1)]
 
 ## The lightning: three bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
 ## player and kept apart where there is room. Whoever stands on a marked tile when it strikes
@@ -3012,9 +3012,10 @@ const THUNDER_BOLT := [Vector2i(0,-2), Vector2i(1,-2), Vector2i(0,-1), Vector2i(
 func _storm_thunder() -> void:
 	if not storm.marks.is_empty():
 		var cells: Array = storm.marks.duplicate()
-		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0], "cells":cells})
+		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0] if not storm.centers.is_empty() else player.cell, "cells":cells})
 		storm.marks = []
 		storm.centers = []
+		storm.groups = []
 		if cells.has(player.cell):
 			player.hp -= 1
 			events.append({"kind":"hit", "cell":player.cell, "id":-1, "damage":1})
@@ -3022,30 +3023,53 @@ func _storm_thunder() -> void:
 			check_outcome()
 		return
 	var roll := _storm_rng("thunder")
-	var pool: Array = square_around(player.cell, 2)
+	var candidates: Array = []
+	for spot in square_around(player.cell, 2):
+		for flip in [false, true]:
+			var bolt: Array = []
+			for offset in THUNDER_BOLT:
+				var tile: Vector2i = spot + Vector2i(-offset.x if flip else offset.x, offset.y)
+				if inside(tile):
+					bolt.append(tile)
+			if bolt.size() >= 5:
+				candidates.append({"spot": spot, "bolt": bolt})
+	# Shuffle (seeded), then take three that keep apart; if there is no room for that, three that
+	# at least do not overlap, and failing that any three.
+	for i in range(candidates.size() - 1, 0, -1):
+		var j: int = roll.randi_range(0, i)
+		var swap: Dictionary = candidates[i]
+		candidates[i] = candidates[j]
+		candidates[j] = swap
 	var centers: Array = []
-	var flips: Array = []
-	var tries := 0
-	while centers.size() < 3 and not pool.is_empty() and tries < 60:
-		tries += 1
-		var pick: int = roll.randi_range(0, pool.size() - 1)
-		var spot: Vector2i = pool[pick]
-		# Keep the three bolts apart if there is room for that.
-		if tries < 40 and centers.any(func(c: Vector2i) -> bool: return absi(c.x - spot.x) < 2 and absi(c.y - spot.y) < 4):
-			continue
-		centers.append(spot)
-		flips.append(roll.randi_range(0, 1) == 1)
-		pool.remove_at(pick)
-	var marks: Array = []
-	for i in centers.size():
-		for offset in THUNDER_BOLT:
-			var tile: Vector2i = centers[i] + Vector2i(-offset.x if flips[i] else offset.x, offset.y)
-			if inside(tile) and not marks.has(tile):
-				marks.append(tile)
+	var groups: Array = []
+	var taken: Array = []
+	for strictness in [2, 1, 0]:
+		centers = []
+		groups = []
+		taken = []
+		for candidate in candidates:
+			if centers.size() >= 3:
+				break
+			var bolt: Array = candidate.bolt
+			if strictness >= 1 and bolt.any(func(c: Vector2i) -> bool: return taken.has(c)):
+				continue
+			if strictness >= 2 and bolt.any(func(c: Vector2i) -> bool: return taken.has(c + Vector2i.LEFT) or taken.has(c + Vector2i.RIGHT) or taken.has(c + Vector2i.UP) or taken.has(c + Vector2i.DOWN)):
+				continue
+			if strictness == 0 and centers.has(candidate.spot):
+				continue
+			centers.append(candidate.spot)
+			groups.append(bolt)
+			for c in bolt:
+				if not taken.has(c):
+					taken.append(c)
+		if centers.size() >= 3:
+			break
+	var marks: Array = taken.duplicate()
 	storm.centers = centers
+	storm.groups = groups
 	storm.shape = "bolts"
 	storm.marks = marks
-	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0]})
+	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0] if not centers.is_empty() else player.cell})
 	add_log("雷が落ちる…")
 
 # --- Rotorick: the slot boss --------------------------------------------------
