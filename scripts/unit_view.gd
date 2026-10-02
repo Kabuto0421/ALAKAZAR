@@ -114,6 +114,45 @@ var charge_warning := false
 var attack_target := false
 var hop_height := 0.0
 var sword_attack_elapsed := -1.0
+## クロス短剣: which dagger the player holds ("thunder", "flame" or ""), whether the other half has
+## powered it up (the crossed stance), and the strike animation.
+const DAGGER_ART_SCALE := 0.36
+const DAGGER_ART := {
+	"cross_ready": [preload("res://assets/sprites/player/dagger_cross_ready.png"), 110.9, 220.5],
+	"cross_finish": [preload("res://assets/sprites/player/dagger_cross_finish.png"), 93.1, 221.5],
+	"thunder_idle": [preload("res://assets/sprites/player/dagger_thunder_idle.png"), 115.5, 210.7],
+	"thunder_attack": [preload("res://assets/sprites/player/dagger_thunder_attack.png"), 106.7, 224.3],
+	"flame_idle": [preload("res://assets/sprites/player/dagger_flame_idle.png"), 107.9, 201.1],
+}
+var dagger_look := ""
+var dagger_boosted := false
+var dagger_attack_elapsed := -1.0
+var dagger_attack_boosted := false
+var dagger_attack_toward := Vector2.RIGHT
+const DAGGER_STRIKE := 0.45
+const DAGGER_FINISH := 0.8
+
+func play_dagger_attack(boosted: bool, toward: Vector2) -> void:
+	dagger_attack_elapsed = 0.0
+	dagger_attack_boosted = boosted
+	dagger_attack_toward = toward.normalized() if toward != Vector2.ZERO else Vector2.RIGHT
+	z_index = 3
+	queue_redraw()
+
+func dagger_impact_time(boosted: bool) -> float:
+	return 0.28 if boosted else 0.18
+
+func dagger_duration(boosted: bool) -> float:
+	return DAGGER_FINISH if boosted else DAGGER_STRIKE
+
+## One of the dagger pictures, feet on the usual baseline.
+func _draw_dagger_art(key: String, offset: Vector2, tint: Color) -> void:
+	var art: Array = DAGGER_ART[key]
+	var texture: Texture2D = art[0]
+	var size := texture.get_size() * DAGGER_ART_SCALE
+	var feet := Vector2(0, 25.0 - hop_height) + offset
+	draw_texture_rect(texture, Rect2(feet - Vector2(float(art[1]), float(art[2])) * DAGGER_ART_SCALE, size), false, tint)
+
 var hammer_attack_elapsed := -1.0
 var hammer_lunge := Vector2.ZERO
 var sword_attack_facing := 0
@@ -162,6 +201,11 @@ func _process(delta: float) -> void:
 		sword_attack_elapsed += delta
 		if sword_attack_elapsed >= SwordMotion.duration(sword_attack_facing):
 			sword_attack_elapsed = -1.0
+			z_index = 2
+	if dagger_attack_elapsed >= 0.0:
+		dagger_attack_elapsed += delta
+		if dagger_attack_elapsed >= dagger_duration(dagger_attack_boosted):
+			dagger_attack_elapsed = -1.0
 			z_index = 2
 	if hammer_attack_elapsed >= 0.0:
 		hammer_attack_elapsed += delta
@@ -392,7 +436,21 @@ func _draw() -> void:
 	if hit_elapsed >= HIT_WHITE:
 		# After the white blink the body burns red and cools back.
 		tint = Color(1.0, 0.38, 0.34).lerp(Color.WHITE, (hit_elapsed - HIT_WHITE) / (HIT_TIME - HIT_WHITE))
-	if kind == "player":
+	if kind == "player" and dagger_look != "":
+		if dagger_attack_elapsed >= 0.0:
+			var k := dagger_attack_elapsed / dagger_duration(dagger_attack_boosted)
+			var lunge := dagger_attack_toward * sin(minf(k * 1.6, 1.0) * PI) * 10.0
+			if dagger_attack_boosted:
+				_draw_dagger_art("cross_finish" if k > 0.2 else "cross_ready", lunge, tint)
+			elif dagger_look == "thunder":
+				_draw_dagger_art("thunder_attack", lunge, tint)
+			else:
+				_draw_dagger_art("flame_idle", lunge * 1.6, tint)
+		elif dagger_boosted:
+			_draw_dagger_art("cross_ready", Vector2.ZERO, tint)
+		else:
+			_draw_dagger_art(dagger_look + "_idle", Vector2.ZERO, tint)
+	elif kind == "player":
 		if weapon_row == 2 and sword_attack_elapsed >= 0.0:
 			var frame := SwordMotion.frame_at(sword_attack_facing, sword_attack_elapsed)
 			if frame < 0:

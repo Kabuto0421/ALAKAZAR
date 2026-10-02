@@ -508,13 +508,15 @@ func _act(cell: Vector2i) -> void:
 		selected_enemy_id = -2
 	var origin: Vector2i = model.player.cell
 	var attacking := not enemy.is_empty()
+	var was_boosted: bool = model.combo_boost == model.weapon
+	var used_weapon: int = model.weapon
 	if not model.player_action(cell):
 		if not model.targets().has(cell):
 			selected_enemy_id = -2
 			queue_redraw()
 		return
 	selected_enemy_id = -2
-	_finish_player_action(true,{"origin":origin,"destination":cell,"attacking":attacking,"weapon":model.weapon})
+	_finish_player_action(true,{"origin":origin,"destination":cell,"attacking":attacking,"weapon":used_weapon,"boosted":was_boosted})
 
 func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> void:
 	busy = true
@@ -540,6 +542,13 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			# The slam's crack lands as the head touches the tile (the hit-stop).
 			if sfx != null:
 				sfx.play_at_impact("hammer_slam", impact_time)
+		elif Catalog.is_dagger(weapon_action.weapon):
+			var boosted: bool = weapon_action.get("boosted", false)
+			player_view.play_dagger_attack(boosted, Vector2(weapon_action.destination - weapon_action.origin))
+			impact_time = player_view.dagger_impact_time(boosted)
+			duration = player_view.dagger_duration(boosted)
+			if sfx != null:
+				sfx.play_at_impact("sword_swing", impact_time)
 		else:
 			player_view.play_sword_attack(model.facing)
 			impact_time = player_view.sword_impact_time()
@@ -786,6 +795,10 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
+		if id == -1:
+			var held: String = Rules.WEAPONS[model.weapon].id
+			view.dagger_look = "thunder" if held == "thunder_dagger" else "flame" if held == "flame_dagger" else ""
+			view.dagger_boosted = view.dagger_look != "" and model.combo_boost == model.weapon
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
