@@ -798,7 +798,7 @@ func _sync_units(animate: bool) -> void:
 		if id == -1:
 			var held: String = Rules.WEAPONS[model.weapon].id
 			view.dagger_look = "thunder" if held == "thunder_dagger" else "flame" if held == "flame_dagger" else ""
-			view.dagger_boosted = view.dagger_look != "" and model.combo_boost >= 0
+			view.dagger_boosted = view.dagger_look != "" and model.combo_boost == model.weapon
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
