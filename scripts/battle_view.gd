@@ -786,7 +786,6 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
-		view.aura = _combo_color() if id == -1 else Color(0, 0, 0, 0)
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
@@ -1509,9 +1508,7 @@ func _draw_board() -> void:
 				var combo := _combo_color()
 				if combo.a > 0.0:
 					# The dagger the last one powered up: this tile glows in its colour.
-					var beat := 0.5 + 0.5 * sin(clock * 6.0)
-					draw_rect(Rect2(pos,Vector2(64,64)),Color(combo,0.25 + 0.2 * beat))
-					draw_rect(Rect2(pos+Vector2(1,1),Vector2(62,62)),Color(combo,0.8 + 0.2 * beat),false,3)
+					UnitView.draw_frame_fire(self,Rect2(pos+Vector2(2,2),Vector2(60,60)),combo)
 			var selected := _selected_enemy()
 			if not selected.is_empty() and cell == selected.cell:
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("ffbd59"),false,3)
@@ -1776,7 +1773,7 @@ func _combo_color() -> Color:
 
 ## The powered-up dagger's slot takes on its own aura: tongues of light and sparks rising inside it.
 func _draw_slot_aura(rect: Rect2, color: Color) -> void:
-	UnitView.draw_flames(self, Vector2(rect.get_center().x, rect.end.y), rect.size.x * 0.95, rect.size.y * 0.72, color)
+	UnitView.draw_frame_fire(self, rect.grow(SLOT_FRAME - 1), color)
 
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.

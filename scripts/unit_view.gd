@@ -269,17 +269,51 @@ var aura := Color(0, 0, 0, 0)
 
 ## A glow and rising sparks round the character, in the powered-up dagger's colour.
 func _draw_aura() -> void:
-	draw_flames(self, Vector2(0, 26), 70.0, 78.0, aura)
+	pass  # the glow now sits on the tile and the weapon slot, not on the character
+
+## A frame that burns (flames licking along its top and bottom edges) or, for a yellow colour,
+## crackles (short bright arcs running round its border). Used on the powered-up dagger's slot
+## and the player's tile.
+static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
+	var t := Time.get_ticks_msec() / 1000.0
+	var beat := 0.5 + 0.5 * sin(t * 8.0)
+	canvas.draw_rect(rect, Color(color, 0.12 + 0.1 * beat))
+	canvas.draw_rect(rect, Color(color.lightened(0.2), 0.9), false, 3.0)
+	if color.g > 0.7:
+		# Crackling: a jittery bright line round the border, restarting often.
+		var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y), rect.position]
+		var ring := PackedVector2Array()
+		for side in range(4):
+			var from: Vector2 = corners[side]
+			var to: Vector2 = corners[side + 1]
+			var steps := maxi(int(from.distance_to(to) / 9.0), 2)
+			for k in range(steps):
+				var f := float(k) / float(steps)
+				var at := from.lerp(to, f)
+				var normal := (to - from).orthogonal().normalized()
+				ring.append(at + normal * sin(t * 37.0 + float(k) * 4.1 + float(side) * 1.7) * 4.0)
+		ring.append(ring[0])
+		canvas.draw_polyline(ring, Color(color, 0.55), 6.0)
+		canvas.draw_polyline(ring, Color(1.0, 1.0, 0.85, 0.95), 2.0)
+		for k in range(3):
+			var phase := fposmod(t * 2.0 + float(k) * 0.33, 1.0)
+			var from := rect.position + Vector2(rect.size.x * fposmod(float(k) * 0.37 + t * 0.2, 1.0), 0.0)
+			var tip := from + Vector2(sin(t * 20.0 + float(k)) * 6.0, -10.0 - 8.0 * phase)
+			canvas.draw_line(from, tip, Color(1.0, 1.0, 0.85, 1.0 - phase), 2.0)
+	else:
+		var across := maxi(int(rect.size.x / 18.0), 3)
+		draw_flames(canvas, Vector2(rect.get_center().x, rect.position.y + 4.0), rect.size.x, minf(rect.size.y * 0.35, 26.0), color, across, false)
+		draw_flames(canvas, Vector2(rect.get_center().x, rect.end.y - 1.0), rect.size.x, minf(rect.size.y * 0.3, 20.0), color, across, false)
 
 ## A flame (or, for a yellow colour, crackling lightning) rising from a base line: curved
 ## tongues in three layers that sway and flicker, with embers drifting up. `origin` is the
 ## middle of the base, `width` how far the base spreads, `height` the tallest flame.
-static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, height: float, color: Color) -> void:
+static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, height: float, color: Color, tongues := 6, embers := true) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
 	var electric := color.g > 0.7
 	if electric:
-		for i in range(5):
-			var x0 := origin.x + (float(i) / 4.0 - 0.5) * width
+		for i in range(maxi(tongues - 1, 2)):
+			var x0 := origin.x + (float(i) / float(maxi(tongues - 2, 1)) - 0.5) * width
 			var points := PackedVector2Array()
 			var steps := 7
 			var reach := height * (0.55 + 0.4 * absf(sin(t * 9.0 + float(i) * 2.3)))
@@ -290,7 +324,6 @@ static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, heigh
 			canvas.draw_polyline(points, Color(color, 0.5), 7.0)
 			canvas.draw_polyline(points, Color(1.0, 1.0, 0.85, 0.95), 2.5)
 	else:
-		var tongues := 6
 		for i in range(tongues):
 			var f := float(i) / float(tongues - 1)
 			var x0 := origin.x + (f - 0.5) * width
@@ -318,7 +351,7 @@ static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, heigh
 				outline.append_array(right)
 				if Geometry2D.triangulate_polygon(outline).size() >= 3:
 					canvas.draw_colored_polygon(outline, Color(shade, alpha))
-	for i in range(12):
+	for i in range(12 if embers else 0):
 		var phase := fposmod(t * 0.9 + float(i) * 0.083, 1.0)
 		var x := origin.x + sin(float(i) * 2.4 + t * 1.3) * width * 0.5
 		var y := origin.y - phase * height * 1.15
