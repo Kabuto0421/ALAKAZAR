@@ -395,7 +395,7 @@ static func draw_hologram(canvas: CanvasItem, texture: Texture2D, rect: Rect2, f
 	var dest := Rect2(rect.position + glitch, Vector2(rect.size.x, shown))
 	if flip:
 		dest = Rect2(dest.position + Vector2(dest.size.x, 0), Vector2(-dest.size.x, dest.size.y))
-	var base := Color(0.55, 1.0, 0.95, alpha) * Color(tint.r, tint.g * 0.4 + 0.6, tint.b * 0.4 + 0.6, 1.0)
+	var base := Color(0.72, 1.0, 1.0, alpha) * Color(tint.r, tint.g * 0.4 + 0.6, tint.b * 0.4 + 0.6, 1.0)
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(-3, 0), dest.size), region, Color(1.0, 0.25, 0.4, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(3, 0), dest.size), region, Color(0.25, 0.5, 1.0, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, dest, region, base)
