@@ -142,25 +142,33 @@ func _ready() -> void:
 		# The magic circle's example (a 5x3 board) takes room under the diagram.
 		var circle_room := clampf((size.x-24)*3.0/5.0,60.0,96.0) if circle else 0.0
 		var side := clampf(y-4-74-text_height-2-circle_room,56.0,minf(140,size.x-40))
-		diagram.position = Vector2((size.x-side)/2,68)
+		var pair_head: bool = Weapons.is_pair_head(int(offer.value))
+		if pair_head:
+			# クロス短剣: one picture per half, side by side.
+			side = minf(side, (size.x-30)/2.0)
+		diagram.position = Vector2((size.x-side)/2,68) if not pair_head else Vector2(size.x/2.0-side-3,68)
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.echo = Weapons.hammer_echo(int(offer.value))
 		diagram.attack = Weapons.attack_offsets(int(offer.value))
-		if Weapons.is_pair_head(int(offer.value)):
-			var partner := Weapons.pair_of(int(offer.value))
-			for offset in Weapons.offsets(partner):
-				if not diagram.offsets.has(offset):
-					diagram.offsets.append(offset)
-			diagram.attack.append_array(Weapons.attack_offsets(partner))
-		diagram.hammer = Weapons.is_hammer(int(offer.value))
 		diagram.context = context
 		diagram.accent = accent
 		add_child(diagram)
+		if pair_head:
+			var partner := Weapons.pair_of(int(offer.value))
+			var second := Diagram.new()
+			second.position = Vector2(size.x/2.0+3,68)
+			second.size = Vector2(side,side)
+			second.offsets = Weapons.offsets(partner)
+			second.attack = Weapons.attack_offsets(partner)
+			second.accent = Color(Weapons.DATA[partner].color)
+			add_child(second)
+			_label(Vector2(diagram.position.x+4,68+side),Weapons.DATA[int(offer.value)].name,14,accent)
+			_label(Vector2(second.position.x+4,68+side),Weapons.DATA[partner].name,14,second.accent)
 		if plus:
 			_badge(Vector2(minf(diagram.position.x+side+32,size.x-12),diagram.position.y),26)
-		var detail_top := 74+side
+		var detail_top := 74+side+(20 if pair_head else 0)
 		detail.position.y = detail_top
 		# The knockback example goes between the diagram and the text when the whole
 		# text still fits under it at full size.
