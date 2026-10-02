@@ -15,7 +15,7 @@ func decide(model: RefCounted, enemy: Dictionary) -> Dictionary:
 		head += 1
 		for direction in DIRECTIONS:
 			var next: Vector2i = current+direction
-			if first_steps.has(next) or not model.inside(next) or model.blocked(next):
+			if first_steps.has(next) or not model.inside(next) or model.enemy_blocked(next):
 				continue
 			if not model.enemy_at(next).is_empty():
 				continue

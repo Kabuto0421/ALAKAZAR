@@ -305,6 +305,7 @@ func _initialize() -> void:
 	_big_placement()
 	_guardian_wall()
 	_chain_of_chains()
+	_cat_fairy()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2236,3 +2237,52 @@ func _chain_of_chains() -> void:
 	c.start_chain()
 	c.fire_cannon(c.cannon_at(Vector2i(1,3)))
 	verify(c.turn_chain <= Rules.CHAIN_HARD_CAP,"A mixed chain stops within the hard cap (CHAIN %d)" % c.turn_chain)
+
+## 猫の妖精: a 3x3 field enemies cannot enter (those inside can only leave); 5 turns.
+func _cat_fairy() -> void:
+	var planner := Planner.new()
+	var m := fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(0,2)
+	m.fairy_loadout.assign(["cat_fairy"])
+	m.refill_fairies()
+	verify(m.fairy_ap_cost("cat_fairy") == 1 and m.fairy_uses("cat_fairy") == 1 and m.fairy_ap_cost("cat_fairy", 1) == 0 and m.fairy_uses("cat_fairy", 1) == 1,"The cat fairy: 1 AP, once a battle; the class-up only makes it 0 AP")
+	var spot: Vector2i = m.item_targets("cat_fairy")[0]
+	verify(m.use_item("cat_fairy", spot) and not m.cat.is_empty() and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(1,1)) and not m.cat_zone_at(spot + Vector2i(2,0)),"It makes a 3x3 field round the tile")
+	# An enemy beside the field cannot step in.
+	var edge: Vector2i = spot + Vector2i(2,0)
+	var foe: Dictionary = m.make_enemy("heavy", edge, 0)
+	m.enemies.append(foe)
+	m.enemies.append(m.make_enemy("heavy", Vector2i(5,5), 1))
+	m.phase = Rules.Phase.ENEMY
+	foe.ap = 1
+	verify(not m.enemy_step(foe, spot + Vector2i(1,0)) and foe.cell == edge,"An enemy cannot step into the field")
+	m.phase = Rules.Phase.PLAYER
+	# Over a few enemy turns no enemy ends a turn inside it.
+	for turn in 4:
+		_enemy_turn(m)
+		verify(not m.enemies.any(func(e): return m.cat_zone_at(e.cell)),"No enemy enters the field (turn %d)" % (turn + 1))
+	# One that stands inside when it appears may leave.
+	var inside: RefCounted = fixture()
+	inside.enemies.clear()
+	inside.player.cell = Vector2i(0,0)
+	var trapped: Dictionary = inside.make_enemy("heavy", Vector2i(3,3), 0)
+	inside.enemies.append(trapped)
+	inside.enemies.append(inside.make_enemy("heavy", Vector2i(5,5), 1))
+	inside.cat = {"cell":Vector2i(3,3), "turns":5}
+	inside.phase = Rules.Phase.ENEMY
+	trapped.ap = 1
+	trapped.cell = Vector2i(4,3)
+	verify(inside.enemy_step(trapped, Vector2i(5,3)) and trapped.cell == Vector2i(5,3),"An enemy inside the field can walk out of it")
+	trapped.cell = Vector2i(3,3)
+	trapped.ap = 1
+	verify(inside.enemy_step(trapped, Vector2i(4,3)) == false,"Inside the field, stepping to another field tile is refused")
+	verify(inside.enemy_step(trapped, Vector2i(3,4)) == false,"...and so is every tile of it")
+	# The field lasts five player turns.
+	var t := fixture()
+	t.cat = {"cell":Vector2i(2,2), "turns":Rules.WALL_TURNS}
+	for n in Rules.WALL_TURNS:
+		verify(not t.cat.is_empty(),"The field stands on turn %d" % (n + 1))
+		t.tick_walls()
+	verify(t.cat.is_empty(),"...and is gone after five")
+	verify(m.stats.placed_rounds.size() == 1,"Placing it counts as a placed fairy")

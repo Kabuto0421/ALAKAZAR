@@ -17,7 +17,7 @@ func decide(model: RefCounted, enemy: Dictionary, staging: Dictionary) -> Dictio
 	var distance: int = model.distance(enemy.cell, model.player.cell)
 	for direction in DIRECTIONS:
 		var cell: Vector2i = enemy.cell + direction
-		if model.inside(cell) and not model.blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty() and model.distance(cell, model.player.cell) < distance:
+		if model.inside(cell) and not model.enemy_blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty() and model.distance(cell, model.player.cell) < distance:
 			options.append(cell)
 	var target: Vector2i = staging.get(enemy.id, enemy.cell)
 	# Safe progress takes precedence over staging assignments and crowding.

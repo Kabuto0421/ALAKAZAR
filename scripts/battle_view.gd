@@ -1297,7 +1297,7 @@ func _draw_board() -> void:
 		if not model.enemy_at(hover_cell).is_empty():
 			slash_zone.append(hover_cell)
 	# 氷結妖精 / 加護の妖精: hovering a legal tile shows the square they cover.
-	if selected_item in ["freeze_fairy", "blessing_fairy"] and model.item_targets(selected_item).has(hover_cell):
+	if selected_item in ["freeze_fairy", "blessing_fairy", "cat_fairy"] and model.item_targets(selected_item).has(hover_cell):
 		var radius := 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
 		slash_zone = model.square_around(hover_cell, radius)
 	# Magic circle: hovering a move shows the area it would close.
@@ -1339,6 +1339,11 @@ func _draw_board() -> void:
 				var lit := 0.16 + (0.08 if model.blessed(model.player.cell) else 0.0) + 0.04 * sin(clock * 2.5 + x + y)
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,lit))
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,0.5),false,1)
+			if model.cat_zone_at(cell):
+				# 猫の妖精's field: a cool teal ground, with a slow ring of light.
+				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.45,0.85,0.8,glow))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.6,1.0,0.9,0.5),false,1)
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
@@ -1412,6 +1417,9 @@ func _draw_board() -> void:
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
+			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
+				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
+				_turn_badge(pos,int(model.cat.turns))
 			if model.blessing.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("blessing_fairy").icon,0.9)
 				_turn_badge(pos,int(model.blessing.turns))
@@ -2169,6 +2177,8 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
 		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2は落ちず手前で止まる", "動くと届く範囲に合わせて", "奈落も変わる"]}
+	if model.cat_zone_at(cell):
+		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れない", "（中にいる敵は出るだけ）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):

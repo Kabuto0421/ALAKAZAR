@@ -9,7 +9,7 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
 	preload("res://items/glutton_fairy.tres"), preload("res://items/freeze_fairy.tres"), preload("res://items/blessing_fairy.tres"),
-	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres"), preload("res://items/time_fairy.tres")]
+	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres"), preload("res://items/time_fairy.tres"), preload("res://items/cat_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## Ally unit types, for logs (enemies use TYPES).
@@ -190,6 +190,7 @@ const PLUS_TEXT := {
 	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
+	"cat_fairy": ["{cost_plus} APで置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
@@ -246,6 +247,8 @@ var abyss_turns := 0
 var time_stop := 0
 ## 加護の妖精: {cell, turns, radius}. While the player stands in it, attacks also hit up and down.
 var blessing: Dictionary = {}
+## 猫の妖精: {cell, turns} while its field stands; enemies cannot step into the 3x3 around the cell.
+var cat: Dictionary = {}
 ## Ally kinds summoned by fairies this battle, in order (the guardian calls them all back).
 var summoned_kinds: Array[String] = []
 var pits: Array[Vector2i] = []
@@ -264,7 +267,7 @@ func _fresh_stats() -> Dictionary:
 	return {"max_chain": 0, "placed_rounds": [], "guardian_calls": 0, "eaten": false, "fairy_set_off": false, "circles": 0}
 
 ## The fairies that are put down on the board and stay (the cards' 設置 label).
-const PLACED_FAIRIES := ["stealth_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit"]
+const PLACED_FAIRIES := ["stealth_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit", "cat_fairy"]
 
 ## How many 設置 fairies were put down within the last WALL_TURNS rounds (so still standing).
 func placed_recently() -> int:
@@ -302,6 +305,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	cannons.clear()
 	shadow = {}
 	blessing = {}
+	cat = {}
 	summoned_kinds.clear()
 	abyss_turns = 0
 	time_stop = 0
@@ -497,7 +501,7 @@ func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 		events.append({"kind":"hit", "cell":cell, "id":ally.id})
 		_bury_allies()
 		return true
-	if blocked(cell) or not enemy_at(cell).is_empty():
+	if enemy_blocked(cell) or not enemy_at(cell).is_empty():
 		return false
 	enemy.ap -= 1
 	enemy.cell = cell
@@ -600,8 +604,8 @@ static func text_values(id: String) -> Dictionary:
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy"]
-const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy"]
+const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy"]
 ## A fairy's AP and uses per battle come only from its item data (ap_cost,
 ## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
 func fairy_ap_cost(id: String, plus: int = -1) -> int:
@@ -630,6 +634,17 @@ static func ally_ap(type: String) -> int:
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
 	return item_definition(id).directional or (id == "slash_fairy" and is_plus(id))
+
+## 猫の妖精's field: the 3x3 around its cat.
+func cat_zone_at(cell: Vector2i) -> bool:
+	if cat.is_empty():
+		return false
+	var gap: Vector2i = (cell - cat.cell).abs()
+	return gap.x <= 1 and gap.y <= 1
+
+## Where an enemy may not step: everything blocked, and the cat's field.
+func enemy_blocked(cell: Vector2i) -> bool:
+	return blocked(cell) or cat_zone_at(cell)
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -1571,6 +1586,13 @@ func square_around(cell: Vector2i, radius: int) -> Array[Vector2i]:
 				result.append(tile)
 	return result
 
+## 猫の妖精: for WALL_TURNS turns enemies cannot enter the 3x3 around the cat (those already
+## inside may only walk out). It stops no attack, only movement.
+func place_cat(cell: Vector2i) -> void:
+	cat = {"cell":cell, "turns":WALL_TURNS}
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
+	add_log("猫のフィールドが現れた")
+
 ## 加護の妖精: blessed ground around the cell for WALL_TURNS turns (5x5 upgraded).
 func place_blessing(cell: Vector2i) -> void:
 	blessing = {"cell":cell, "turns":WALL_TURNS, "radius":2 if is_plus("blessing_fairy") else 1, "plus":is_plus("blessing_fairy")}
@@ -2005,6 +2027,11 @@ func tick_walls() -> void:
 			add_log("奈落が閉じた")
 		else:
 			dig_abyss()
+	if not cat.is_empty():
+		cat.turns -= 1
+		if cat.turns <= 0:
+			cat = {}
+			add_log("猫のフィールドが消えた")
 	if not blessing.is_empty():
 		blessing.turns -= 1
 		if blessing.turns <= 0:
@@ -2427,7 +2454,7 @@ func rook_charge(enemy: Dictionary) -> bool:
 		var front := _front_cells(enemy, forward)
 		var stop := false
 		for cell in front:
-			if not inside(cell):
+			if not inside(cell) or cat_zone_at(cell):
 				stop = true
 			elif pits.has(cell):
 				# Too big to fall: it stops where it stands, at the edge of the abyss.
@@ -2672,7 +2699,7 @@ func big_step(enemy: Dictionary, forward: Vector2i) -> bool:
 		_hit_player(enemy)
 		return true
 	for cell in front:
-		if not inside(cell) or blocked(cell) or mines.has(cell) or not enemy_at(cell).is_empty():
+		if not inside(cell) or enemy_blocked(cell) or mines.has(cell) or not enemy_at(cell).is_empty():
 			return false
 	enemy.ap -= 1
 	enemy.facing = CARDINALS.find(forward)

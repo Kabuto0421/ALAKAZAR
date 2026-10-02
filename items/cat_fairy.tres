@@ -1,0 +1,16 @@
+[gd_resource type="Resource" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/items/item_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/items/cat_fairy.gd" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/spirits/cat_fairy.png" id="3"]
+
+[resource]
+script = ExtResource("1")
+id = "cat_fairy"
+title = "猫の妖精"
+description = "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"
+summary = "敵が入れないフィールドを作る"
+color = Color(0.45, 0.85, 0.8, 1)
+target = 0
+effect = ExtResource("2")
+icon = ExtResource("3")

@@ -40,6 +40,7 @@ const CROPS := {
 	"abyss_spirit": Rect2(0.072, 0.054, 0.881, 0.881),
 	"acorn_fairy": Rect2(0.182, 0.152, 0.751, 0.751),
 	"blessing_fairy": Rect2(0.158, 0.195, 0.678, 0.678),
+	"cat_fairy": Rect2(0.0, 0.0, 1.0, 1.0),
 	"cannon_fairy": Rect2(0.018, 0.067, 0.933, 0.933),
 	"firework_fairy": Rect2(0.122, 0.096, 0.848, 0.848),
 	"flying_slash": Rect2(0.049, 0.059, 0.902, 0.902),
@@ -119,6 +120,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"gravity_fairy": _gravity(time, art)
 		"freeze_fairy": _freeze(time, accent, art, upgraded)
 		"blessing_fairy": _blessing(time, accent, art, upgraded)
+		"cat_fairy": _cat(time, accent, art)
 		"meteor_fairy": _meteor(time, art, int(model.meteor_count()) + (1 if upgraded and not model.is_plus(id) else 0))
 		"guardian_fairy": _guardian(time)
 		"time_fairy": _time_stop(time, art)
@@ -715,6 +717,28 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 
 ## Blessed ground for five turns: while you stand in its 3x3, your hits also land
 ## on the four tiles around the struck one (a cross). Step out and they do not.
+static func _cat(time: float, accent: Color, art: Texture2D) -> void:
+	# The cat's 3x3 field: an enemy comes up to its edge and cannot step in (a cross);
+	# then one that was inside simply walks out.
+	var p := _cycle(time, 4.8)
+	var area := Rect2(Vector2(1, 0) * C, Vector2(3, 3) * C)
+	cv.draw_rect(area, Color(accent, 0.18 + 0.05 * sin(time * 3.0)))
+	cv.draw_rect(area, accent, false, 2)
+	_art(art, Vector2(2, 1))
+	if p < 0.55:
+		var q := p / 0.55
+		var nudge := sin(_ph(q, 0.35, 0.6) * PI) * 0.2
+		_enemy(Vector2(4, 1) - Vector2(nudge, 0))
+		if q > 0.4:
+			_cross(_center(Vector2(3, 1)), 9)
+		_steps(0, 2)
+	else:
+		var q := (p - 0.55) / 0.45
+		# Already inside when the field appeared: it can only leave.
+		_enemy(Vector2(3, 0).lerp(Vector2(4, 0), _ph(q, 0.2, 0.6)))
+		_say(_center(Vector2(2, 2)) + Vector2(0, -4), "出るだけ", 13, accent)
+		_steps(1, 2)
+
 static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
 	var p := _cycle(time, 5.0)
 	# Classed up, the 5x5 leaves no tile to step out to on this board.

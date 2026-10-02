@@ -26,7 +26,7 @@ func begin(model: RefCounted) -> void:
 			for x in range(model.board_size):
 				var cell := Vector2i(x,y)
 				var occupant: Dictionary = model.enemy_at(cell)
-				if model.distance(cell, model.player.cell) == 2 and not model.blocked(cell) and not reserved.has(cell) and not model.mines.has(cell) and (occupant.is_empty() or occupant.id == enemy.id):
+				if model.distance(cell, model.player.cell) == 2 and not model.enemy_blocked(cell) and not reserved.has(cell) and not model.mines.has(cell) and (occupant.is_empty() or occupant.id == enemy.id):
 					slots.append(cell)
 		slots.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
 			return infantry_behavior.score(model, enemy, a, enemy.cell) < infantry_behavior.score(model, enemy, b, enemy.cell))
@@ -161,7 +161,7 @@ func _options(model: RefCounted, enemy: Dictionary) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for direction in DIRECTIONS:
 		var cell: Vector2i = enemy.cell + direction
-		if model.inside(cell) and not model.blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell:
+		if model.inside(cell) and not model.enemy_blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell:
 			result.append(cell)
 	return result
 
@@ -169,7 +169,7 @@ func _cavalry_options(model: RefCounted, enemy: Dictionary, offsets: Array) -> A
 	var result: Array[Vector2i] = []
 	for offset in offsets:
 		var cell: Vector2i = enemy.cell + offset
-		if model.inside(cell) and not model.blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty():
+		if model.inside(cell) and not model.enemy_blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty():
 			result.append(cell)
 	return result
 
@@ -209,7 +209,7 @@ func _general_action(model: RefCounted, enemy: Dictionary) -> void:
 		head += 1
 		for offset in moves:
 			var next: Vector2i = current + offset
-			if first.has(next) or not model.inside(next) or model.blocked(next) or next == model.player.cell or model.mines.has(next):
+			if first.has(next) or not model.inside(next) or model.enemy_blocked(next) or next == model.player.cell or model.mines.has(next):
 				continue
 			var other: Dictionary = model.enemy_at(next)
 			if not other.is_empty() and other.id != enemy.id:
@@ -224,7 +224,7 @@ func _general_action(model: RefCounted, enemy: Dictionary) -> void:
 		var best := start
 		for offset in moves:
 			var next: Vector2i = start + offset
-			if model.inside(next) and not model.blocked(next) and next != model.player.cell and model.enemy_at(next).is_empty() and model.distance(next, model.player.cell) < model.distance(best, model.player.cell):
+			if model.inside(next) and not model.enemy_blocked(next) and next != model.player.cell and model.enemy_at(next).is_empty() and model.distance(next, model.player.cell) < model.distance(best, model.player.cell):
 				best = next
 		step = best
 	if step == start or not model.enemy_step(enemy, step):
@@ -258,7 +258,7 @@ func _javelin_action(model: RefCounted, enemy: Dictionary) -> void:
 	var spots: Array[Vector2i] = []
 	for offset in model.enemy_attack_offsets(enemy):
 		var spot: Vector2i = model.player.cell - offset
-		if model.inside(spot) and not model.blocked(spot) and spot != model.player.cell and (model.enemy_at(spot).is_empty() or model.enemy_at(spot).id == enemy.id):
+		if model.inside(spot) and not model.enemy_blocked(spot) and spot != model.player.cell and (model.enemy_at(spot).is_empty() or model.enemy_at(spot).id == enemy.id):
 			spots.append(spot)
 	if spots.is_empty():
 		spots.append(model.player.cell)
@@ -284,7 +284,7 @@ func _archer_action(model: RefCounted, enemy: Dictionary) -> void:
 		return
 	var dy := signi(model.player.cell.y - enemy.cell.y)
 	var cell: Vector2i = enemy.cell + Vector2i(0, dy)
-	if dy != 0 and model.inside(cell) and not model.blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell and not model.mines.has(cell):
+	if dy != 0 and model.inside(cell) and not model.enemy_blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell and not model.mines.has(cell):
 		model.enemy_step(enemy, cell)
 	else:
 		enemy.ap = 0
@@ -309,6 +309,6 @@ func _prison_action(model: RefCounted, enemy: Dictionary) -> void:
 
 func _big_free(model: RefCounted, enemy: Dictionary, direction: Vector2i) -> bool:
 	for cell in model._front_cells(enemy, direction):
-		if not model.inside(cell) or model.blocked(cell) or model.mines.has(cell) or not model.enemy_at(cell).is_empty():
+		if not model.inside(cell) or model.enemy_blocked(cell) or model.mines.has(cell) or not model.enemy_at(cell).is_empty():
 			return false
 	return true
