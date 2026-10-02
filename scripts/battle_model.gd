@@ -1222,13 +1222,30 @@ func _bury_allies() -> void:
 				break
 	allies = allies.filter(func(unit: Dictionary) -> bool: return unit.hp > 0)
 
-## The 2x2 block a big fairy takes when placed on `cell`: `cell` is its top-left tile, so the
-## block reaches right and down. (-1,-1) when any of its four tiles is taken or off the board.
+## The 2x2 block a big fairy takes when placed on `cell`, as its top-left tile. First choice:
+## `cell` is the block's top-left (it reaches right and down). When that block is blocked
+## or off the board, the other blocks that contain `cell` are tried (the one farthest from
+## the player first). (-1,-1) when none of them is free.
 func big_anchor(cell: Vector2i) -> Vector2i:
-	for tile in footprint({"cell":cell, "size":2}):
+	var best := Vector2i(-1, -1)
+	var best_gap := -1.0
+	for offset in [Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(1,1)]:
+		var anchor: Vector2i = cell - offset
+		if not _big_block_free(anchor):
+			continue
+		if offset == Vector2i.ZERO:
+			return anchor
+		var gap := (Vector2(anchor) + Vector2.ONE * 0.5).distance_to(Vector2(player.cell))
+		if gap > best_gap:
+			best = anchor
+			best_gap = gap
+	return best
+
+func _big_block_free(anchor: Vector2i) -> bool:
+	for tile in footprint({"cell":anchor, "size":2}):
 		if not inside(tile) or blocked(tile) or tile == player.cell or not enemy_at(tile).is_empty():
-			return Vector2i(-1, -1)
-	return cell
+			return false
+	return true
 
 func _note_summon(kind: String) -> void:
 	if not summoned_kinds.has(kind):
@@ -2799,3 +2816,4 @@ func shadow_strike() -> void:
 			if shadow.hp <= 0:
 				break
 	check_outcome()
+

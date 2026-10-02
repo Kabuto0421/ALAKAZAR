@@ -302,6 +302,7 @@ func _initialize() -> void:
 	_prison_king()
 	_achievement_scenarios()
 	_stealth_big()
+	_big_placement()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2165,3 +2166,17 @@ func _stealth_big() -> void:
 	m.fairy_turns[Vector2i(4,3)] = 5
 	m.trigger_fairies()
 	verify(big.hp == 5 - Rules.STEALTH_DAMAGE and not m.fairies.has(Vector2i(4,3)),"The stealth fairy strikes a 2x2 enemy that touches it with its lower-right tile")
+
+## A 2x2 fairy takes the tapped tile as its top-left, and looks for another block when that one is taken.
+func _big_placement() -> void:
+	var m := fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(0,0)
+	verify(m.big_anchor(Vector2i(2,2)) == Vector2i(2,2),"The tapped tile is the block's top-left")
+	var last: int = m.board_size - 1
+	verify(m.big_anchor(Vector2i(last,last)) == Vector2i(last-1,last-1),"At the bottom-right corner it falls back to the block that fits")
+	verify(m.big_anchor(Vector2i(last,2)) == Vector2i(last-1,2),"Against the right edge it shifts left")
+	m.enemies.append(m.make_enemy("heavy", Vector2i(3,2), 0))
+	var anchor: Vector2i = m.big_anchor(Vector2i(2,2))
+	verify(anchor != Vector2i(2,2) and anchor != Vector2i(-1,-1) and anchor.x <= 2 and anchor.y <= 2 and m._big_block_free(anchor),"With the usual block taken by an enemy, another free block holding the tile is found")
+	verify(m.big_anchor(Vector2i(3,2)) == Vector2i(-1,-1) or m.enemy_at(Vector2i(3,2)).is_empty() == false,"A tile under an enemy still gives no block")
