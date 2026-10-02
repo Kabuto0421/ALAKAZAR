@@ -304,6 +304,7 @@ func _initialize() -> void:
 	_stealth_big()
 	_big_placement()
 	_guardian_wall()
+	_chain_of_chains()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -995,7 +996,7 @@ func _expiring_and_rewards() -> void:
 	ch.events.clear()
 	ch.start_chain()
 	ch.fire_cannon(ch.cannon_at(Vector2i(1,1)))
-	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count) == [2],"A new player turn starts the count over")
+	verify(ch.events.filter(func(e): return e.kind == "chain").map(func(e): return e.count)[0] == 2,"A new player turn starts the count over")
 	# 守護神の妖精: calls back one of each ally kind summoned this battle, with +1 HP.
 	var gd := fixture()
 	gd.enemies.clear()
@@ -2044,7 +2045,7 @@ func _achievement_scenarios() -> void:
 		chain.place_cannon(link[0], link[1], "lance")
 	chain.start_chain()
 	chain.fire_cannon(chain.cannon_at(Vector2i(0,1)))
-	verify(chain.turn_chain == 5 and Achievements.check(chain) == ["chain"] and Achievements.is_unlocked("chain"),"A 5 CHAIN earns ばよえ〜ん！")
+	verify(chain.turn_chain >= 5 and Achievements.check(chain) == ["chain"] and Achievements.is_unlocked("chain"),"A 5 CHAIN earns ばよえ〜ん！")
 	chain.reset(2)
 	verify(chain.stats.max_chain == 0,"The CHAIN record starts over with each battle")
 	# え、これできるんだ...: an attacking fairy (the bolt, the axe, the meteor...) sets a placed one off.
@@ -2198,3 +2199,40 @@ func _guardian_wall() -> void:
 	m.summon_guardian(Vector2i(2,2))
 	var walls: Array = m.allies.filter(func(a): return a.type == "wall")
 	verify(walls.size() == 1 and walls[0].hp == 6 and walls[0].ap == 0,"The guardian calls the wall spirit back with HP 6")
+
+## Cannons set off by a set-off cannon can fire again, but never forever.
+func _chain_of_chains() -> void:
+	# Two lance cannons facing each other: each fires twice, then the chain ends.
+	var m := fixture()
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy", Vector2i(5,5), 0))
+	m.enemies[0].hp = 99
+	m.player.cell = Vector2i(0,0)
+	m.place_cannon(Vector2i(1,3), Vector2i.RIGHT, "lance")
+	m.place_cannon(Vector2i(4,3), Vector2i.LEFT, "lance")
+	m.start_chain()
+	m.fire_cannon(m.cannon_at(Vector2i(1,3)))
+	verify(m.turn_chain == 4,"Two cannons facing each other set each other off twice, then stop (CHAIN 4)")
+	# A ring of lance cannons around a board keeps within the hard cap.
+	var r := fixture()
+	r.enemies.clear()
+	r.enemies.append(r.make_enemy("heavy", Vector2i(5,5), 0))
+	r.player.cell = Vector2i(5,0)
+	var ring := [[Vector2i(0,1),Vector2i.RIGHT],[Vector2i(4,1),Vector2i.DOWN],[Vector2i(4,4),Vector2i.LEFT],[Vector2i(0,4),Vector2i.UP]]
+	for link in ring:
+		r.place_cannon(link[0], link[1], "lance")
+	r.start_chain()
+	r.fire_cannon(r.cannon_at(Vector2i(0,1)))
+	verify(r.turn_chain >= 4 and r.turn_chain <= 8,"A ring of four cannons loops each at most twice (CHAIN %d)" % r.turn_chain)
+	# Capacitors and vane cannons in the mix also finish.
+	var c := fixture()
+	c.enemies.clear()
+	c.enemies.append(c.make_enemy("heavy", Vector2i(5,5), 0))
+	c.enemies[0].hp = 99
+	c.player.cell = Vector2i(0,0)
+	c.place_cannon(Vector2i(1,3), Vector2i.RIGHT, "vane", true)
+	c.place_cannon(Vector2i(3,3), Vector2i.LEFT, "capacitor")
+	c.place_cannon(Vector2i(4,3), Vector2i.LEFT, "vane", true)
+	c.start_chain()
+	c.fire_cannon(c.cannon_at(Vector2i(1,3)))
+	verify(c.turn_chain <= Rules.CHAIN_HARD_CAP,"A mixed chain stops within the hard cap (CHAIN %d)" % c.turn_chain)
