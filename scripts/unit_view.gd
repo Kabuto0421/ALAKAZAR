@@ -271,7 +271,7 @@ var aura := Color(0, 0, 0, 0)
 func _draw_aura() -> void:
 	pass  # the glow now sits on the tile and the weapon slot, not on the character
 
-## A frame that burns (flames licking along its top and bottom edges) or, for a blue colour,
+## A frame that glows with drifting embers (orange) or, for a blue colour,
 ## crackles (short bright arcs running round its border). Used on the powered-up dagger's slot
 ## and the player's tile.
 static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
@@ -301,9 +301,13 @@ static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> vo
 			var tip := from + Vector2(sin(t * 20.0 + float(k)) * 6.0, -10.0 - 8.0 * phase)
 			canvas.draw_line(from, tip, Color(0.88, 0.97, 1.0, 1.0 - phase), 2.0)
 	else:
-		var across := maxi(int(rect.size.x / 18.0), 3)
-		draw_flames(canvas, Vector2(rect.get_center().x, rect.position.y + 4.0), rect.size.x, minf(rect.size.y * 0.35, 26.0), color, across, false)
-		draw_flames(canvas, Vector2(rect.get_center().x, rect.end.y - 1.0), rect.size.x, minf(rect.size.y * 0.3, 20.0), color, across, false)
+		# Embers: a few orange sparks drifting up off the frame.
+		var count := clampi(int(rect.size.x / 12.0), 5, 16)
+		for k in range(count):
+			var phase := fposmod(t * 0.8 + float(k) * 0.137, 1.0)
+			var x := rect.position.x + fposmod(float(k) * 0.618 + sin(t * 1.3 + float(k)) * 0.03, 1.0) * rect.size.x
+			var y := rect.position.y + 6.0 - phase * minf(rect.size.y * 0.7, 40.0)
+			canvas.draw_circle(Vector2(x + sin(t * 4.0 + float(k)) * 3.0, y), 2.6 * (1.0 - phase) + 0.8, Color(color.lightened(0.45), 0.95 * (1.0 - phase)))
 
 ## A flame (or, for a blue colour, crackling lightning) rising from a base line: curved
 ## tongues in three layers that sway and flicker, with embers drifting up. `origin` is the
