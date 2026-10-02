@@ -2333,6 +2333,170 @@ func _cross_daggers() -> void:
 	# The boost lasts the turn only.
 	_enemy_turn(plain)
 	verify(plain.combo_boost == -1,"The boost is gone when the next turn starts")
+	# --- Every awkward situation ---
+	var e := fixture()
+	e.enemies.clear()
+	e.owned_weapons.assign([thunder, flame, 0])
+	e.player.cell = Vector2i(2,2)
+	e.weapon = flame
+	var down: Array = e.targets()
+	verify(down.has(Vector2i(3,3)) and down.has(Vector2i(4,4)) and down.has(Vector2i(5,5)) and down.has(Vector2i(1,1)) and down.size() == 4,"Flame dagger: down-right three tiles, up-left one")
+	# Board corners and edges.
+	e.player.cell = Vector2i(0,0)
+	verify(not e.targets().has(Vector2i(-1,-1)) and e.targets().size() == 3,"In the corner the dagger only has the tiles on the board")
+	e.player.cell = Vector2i(5,5)
+	verify(e.targets().size() == 1 and e.targets().has(Vector2i(4,4)),"At the far corner only the step back is left")
+	# Things that block the slide: ally, fairy, pit, wall.
+	e.player.cell = Vector2i(1,1)
+	e.allies.append({"id":-60, "type":"acorn", "cell":Vector2i(3,3), "hp":3, "ap":1, "facing":2, "size":1})
+	verify(e.targets().has(Vector2i(2,2)) and not e.targets().has(Vector2i(3,3)) and not e.targets().has(Vector2i(4,4)),"An ally stops the slide")
+	e.allies.clear()
+	e.pits.append(Vector2i(2,2))
+	verify(not e.targets().has(Vector2i(2,2)) and not e.targets().has(Vector2i(3,3)),"An abyss tile stops the slide")
+	e.pits.clear()
+	e.walls[Vector2i(0,0)] = 3
+	verify(not e.targets().has(Vector2i(0,0)),"A wall behind it blocks the step back")
+	e.walls.clear()
+	# An enemy behind cannot be struck; one ahead can; it cannot be passed.
+	e.enemies.append(e.make_enemy("heavy", Vector2i(0,0), 0))
+	verify(not e.targets().has(Vector2i(0,0)),"An enemy on the step-back tile cannot be attacked")
+	e.enemies.clear()
+	# A cannon on the next tile can be struck (and still boosts the pair).
+	var c := fixture()
+	c.enemies.clear()
+	c.owned_weapons.assign([thunder, flame, 0])
+	c.player.cell = Vector2i(1,1)
+	c.weapon = flame
+	c.player.ap = 2
+	c.place_cannon(Vector2i(2,2), Vector2i.RIGHT, "lance")
+	verify(c.targets().has(Vector2i(2,2)) and c.player_action(Vector2i(2,2)) and c.combo_boost == thunder and c.player.ap == 1,"Striking a cannon with a dagger costs 1 AP and boosts the other half")
+	# Moving (not attacking) boosts too, and the boosted dagger spreads on its next blow.
+	var a := fixture()
+	a.owned_weapons.assign([thunder, flame, 0])
+	a.player.cell = Vector2i(1,3)
+	a.weapon = thunder
+	a.player.ap = 2
+	verify(a.player_action(Vector2i(3,1)) and a.player.cell == Vector2i(3,1) and a.combo_boost == flame,"A slide is a move, costs 1 AP, and boosts the flame dagger")
+	var ahead: Dictionary = a.make_enemy("heavy", Vector2i(4,2), 0)
+	var diag: Dictionary = a.make_enemy("heavy", Vector2i(5,3), 1)
+	var straight: Dictionary = a.make_enemy("heavy", Vector2i(4,3), 2)
+	a.enemies.clear()
+	a.enemies.append(ahead)
+	a.enemies.append(diag)
+	a.enemies.append(straight)
+	a.weapon = flame
+	a.player.ap = 1
+	var diag_hp: int = diag.hp
+	var ahead_hp: int = ahead.hp
+	var straight_hp: int = straight.hp
+	verify(a.player_action(Vector2i(4,2)) and ahead.hp < ahead_hp and diag.hp < diag_hp and straight.hp == straight_hp,"The boosted flame strike also hits the diagonal enemy, not the one straight below")
+	verify(a.combo_boost == thunder and a.player.ap == 0,"...and then the thunder dagger is the boosted one")
+	# A boost is not spent by other weapons, and not given if the pair is broken.
+	var b := fixture()
+	b.enemies.clear()
+	b.owned_weapons.assign([thunder, flame, 0])
+	b.player.cell = Vector2i(1,3)
+	b.weapon = thunder
+	b.player.ap = 2
+	b.player_action(Vector2i(2,2))
+	b.weapon = 0
+	b.player.ap = 1
+	b.player_action(Vector2i(2,2))
+	verify(b.combo_boost == flame,"Using another weapon in between leaves the boost alone")
+	var lone := fixture()
+	lone.enemies.clear()
+	lone.owned_weapons.assign([thunder, 0, 1])
+	lone.player.cell = Vector2i(1,3)
+	lone.weapon = thunder
+	lone.player.ap = 2
+	lone.player_action(Vector2i(2,2))
+	verify(lone.combo_boost == -1,"With the other half given up there is no boost")
+	# The spread kills, counts a big enemy once, and survives the board edge.
+	var k := fixture()
+	k.enemies.clear()
+	k.owned_weapons.assign([thunder, flame, 0])
+	k.player.cell = Vector2i(0,0)
+	k.weapon = flame
+	k.player.ap = 2
+	k.combo_boost = flame
+	var weak: Dictionary = k.make_enemy("heavy", Vector2i(1,1), 0)
+	weak.hp = 1
+	var corner: Dictionary = k.make_enemy("heavy", Vector2i(2,0), 1)
+	k.enemies.append(weak)
+	k.enemies.append(corner)
+	var corner_hp: int = corner.hp
+	verify(k.player_action(Vector2i(1,1)) and k.enemies.size() == 1 and corner.hp < corner_hp,"At the board edge the spread still works, and kills")
+	# A forged dagger's spread deals the forged damage.
+	var fg := fixture()
+	fg.enemies.clear()
+	fg.owned_weapons.assign([thunder, flame, 0])
+	fg.weapon_power[thunder] = 1
+	fg.player.cell = Vector2i(1,3)
+	fg.weapon = thunder
+	fg.player.ap = 2
+	fg.combo_boost = thunder
+	var main_target: Dictionary = fg.make_enemy("heavy", Vector2i(2,2), 0)
+	var side_target: Dictionary = fg.make_enemy("heavy", Vector2i(3,1), 1)
+	fg.enemies.append(main_target)
+	fg.enemies.append(side_target)
+	var side_hp: int = side_target.hp
+	var forged_damage: int = fg.weapon_damage(thunder)
+	fg.player_action(Vector2i(2,2))
+	verify(forged_damage == 2 and side_target.hp == side_hp - 2,"A forged dagger spreads its full damage")
+	# No AP, no action.
+	var z := fixture()
+	z.enemies.clear()
+	z.owned_weapons.assign([thunder, flame, 0])
+	z.player.cell = Vector2i(1,3)
+	z.weapon = thunder
+	z.player.ap = 0
+	verify(not z.player_action(Vector2i(2,2)) and z.combo_boost == -1,"Without AP nothing happens and nothing is boosted")
+	# A copy of the battle (the threat preview) keeps the boost.
+	var cl: RefCounted = a.clone()
+	verify(cl.combo_boost == a.combo_boost,"A cloned battle keeps the boost")
+	# The turn passing clears it; so does a new battle.
+	_enemy_turn(a)
+	verify(a.combo_boost == -1,"The boost does not outlive the turn")
+	a.combo_boost = thunder
+	a.reset(2, true)
+	verify(a.combo_boost == -1,"A new battle starts unboosted")
+	# Rewards: the flame dagger is never offered alone, nor the set when half is already owned.
+	var offered_flame := false
+	var offered_thunder_with_flame_owned := false
+	for seed_value in 60:
+		var r := Run.new()
+		r.start(seed_value)
+		r.battle.owned_weapons.assign([0, 1, flame])
+		r.battle.enemies.clear()
+		r.battle.check_outcome()
+		r.stage = 2
+		if r.finish_battle():
+			for offer in r.offers:
+				if offer.kind == "weapon" and int(offer.value) == flame:
+					offered_flame = true
+				if offer.kind == "weapon" and int(offer.value) == thunder:
+					offered_thunder_with_flame_owned = true
+	verify(not offered_flame and not offered_thunder_with_flame_owned,"The flame dagger is not offered alone, and the set is not offered when a half is owned")
+	# One free slot: one half goes in, the other asks for a slot; leaving undoes it all.
+	var one := Run.new()
+	one.start(9)
+	one.battle.owned_weapons.assign([0, 1])
+	one.state = Run.State.REWARD
+	one.offers.assign([{"kind":"weapon","value":thunder}])
+	verify(one.choose(0) and one.state == Run.State.REPLACE and one.battle.owned_weapons.has(thunder) and one.pending.remaining == [flame],"One free slot: the first half is placed, the second needs a slot")
+	one.cancel_replace()
+	verify(one.state == Run.State.REWARD and one.battle.owned_weapons.size() == 2 and not one.battle.owned_weapons.has(thunder),"Leaving the swap screen undoes the half that was placed")
+	one.state = Run.State.REWARD
+	verify(one.choose(0) and one.replace(0) and one.battle.owned_weapons.has(thunder) and one.battle.owned_weapons.has(flame) and one.battle.owned_weapons.size() == 3 and one.state != Run.State.REPLACE,"...and choosing again completes the set")
+	var two := Run.new()
+	two.start(11)
+	two.battle.owned_weapons.assign([0, 1, 2])
+	two.state = Run.State.REWARD
+	two.offers.assign([{"kind":"weapon","value":thunder}])
+	two.choose(0)
+	two.replace(2)
+	two.cancel_replace()
+	verify(two.battle.owned_weapons.size() == 3 and two.battle.owned_weapons.has(2) and not two.battle.owned_weapons.has(thunder),"Leaving after one replacement puts the old weapon back")
 	# A set takes two slots.
 	var run := Run.new()
 	run.start(7)

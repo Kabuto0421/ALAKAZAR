@@ -185,11 +185,15 @@ func choose(index: int) -> bool:
 			incoming.append(int(offer.value))
 			if Weapons.is_pair_head(int(offer.value)):
 				incoming.append(Weapons.pair_of(int(offer.value)))
+			incoming = incoming.filter(func(w: int) -> bool: return not battle.owned_weapons.has(w))
 		var free: int = Battle.WEAPON_LIMIT - battle.owned_weapons.size()
 		var full: bool = incoming.size() > free if offer.kind == "weapon" else battle.fairy_loadout.size() >= Battle.HAND_LIMIT
 		if full:
 			pending = offer.duplicate()
 			if offer.kind == "weapon":
+				# Leaving the choice must undo anything already placed.
+				pending.snapshot = battle.owned_weapons.duplicate()
+				pending.snapshot_enchants = battle.enchants.duplicate()
 				# Fill the free slots first; the rest replace slots one by one.
 				var placed: Array = []
 				while not incoming.is_empty() and battle.owned_weapons.size() < Battle.WEAPON_LIMIT:
@@ -231,7 +235,7 @@ func finish_battle() -> bool:
 	state = State.REWARD
 	offers.clear()
 	# Weapons: each card draws a rarity for this point in the run, then a weapon of it.
-	var weapons: Array = range(Weapons.DATA.size()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index) and not Weapons.is_pair_member(index))
+	var weapons: Array = range(Weapons.DATA.size()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index) and not Weapons.is_pair_member(index) and not (Weapons.is_pair_head(index) and battle.owned_weapons.has(Weapons.pair_of(index))))
 	for k in WEAPON_OFFERS:
 		var index := draw_weapon(weapons)
 		if index < 0:
@@ -301,6 +305,9 @@ func replace(slot: int) -> bool:
 
 func cancel_replace() -> void:
 	if state == State.REPLACE:
+		if pending.has("snapshot"):
+			battle.owned_weapons.assign(pending.snapshot)
+			battle.enchants = pending.snapshot_enchants
 		pending.clear()
 		state = State.REWARD
 

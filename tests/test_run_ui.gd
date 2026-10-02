@@ -156,6 +156,41 @@ func run() -> void:
 		view._act(target)
 		verify(view.model.player.ap==1,"Animation rejects duplicate taps")
 		await create_timer(Motion.duration(1)+0.08).timeout
+	# クロス短剣 in the real view: the boosted blow plays the finisher, spreads, and the boost passes on.
+	var cat = load("res://scripts/run/weapon_catalog.gd")
+	var dagger_ids: Array = cat.DATA.map(func(w): return w.id)
+	var thunder_index: int = dagger_ids.find("thunder_dagger")
+	var flame_index: int = dagger_ids.find("flame_dagger")
+	view.model.phase=Rules.Phase.PLAYER
+	view.model.player.ap=2
+	view.model.player.cell=Vector2i(1,1)
+	view.model.allies.clear()
+	view.model.enemies.clear()
+	view.model.owned_weapons.assign([thunder_index, flame_index, 0])
+	view.model.equip(flame_index)
+	view.model.combo_boost=flame_index
+	var hit_dagger: Dictionary = view.model.make_enemy("heavy",Vector2i(2,2),0)
+	var spread_dagger: Dictionary = view.model.make_enemy("heavy",Vector2i(3,1),1)
+	view.model.enemies.append(hit_dagger)
+	view.model.enemies.append(spread_dagger)
+	var spread_hp: int = spread_dagger.hp
+	view._sync_units(false)
+	view._update_controls()
+	await process_frame
+	verify(view.actors[-1].dagger_look=="flame" and view.actors[-1].dagger_boosted,"A boosted flame dagger shows the crossed stance")
+	view._act(Vector2i(2,2))
+	verify(view.actors[-1].dagger_attack_elapsed>=0.0 and view.actors[-1].dagger_attack_boosted,"The boosted blow starts the finisher pose")
+	await create_timer(0.45).timeout
+	verify(view.flashes.any(func(f): return f.kind=="cross_strike"),"The cross strike effect plays")
+	verify(spread_dagger.hp<spread_hp or not view.model.enemies.has(spread_dagger),"The diagonal neighbour was struck")
+	await create_timer(0.9).timeout
+	verify(not view.busy and view.model.combo_boost==thunder_index,"The finisher ends and the boost has moved to the thunder dagger")
+	view.model.equip(thunder_index)
+	view._sync_units(false)
+	verify(view.actors[-1].dagger_look=="thunder" and view.actors[-1].dagger_boosted,"Switching to the thunder dagger shows its crossed stance")
+	view.model.equip(0)
+	view._sync_units(false)
+	verify(view.actors[-1].dagger_look=="" and not view.actors[-1].dagger_boosted,"Any other weapon goes back to the ordinary pose")
 	view.model.owned_weapons.assign([0,1,2])
 	view.model.weapon=0
 	view.model.enemies.clear()
