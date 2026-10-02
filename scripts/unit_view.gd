@@ -123,6 +123,7 @@ const DAGGER_ART := {
 	"thunder_idle": [preload("res://assets/sprites/player/dagger_thunder_idle.png"), 115.5, 210.7],
 	"thunder_attack": [preload("res://assets/sprites/player/dagger_thunder_attack.png"), 106.7, 224.3],
 	"flame_idle": [preload("res://assets/sprites/player/dagger_flame_idle.png"), 107.9, 201.1],
+	"flame_attack": [preload("res://assets/sprites/player/dagger_flame_attack.png"), 108.5, 243.4],
 }
 var dagger_look := ""
 var dagger_boosted := false
@@ -445,7 +446,7 @@ func _draw() -> void:
 			elif dagger_look == "thunder":
 				_draw_dagger_art("thunder_attack", lunge, tint)
 			else:
-				_draw_dagger_art("flame_idle", lunge * 1.6, tint)
+				_draw_dagger_art("flame_attack", lunge, tint)
 		elif dagger_boosted:
 			_draw_dagger_art("cross_ready", Vector2.ZERO, tint)
 		else:
