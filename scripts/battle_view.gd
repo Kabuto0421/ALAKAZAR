@@ -1417,6 +1417,10 @@ func _draw_board() -> void:
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
+			if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
+				# The wheel turns under whoever rides it.
+				SpiritIcon.paint(self,mid + Vector2(0, 14 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,0.95)
+				_turn_badge(pos,int(model.wheel.turns))
 			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
 				_turn_badge(pos,int(model.cat.turns))
@@ -1642,8 +1646,12 @@ func _draw_player_panel() -> void:
 	for i in range(5):
 		_draw_heart(Vector2(102+i*40,115),25.0,Color("ff5b62"),i < model.player.hp)
 	_text(Vector2(40,162),"AP",24,GOLD)
-	for i in range(2):
-		draw_rect(Rect2(94+i*96,137,84,29),GOLD if i<model.player.ap else Color("293d36"))
+	# Two boxes; a rider on the wheel has three (narrower so they still fit).
+	var ap_boxes := maxi(maxi(2, model.player.ap), 3 if model.riding_wheel() else 2)
+	var box_w := 84.0 if ap_boxes == 2 else 56.0
+	var box_step := 96.0 if ap_boxes == 2 else 66.0
+	for i in range(ap_boxes):
+		draw_rect(Rect2(94+i*box_step,137,box_w,29),GOLD if i<model.player.ap else Color("293d36"))
 
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
@@ -2177,6 +2185,8 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
 		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2は落ちず手前で止まる", "動くと届く範囲に合わせて", "奈落も変わる"]}
+	if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
+		return {"icon": "wheel_fairy", "turns": int(model.wheel.turns), "state": "乗っている（次のターンもAP+1）" if model.riding_wheel() else "乗っていない", "lines": ["乗って次のターンを迎えると", "乗っている間はAP+1", "敵は上に乗れない"]}
 	if model.cat_zone_at(cell):
 		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れない", "（中にいる敵は出るだけ）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):

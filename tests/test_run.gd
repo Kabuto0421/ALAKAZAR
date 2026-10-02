@@ -305,6 +305,7 @@ func _initialize() -> void:
 	_big_placement()
 	_guardian_wall()
 	_cat_fairy()
+	_wheel_fairy()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2248,3 +2249,28 @@ func _cat_fairy() -> void:
 		t.tick_walls()
 	verify(t.cat.is_empty(),"...and is gone after five")
 	verify(m.stats.placed_rounds.size() == 1,"Placing it counts as a placed fairy")
+
+## 車輪の妖精: ride it (a move onto it) and the turns that begin with you on it have 3 AP.
+func _wheel_fairy() -> void:
+	var m := fixture()
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy", Vector2i(5,5), 0))
+	m.player.cell = Vector2i(0,2)
+	m.fairy_loadout.assign(["wheel_fairy"])
+	m.refill_fairies()
+	verify(m.fairy_ap_cost("wheel_fairy") == 1 and m.fairy_uses("wheel_fairy") == 1 and m.fairy_ap_cost("wheel_fairy", 1) == 0 and m.fairy_uses("wheel_fairy", 1) == 1,"The wheel fairy: 1 AP once a battle; the class-up only makes it 0 AP")
+	verify(Run.Rarity.tier({"kind":"fairy","value":"wheel_fairy"}) == Run.Rarity.RARE,"The wheel fairy is rare")
+	var spot: Vector2i = Vector2i(1,2)
+	verify(m.item_targets("wheel_fairy").has(spot) and m.use_item("wheel_fairy", spot) and m.wheel.cell == spot,"It is placed on a tile in weapon range")
+	verify(not m.riding_wheel() and m.turn_start_ap() == 2,"Not riding: a turn starts with 2 AP")
+	verify(m.player_action(spot) and m.riding_wheel() and m.player.ap == 0,"Stepping onto it is a 1 AP move (and the same turn gives no extra AP)")
+	verify(m.turn_start_ap() == 3,"The next turn would begin with 3 AP while riding")
+	_enemy_turn(m)
+	verify(m.player.ap == 3,"After the enemy turn the rider has 3 AP")
+	verify(m.player_action(Vector2i(2,2)) and not m.riding_wheel() and m.turn_start_ap() == 2,"Stepping off ends the bonus")
+	# Enemies cannot stand on it.
+	verify(m.enemy_blocked(spot) and not m.blocked(spot),"Enemies cannot enter the wheel's tile (the player can)")
+	# Gone after five player turns.
+	for n in Rules.WALL_TURNS:
+		m.tick_walls()
+	verify(m.wheel.is_empty(),"The wheel is gone after five turns")

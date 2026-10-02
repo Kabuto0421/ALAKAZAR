@@ -41,6 +41,7 @@ const CROPS := {
 	"acorn_fairy": Rect2(0.182, 0.152, 0.751, 0.751),
 	"blessing_fairy": Rect2(0.158, 0.195, 0.678, 0.678),
 	"cat_fairy": Rect2(0.0, 0.0, 1.0, 1.0),
+	"wheel_fairy": Rect2(0.0, 0.016, 0.984, 0.984),
 	"cannon_fairy": Rect2(0.018, 0.067, 0.933, 0.933),
 	"firework_fairy": Rect2(0.122, 0.096, 0.848, 0.848),
 	"flying_slash": Rect2(0.049, 0.059, 0.902, 0.902),
@@ -121,6 +122,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"freeze_fairy": _freeze(time, accent, art, upgraded)
 		"blessing_fairy": _blessing(time, accent, art, upgraded)
 		"cat_fairy": _cat(time, accent, art)
+		"wheel_fairy": _wheel(time, accent, art)
 		"meteor_fairy": _meteor(time, art, int(model.meteor_count()) + (1 if upgraded and not model.is_plus(id) else 0))
 		"guardian_fairy": _guardian(time)
 		"time_fairy": _time_stop(time, art)
@@ -717,6 +719,21 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 
 ## Blessed ground for five turns: while you stand in its 3x3, your hits also land
 ## on the four tiles around the struck one (a cross). Step out and they do not.
+static func _wheel(time: float, accent: Color, art: Texture2D) -> void:
+	# Ride the wheel (a move onto it), and the next turn begins with three AP.
+	var p := _cycle(time, 4.4)
+	var ride := _ph(p, 0.1, 0.35)
+	_art(art, Vector2(3, 1))
+	_player(Vector2(1, 1).lerp(Vector2(3, 1), ride) + Vector2(0, 0.0))
+	if p > 0.35:
+		_say(_center(Vector2(3, 0)) + Vector2(0, 10), "乗った", 13, accent)
+	if p > 0.6:
+		# The next turn: three gold boxes.
+		for i in 3:
+			cv.draw_rect(Rect2(Vector2(1.2 + i * 0.65, 2.25) * C, Vector2(0.55, 0.4) * C), GOLD)
+		_say(_center(Vector2(0.5, 2)) + Vector2(0, 2), "AP", 14, GOLD)
+		_say(_center(Vector2(4, 2)) + Vector2(0, 2), "+1", 16, GREEN)
+
 static func _cat(time: float, accent: Color, art: Texture2D) -> void:
 	# The cat's 3x3 field: an enemy comes up to its edge and cannot step in (a cross);
 	# then one that was inside simply walks out.

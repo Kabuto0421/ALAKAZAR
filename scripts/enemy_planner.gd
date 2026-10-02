@@ -154,7 +154,7 @@ func finish(model: RefCounted) -> void:
 		model.shadow_strike()
 		model.tick_walls()
 		model.phase = Rules.Phase.PLAYER
-		model.player.ap = 2
+		model.player.ap = model.turn_start_ap()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 func _options(model: RefCounted, enemy: Dictionary) -> Array[Vector2i]:

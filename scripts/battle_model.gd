@@ -9,7 +9,7 @@ const ITEMS = [preload("res://items/magic_bolt.tres"), preload("res://items/stea
 	preload("res://items/shadow_stitch.tres"), preload("res://items/lone_wolf.tres"), preload("res://items/abyss_spirit.tres"),
 	preload("res://items/gravity_fairy.tres"),
 	preload("res://items/glutton_fairy.tres"), preload("res://items/freeze_fairy.tres"), preload("res://items/blessing_fairy.tres"),
-	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres"), preload("res://items/time_fairy.tres"), preload("res://items/cat_fairy.tres")]
+	preload("res://items/meteor_fairy.tres"), preload("res://items/guardian_fairy.tres"), preload("res://items/time_fairy.tres"), preload("res://items/cat_fairy.tres"), preload("res://items/wheel_fairy.tres")]
 ## Rare 2x2 fairies: they need a free 2x2 block that includes the chosen tile.
 const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## Ally unit types, for logs (enemies use TYPES).
@@ -191,6 +191,7 @@ const PLUS_TEXT := {
 	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
 	"cat_fairy": ["{cost_plus} APで置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
+	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、乗っている間は\nAPが+1される。{turns}ターン残る。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
@@ -249,6 +250,8 @@ var time_stop := 0
 var blessing: Dictionary = {}
 ## 猫の妖精: {cell, turns} while its field stands; enemies cannot step into the 3x3 around the cell.
 var cat: Dictionary = {}
+## 車輪の妖精: {cell, turns} while its wheel stands. Riding it (standing on it as your turn begins) gives +1 AP.
+var wheel: Dictionary = {}
 ## Ally kinds summoned by fairies this battle, in order (the guardian calls them all back).
 var summoned_kinds: Array[String] = []
 var pits: Array[Vector2i] = []
@@ -267,7 +270,7 @@ func _fresh_stats() -> Dictionary:
 	return {"max_chain": 0, "placed_rounds": [], "guardian_calls": 0, "eaten": false, "fairy_set_off": false, "circles": 0}
 
 ## The fairies that are put down on the board and stay (the cards' 設置 label).
-const PLACED_FAIRIES := ["stealth_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit", "cat_fairy"]
+const PLACED_FAIRIES := ["stealth_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit", "cat_fairy", "wheel_fairy"]
 
 ## How many 設置 fairies were put down within the last WALL_TURNS rounds (so still standing).
 func placed_recently() -> int:
@@ -306,6 +309,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	shadow = {}
 	blessing = {}
 	cat = {}
+	wheel = {}
 	summoned_kinds.clear()
 	abyss_turns = 0
 	time_stop = 0
@@ -604,8 +608,8 @@ static func text_values(id: String) -> Dictionary:
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy"]
-const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy"]
+const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy", "wheel_fairy"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy", "wheel_fairy"]
 ## A fairy's AP and uses per battle come only from its item data (ap_cost,
 ## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
 func fairy_ap_cost(id: String, plus: int = -1) -> int:
@@ -644,7 +648,7 @@ func cat_zone_at(cell: Vector2i) -> bool:
 
 ## Where an enemy may not step: everything blocked, and the cat's field.
 func enemy_blocked(cell: Vector2i) -> bool:
-	return blocked(cell) or cat_zone_at(cell)
+	return blocked(cell) or cat_zone_at(cell) or wheel.get("cell", Vector2i(-1, -1)) == cell
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -1586,6 +1590,22 @@ func square_around(cell: Vector2i, radius: int) -> Array[Vector2i]:
 				result.append(tile)
 	return result
 
+## 車輪の妖精: a wheel on the tile for WALL_TURNS turns. Stepping onto it is an ordinary move
+## (1 AP); a player who is standing on it when a new turn begins has 3 AP instead of 2.
+## Enemies cannot stand on it.
+const WHEEL_BONUS_AP := 1
+func place_wheel(cell: Vector2i) -> void:
+	wheel = {"cell":cell, "turns":WALL_TURNS}
+	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
+	add_log("車輪が置かれた")
+
+func riding_wheel() -> bool:
+	return not wheel.is_empty() and wheel.cell == player.cell
+
+## The AP a new player turn starts with.
+func turn_start_ap() -> int:
+	return 2 + (WHEEL_BONUS_AP if riding_wheel() else 0)
+
 ## 猫の妖精: for WALL_TURNS turns enemies cannot enter the 3x3 around the cat (those already
 ## inside may only walk out). It stops no attack, only movement.
 func place_cat(cell: Vector2i) -> void:
@@ -2027,6 +2047,11 @@ func tick_walls() -> void:
 			add_log("奈落が閉じた")
 		else:
 			dig_abyss()
+	if not wheel.is_empty():
+		wheel.turns -= 1
+		if wheel.turns <= 0:
+			wheel = {}
+			add_log("車輪が消えた")
 	if not cat.is_empty():
 		cat.turns -= 1
 		if cat.turns <= 0:
