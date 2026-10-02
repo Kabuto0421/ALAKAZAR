@@ -785,7 +785,8 @@ func trigger_fairies() -> void:
 		if stays and int(stealth_struck.get(cell, -1)) == round_number:
 			continue
 		for enemy in ordered:
-			if enemy.hp > 0 and distance(cell, enemy.cell) == 1:
+			# A big enemy counts from any tile it covers.
+			if enemy.hp > 0 and footprint(enemy).any(func(tile: Vector2i) -> bool: return distance(cell, tile) == 1):
 				if stays:
 					stealth_struck[cell] = round_number
 				else:

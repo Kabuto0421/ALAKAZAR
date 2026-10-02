@@ -26,7 +26,7 @@ const PAGES := [
 		{"shots": ["end_a", "end_b"], "tags": ["AP 2 のまま", "ターン終了 → 敵のターン"], "caption": "APを使わずターン終了も可能"},
 	]},
 	{"title": "武器", "lead": "武器は3本まで。武器ごとに動ける方向と攻撃力が違う。いろんな方向の武器を集めて、組み合わせて戦おう。", "items": [
-		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "縦跳剣", "桂馬剣"], "caption": "動ける方向が違う"},
+		{"shots": ["dir_a", "dir_b", "dir_c"], "tags": ["前進剣", "上下剣", "桂馬剣"], "caption": "動ける方向が違う"},
 		{"shots": ["power_a", "power_b"], "tags": ["ハンマー 攻撃3", "攻撃 −1 AP"], "caption": "攻撃力も違う"},
 		{"shots": ["combo_0", "combo_1", "combo_2", "combo_3"], "tags": ["AP 2", "移動 −1 AP", "持ち替え 0 AP", "攻撃 −1 AP"], "caption": "組み合わせる"},
 	]},

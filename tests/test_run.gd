@@ -301,6 +301,7 @@ func _initialize() -> void:
 	_glutton()
 	_prison_king()
 	_achievement_scenarios()
+	_stealth_big()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -442,17 +443,16 @@ func _threats_and_weapons() -> void:
 
 	# Early weapons: one tile, or two tiles when both are jumps.
 	var W := Run.Weapons
-	verify(W.is_early(W.DATA.map(func(d): return d.id).find("vault")) and W.offsets(W.DATA.map(func(d): return d.id).find("vault")) == [Vector2i(0,-2),Vector2i(0,2)],"Vertical jump pair is an early weapon")
 	verify(not W.is_early(2) and not W.is_early(3),"Two-tile non-jump weapons are not early")
 	var jump_pairs := 0
 	for index in W.single_pool():
 		if W.DATA[index].offsets.size() == 2:
 			jump_pairs += 1
 			verify(W.is_quirky(index),"Only weapons with a jump get two early tiles")
-	verify(jump_pairs == 13,"Thirteen odd two-tile weapons are in the early pool (mirror twins removed)")
+	verify(jump_pairs == 9,"Nine odd two-tile weapons are in the early pool (mirror twins removed)")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
-	verify(W.opening_pool().size() == 12,"Twelve up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 16 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
+	verify(W.opening_pool().size() == 9,"Nine up-and-down weapons make the opening pick varied")
+	verify(W.early_reward_pool().size() == 12 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -1377,7 +1377,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 46,"39 weapons plus the three generals, the king staff, the mallet, the cross hammer and the thunder blade")
+	verify(W.DATA.size() == 42,"35 weapons plus the three generals, the king staff, the mallet, the cross hammer and the thunder blade")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
@@ -2152,3 +2152,16 @@ func _achievement_scenarios() -> void:
 	verify(Achievements.check(king).is_empty(),"An achievement is announced once")
 	verify(Achievements.all().map(func(a): return a.id) == ["fairy_master","alakazar_king","guardian_sky","you_died","garden","chain","surprise","circle","meteor_hell","the_world"],"The 実績 page lists them in order")
 	Achievements.reset_memory()
+
+
+## 隠密妖精 springs on a 2x2 enemy that touches it from any of its four tiles.
+func _stealth_big() -> void:
+	var m := fixture()
+	m.enemies.clear()
+	var big: Dictionary = m.make_enemy("rook", Vector2i(2,2), 0)
+	big.hp = 5
+	m.enemies.append(big)
+	m.fairies.append(Vector2i(4,3))
+	m.fairy_turns[Vector2i(4,3)] = 5
+	m.trigger_fairies()
+	verify(big.hp == 5 - Rules.STEALTH_DAMAGE and not m.fairies.has(Vector2i(4,3)),"The stealth fairy strikes a 2x2 enemy that touches it with its lower-right tile")

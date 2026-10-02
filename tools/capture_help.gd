@@ -39,7 +39,7 @@ func frames(count: int) -> void:
 
 func weapon(id: String) -> void:
 	var index: int = ids.find(id)
-	m.owned_weapons.assign([0, ids.find("vault"), index])
+	m.owned_weapons.assign([0, ids.find("vertical"), index])
 	m.weapon = index
 
 ## The examples use the silver general's sword (the widest plain reach) unless the picture is
@@ -240,7 +240,7 @@ func capture_all() -> void:
 	bv._update_controls()
 	# --- 武器: directions, power, combining ---
 	# [seg:dir] Weapons reach different tiles.
-	for pick in [["dir_a", "forward"], ["dir_b", "vault"], ["dir_c", "knight"]]:
+	for pick in [["dir_a", "forward"], ["dir_b", "vertical"], ["dir_c", "knight"]]:
 		setup([["heavy", Vector2i(3, 3)]], Vector2i(0, 1), pick[1])
 		m.player.cell = Vector2i(1, 1)
 		bv._sync_units(false)
@@ -254,15 +254,15 @@ func capture_all() -> void:
 	await shot("power_b", [board(), card()])
 	await frames(60)
 	# [seg:combo] Move with one weapon, switch (free), strike with another: the three weapons at the left.
-	setup([["heavy", Vector2i(1, 1)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 3), "vault")
-	m.owned_weapons.assign([ids.find("forward"), ids.find("vault"), ids.find("front_diagonal")])
-	m.weapon = ids.find("vault")
+	setup([["heavy", Vector2i(1, 2)], ["heavy", Vector2i(3, 3)]], Vector2i(0, 3), "vertical")
+	m.owned_weapons.assign([ids.find("forward"), ids.find("vertical"), ids.find("front_diagonal")])
+	m.weapon = ids.find("vertical")
 	await shot("combo_0", [PANEL, board()], await weapon_strip())
-	act(Vector2i(0, 1))
+	act(Vector2i(0, 2))
 	await shot("combo_1", [PANEL, board()], await weapon_strip())
 	m.weapon = ids.find("forward")
 	await shot("combo_2", [PANEL, board()], await weapon_strip())
-	act(Vector2i(1, 1))
+	act(Vector2i(1, 2))
 	await frames(2)
 	await shot("combo_3", [PANEL, board()], await weapon_strip())
 	# --- 特殊効果 ---
