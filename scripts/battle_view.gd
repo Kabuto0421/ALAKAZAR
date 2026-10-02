@@ -2783,6 +2783,50 @@ func _draw_tsunami() -> void:
 	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
 	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
 
+## The lightning coming down: for every run of marked tiles in a column, a streak falls from the
+## top of the screen, then a column of light stands on those tiles and fades. No marks on the tiles.
+func _draw_thunder_strike(effect: Dictionary, t: float, fade: float) -> void:
+	var u := TILE / 64.0
+	var columns := {}
+	for tile in effect.get("cells", []):
+		if not columns.has(tile.x):
+			columns[tile.x] = []
+		columns[tile.x].append(tile.y)
+	var drop := clampf(t / 0.2, 0.0, 1.0)
+	var land := clampf((t - 0.2) / 0.8, 0.0, 1.0)
+	var glow := 1.0 - land
+	for x in columns:
+		var ys: Array = columns[x]
+		ys.sort()
+		var runs: Array = []
+		for y in ys:
+			if not runs.is_empty() and runs[-1][1] == y - 1:
+				runs[-1][1] = y
+			else:
+				runs.append([y, y])
+		var cx := BOARD.x + (float(x) + 0.5) * TILE
+		for run in runs:
+			var top := BOARD.y + float(run[0]) * TILE
+			var bottom := BOARD.y + float(run[1] + 1) * TILE
+			var streak := PackedVector2Array()
+			var steps := 14
+			for i in range(steps + 1):
+				var k := float(i) / float(steps)
+				if k > drop:
+					break
+				var jitter := sin(float(i) * 2.7 + float(x) * 5.1 + float(run[0])) * 12.0 * u * (1.0 - k * 0.6) if i > 0 and i < steps else 0.0
+				streak.append(Vector2(cx + jitter, lerpf(0.0, top, k)))
+			if streak.size() >= 2:
+				draw_polyline(streak, Color(0.6, 0.95, 1.0, 0.55), 14.0 * u)
+				draw_polyline(streak, Color(1, 1, 1, 1.0), 5.0 * u)
+			if drop >= 1.0:
+				var wide := TILE * (0.95 - 0.25 * land)
+				draw_rect(Rect2(cx - wide / 2.0, 0.0, wide, bottom), Color(0.55, 0.9, 1.0, 0.22 * glow))
+				draw_rect(Rect2(cx - wide * 0.3, 0.0, wide * 0.6, bottom), Color(0.8, 1.0, 1.0, 0.35 * glow))
+				draw_rect(Rect2(cx - wide * 0.1, 0.0, wide * 0.2, bottom), Color(1, 1, 1, 0.8 * glow))
+				draw_rect(Rect2(BOARD.x + float(x) * TILE, top, TILE, bottom - top), Color(1.0, 0.98, 0.8, 0.8 * glow))
+				draw_arc(Vector2(cx, bottom - TILE * 0.2), (10.0 + land * 60.0) * u, 0.0, TAU, 32, Color(1, 1, 1, 0.8 * glow), 4.0 * u)
+
 ## The drop: a white flash, shockwaves off the water, a column of light the shark is projected
 ## inside, glitch bars and a scan line sweeping the board.
 func _draw_shark_emerge(effect: Dictionary, t: float, fade: float) -> void:
@@ -3043,13 +3087,7 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"thunder_warn":
 			draw_circle(pos, 10 + 24 * t, Color(1.0, 0.95, 0.5, 0.5 * fade))
 		"thunder":
-			# The strike: every tile of the three bolts flashes white and crackles.
-			var u := TILE / 64.0
-			for tile in effect.get("cells", []):
-				var c := _center(tile)
-				draw_rect(Rect2(c - Vector2.ONE * TILE / 2.0, Vector2.ONE * TILE), Color(1.0, 0.98, 0.75, 0.75 * fade))
-				var jag := PackedVector2Array([c + Vector2(10, -28) * u, c + Vector2(-6, -6) * u, c + Vector2(8, -2) * u, c + Vector2(-8, 26) * u])
-				draw_polyline(jag, Color(1, 1, 1, fade), 3.0 * u)
+			_draw_thunder_strike(effect, t, fade)
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)
