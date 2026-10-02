@@ -862,6 +862,9 @@ func _feedback(weapon_attack: bool = false) -> void:
 			continue
 		if event.kind == "dive" and actors.has(int(event.id)):
 			actors[int(event.id)].play_pose("dive")
+		elif event.kind == "thunder":
+			chain_shake = 0.45
+			chain_shake_power = 12.0
 		elif event.kind == "surface" and actors.has(int(event.id)):
 			actors[int(event.id)].play_pose("surface")
 			chain_shake = 0.3
@@ -2783,16 +2786,20 @@ func _draw_tsunami() -> void:
 	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
 	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
 
-## The lightning coming down: one bolt per mino falls from the top of the screen onto it, and
-## the mino's tiles flash white. No marks on the tiles.
+## The lightning coming down: one great bolt per mino falls from the top of the screen onto it
+## (thick, glowing, with forks), the mino's tiles blaze white and a shock ring rolls out.
 func _draw_thunder_strike(effect: Dictionary, t: float, fade: float) -> void:
 	var u := TILE / 64.0
-	var drop := clampf(t / 0.16, 0.0, 1.0)
-	var land := clampf((t - 0.16) / 0.84, 0.0, 1.0)
+	var drop := clampf(t / 0.12, 0.0, 1.0)
+	var land := clampf((t - 0.12) / 0.88, 0.0, 1.0)
 	var glow := 1.0 - land
 	var groups: Array = effect.get("groups", [])
 	if groups.is_empty():
 		groups = [effect.get("cells", [])]
+	# The whole board flashes at the moment of the strike.
+	if t > 0.1:
+		draw_rect(Rect2(BOARD, Vector2.ONE * model.board_size * TILE), Color(0.85, 0.97, 1.0, 0.28 * pow(glow, 2.0)))
+	var flick := 1.0 if int(clock * 30.0) % 3 != 0 else 0.7
 	for group in groups:
 		if group.is_empty():
 			continue
@@ -2805,21 +2812,38 @@ func _draw_thunder_strike(effect: Dictionary, t: float, fade: float) -> void:
 			if Vector2(tile).distance_to(middle) < Vector2(target).distance_to(middle):
 				target = tile
 		var hit := _center(target)
-		var streak := PackedVector2Array()
-		var steps := 12
+		var seed_v := float(target.x) * 5.1 + float(target.y) * 2.3
+		var steps := 11
+		var main := PackedVector2Array()
 		for i in range(steps + 1):
 			var k := float(i) / float(steps)
-			if k > drop:
-				break
-			var jitter := sin(float(i) * 2.7 + float(target.x) * 5.1 + float(target.y)) * 10.0 * u * (1.0 - k * 0.7) if i > 0 and i < steps else 0.0
-			streak.append(Vector2(hit.x + jitter, lerpf(0.0, hit.y, k)))
-		if streak.size() >= 2:
-			draw_polyline(streak, Color(0.6, 0.95, 1.0, 0.4 * (1.0 if drop < 1.0 else glow)), 9.0 * u)
-			draw_polyline(streak, Color(1, 1, 1, 1.0 if drop < 1.0 else glow), 3.5 * u)
+			var jitter := sin(float(i) * 2.3 + seed_v) * 30.0 * u * (1.0 - k * 0.75) if i > 0 and i < steps else 0.0
+			main.append(Vector2(hit.x + jitter, lerpf(-20.0, hit.y, k)))
+		var shown := PackedVector2Array()
+		for i in main.size():
+			if float(i) / float(steps) <= drop:
+				shown.append(main[i])
+		var body := 1.0 if drop < 1.0 else maxf(glow * 1.4, 0.0)
+		body = minf(body, 1.0) * flick
+		if shown.size() >= 2:
+			draw_polyline(shown, Color(0.4, 0.8, 1.0, 0.22 * body), 56.0 * u)
+			draw_polyline(shown, Color(0.55, 0.92, 1.0, 0.45 * body), 30.0 * u)
+			draw_polyline(shown, Color(0.9, 1.0, 1.0, 0.9 * body), 15.0 * u)
+			draw_polyline(shown, Color(1, 1, 1, body), 7.0 * u)
+			# Forks: branches splitting off the bolt on the way down.
+			for i in range(2, shown.size() - 1, 3):
+				var side := 1.0 if (i / 3) % 2 == 0 else -1.0
+				var fork := PackedVector2Array([shown[i], shown[i] + Vector2(side * 30.0, 34.0) * u, shown[i] + Vector2(side * 18.0, 70.0) * u, shown[i] + Vector2(side * 46.0, 104.0) * u])
+				draw_polyline(fork, Color(0.6, 0.95, 1.0, 0.5 * body), 9.0 * u)
+				draw_polyline(fork, Color(1, 1, 1, 0.9 * body), 3.5 * u)
 		if drop >= 1.0:
 			for tile in group:
-				draw_rect(Rect2(BOARD + Vector2(tile) * TILE, Vector2.ONE * TILE), Color(1.0, 0.98, 0.8, 0.7 * glow))
-			draw_arc(hit, (8.0 + land * 46.0) * u, 0.0, TAU, 32, Color(1, 1, 1, 0.8 * glow), 3.0 * u)
+				var at := BOARD + Vector2(tile) * TILE
+				draw_rect(Rect2(at, Vector2.ONE * TILE), Color(1.0, 0.98, 0.8, 0.9 * glow))
+				draw_rect(Rect2(at + Vector2.ONE * 4.0, Vector2.ONE * (TILE - 8.0)), Color(1, 1, 1, 0.7 * glow * glow))
+			draw_circle(hit, (30.0 + 40.0 * land) * u, Color(1, 1, 1, 0.65 * glow))
+			draw_arc(hit, (20.0 + land * 150.0) * u, 0.0, TAU, 48, Color(0.8, 1.0, 1.0, 0.9 * glow), (9.0 - 6.0 * land) * u)
+			draw_arc(hit, (10.0 + land * 90.0) * u, 0.0, TAU, 40, Color(1, 1, 1, 0.8 * glow), 4.0 * u)
 
 ## The drop: a white flash, shockwaves off the water, a column of light the shark is projected
 ## inside, glitch bars and a scan line sweeping the board.
@@ -2924,7 +2948,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
