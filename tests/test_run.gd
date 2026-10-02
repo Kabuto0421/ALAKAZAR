@@ -2334,6 +2334,17 @@ func _storm_shark() -> void:
 	w.storm = {"wind": Vector2i.RIGHT, "marks": [], "centers": []}
 	w._storm_wind_push()
 	verify(w.player.cell == Vector2i(1,3) and soldier.cell == Vector2i(3,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wind moves the player and the soldiers one tile; the boss and the wall-bound stay")
+	# The plan shown on the board is exactly where the wave takes everyone.
+	var wp := _shark_room()
+	wp.player.cell = Vector2i(2,3)
+	wp.storm.wind = Vector2i.RIGHT
+	var plan: Array = wp.storm_wave_plan()
+	wp._storm_wind_push()
+	var plan_ok := not plan.is_empty()
+	for entry in plan:
+		var now: Vector2i = wp.player.cell if int(entry.id) == -1 else (wp.enemies.filter(func(e): return e.id == entry.id)[0].cell)
+		plan_ok = plan_ok and now == entry.to
+	verify(plan_ok and plan.any(func(e): return int(e.id) == -1 and e.to == Vector2i(3,3)),"The wave's plan matches where it really carries the player and the others")
 	# Thunder alternates: marks, then the strike.
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)

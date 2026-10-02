@@ -2901,6 +2901,31 @@ func storm_enemy_turn() -> void:
 	_storm_wind_push()
 	_storm_thunder()
 
+## Where the wave would carry everyone if the enemy turn began now, worked out on a copy:
+## [{id, from, to, size}] for the player, the allies and the enemies it can move (`to` equals
+## `from` for one that is blocked). The board shows it so the player sees where each lands.
+func storm_wave_plan() -> Array:
+	var plan: Array = []
+	if storm.is_empty() or storm.wind == Vector2i.ZERO or time_stopped() or storm_shark().is_empty():
+		return plan
+	var sim: RefCounted = clone()
+	var before: Array = [[player.id, player.cell, 1]]
+	for ally in allies:
+		if ally.hp > 0:
+			before.append([ally.id, ally.cell, int(ally.get("size", 1))])
+	for enemy in enemies:
+		if enemy.hp > 0 and enemy.type not in [STORM_BOSS, "shadow"] and not enemy.get("diving", false):
+			before.append([enemy.id, enemy.cell, int(enemy.get("size", 1))])
+	sim._storm_wind_push()
+	var after := {sim.player.id: sim.player.cell}
+	for ally in sim.allies:
+		after[ally.id] = ally.cell
+	for enemy in sim.enemies:
+		after[enemy.id] = enemy.cell
+	for entry in before:
+		plan.append({"id": entry[0], "from": entry[1], "to": after.get(entry[0], entry[1]), "size": entry[2]})
+	return plan
+
 func _storm_wind_push() -> void:
 	var dir: Vector2i = storm.wind
 	if dir == Vector2i.ZERO:

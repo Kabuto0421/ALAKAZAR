@@ -2174,7 +2174,7 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,478),"ときどき潜り、影の下に浮上",18,CYAN)
 		_text(Vector2(852,504),"2ダメージ＋ノックバック",18,CYAN)
-		_text(Vector2(852,534),"大嵐：雷と風（風はボス以外を動かす）",15,MUTED)
+		_text(Vector2(852,534),"大嵐：雷と波（波はボス以外を動かす）",15,MUTED)
 		_draw_threat(enemy,562)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
@@ -2601,25 +2601,55 @@ func _draw_storm_frame() -> void:
 	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
 	if wind == Vector2i.ZERO:
 		return
-	# The wind: drifting arrows over the floor, all inside the board (they may cross the tiles).
+	# The wave: bands of ripples running the way it will carry everyone, all inside the board.
 	var dir := Vector2(wind)
 	var side := dir.orthogonal()
-	var cycle := TILE * 2.0
-	var drift := fposmod(clock * 42.0, cycle)
-	var count := model.board_size / 2
-	for row in range(count):
-		for column in range(count):
-			var cell_center := BOARD + Vector2(float(column) * 2.0 + 1.0, float(row) * 2.0 + 1.0) * TILE
-			var at := cell_center + dir * (drift - TILE)
-			if not Rect2(BOARD, extent).has_point(at):
-				continue
-			var fade := 1.0 - absf(drift - TILE) / TILE
-			var color := Color(0.6, 1.0, 0.95, 0.12 + 0.3 * fade)
-			var tip := at + dir * 20.0
-			draw_line(at - dir * 22.0, tip, color, 5)
-			draw_line(tip, tip - dir * 14.0 + side * 11.0, color, 5)
-			draw_line(tip, tip - dir * 14.0 - side * 11.0, color, 5)
-	_text(BOARD + Vector2(6, 22), "大嵐 風 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
+	var horizontal := wind.x != 0
+	var sign := float(wind.x + wind.y)
+	var length := extent.x if horizontal else extent.y
+	for lane in range(model.board_size):
+		var points := PackedVector2Array()
+		var lane_pos := (float(lane) + 0.5) * TILE
+		var steps := int(length / 8.0)
+		for step in range(steps + 1):
+			var along := float(step) * 8.0
+			var wobble := sin(along * 0.09 - clock * 5.0 * sign) * 7.0
+			points.append(BOARD + (Vector2(along, lane_pos + wobble) if horizontal else Vector2(lane_pos + wobble, along)))
+		draw_polyline(points, Color(0.6, 1.0, 0.95, 0.2), 3)
+	# Where everyone will be after it: a bold arrow and the landing tile, the player's the boldest.
+	for entry in _wave_plan():
+		var is_player: bool = int(entry.id) == -1
+		var size: int = entry.size
+		var bold := 1.0 if is_player else 0.6
+		var from_c: Vector2 = _center(entry.from) + Vector2.ONE * TILE / 2.0 * float(size - 1)
+		var to_c: Vector2 = _center(entry.to) + Vector2.ONE * TILE / 2.0 * float(size - 1)
+		var landing := Rect2(BOARD + Vector2(entry.to) * TILE + Vector2.ONE * 3, Vector2.ONE * (TILE * size - 6))
+		if entry.to == entry.from:
+			if is_player:
+				# Blocked: it stays put.
+				draw_rect(landing, Color(1.0, 0.45, 0.4, 0.9), false, 3)
+				_text(from_c + Vector2(-22, -TILE * 0.5 - 4), "動かない", 15, Color(1.0, 0.55, 0.5))
+			continue
+		var pulse := 0.6 + 0.4 * sin(clock * 7.0)
+		draw_rect(landing, Color(0.5, 1.0, 0.95, (0.16 + 0.1 * pulse) * bold))
+		draw_rect(landing, Color(0.7, 1.0, 1.0, bold), false, 4 if is_player else 2)
+		var tail := from_c + dir * TILE * 0.18
+		var tip := to_c - dir * TILE * 0.12
+		var arrow_color := Color(0.8, 1.0, 1.0, bold)
+		draw_line(tail, tip, arrow_color, 6 if is_player else 3)
+		draw_line(tip, tip - dir * 18.0 + side * 13.0, arrow_color, 6 if is_player else 3)
+		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
+	_text(BOARD + Vector2(6, 22), "大嵐 波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
+
+## The wave's plan, worked out again only when something that matters has changed.
+var _wave_key := ""
+var _wave_cache: Array = []
+func _wave_plan() -> Array:
+	var key := str([model.storm.get("wind"), model.player.cell, model.round_number, model.enemies.map(func(e: Dictionary) -> Array: return [e.cell, e.hp, e.get("diving", false)]), model.allies.map(func(a: Dictionary) -> Array: return [a.cell, a.hp]), model.obstacles.size(), model.walls.size(), model.cannons.size()])
+	if key != _wave_key:
+		_wave_key = key
+		_wave_cache = model.storm_wave_plan()
+	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
 const FX_LIFE = {"dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
