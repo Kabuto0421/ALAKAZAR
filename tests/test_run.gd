@@ -2377,7 +2377,7 @@ func _storm_shark() -> void:
 	t._storm_thunder()
 	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 12 and t.storm.marks.all(func(c): return t.inside(c)),"First, three lightning bolts are marked")
 	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2 and t.storm.marks.has(c)),"...each centred inside the 5x5 round the player")
-	verify(Rules.THUNDER_BOLT.size() == 6 and Rules.THUNDER_BOLT.has(Vector2i(0,-2)) and Rules.THUNDER_BOLT.has(Vector2i(-1,1)),"A bolt is six tiles, four tall")
+	verify(Rules.THUNDER_SHAPES.size() == 4 and Rules.THUNDER_SHAPES.all(func(shape): return shape.size() == 4),"A bolt is an S-mino (flat or upright, either way round)")
 	var marked: Array = t.storm.marks.duplicate()
 	t.player.cell = marked[0]
 	var thp: int = t.player.hp

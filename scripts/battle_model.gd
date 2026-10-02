@@ -3014,8 +3014,13 @@ func _storm_wind_push() -> void:
 	trigger_fairies()
 	check_outcome()
 
-## One lightning bolt as offsets round its middle tile (a lightning bolt, six tiles, four tall).
-const THUNDER_BOLT := [Vector2i(0,-2), Vector2i(1,-2), Vector2i(0,-1), Vector2i(-1,0), Vector2i(0,0), Vector2i(-1,1)]
+## One lightning bolt: an S-tetromino, flat or upright, either way round (offsets round a tile).
+const THUNDER_SHAPES := [
+	[Vector2i(0,0), Vector2i(1,0), Vector2i(-1,1), Vector2i(0,1)],
+	[Vector2i(-1,0), Vector2i(0,0), Vector2i(0,1), Vector2i(1,1)],
+	[Vector2i(0,-1), Vector2i(0,0), Vector2i(1,0), Vector2i(1,1)],
+	[Vector2i(1,-1), Vector2i(1,0), Vector2i(0,0), Vector2i(0,1)],
+]
 
 ## The lightning: three bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
 ## player and kept apart where there is room. Whoever stands on a marked tile when it strikes
@@ -3036,13 +3041,13 @@ func _storm_thunder() -> void:
 	var roll := _storm_rng("thunder")
 	var candidates: Array = []
 	for spot in square_around(player.cell, 2):
-		for flip in [false, true]:
+		for shape in THUNDER_SHAPES:
 			var bolt: Array = []
-			for offset in THUNDER_BOLT:
-				var tile: Vector2i = spot + Vector2i(-offset.x if flip else offset.x, offset.y)
+			for offset in shape:
+				var tile: Vector2i = spot + offset
 				if inside(tile):
 					bolt.append(tile)
-			if bolt.size() >= 5:
+			if bolt.size() == 4:
 				candidates.append({"spot": spot, "bolt": bolt})
 	# Shuffle (seeded), then take three that keep apart; if there is no room for that, three that
 	# at least do not overlap, and failing that any three.
