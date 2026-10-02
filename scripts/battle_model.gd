@@ -1005,24 +1005,32 @@ func _player_action(cell: Vector2i) -> bool:
 		elif WEAPONS[weapon].get("ranged","") == "bishop":
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
 		# クロス短剣: boosted by the other half, the blow also lands on the four diagonal tiles.
+		# (Each source hits an enemy once; two sources, e.g. with 加護, may both hit it.)
+		var base_struck: Array = struck.duplicate()
 		if combo_boost == weapon and Catalog.is_dagger(weapon):
 			var spread: Array[Vector2i] = []
 			for side in DIAGONALS:
 				spread.append(cell + side)
 			events.append({"kind":"cross_strike", "cell":cell, "id":-2, "cells":spread})
+			var from_spread: Array = []
 			for side in DIAGONALS:
 				var other := enemy_at(cell + side)
-				if not other.is_empty() and not struck.has(other):
+				if not other.is_empty() and not base_struck.has(other) and not from_spread.has(other):
+					from_spread.append(other)
 					struck.append(other)
 		# 加護: standing in the blessed ground, the blow also lands on the four tiles
 		# around the struck one (a cross).
 		if blessed(player.cell):
+			var from_blessing: Array = []
 			for side in CARDINALS:
 				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.DOWN if side.x == 0 else Vector2i.RIGHT})
 				var other := enemy_at(cell + side)
-				if not other.is_empty() and not struck.has(other):
+				if not other.is_empty() and not base_struck.has(other) and not from_blessing.has(other):
+					from_blessing.append(other)
 					struck.append(other)
 		for target in struck:
+			if target.hp <= 0:
+				continue
 			if shield_blocks(target, player.cell):
 				_block(target)
 				continue
@@ -1063,7 +1071,9 @@ func _player_action(cell: Vector2i) -> bool:
 		player.cell = cell
 		if is_circle(weapon):
 			_draw_circle_path(from, cell)
-		trigger_mine(player)
+		# Sliding weapons (the lance, rook, bishop and the daggers) glide over mines.
+		if Catalog.slides(weapon).is_empty() and not Catalog.is_dagger(weapon):
+			trigger_mine(player)
 		shadow_strike()
 		if is_circle(weapon) and not terminal():
 			_cast_circle()
@@ -1216,8 +1226,11 @@ func _bump_damage(enemy: Dictionary) -> void:
 		if events[k].kind == "hit":
 			events[k].bump = true
 
+## クロス短剣: a dagger powered up by its pair hits for this much more (the spread too).
+const BOOST_DAMAGE := 1
 func weapon_damage(index: int) -> int:
-	var bonus: int = blade_charge if WEAPONS[index].has("charge") else 0
+	var bonus: int = BOOST_DAMAGE if combo_boost == index and Catalog.is_dagger(index) else 0
+	bonus += blade_charge if WEAPONS[index].has("charge") else 0
 	return Catalog.base_damage(index) + int(weapon_power.get(index, 0)) + bonus
 
 func trigger_mine(unit: Dictionary) -> void:

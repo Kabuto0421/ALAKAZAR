@@ -171,6 +171,8 @@ func run() -> void:
 	view.model.combo_boost=flame_index
 	var hit_dagger: Dictionary = view.model.make_enemy("heavy",Vector2i(2,2),0)
 	var spread_dagger: Dictionary = view.model.make_enemy("heavy",Vector2i(3,1),1)
+	hit_dagger.hp = 6
+	spread_dagger.hp = 6
 	view.model.enemies.append(hit_dagger)
 	view.model.enemies.append(spread_dagger)
 	var spread_hp: int = spread_dagger.hp

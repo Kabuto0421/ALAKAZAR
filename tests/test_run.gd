@@ -2279,6 +2279,10 @@ func _wheel_fairy() -> void:
 	verify(m.wheel.is_empty() and not m.riding_wheel() and m.turn_start_ap() == 2,"The wheel is gone after three turns and things are as before")
 
 ## クロス短剣: 雷短剣 (up-right, 3 tiles + 1 back) and 炎短剣 (down-right); each boosts the other.
+## Index of a weapon by id.
+func ids_of(W, id: String) -> int:
+	return W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == id)
+
 func _cross_daggers() -> void:
 	var W := Run.Weapons
 	var thunder: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "thunder_dagger")
@@ -2422,6 +2426,7 @@ func _cross_daggers() -> void:
 	var weak: Dictionary = k.make_enemy("heavy", Vector2i(1,1), 0)
 	weak.hp = 1
 	var corner: Dictionary = k.make_enemy("heavy", Vector2i(2,0), 1)
+	corner.hp = 5
 	k.enemies.append(weak)
 	k.enemies.append(corner)
 	var corner_hp: int = corner.hp
@@ -2442,7 +2447,7 @@ func _cross_daggers() -> void:
 	var side_hp: int = side_target.hp
 	var forged_damage: int = fg.weapon_damage(thunder)
 	fg.player_action(Vector2i(2,2))
-	verify(forged_damage == 2 and side_target.hp == side_hp - 2,"A forged dagger spreads its full damage")
+	verify(forged_damage == 3 and side_target.hp == side_hp - 3,"A forged, boosted dagger (1 + 1 forged + 1 boost) spreads its full damage")
 	# No AP, no action.
 	var z := fixture()
 	z.enemies.clear()
@@ -2497,6 +2502,86 @@ func _cross_daggers() -> void:
 	two.replace(2)
 	two.cancel_replace()
 	verify(two.battle.owned_weapons.size() == 3 and two.battle.owned_weapons.has(2) and not two.battle.owned_weapons.has(thunder),"Leaving after one replacement puts the old weapon back")
+	# --- The boost: cross damage 2 ---
+	var dm := fixture()
+	dm.enemies.clear()
+	dm.owned_weapons.assign([thunder, flame, 0])
+	dm.player.cell = Vector2i(1,1)
+	dm.weapon = flame
+	dm.player.ap = 2
+	var far_enemy: Dictionary = dm.make_enemy("heavy", Vector2i(5,5), 5)
+	var main_e: Dictionary = dm.make_enemy("heavy", Vector2i(2,2), 0)
+	var side_e: Dictionary = dm.make_enemy("heavy", Vector2i(3,1), 1)
+	dm.enemies.append_array([far_enemy, main_e, side_e])
+	verify(dm.weapon_damage(flame) == 1,"Unboosted, a dagger does 1")
+	dm.combo_boost = flame
+	verify(dm.weapon_damage(flame) == 2 and dm.weapon_damage(thunder) == 1,"Boosted, only that dagger does 2")
+	var main_hp: int = main_e.hp
+	var side_hp2: int = side_e.hp
+	dm.player_action(Vector2i(2,2))
+	verify(main_e.hp == main_hp - 2 and side_e.hp == side_hp2 - 2,"The boosted blow and its spread both deal 2")
+	verify(dm.weapon_damage(flame) == 1 and dm.weapon_damage(thunder) == 2,"After the blow the boost (and the 2) has moved to the other dagger")
+	# --- Sliding weapons never set off mines ---
+	var lance_index: int = ids_of(W, "lance")
+	for slider in [lance_index, ids_of(W, "rook_spear"), ids_of(W, "bishop_blade"), thunder, flame]:
+		var mm := fixture()
+		mm.owned_weapons.assign([slider, 0, 1])
+		mm.weapon = slider
+		mm.player.cell = Vector2i(1,1)
+		mm.player.ap = 2
+		mm.enemies.clear()
+		mm.enemies.append(mm.make_enemy("heavy", Vector2i(5,5), 0))
+		var dest: Vector2i = Vector2i(2,2) if W.is_dagger(slider) and slider == flame else Vector2i(2,0) if W.is_dagger(slider) else Vector2i(2,1) if slider == lance_index or slider == ids_of(W, "rook_spear") else Vector2i(2,2)
+		mm.mines.append(dest)
+		var hp_before: int = mm.player.hp
+		var targets_ok: bool = mm.targets().has(dest)
+		verify(targets_ok and mm.player_action(dest) and mm.player.hp == hp_before and mm.mines.has(dest),"%s glides over a mine without setting it off" % W.DATA[slider].name)
+	var plain_mine := fixture()
+	plain_mine.enemies.clear()
+	plain_mine.enemies.append(plain_mine.make_enemy("heavy", Vector2i(5,5), 0))
+	plain_mine.player.cell = Vector2i(1,2)
+	plain_mine.mines.append(Vector2i(2,2))
+	plain_mine.weapon = 0
+	plain_mine.player.ap = 2
+	var hp_plain: int = plain_mine.player.hp
+	plain_mine.player_action(Vector2i(2,2))
+	verify(plain_mine.player.hp == hp_plain - 1,"An ordinary weapon still sets a mine off")
+	# --- 加護 and the spread may both hit the same enemy ---
+	var bl := fixture()
+	bl.enemies.clear()
+	bl.owned_weapons.assign([thunder, flame, 0])
+	bl.player.cell = Vector2i(1,1)
+	bl.weapon = flame
+	bl.player.ap = 2
+	bl.blessing = {"cell":Vector2i(1,1), "radius":1, "turns":5}
+	bl.combo_boost = flame
+	var primary: Dictionary = bl.make_enemy("heavy", Vector2i(2,2), 0)
+	var both: Dictionary = bl.make_enemy("heavy", Vector2i(3,2), 1)
+	var both_hp: int = both.hp
+	bl.enemies.append_array([primary, both, bl.make_enemy("heavy", Vector2i(5,5), 2)])
+	# (3,2) is on the blessing cross of (2,2); (3,3)... the diagonal spread reaches (3,1),(3,3),(1,3),(1,1).
+	var diag_and_cross: Dictionary = bl.make_enemy("heavy", Vector2i(3,3), 3)
+	var diag_hp3: int = diag_and_cross.hp
+	bl.enemies.append(diag_and_cross)
+	bl.player_action(Vector2i(2,2))
+	verify(both.hp == both_hp - 2,"An enemy on the blessing cross takes the boosted damage once")
+	verify(diag_and_cross.hp == diag_hp3 - 2,"An enemy only on the diagonal takes the boosted damage once")
+	# --- In the crossed stance, striking with the dagger that is not boosted ---
+	var cs := fixture()
+	cs.enemies.clear()
+	cs.owned_weapons.assign([thunder, flame, 0])
+	cs.player.cell = Vector2i(1,3)
+	cs.weapon = thunder
+	cs.player.ap = 2
+	cs.enemies.append(cs.make_enemy("heavy", Vector2i(2,2), 0))
+	cs.enemies.append(cs.make_enemy("heavy", Vector2i(3,1), 1))
+	cs.combo_boost = flame
+	var plain_target: Dictionary = cs.enemies[0]
+	var plain_side: Dictionary = cs.enemies[1]
+	var cs_hp: int = plain_target.hp
+	var cs_side_hp: int = plain_side.hp
+	verify(cs.player_action(Vector2i(2,2)) and plain_target.hp == cs_hp - 1 and plain_side.hp == cs_side_hp,"Striking with the un-boosted dagger deals 1 and spreads nothing")
+	verify(cs.combo_boost == flame,"...and the other dagger stays boosted")
 	# A set takes two slots.
 	var run := Run.new()
 	run.start(7)

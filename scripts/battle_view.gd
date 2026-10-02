@@ -798,7 +798,7 @@ func _sync_units(animate: bool) -> void:
 		if id == -1:
 			var held: String = Rules.WEAPONS[model.weapon].id
 			view.dagger_look = "thunder" if held == "thunder_dagger" else "flame" if held == "flame_dagger" else ""
-			view.dagger_boosted = view.dagger_look != "" and model.combo_boost == model.weapon
+			view.dagger_boosted = view.dagger_look != "" and model.combo_boost >= 0
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
@@ -1850,7 +1850,14 @@ func _draw_weapons() -> void:
 		var stats_size := 16
 		while stats_size > 13 and pos.x+14+_text_width(stats,stats_size) > origin.x-arrow*cell_size-4:
 			stats_size -= 1
-		_text(pos+Vector2(14,72),stats,stats_size,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
+		var boosted_now: bool = model.combo_boost == index and Catalog.is_dagger(index)
+		if boosted_now:
+			# The raised damage is the point of the boost: bright, pulsing, with an arrow.
+			var beat := 0.5 + 0.5 * sin(clock * 6.0)
+			stats = "▲" + stats
+			_text(pos+Vector2(14,72),stats,stats_size,Color(accent.lightened(0.45 + 0.3 * beat), 1.0))
+		else:
+			_text(pos+Vector2(14,72),stats,stats_size,Color("ff7ae6") if circle else GOLD if model.weapon_damage(index) > 1 else MUTED)
 		for y in range(count):
 			for x in range(count):
 				var offset := Vector2i(x-count/2,y-count/2)
