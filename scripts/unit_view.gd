@@ -86,6 +86,18 @@ var hearts_above := false
 ## and is rebuilt when it comes up); holo_goal is where it is heading.
 var holo_build := 1.0
 var holo_goal := 1.0
+## The shark's moves: "bite" (a lunge with the jaw snapping), "dive" (nose down, sinking) and
+## "surface" (leaping up out of the shadow, jaw wide); pose_t is the seconds into it.
+const POSE_LENGTH := {"bite": 0.55, "dive": 0.7, "surface": 0.85}
+var pose := ""
+var pose_t := 0.0
+## Where the hit shove left the drawing (the shark folds it into its own transform).
+var _hit_off := Vector2.ZERO
+var _hit_scale := Vector2.ONE
+
+func play_pose(name: String) -> void:
+	pose = name
+	pose_t = 0.0
 var sulking := false
 ## 氷結妖精: enemy turns this unit stays frozen (0 = not frozen).
 var frozen := 0
@@ -137,6 +149,10 @@ func sparkle() -> void:
 func _process(delta: float) -> void:
 	flash = maxf(0.0, flash-delta)
 	holo_build = move_toward(holo_build, holo_goal, delta * 1.8)
+	if pose != "":
+		pose_t += delta
+		if pose_t >= float(POSE_LENGTH[pose]):
+			pose = ""
 	clock += delta
 	if sparkle_elapsed >= 0.0:
 		sparkle_elapsed += delta
@@ -267,7 +283,12 @@ func _draw() -> void:
 		var shove := sin(minf(k * 2.2, 1.0) * PI) * (6.0 + 3.0 * span)
 		var wobble := sin(k * PI * 6.0) * (1.0 - k) * (2.0 + span)
 		var squash := 0.14 * sin(minf(k * 3.0, 1.0) * PI)
-		draw_set_transform((hit_direction * shove + hit_direction.orthogonal() * wobble).round(), 0.0, Vector2(1.0 + squash, 1.0 - squash))
+		_hit_off = (hit_direction * shove + hit_direction.orthogonal() * wobble).round()
+		_hit_scale = Vector2(1.0 + squash, 1.0 - squash)
+		draw_set_transform(_hit_off, 0.0, _hit_scale)
+	else:
+		_hit_off = Vector2.ZERO
+		_hit_scale = Vector2.ONE
 	var tint := Color("ff997e") if flash > 0 else Color.WHITE
 	if hit_elapsed >= HIT_WHITE:
 		# After the white blink the body burns red and cools back.
@@ -341,7 +362,7 @@ func _draw() -> void:
 	elif kind in ["cavalry","horse"]:
 		_draw_cavalry(tint)
 	elif kind == "storm_shark":
-		draw_hologram(self, STORM_SHARK, Rect2(Vector2(-78,-78), Vector2.ONE * 156), facing == 1, tint, holo_build)
+		_draw_shark(tint)
 	elif kind in BOSS_KINDS:
 		draw_boss(self, kind, facing, braced, tint, 1.0, reel)
 	elif SOLDIER_SHEETS.has(kind):
@@ -379,27 +400,77 @@ func _draw() -> void:
 			draw_rect(Rect2(-15,2,4,13),Color("b8d7c5"))
 	draw_set_transform(Vector2.ZERO)
 
+## The storm shark with its current move: a lunge and a snapping jaw, a nose-down dive, a
+## leap out of the shadow.
+func _draw_shark(tint: Color) -> void:
+	var flip := facing == 1
+	var s := -1.0 if flip else 1.0
+	var off := Vector2.ZERO
+	var rot := 0.0
+	var jaw := 0.0
+	var dir := Vector2([Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT][clampi(facing, 0, 3)])
+	if pose == "bite":
+		var k := clampf(pose_t / float(POSE_LENGTH["bite"]), 0.0, 1.0)
+		off = dir * sin(k * PI) * 18.0
+		jaw = clampf(k / 0.3, 0.0, 1.0) if k < 0.55 else clampf((0.75 - k) / 0.2, 0.0, 1.0)
+	elif pose == "dive":
+		var k := clampf(pose_t / float(POSE_LENGTH["dive"]), 0.0, 1.0)
+		rot = -s * k * 0.8
+		off = Vector2(0, k * 34.0)
+		jaw = sin(minf(k * 1.5, 1.0) * PI) * 0.5
+	elif pose == "surface":
+		var k := clampf(pose_t / float(POSE_LENGTH["surface"]), 0.0, 1.0)
+		rot = s * (1.0 - k) * 0.6
+		off = Vector2(0, (1.0 - k) * 40.0 - sin(k * PI) * 34.0)
+		jaw = sin(clampf(k * 1.3, 0.0, 1.0) * PI)
+	var base := Transform2D(rot, _hit_scale, 0.0, _hit_off + off)
+	draw_set_transform_matrix(base)
+	draw_hologram(self, STORM_SHARK, Rect2(Vector2(-78, -78), Vector2.ONE * 156), flip, tint, holo_build, jaw, base)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
+
 ## A hologram: translucent cyan with a ghost of red and blue either side, scan lines drifting
 ## down it, a flicker and now and then a sideways glitch. `build` (0-1) is how much of it is
-## projected: it is rebuilt from the top down (and dissolves from the bottom up).
-static func draw_hologram(canvas: CanvasItem, texture: Texture2D, rect: Rect2, flip: bool, tint: Color, build: float) -> void:
+## projected: it is rebuilt from the top down (and dissolves from the bottom up). `jaw` (0-1)
+## opens the lower jaw of a left-facing picture; then `outer` is the transform the canvas
+## already has (the jaw turns about its hinge on top of it).
+static func draw_hologram(canvas: CanvasItem, texture: Texture2D, rect: Rect2, flip: bool, tint: Color, build: float, jaw: float = 0.0, outer: Transform2D = Transform2D.IDENTITY) -> void:
 	if build <= 0.01:
 		return
 	var t: float = Time.get_ticks_msec() / 1000.0
 	var alpha := (0.78 + 0.1 * sin(t * 11.0)) * tint.a
 	var glitch := Vector2(rect.size.x * 0.03 * sin(t * 37.0), 0) if int(t * 6.0) % 7 == 0 else Vector2.ZERO
+	var base := Color(0.72, 1.0, 1.0, alpha) * Color(tint.r, tint.g * 0.4 + 0.6, tint.b * 0.4 + 0.6, 1.0)
+	var left := minf(rect.position.x, rect.end.x)
 	var shown := rect.size.y * build
+	if jaw > 0.01 and build > 0.99:
+		var tex := texture.get_size()
+		var k := rect.size / tex
+		var half := rect.size / 2.0
+		var local := outer * Transform2D(0.0, Vector2(-1.0 if flip else 1.0, 1.0), 0.0, rect.get_center() + glitch)
+		var cut := Vector2(tex.x * 0.37, tex.y * 0.64)
+		var hinge := -half + Vector2(cut.x * k.x, cut.y * k.y)
+		for layer in [[Vector2(-3, 0), Color(1.0, 0.25, 0.4, alpha * 0.28)], [Vector2(3, 0), Color(0.25, 0.5, 1.0, alpha * 0.28)], [Vector2.ZERO, base]]:
+			var shift: Vector2 = layer[0]
+			var color: Color = layer[1]
+			canvas.draw_set_transform_matrix(local * Transform2D(0.0, shift))
+			canvas.draw_texture_rect_region(texture, Rect2(-half, Vector2(rect.size.x, cut.y * k.y)), Rect2(0, 0, tex.x, cut.y), color)
+			canvas.draw_texture_rect_region(texture, Rect2(Vector2(hinge.x, hinge.y), Vector2((tex.x - cut.x) * k.x, (tex.y - cut.y) * k.y)), Rect2(cut.x, cut.y, tex.x - cut.x, tex.y - cut.y), color)
+			canvas.draw_set_transform_matrix(local * Transform2D(0.0, shift) * Transform2D(-jaw * 0.5, hinge))
+			canvas.draw_texture_rect_region(texture, Rect2(Vector2(-cut.x * k.x, 0), Vector2(cut.x * k.x, (tex.y - cut.y) * k.y)), Rect2(0, cut.y, cut.x, tex.y - cut.y), color)
+		canvas.draw_set_transform_matrix(outer)
+		for row in range(0, int(rect.size.y), 5):
+			var y := rect.position.y + row + fposmod(t * 22.0, 5.0)
+			canvas.draw_line(Vector2(left, y), Vector2(left + rect.size.x, y), Color(0.7, 1.0, 1.0, 0.16), 1)
+		return
 	# Only the top `build` of the picture is there; a bright line marks the edge of the projection.
 	var source_h := texture.get_height() * build
 	var region := Rect2(0, 0, texture.get_width(), source_h)
 	var dest := Rect2(rect.position + glitch, Vector2(rect.size.x, shown))
 	if flip:
 		dest = Rect2(dest.position + Vector2(dest.size.x, 0), Vector2(-dest.size.x, dest.size.y))
-	var base := Color(0.72, 1.0, 1.0, alpha) * Color(tint.r, tint.g * 0.4 + 0.6, tint.b * 0.4 + 0.6, 1.0)
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(-3, 0), dest.size), region, Color(1.0, 0.25, 0.4, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(3, 0), dest.size), region, Color(0.25, 0.5, 1.0, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, dest, region, base)
-	var left := minf(rect.position.x, rect.end.x)
 	for k in range(0, int(shown), 5):
 		var y := rect.position.y + k + fposmod(t * 22.0, 5.0)
 		if y < rect.position.y + shown:

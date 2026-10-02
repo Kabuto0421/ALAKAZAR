@@ -813,6 +813,14 @@ func _feedback(weapon_attack: bool = false) -> void:
 	for event in model.events:
 		if casting and event.kind == "hit" and event.id >= 0:
 			continue
+		if event.kind == "dive" and actors.has(int(event.id)):
+			actors[int(event.id)].play_pose("dive")
+		elif event.kind == "surface" and actors.has(int(event.id)):
+			actors[int(event.id)].play_pose("surface")
+			chain_shake = 0.3
+			chain_shake_power = 8.0
+		elif event.kind == "hit" and event.get("by", -9) >= 0 and event.id == -1 and actors.has(int(event.by)) and actors[int(event.by)].kind == "storm_shark" and not model.events.any(func(e: Dictionary) -> bool: return e.kind == "surface"):
+			actors[int(event.by)].play_pose("bite")
 		var kind: String = "weapon_hit" if weapon_attack and event.kind == "hit" else event.kind
 		var flash: Dictionary = event.duplicate()
 		flash.kind = kind
@@ -1318,6 +1326,7 @@ func _draw_board() -> void:
 			dive_cells.append_array(enemy.dive_area)
 			dive_core.append_array(model.footprint({"cell":enemy.dive_anchor, "size":2}))
 	var storm_marks: Array = model.storm.get("marks", [])
+	var storm_centers: Array = model.storm.get("centers", [])
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -1368,7 +1377,9 @@ func _draw_board() -> void:
 				var flick := 0.3 + 0.15 * sin(clock * 12.0 + x * 1.7 + y)
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.95,0.45,flick))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.9,0.3,0.9),false,2)
-				draw_polyline(PackedVector2Array([pos+Vector2(36,10),pos+Vector2(24,34),pos+Vector2(34,34),pos+Vector2(26,56)]),Color(1,1,0.8,0.85),3)
+				if storm_centers.has(cell):
+					# One bolt, on the tile the strike will land on.
+					draw_polyline(PackedVector2Array([pos+Vector2(38,8),pos+Vector2(22,34),pos+Vector2(34,34),pos+Vector2(24,58)]),Color(1,1,0.8,0.95),4)
 			if model.cat_zone_at(cell):
 				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
@@ -2590,29 +2601,25 @@ func _draw_storm_frame() -> void:
 	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
 	if wind == Vector2i.ZERO:
 		return
+	# The wind: drifting arrows over the floor, all inside the board (they may cross the tiles).
 	var dir := Vector2(wind)
 	var side := dir.orthogonal()
-	var drift := fposmod(clock * 26.0, 16.0)
-	var color := Color(0.55, 1.0, 0.95, 0.8 + 0.2 * sin(clock * 5.0))
-	var rows := model.board_size
-	for k in range(rows):
-		if k % 2 == 1 and rows > 6:
-			continue
-		var along := (float(k) + 0.5) * TILE
-		# Both margins parallel to the wind get a column of arrows; the two others get one each.
-		var positions: Array[Vector2] = []
-		if wind.x != 0:
-			positions.append(BOARD + Vector2(-20, along))
-			positions.append(BOARD + Vector2(extent.x + 20, along))
-		else:
-			positions.append(BOARD + Vector2(along, -16))
-			positions.append(BOARD + Vector2(along, extent.y + 16))
-		for at in positions:
-			var tip: Vector2 = at + dir * (10.0 + drift * 0.3)
-			draw_line(tip - dir * 28.0, tip, color, 4)
-			draw_line(tip, tip - dir * 12.0 + side * 9.0, color, 4)
-			draw_line(tip, tip - dir * 12.0 - side * 9.0, color, 4)
-	_text(BOARD + Vector2(extent.x - 120, -24), "大嵐 風 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95))
+	var cycle := TILE * 2.0
+	var drift := fposmod(clock * 42.0, cycle)
+	var count := model.board_size / 2
+	for row in range(count):
+		for column in range(count):
+			var cell_center := BOARD + Vector2(float(column) * 2.0 + 1.0, float(row) * 2.0 + 1.0) * TILE
+			var at := cell_center + dir * (drift - TILE)
+			if not Rect2(BOARD, extent).has_point(at):
+				continue
+			var fade := 1.0 - absf(drift - TILE) / TILE
+			var color := Color(0.6, 1.0, 0.95, 0.12 + 0.3 * fade)
+			var tip := at + dir * 20.0
+			draw_line(at - dir * 22.0, tip, color, 5)
+			draw_line(tip, tip - dir * 14.0 + side * 11.0, color, 5)
+			draw_line(tip, tip - dir * 14.0 - side * 11.0, color, 5)
+	_text(BOARD + Vector2(6, 22), "大嵐 風 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
 const FX_LIFE = {"dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
@@ -2768,15 +2775,14 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"thunder_warn":
 			draw_circle(pos, 10 + 24 * t, Color(1.0, 0.95, 0.5, 0.5 * fade))
 		"thunder":
-			# Bolts from the sky to each marked centre, and a white flash over the tile.
+			# The strike: a white flash over the cross, and one jagged bolt inside the centre tile.
 			var spot := pos
-			var top := Vector2(spot.x + sin(float(effect.cell.x)) * 18.0, BOARD.y - 30.0)
-			var points := PackedVector2Array([top])
-			for step in range(1, 6):
-				points.append(top.lerp(spot, float(step) / 5.0) + Vector2(sin(float(step) * 3.1 + float(effect.cell.y)) * 14.0, 0))
-			points.append(spot)
-			draw_polyline(points, Color(1, 1, 0.8, fade), 5.0 * fade + 1)
-			draw_circle(spot, 40.0 * fade, Color(1.0, 0.95, 0.6, 0.55 * fade))
+			for offset in [Vector2.ZERO, Vector2(TILE, 0), Vector2(-TILE, 0), Vector2(0, TILE), Vector2(0, -TILE)]:
+				draw_rect(Rect2(spot + offset - Vector2.ONE * (TILE / 2 - 3), Vector2.ONE * (TILE - 6)), Color(1.0, 0.97, 0.7, 0.55 * fade))
+			var u := TILE / 64.0
+			var bolt := PackedVector2Array([spot + Vector2(8, -30) * u, spot + Vector2(-8, -6) * u, spot + Vector2(6, -4) * u, spot + Vector2(-10, 30) * u])
+			draw_polyline(bolt, Color(1, 1, 1, fade), 7.0 * fade * u + 1)
+			draw_polyline(bolt, Color(1.0, 0.9, 0.3, fade), 3.0 * u)
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)
