@@ -17,11 +17,11 @@ def sprite(path):
     return im.crop(box) if box else im
 
 
-def frame(glow, border=(242, 193, 78)):
+def frame(glow, border=(242, 193, 78), rings=True):
     bg = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     d = ImageDraw.Draw(bg)
     d.rounded_rectangle((0, 0, S - 1, S - 1), radius=34, fill=(11, 24, 30, 255))
-    for i, a in enumerate((60, 40, 24, 12)):
+    for i, a in enumerate((60, 40, 24, 12) if rings else ()):
         d.rounded_rectangle((8 + i * 10, 8 + i * 10, S - 9 - i * 10, S - 9 - i * 10), radius=28 - i * 4, outline=glow + (a,), width=10)
     d.rounded_rectangle((2, 2, S - 3, S - 3), radius=32, outline=border + (255,), width=6)
     d.rounded_rectangle((12, 12, S - 13, S - 13), radius=24, outline=border + (90,), width=2)
@@ -66,7 +66,13 @@ for f in sorted(glob.glob("items/*.tres")):
     m = re.search(r'path="res://(assets/sprites/spirits/[^"]+\.png)"', open(f).read())
     if m:
         paths.append(m.group(1))
-bg = frame((43, 220, 200))
+bg = frame((43, 220, 200), rings=False)
+# A soft teal glow behind the crowd instead of the dark ring-shaped panel.
+glow_layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+gd = ImageDraw.Draw(glow_layer)
+for r, a in ((124, 14), (100, 16), (74, 18)):
+    gd.ellipse((128 - r, 128 - r, 128 + r, 128 + r), fill=(43, 220, 200, a))
+bg.alpha_composite(glow_layer)
 rows = [5, 4, 5, 4, 4]
 assert sum(rows) >= len(paths), "more fairies than the icon has room for: add a row"
 cell = 47
