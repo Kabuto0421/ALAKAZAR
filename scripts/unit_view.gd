@@ -78,6 +78,8 @@ const PLAYER_ATLAS_CELL := 362.0
 const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
 ## Lone wolf inside the player's reach: it will skip its turn.
+## Hearts over the head instead of under the feet (a rider on the wheel hides the ground).
+var hearts_above := false
 var sulking := false
 ## 氷結妖精: enemy turns this unit stays frozen (0 = not frozen).
 var frozen := 0
@@ -411,7 +413,7 @@ func _draw_status() -> void:
 	var grow := 32.0*(span-1)
 	if kind == "slot":
 		_draw_rotorick_arrows()
-	var heart_y := -98.0 if kind == "slot" else -112.0 if kind == "king" else 29+grow
+	var heart_y := -98.0 if kind == "slot" else -112.0 if kind == "king" else -52.0 if hearts_above else 29+grow
 	for i in range(max_hp):
 		var size := 11.0
 		if sparkle_elapsed >= 0.0 and i == hp - 1:

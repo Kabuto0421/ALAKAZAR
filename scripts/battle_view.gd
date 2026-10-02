@@ -738,9 +738,10 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
+		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
-			# Standing on the wheel: lifted a little above it.
-			target += Vector2(0, -14.0 * TILE / 64.0)
+			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
+			target += Vector2(10.0, -34.0) * TILE / 64.0
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
