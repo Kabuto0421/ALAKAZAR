@@ -786,6 +786,7 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
+		view.aura = _combo_color() if id == -1 else Color(0, 0, 0, 0)
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
@@ -1505,6 +1506,12 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("fff0bd"),false,2)
 			if cell == model.player.cell:
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CYAN,0.8),false,2)
+				var combo := _combo_color()
+				if combo.a > 0.0:
+					# The dagger the last one powered up: this tile glows in its colour.
+					var beat := 0.5 + 0.5 * sin(clock * 6.0)
+					draw_rect(Rect2(pos,Vector2(64,64)),Color(combo,0.25 + 0.2 * beat))
+					draw_rect(Rect2(pos+Vector2(1,1),Vector2(62,62)),Color(combo,0.8 + 0.2 * beat),false,3)
 			var selected := _selected_enemy()
 			if not selected.is_empty() and cell == selected.cell:
 				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("ffbd59"),false,3)
@@ -1761,6 +1768,12 @@ func _draw_player_panel() -> void:
 	for i in range(ap_boxes):
 		draw_rect(Rect2(94+i*box_step,137,box_w,29),GOLD if i<model.player.ap else Color("293d36"))
 
+## クロス短剣: the colour of the dagger the last one powered up (clear when none is).
+func _combo_color() -> Color:
+	if model.combo_boost < 0 or model.combo_boost >= Rules.WEAPONS.size():
+		return Color(0, 0, 0, 0)
+	return Color(Rules.WEAPONS[model.combo_boost].color)
+
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
 	if model.board_size < 7:
@@ -1801,6 +1814,9 @@ func _draw_weapons() -> void:
 			extras.append("溜め%d/%d" % [model.blade_charge, model.blade_max()])
 		if model.combo_boost == index:
 			extras.append("強化中")
+			var beat := 0.5 + 0.5 * sin(clock * 6.0)
+			draw_rect(rect.grow(-2),Color(accent,0.15 + 0.15 * beat))
+			draw_rect(rect.grow(-3),Color(accent,0.6 + 0.4 * beat),false,3)
 		if extras.size() == 1 and not weapon.has("slide") and not Catalog.is_dagger(index) and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
