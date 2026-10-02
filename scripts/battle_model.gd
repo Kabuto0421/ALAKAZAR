@@ -342,7 +342,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
-		storm = {"wind": Vector2i.ZERO, "marks": [], "centers": []}
+		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "ring"}
 		storm_roll_wind()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
@@ -2749,8 +2749,9 @@ const STORM_BOSS := "storm_shark"
 ## Chance, each enemy turn it is surfaced, that the shark dives instead of fighting.
 const DIVE_CHANCE := 0.3
 const DIVE_DAMAGE := 2
-## The storm: {wind: Vector2i (the arrow shown to the player), marks: cells of the coming
-## lightning, centers: where the three strikes land}; empty when there is no storm.
+## The storm: {wind: the way the tsunami will carry things, wave: the tiles it covers,
+## marks: the cells of the coming lightning sigil, centers: its middle, shape: which sigil};
+## empty when there is no storm.
 var storm: Dictionary = {}
 
 func storm_shark() -> Dictionary:
@@ -2886,14 +2887,43 @@ func shark_opening(shark: Dictionary) -> bool:
 func storm_active() -> bool:
 	return not storm.is_empty()
 
-## A new wind for the player's coming turn (shown as arrows round the board).
+## A new tsunami for the player's coming turn: a direction and the crescent of tiles it covers.
 func storm_roll_wind() -> void:
 	if storm.is_empty():
 		return
 	var roll := _storm_rng("wind")
 	storm.wind = CARDINALS[roll.randi_range(0, 3)]
+	storm.crest = roll.randi_range(2, maxi(2, board_size - 3))
+	storm.wave = wave_cells(storm.wind, storm.crest)
 
-## At the start of the enemy turn: the wind moves everyone but the shark one tile, then
+## The tsunami's shape: a curling band two tiles thick, bulging forward in the middle (a
+## crescent crest), running across the whole board and about to travel towards `dir`.
+## `crest` is how far along that way the middle of the crest stands.
+func wave_cells(dir: Vector2i, crest: int) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var n := board_size
+	for lane in range(n):
+		var bulge := int(round(sin(float(lane) / float(n - 1) * PI) * 1.6))
+		for thickness in range(2):
+			var a := crest + bulge - thickness
+			if a < 0 or a >= n:
+				continue
+			var cell := Vector2i(a, lane)
+			if dir == Vector2i.LEFT:
+				cell = Vector2i(n - 1 - a, lane)
+			elif dir == Vector2i.DOWN:
+				cell = Vector2i(lane, a)
+			elif dir == Vector2i.UP:
+				cell = Vector2i(lane, n - 1 - a)
+			if not cells.has(cell):
+				cells.append(cell)
+	return cells
+
+func _wave_hits(unit: Dictionary) -> bool:
+	var cells: Array = storm.get("wave", [])
+	return footprint(unit).any(func(tile: Vector2i) -> bool: return cells.has(tile))
+
+## At the start of the enemy turn: the tsunami carries everyone it covers (but the shark) one tile, then
 ## lightning is either called down on last turn's marks or new marks are laid.
 func storm_enemy_turn() -> void:
 	if storm.is_empty() or time_stopped() or storm_shark().is_empty():
@@ -2909,12 +2939,14 @@ func storm_wave_plan() -> Array:
 	if storm.is_empty() or storm.wind == Vector2i.ZERO or time_stopped() or storm_shark().is_empty():
 		return plan
 	var sim: RefCounted = clone()
-	var before: Array = [[player.id, player.cell, 1]]
+	var before: Array = []
+	if _wave_hits(player):
+		before.append([player.id, player.cell, 1])
 	for ally in allies:
-		if ally.hp > 0:
+		if ally.hp > 0 and _wave_hits(ally):
 			before.append([ally.id, ally.cell, int(ally.get("size", 1))])
 	for enemy in enemies:
-		if enemy.hp > 0 and enemy.type not in [STORM_BOSS, "shadow"] and not enemy.get("diving", false):
+		if enemy.hp > 0 and enemy.type not in [STORM_BOSS, "shadow"] and not enemy.get("diving", false) and _wave_hits(enemy):
 			before.append([enemy.id, enemy.cell, int(enemy.get("size", 1))])
 	sim._storm_wind_push()
 	var after := {sim.player.id: sim.player.cell}
@@ -2930,9 +2962,11 @@ func _storm_wind_push() -> void:
 	var dir: Vector2i = storm.wind
 	if dir == Vector2i.ZERO:
 		return
-	var units: Array = [player]
-	units.append_array(allies.filter(func(a: Dictionary) -> bool: return a.hp > 0))
-	units.append_array(enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0 and e.type not in [STORM_BOSS, "shadow"] and not e.get("diving", false)))
+	var units: Array = []
+	if _wave_hits(player):
+		units.append(player)
+	units.append_array(allies.filter(func(a: Dictionary) -> bool: return a.hp > 0 and _wave_hits(a)))
+	units.append_array(enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0 and e.type not in [STORM_BOSS, "shadow"] and not e.get("diving", false) and _wave_hits(e)))
 	# The ones in front go first, so a line of units moves together.
 	units.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a.cell.x * dir.x + a.cell.y * dir.y) > (b.cell.x * dir.x + b.cell.y * dir.y))
 	for unit in units:
@@ -2960,11 +2994,19 @@ func _storm_wind_push() -> void:
 	trigger_fairies()
 	check_outcome()
 
+## The lightning's sigils, as offsets round the centre (all inside 5x5): a ring round a safe
+## cross, a great X, and a long cross. One of them is drawn each time.
+const THUNDER_SHAPES := {
+	"ring": [Vector2i(0,0), Vector2i(0,-2), Vector2i(1,-1), Vector2i(2,0), Vector2i(1,1), Vector2i(0,2), Vector2i(-1,1), Vector2i(-2,0), Vector2i(-1,-1)],
+	"x": [Vector2i(0,0), Vector2i(1,1), Vector2i(2,2), Vector2i(-1,1), Vector2i(-2,2), Vector2i(1,-1), Vector2i(2,-2), Vector2i(-1,-1), Vector2i(-2,-2)],
+	"cross": [Vector2i(0,0), Vector2i(1,0), Vector2i(2,0), Vector2i(-1,0), Vector2i(-2,0), Vector2i(0,1), Vector2i(0,2), Vector2i(0,-1), Vector2i(0,-2)],
+}
+
 func _storm_thunder() -> void:
 	if not storm.marks.is_empty():
 		var cells: Array = storm.marks.duplicate()
 		for center in storm.centers:
-			events.append({"kind":"thunder", "id":-2, "cell":center})
+			events.append({"kind":"thunder", "id":-2, "cell":center, "cells":cells, "shape":storm.get("shape", "cross")})
 		storm.marks = []
 		storm.centers = []
 		if cells.has(player.cell):
@@ -2974,22 +3016,19 @@ func _storm_thunder() -> void:
 			check_outcome()
 		return
 	var roll := _storm_rng("thunder")
+	var shape: String = THUNDER_SHAPES.keys()[roll.randi_range(0, THUNDER_SHAPES.size() - 1)]
 	var pool: Array = square_around(player.cell, 2)
-	var centers: Array = []
-	while centers.size() < 3 and not pool.is_empty():
-		var pick: int = roll.randi_range(0, pool.size() - 1)
-		centers.append(pool[pick])
-		pool.remove_at(pick)
+	var center: Vector2i = pool[roll.randi_range(0, pool.size() - 1)]
 	var marks: Array = []
-	for center in centers:
-		for offset in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var tile: Vector2i = center + offset
-			if inside(tile) and not marks.has(tile):
-				marks.append(tile)
-	storm.centers = centers
+	for offset in THUNDER_SHAPES[shape]:
+		var tile: Vector2i = center + offset
+		if inside(tile) and not marks.has(tile):
+			marks.append(tile)
+	storm.centers = [center]
+	storm.shape = shape
 	storm.marks = marks
-	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0]})
-	add_log("雷の予兆…")
+	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":center, "shape":shape})
+	add_log("雷の魔法陣…")
 
 # --- Rotorick: the slot boss --------------------------------------------------
 

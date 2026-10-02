@@ -1326,7 +1326,6 @@ func _draw_board() -> void:
 			dive_cells.append_array(enemy.dive_area)
 			dive_core.append_array(model.footprint({"cell":enemy.dive_anchor, "size":2}))
 	var storm_marks: Array = model.storm.get("marks", [])
-	var storm_centers: Array = model.storm.get("centers", [])
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -1377,9 +1376,7 @@ func _draw_board() -> void:
 				var flick := 0.3 + 0.15 * sin(clock * 12.0 + x * 1.7 + y)
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.95,0.45,flick))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.9,0.3,0.9),false,2)
-				if storm_centers.has(cell):
-					# One bolt, on the tile the strike will land on.
-					draw_polyline(PackedVector2Array([pos+Vector2(38,8),pos+Vector2(22,34),pos+Vector2(34,34),pos+Vector2(24,58)]),Color(1,1,0.8,0.95),4)
+				pass  # the sigil joining the marks is drawn over the board (_draw_thunder_sigil)
 			if model.cat_zone_at(cell):
 				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
@@ -2585,8 +2582,8 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 		draw_string(LATIN, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.1, 0.02, 0.2, fade))
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
-## The storm round the board: the wind's arrows in the margin (every tile of the shark's
-## fight is blown that way at the start of the enemy turn) and a thin digital rain.
+## The storm over the board: digital rain, the lightning sigil (one great shape in lights),
+## and the tsunami (a crescent crest of cyan water) with where it will carry everyone.
 func _draw_storm_frame() -> void:
 	if not model.storm_active():
 		return
@@ -2598,25 +2595,108 @@ func _draw_storm_frame() -> void:
 		var fall := fposmod(clock * (90.0 + (k % 5) * 25.0) + float(k) * 71.0, extent.y + 40.0) - 20.0
 		var length := 14.0 + (k % 4) * 6.0
 		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(0.45, 1.0, 0.9, 0.16))
-	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
-	if wind == Vector2i.ZERO:
+	_draw_tsunami()
+	_draw_thunder_sigil()
+
+## The lightning sigil: the marked tiles joined by glowing lines into one shape (a ring round
+## a safe cross, a great X, or a long cross) with a bolt in its middle tile.
+func _draw_thunder_sigil() -> void:
+	var marks: Array = model.storm.get("marks", [])
+	if marks.is_empty():
 		return
-	# The wave: bands of ripples running the way it will carry everyone, all inside the board.
+	var center: Vector2i = model.storm.centers[0]
+	var shape: String = model.storm.get("shape", "cross")
+	var pulse := 0.65 + 0.35 * sin(clock * 9.0)
+	var u := TILE / 64.0
+	var core := Color(1.0, 0.98, 0.7, 0.95)
+	var glow := Color(1.0, 0.85, 0.2, 0.35 * pulse)
+	var lines: Array = []
+	match shape:
+		"ring":
+			var ring: Array = [Vector2i(0,-2), Vector2i(1,-1), Vector2i(2,0), Vector2i(1,1), Vector2i(0,2), Vector2i(-1,1), Vector2i(-2,0), Vector2i(-1,-1), Vector2i(0,-2)]
+			for i in range(ring.size() - 1):
+				lines.append([ring[i], ring[i + 1]])
+			for spoke in [Vector2i(0,-2), Vector2i(2,0), Vector2i(0,2), Vector2i(-2,0)]:
+				lines.append([Vector2i.ZERO, spoke])
+		"x":
+			lines = [[Vector2i(-2,-2), Vector2i(2,2)], [Vector2i(2,-2), Vector2i(-2,2)]]
+		_:
+			lines = [[Vector2i(-2,0), Vector2i(2,0)], [Vector2i(0,-2), Vector2i(0,2)]]
+	for line in lines:
+		var from_cell: Vector2i = center + line[0]
+		var to_cell: Vector2i = center + line[1]
+		if not model.inside(from_cell) or not model.inside(to_cell):
+			continue
+		draw_line(_center(from_cell), _center(to_cell), glow, 14.0 * u)
+		draw_line(_center(from_cell), _center(to_cell), core, 3.0 * u)
+	# Rune nodes on every marked tile and a ring round the middle.
+	for tile in marks:
+		draw_circle(_center(tile), 7.0 * u, glow)
+		draw_circle(_center(tile), 3.5 * u, core)
+	var middle := _center(center)
+	draw_arc(middle, TILE * 0.78, 0, TAU, 40, glow, 8.0 * u)
+	draw_arc(middle, TILE * 0.78, 0, TAU, 40, core, 2.5 * u)
+	draw_polyline(PackedVector2Array([middle + Vector2(7, -26) * u, middle + Vector2(-8, -3) * u, middle + Vector2(7, -1) * u, middle + Vector2(-6, 27) * u]), core, 4.0 * u)
+
+## The tsunami: the tiles it covers washed in cyan, a curling crest drawn along its front
+## edge with foam, ripples inside it, and where each thing it carries will land.
+func _draw_tsunami() -> void:
+	var wave: Array = model.storm.get("wave", [])
+	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
+	if wave.is_empty() or wind == Vector2i.ZERO:
+		return
 	var dir := Vector2(wind)
 	var side := dir.orthogonal()
-	var horizontal := wind.x != 0
-	var sign := float(wind.x + wind.y)
-	var length := extent.x if horizontal else extent.y
-	for lane in range(model.board_size):
+	var u := TILE / 64.0
+	var swell := 0.16 + 0.06 * sin(clock * 3.0)
+	for tile in wave:
+		var rect := Rect2(BOARD + Vector2(tile) * TILE + Vector2.ONE * 2, Vector2.ONE * (TILE - 4))
+		draw_rect(rect, Color(0.3, 0.85, 1.0, swell))
+	# The crest: a smooth curve along the band's front edge, bulging forward in the middle.
+	var n := model.board_size
+	var crest_a: int = int(model.storm.get("crest", 3))
+	var crest := PackedVector2Array()
+	for step in range(0, 41):
+		var f := float(step) / 40.0
+		var lane := f * float(n)
+		var bulge := sin(clampf((lane - 0.5) / float(n - 1), 0.0, 1.0) * PI) * 1.6
+		var edge := float(crest_a + 1) + bulge
+		var point := Vector2(edge, lane)
+		if wind == Vector2i.LEFT:
+			point = Vector2(float(n) - edge, lane)
+		elif wind == Vector2i.DOWN:
+			point = Vector2(lane, edge)
+		elif wind == Vector2i.UP:
+			point = Vector2(lane, float(n) - edge)
+		crest.append(BOARD + point * TILE)
+	draw_polyline(crest, Color(0.4, 0.95, 1.0, 0.4), 18.0 * u)
+	draw_polyline(crest, Color(0.9, 1.0, 1.0, 0.95), 4.0 * u)
+	for i in range(0, crest.size(), 4):
+		var wobble := sin(clock * 6.0 + float(i) * 0.7) * 3.0 * u
+		draw_circle(crest[i] + dir * (5.0 * u + wobble), 5.0 * u, Color(1, 1, 1, 0.9))
+	# The curl at both ends of the crest, hooking forward.
+	for end in [0, crest.size() - 1]:
+		var inward: Vector2 = (crest[1] - crest[0]).normalized() if end == 0 else (crest[end - 1] - crest[end]).normalized()
+		var hook: Vector2 = crest[end]
+		draw_line(hook, hook + dir * 22.0 * u - inward * 6.0 * u, Color(0.9, 1.0, 1.0, 0.95), 4.0 * u)
+	var lanes: Array = range(n)
+	var front := {}
+	for tile in wave:
+		var lane2: int = tile.y if wind.x != 0 else tile.x
+		var along: int = tile.x * wind.x + tile.y * wind.y
+		if not front.has(lane2) or along > front[lane2][0]:
+			front[lane2] = [along, tile]
+	lanes = front.keys()
+	# Ripples running through the band.
+	for lane in lanes:
+		var tile: Vector2i = front[lane][1]
 		var points := PackedVector2Array()
-		var lane_pos := (float(lane) + 0.5) * TILE
-		var steps := int(length / 8.0)
-		for step in range(steps + 1):
-			var along := float(step) * 8.0
-			var wobble := sin(along * 0.09 - clock * 5.0 * sign) * 7.0
-			points.append(BOARD + (Vector2(along, lane_pos + wobble) if horizontal else Vector2(lane_pos + wobble, along)))
-		draw_polyline(points, Color(0.6, 1.0, 0.95, 0.2), 3)
-	# Where everyone will be after it: a bold arrow and the landing tile, the player's the boldest.
+		for step in range(0, 17):
+			var back := float(step) / 16.0 * TILE * 2.0
+			var wobble := sin(back * 0.18 - clock * 7.0) * 5.0 * u
+			points.append(_center(tile) + dir * (TILE * 0.5 - back) + side * wobble)
+		draw_polyline(points, Color(0.8, 1.0, 1.0, 0.45), 2.0 * u)
+	# Where everyone it carries will land: a bold arrow and the landing tile, the player's boldest.
 	for entry in _wave_plan():
 		var is_player: bool = int(entry.id) == -1
 		var size: int = entry.size
@@ -2626,7 +2706,6 @@ func _draw_storm_frame() -> void:
 		var landing := Rect2(BOARD + Vector2(entry.to) * TILE + Vector2.ONE * 3, Vector2.ONE * (TILE * size - 6))
 		if entry.to == entry.from:
 			if is_player:
-				# Blocked: it stays put.
 				draw_rect(landing, Color(1.0, 0.45, 0.4, 0.9), false, 3)
 				_text(from_c + Vector2(-22, -TILE * 0.5 - 4), "動かない", 15, Color(1.0, 0.55, 0.5))
 			continue
@@ -2639,7 +2718,7 @@ func _draw_storm_frame() -> void:
 		draw_line(tail, tip, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 + side * 13.0, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
-	_text(BOARD + Vector2(6, 22), "大嵐 波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
+	_text(BOARD + Vector2(6, 22), "大嵐 津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
 
 ## The wave's plan, worked out again only when something that matters has changed.
 var _wave_key := ""
@@ -2805,13 +2884,14 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"thunder_warn":
 			draw_circle(pos, 10 + 24 * t, Color(1.0, 0.95, 0.5, 0.5 * fade))
 		"thunder":
-			# The strike: a white flash over the cross, and one jagged bolt inside the centre tile.
+			# The strike: the whole sigil flashes white and one great bolt falls on its middle tile.
 			var spot := pos
-			for offset in [Vector2.ZERO, Vector2(TILE, 0), Vector2(-TILE, 0), Vector2(0, TILE), Vector2(0, -TILE)]:
-				draw_rect(Rect2(spot + offset - Vector2.ONE * (TILE / 2 - 3), Vector2.ONE * (TILE - 6)), Color(1.0, 0.97, 0.7, 0.55 * fade))
+			for tile in effect.get("cells", []):
+				draw_rect(Rect2(_center(tile) - Vector2.ONE * (TILE / 2 - 3), Vector2.ONE * (TILE - 6)), Color(1.0, 0.97, 0.7, 0.6 * fade))
 			var u := TILE / 64.0
 			var bolt := PackedVector2Array([spot + Vector2(8, -30) * u, spot + Vector2(-8, -6) * u, spot + Vector2(6, -4) * u, spot + Vector2(-10, 30) * u])
-			draw_polyline(bolt, Color(1, 1, 1, fade), 7.0 * fade * u + 1)
+			draw_circle(spot, TILE * 1.2 * fade, Color(1.0, 0.95, 0.5, 0.35 * fade))
+			draw_polyline(bolt, Color(1, 1, 1, fade), 9.0 * fade * u + 1)
 			draw_polyline(bolt, Color(1.0, 0.9, 0.3, fade), 3.0 * u)
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.

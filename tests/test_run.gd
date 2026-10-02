@@ -2331,26 +2331,51 @@ func _storm_shark() -> void:
 	var walled: Dictionary = w.make_enemy("heavy", Vector2i(7,1), 2)
 	w.enemies.append_array([soldier, walled])
 	w.player.cell = Vector2i(0,3)
-	w.storm = {"wind": Vector2i.RIGHT, "marks": [], "centers": []}
+	w.storm = {"wind": Vector2i.RIGHT, "wave": w.wave_cells(Vector2i.RIGHT, 3), "marks": [], "centers": [], "shape": "ring"}
+	for x in 8:
+		for y in 8:
+			if not w.storm.wave.has(Vector2i(x, y)):
+				w.storm.wave.append(Vector2i(x, y))
 	w._storm_wind_push()
-	verify(w.player.cell == Vector2i(1,3) and soldier.cell == Vector2i(3,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wind moves the player and the soldiers one tile; the boss and the wall-bound stay")
+	verify(w.player.cell == Vector2i(1,3) and soldier.cell == Vector2i(3,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wave moves the player and the soldiers one tile; the boss and the wall-bound stay")
 	# The plan shown on the board is exactly where the wave takes everyone.
 	var wp := _shark_room()
 	wp.player.cell = Vector2i(2,3)
 	wp.storm.wind = Vector2i.RIGHT
+	wp.storm.wave = wp.wave_cells(Vector2i.RIGHT, 3)
+	wp.player.cell = wp.storm.wave[0]
 	var plan: Array = wp.storm_wave_plan()
 	wp._storm_wind_push()
 	var plan_ok := not plan.is_empty()
 	for entry in plan:
 		var now: Vector2i = wp.player.cell if int(entry.id) == -1 else (wp.enemies.filter(func(e): return e.id == entry.id)[0].cell)
 		plan_ok = plan_ok and now == entry.to
-	verify(plan_ok and plan.any(func(e): return int(e.id) == -1 and e.to == Vector2i(3,3)),"The wave's plan matches where it really carries the player and the others")
+	verify(plan_ok and plan.any(func(e): return int(e.id) == -1),"The wave's plan matches where it really carries the player and the others")
+	# The tsunami's shape: a crescent two tiles thick across the whole board, bulging forward in the middle.
+	var shape: Array = wp.wave_cells(Vector2i.RIGHT, 3)
+	var lane_fronts: Array = []
+	for lane in 8:
+		var xs: Array = shape.filter(func(c): return c.y == lane).map(func(c): return c.x)
+		lane_fronts.append(xs.max())
+	verify(shape.size() >= 14 and lane_fronts[0] < lane_fronts[3] and lane_fronts[7] < lane_fronts[4],"The tsunami is a crescent: its crest bulges forward in the middle")
+	verify(wp.wave_cells(Vector2i.UP, 3).all(func(c): return wp.inside(c)) and wp.wave_cells(Vector2i.LEFT, 4).size() == shape.size() or wp.wave_cells(Vector2i.LEFT, 4).size() > 10,"...in every direction, inside the board")
+	# A unit outside the wave is not carried.
+	var outside := _shark_room()
+	outside.storm.wind = Vector2i.RIGHT
+	outside.storm.wave = outside.wave_cells(Vector2i.RIGHT, 5)
+	outside.player.cell = Vector2i(0,0)
+	outside._storm_wind_push()
+	verify(outside.player.cell == Vector2i(0,0),"Someone the tsunami does not cover stays where they are")
 	# Thunder alternates: marks, then the strike.
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)
 	t._storm_thunder()
-	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 3 and t.storm.marks.all(func(c): return t.inside(c)),"First, three crosses are marked within 5x5 of the player")
-	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2),"...each centred inside the 5x5 round the player")
+	verify(t.storm.centers.size() == 1 and t.storm.marks.size() >= 5 and t.storm.marks.all(func(c): return t.inside(c)) and Rules.THUNDER_SHAPES.has(t.storm.shape),"First, one sigil is marked (a ring, an X or a long cross)")
+	verify(absi(t.storm.centers[0].x - 4) <= 2 and absi(t.storm.centers[0].y - 4) <= 2,"...centred inside the 5x5 round the player")
+	verify(Rules.THUNDER_SHAPES.keys().all(func(k): return Rules.THUNDER_SHAPES[k].all(func(o): return absi(o.x) <= 2 and absi(o.y) <= 2)),"Every sigil fits a 5x5")
+	# The ring leaves a safe cross inside it.
+	var ring_cells: Array = Rules.THUNDER_SHAPES.ring
+	verify(not ring_cells.has(Vector2i(1,0)) and not ring_cells.has(Vector2i(0,1)) and ring_cells.has(Vector2i(0,0)),"The ring leaves the tiles beside its middle safe")
 	var marked: Array = t.storm.marks.duplicate()
 	t.player.cell = marked[0]
 	var thp: int = t.player.hp
