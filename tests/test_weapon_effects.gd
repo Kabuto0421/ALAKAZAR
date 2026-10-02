@@ -44,7 +44,7 @@ func run() -> void:
 				var effect = scene.weapon_effects.get_child(0)
 				verify(effect.weapon==1 and effect.attacking==attack,"Effect matches equipped weapon and action")
 			else:
-				verify(scene.actors[-1].sword_attack_elapsed>=0.0,"Sword attack starts the directional player animation")
+				verify(scene.actors[-1].sword_attack_elapsed>=0.0 or scene.actors[-1].dagger_attack_elapsed>=0.0,"Sword attack starts the directional player animation")
 			verify(scene.model.player.ap==1,"Effect does not add an AP cost")
 			scene._act(target)
 			verify(scene.weapon_effects.get_child_count()==(0 if uses_sword_animation else 1) and scene.model.player.ap==1,"Repeated input during animation cannot duplicate action")

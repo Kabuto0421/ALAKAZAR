@@ -149,7 +149,7 @@ func run() -> void:
 		view._sync_units(false)
 		view._update_controls()
 		view._act(target)
-		verify(view.actors[-1].weapon_row==2 and view.actors[-1].sword_attack_elapsed>=0.0,"Weapon %d uses sword art and attack motion" % weapon)
+		verify(view.actors[-1].weapon_row==2 and (view.actors[-1].sword_attack_elapsed>=0.0 or (load("res://scripts/run/weapon_catalog.gd").is_dagger(weapon) and view.actors[-1].dagger_attack_elapsed>=0.0)),"Weapon %d uses sword art and attack motion" % weapon)
 		# Knockback weapons deal no damage of their own.
 		var shoved: bool = Rules.WEAPONS[weapon].get("knockback",0) > 0
 		verify(view.model.player.ap==1 and (struck.hp==1 or (shoved and struck.hp==2)),"Sword action deals one damage for one AP (knockback: none)")
