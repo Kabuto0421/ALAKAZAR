@@ -3015,6 +3015,7 @@ func _storm_wind_push() -> void:
 	check_outcome()
 
 ## One lightning bolt: an S-tetromino, flat or upright, either way round (offsets round a tile).
+const THUNDER_BOLTS := 4
 const THUNDER_SHAPES := [
 	[Vector2i(0,0), Vector2i(1,0), Vector2i(-1,1), Vector2i(0,1)],
 	[Vector2i(-1,0), Vector2i(0,0), Vector2i(0,1), Vector2i(1,1)],
@@ -3022,7 +3023,7 @@ const THUNDER_SHAPES := [
 	[Vector2i(1,-1), Vector2i(1,0), Vector2i(0,0), Vector2i(0,1)],
 ]
 
-## The lightning: three bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
+## The lightning: four bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
 ## player and kept apart where there is room. Whoever stands on a marked tile when it strikes
 ## takes 1.
 func _storm_thunder() -> void:
@@ -3049,8 +3050,8 @@ func _storm_thunder() -> void:
 					bolt.append(tile)
 			if bolt.size() == 4:
 				candidates.append({"spot": spot, "bolt": bolt})
-	# Shuffle (seeded), then take three that keep apart; if there is no room for that, three that
-	# at least do not overlap, and failing that any three.
+	# Shuffle (seeded), then take four that keep apart; if there is no room for that, four that
+	# at least do not overlap, and failing that any four.
 	for i in range(candidates.size() - 1, 0, -1):
 		var j: int = roll.randi_range(0, i)
 		var swap: Dictionary = candidates[i]
@@ -3064,7 +3065,7 @@ func _storm_thunder() -> void:
 		groups = []
 		taken = []
 		for candidate in candidates:
-			if centers.size() >= 3:
+			if centers.size() >= THUNDER_BOLTS:
 				break
 			var bolt: Array = candidate.bolt
 			if strictness >= 1 and bolt.any(func(c: Vector2i) -> bool: return taken.has(c)):
@@ -3078,7 +3079,7 @@ func _storm_thunder() -> void:
 			for c in bolt:
 				if not taken.has(c):
 					taken.append(c)
-		if centers.size() >= 3:
+		if centers.size() >= THUNDER_BOLTS:
 			break
 	var marks: Array = taken.duplicate()
 	storm.centers = centers

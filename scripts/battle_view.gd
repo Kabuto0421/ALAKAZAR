@@ -1431,12 +1431,16 @@ func _draw_board() -> void:
 			if storm_marks.has(cell):
 				# Lightning is coming: the tiles of the bolt glow, and only the bolt's outline is drawn.
 				var flick := 0.34 + 0.14 * sin(clock * 12.0 + x * 1.7 + y)
-				draw_rect(Rect2(pos,Vector2(64,64)),Color(1.0,0.93,0.35,flick))
-				var edge := Color(1.0,0.97,0.6,0.98)
 				var bolt: Array = []
-				for group in storm_groups:
-					if group.has(cell):
-						bolt = group
+				var bolt_index := 0
+				for group_index in storm_groups.size():
+					if storm_groups[group_index].has(cell):
+						bolt = storm_groups[group_index]
+						bolt_index = group_index
+				# Each bolt a slightly different yellow, so touching ones still read apart.
+				var tints := [Color(1.0,0.93,0.35), Color(1.0,0.75,0.3), Color(0.95,1.0,0.5), Color(1.0,0.85,0.55)]
+				draw_rect(Rect2(pos,Vector2(64,64)),Color(tints[bolt_index % 4],flick))
+				var edge := Color(1.0,0.97,0.6,0.98)
 				for side in [[Vector2i.UP,pos+Vector2(0,1),pos+Vector2(64,1)],[Vector2i.DOWN,pos+Vector2(0,63),pos+Vector2(64,63)],[Vector2i.LEFT,pos+Vector2(1,0),pos+Vector2(1,64)],[Vector2i.RIGHT,pos+Vector2(63,0),pos+Vector2(63,64)]]:
 					if not bolt.has(cell + side[0]):
 						draw_line(side[1],side[2],edge,4)
