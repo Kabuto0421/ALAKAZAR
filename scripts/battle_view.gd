@@ -1423,7 +1423,7 @@ func _draw_board() -> void:
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
 				# The wheel turns under whoever rides it.
-				SpiritIcon.paint(self,mid + Vector2(0, 8 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,0.9)
+				SpiritIcon.paint(self,mid + (Vector2(-5, 8) if model.riding_wheel() else Vector2.ZERO),model.item_definition("wheel_fairy").icon,0.9)
 				_turn_badge(pos,int(model.wheel.turns))
 			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
