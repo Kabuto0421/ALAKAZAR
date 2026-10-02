@@ -2076,7 +2076,7 @@ const CANNON_VOLLEYS := 2
 
 ## Fire a cannon. A shot or burst that reaches another cannon sets it off too.
 func fire_cannon(cannon: Dictionary, fired: Array = []) -> void:
-	if not _may_fire(cannon, fired):
+	if fired.has(cannon.cell):
 		return
 	fired.append(cannon.cell)
 	# Each cannon in a chain goes off one beat after the last (chain_clock), so the
@@ -2106,17 +2106,9 @@ var turn_chain := 0
 func start_chain() -> void:
 	chain_clock = 0.0
 
-## A cannon set off by a cannon that was itself set off can fire again (a chain of chains),
-## but no cannon fires more than CANNON_MAX_FIRES times in one chain, and a chain stops at
-## CHAIN_HARD_CAP shots, so two cannons facing each other can never loop forever.
-const CANNON_MAX_FIRES := 2
-const CHAIN_HARD_CAP := 24
-func _may_fire(cannon: Dictionary, fired: Array) -> bool:
-	return fired.size() < CHAIN_HARD_CAP and fired.count(cannon.cell) < CANNON_MAX_FIRES
-
 ## The next link: one beat later, another cannon goes off.
 func _chain_to(other: Dictionary, fired: Array) -> void:
-	if not cannons.has(other) or not _may_fire(other, fired):
+	if fired.has(other.cell) or not cannons.has(other):
 		return
 	chain_clock += CHAIN_BEAT
 	events.append({"kind":"resonate", "cell":other.cell, "id":-2, "delay":chain_clock})
