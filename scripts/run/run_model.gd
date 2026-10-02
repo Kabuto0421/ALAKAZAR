@@ -179,13 +179,32 @@ func choose(index: int) -> bool:
 		battle.add_item(str(offer.value))
 		start_battle()
 	else:
-		var full: bool = battle.owned_weapons.size() >= Battle.WEAPON_LIMIT if offer.kind == "weapon" else battle.fairy_loadout.size() >= Battle.HAND_LIMIT
+		# クロス短剣: a pair is two weapons; those that do not fit wait to replace slots.
+		var incoming: Array = []
+		if offer.kind == "weapon":
+			incoming.append(int(offer.value))
+			if Weapons.is_pair_head(int(offer.value)):
+				incoming.append(Weapons.pair_of(int(offer.value)))
+		var free: int = Battle.WEAPON_LIMIT - battle.owned_weapons.size()
+		var full: bool = incoming.size() > free if offer.kind == "weapon" else battle.fairy_loadout.size() >= Battle.HAND_LIMIT
 		if full:
 			pending = offer.duplicate()
+			if offer.kind == "weapon":
+				# Fill the free slots first; the rest replace slots one by one.
+				var placed: Array = []
+				while not incoming.is_empty() and battle.owned_weapons.size() < Battle.WEAPON_LIMIT:
+					var weapon_index: int = incoming.pop_front()
+					battle.owned_weapons.append(weapon_index)
+					placed.append(weapon_index)
+					if weapon_index == int(offer.value):
+						_enchant(weapon_index, offer)
+				pending.placed = placed
+				pending.remaining = incoming
 			state = State.REPLACE
 		else:
 			if offer.kind == "weapon":
-				battle.owned_weapons.append(int(offer.value))
+				for weapon_index in incoming:
+					battle.owned_weapons.append(weapon_index)
 				_enchant(int(offer.value), offer)
 			else:
 				battle.add_item(str(offer.value))
@@ -212,7 +231,7 @@ func finish_battle() -> bool:
 	state = State.REWARD
 	offers.clear()
 	# Weapons: each card draws a rarity for this point in the run, then a weapon of it.
-	var weapons: Array = range(Weapons.DATA.size()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index))
+	var weapons: Array = range(Weapons.DATA.size()).filter(func(index: int) -> bool: return not battle.owned_weapons.has(index) and not Weapons.horizontal_only(index) and not Weapons.is_pair_member(index))
 	for k in WEAPON_OFFERS:
 		var index := draw_weapon(weapons)
 		if index < 0:
@@ -254,9 +273,19 @@ func replace(slot: int) -> bool:
 	if pending.kind == "weapon":
 		if slot < 0 or slot >= battle.owned_weapons.size():
 			return false
+		var remaining: Array = pending.get("remaining", [int(pending.value)])
+		if remaining.is_empty() or pending.get("placed", []).has(battle.owned_weapons[slot]):
+			return false
+		var coming: int = remaining.pop_front()
 		battle.enchants.erase(battle.owned_weapons[slot])
-		battle.owned_weapons[slot] = int(pending.value)
-		_enchant(int(pending.value), pending)
+		battle.owned_weapons[slot] = coming
+		if coming == int(pending.value):
+			_enchant(int(pending.value), pending)
+		if not remaining.is_empty():
+			# The other half of the pair still needs a slot.
+			pending.remaining = remaining
+			pending.placed = pending.get("placed", []) + [coming]
+			return true
 	else:
 		if slot < 0 or slot >= battle.fairy_loadout.size():
 			return false

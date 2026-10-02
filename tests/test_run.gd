@@ -306,6 +306,7 @@ func _initialize() -> void:
 	_guardian_wall()
 	_cat_fairy()
 	_wheel_fairy()
+	_cross_daggers()
 	_storm_shark()
 	_second_boss_room()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
@@ -1389,7 +1390,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 42,"35 weapons plus the three generals, the king staff, the mallet, the cross hammer and the thunder blade")
+	verify(W.DATA.size() == 44,"35 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
@@ -2276,6 +2277,76 @@ func _wheel_fairy() -> void:
 	for n in Rules.WHEEL_TURNS:
 		m.tick_walls()
 	verify(m.wheel.is_empty() and not m.riding_wheel() and m.turn_start_ap() == 2,"The wheel is gone after three turns and things are as before")
+
+## クロス短剣: 雷短剣 (up-right, 3 tiles + 1 back) and 炎短剣 (down-right); each boosts the other.
+func _cross_daggers() -> void:
+	var W := Run.Weapons
+	var thunder: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "thunder_dagger")
+	var flame: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "flame_dagger")
+	verify(thunder >= 0 and flame >= 0 and W.pair_of(thunder) == flame and W.pair_of(flame) == thunder,"The two daggers are a pair")
+	verify(W.is_pair_head(thunder) and not W.is_pair_head(flame) and W.is_pair_member(flame),"Only the thunder dagger is offered (it brings the flame dagger)")
+	verify(Run.Rarity.tier({"kind":"weapon","value":thunder}) == Run.Rarity.RARE,"The set is rare")
+	var m := fixture()
+	m.enemies.clear()
+	m.owned_weapons.assign([thunder, flame, 0])
+	m.player.cell = Vector2i(2,4)
+	m.player.ap = 2
+	m.weapon = thunder
+	var reach: Array = m.targets()
+	verify(reach.has(Vector2i(3,3)) and reach.has(Vector2i(4,2)) and reach.has(Vector2i(5,1)) and reach.has(Vector2i(1,5)) and reach.size() == 4,"Thunder dagger: up-right up to three tiles, one tile back down-left")
+	m.obstacles.append(Vector2i(4,2))
+	verify(m.targets().has(Vector2i(3,3)) and not m.targets().has(Vector2i(4,2)) and not m.targets().has(Vector2i(5,1)),"A blocked tile stops the slide")
+	m.obstacles.clear()
+	m.enemies.append(m.make_enemy("heavy", Vector2i(4,2), 0))
+	verify(not m.targets().has(Vector2i(4,2)) and m.targets().has(Vector2i(3,3)) and not m.targets().has(Vector2i(5,1)),"It can only attack the next tile, and cannot slide past an enemy")
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("heavy", Vector2i(3,3), 0))
+	verify(m.targets().has(Vector2i(3,3)),"An enemy on the next tile can be attacked")
+	verify(m.player_action(Vector2i(3,3)) and m.combo_boost == flame,"Using the thunder dagger boosts the flame dagger")
+	# Flame dagger, boosted: the blow reaches the four diagonal tiles round the target too.
+	m.enemies.clear()
+	m.player.cell = Vector2i(2,2)
+	m.player.ap = 2
+	m.weapon = flame
+	m.enemies.append(m.make_enemy("heavy", Vector2i(3,3), 0))
+	var near: Dictionary = m.make_enemy("heavy", Vector2i(4,4), 0)
+	var far: Dictionary = m.make_enemy("heavy", Vector2i(3,4), 0)
+	m.enemies.append(near)
+	m.enemies.append(far)
+	var hp_near: int = near.hp
+	var hp_far: int = far.hp
+	verify(m.combo_boost == flame and m.player_action(Vector2i(3,3)),"The boosted flame dagger attacks")
+	verify(near.hp < hp_near and far.hp == hp_far,"It also strikes the diagonal neighbour, not the straight ones")
+	verify(m.combo_boost == thunder,"...and now the thunder dagger is the boosted one")
+	# An unboosted blow stays on its target.
+	var plain := fixture()
+	plain.enemies.clear()
+	plain.owned_weapons.assign([thunder, flame, 0])
+	plain.player.cell = Vector2i(2,2)
+	plain.player.ap = 2
+	plain.weapon = flame
+	plain.enemies.append(plain.make_enemy("heavy", Vector2i(3,3), 0))
+	var plain_near: Dictionary = plain.make_enemy("heavy", Vector2i(4,4), 0)
+	plain.enemies.append(plain_near)
+	var plain_hp: int = plain_near.hp
+	verify(plain.player_action(Vector2i(3,3)) and plain_near.hp == plain_hp,"Without a boost nothing spreads")
+	# The boost lasts the turn only.
+	_enemy_turn(plain)
+	verify(plain.combo_boost == -1,"The boost is gone when the next turn starts")
+	# A set takes two slots.
+	var run := Run.new()
+	run.start(7)
+	run.battle.owned_weapons.assign([0])
+	run.state = Run.State.REWARD
+	run.offers.assign([{"kind":"weapon","value":thunder}])
+	verify(run.choose(0) and run.state != Run.State.REPLACE and run.battle.owned_weapons.size() == 3 and run.battle.owned_weapons.has(thunder) and run.battle.owned_weapons.has(flame),"With two free slots the pair joins the loadout")
+	run.battle.owned_weapons.assign([0, 1, 2])
+	run.state = Run.State.REWARD
+	run.offers.assign([{"kind":"weapon","value":thunder}])
+	verify(run.choose(0) and run.state == Run.State.REPLACE,"With the slots full, the pair asks which weapons to give up")
+	verify(run.replace(0) and run.state == Run.State.REPLACE and run.battle.owned_weapons[0] == thunder,"The first dagger takes a slot")
+	verify(not run.replace(0),"...that slot cannot be taken again")
+	verify(run.replace(1) and run.battle.owned_weapons[1] == flame and run.state != Run.State.REPLACE,"The second dagger takes another slot, and the choice is done")
 
 func _shark_room() -> RefCounted:
 	var m := Rules.new()

@@ -11,18 +11,21 @@ var slides: Array = []
 ## (hatched), and the player is drawn holding a hammer.
 var echo: Array[Vector2i] = []
 var hammer := false
+## Daggers: the one tile they can strike (the rest of their reach is for moving), drawn with a cross.
+var attack: Array[Vector2i] = []
+const ATTACK := Color("ff805a")
 const ECHO := Color("ffa04a")
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-## 3x3 for adjacent patterns, 5x5 when a pattern reaches two tiles away.
+## 3x3 for adjacent patterns, 5x5 when a pattern reaches two tiles away, 7x7 for three.
 static func span(pattern: Array) -> int:
+	var reach := 1
 	for offset in pattern:
-		if absi(offset.x) > 1 or absi(offset.y) > 1:
-			return 5
-	return 3
+		reach = maxi(reach, maxi(absi(offset.x), absi(offset.y)))
+	return mini(reach, 3) * 2 + 1
 
 func _draw() -> void:
 	var count := span(offsets + context + echo)
@@ -49,6 +52,10 @@ func _draw() -> void:
 			elif known:
 				fill = Color("25393a")
 				border = Color("4b6663")
+			var strikes := attack.has(offset)
+			if strikes:
+				fill = Color(ATTACK,0.3)
+				border = ATTACK
 			if echoed and not active:
 				fill = Color(ECHO,0.16)
 				border = Color(ECHO,0.8)
@@ -68,6 +75,11 @@ func _draw() -> void:
 				else:
 					var cell := Units.PLAYER_ATLAS_CELL
 					draw_texture_rect_region(Units.PLAYER_ATLAS,rect,Rect2(cell,2*cell,cell,cell))
+			elif strikes:
+				var c := rect.get_center()
+				var r := step * 0.2
+				draw_line(c - Vector2(r, r), c + Vector2(r, r), ATTACK, maxf(2, step * 0.1))
+				draw_line(c - Vector2(r, -r), c + Vector2(r, -r), ATTACK, maxf(2, step * 0.1))
 			elif active:
 				draw_circle(rect.get_center(),maxf(2,step*0.12),Color(accent,0.5) if known else accent)
 			elif known:

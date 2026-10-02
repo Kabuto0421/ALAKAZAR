@@ -112,8 +112,11 @@ func _render() -> void:
 				skip.add_theme_stylebox_override(state,style)
 		Run.State.REPLACE:
 			var title: String = run.battle.WEAPONS[int(run.pending.value)].name if run.pending.kind=="weapon" else run.battle.item_definition(str(run.pending.value)).title
+			var need: int = run.pending.get("remaining", [1]).size()
+			if run.pending.kind == "weapon" and Weapons.is_pair_head(int(run.pending.value)):
+				title = "クロス短剣"
 			_label(Vector2(44,48),"「%s」と交換する装備を選ぶ" % title,30,INK)
-			_label(Vector2(44,94),"所持上限は3。手放すものを1つ選ぶ。",17,sub)
+			_label(Vector2(44,94),("所持上限は3。手放すものを%dつ選ぶ（短剣は2本セット）。" % need) if run.pending.kind == "weapon" and Weapons.is_pair_head(int(run.pending.value)) else "所持上限は3。手放すものを1つ選ぶ。",17,sub)
 			_replace_cards()
 			_button(Vector2(894,92),Vector2(214,34),"← 報酬へ戻る",_cancel)
 		Run.State.CAMP:
@@ -321,6 +324,7 @@ func _loadout() -> void:
 		diagram.offsets = Weapons.offsets(index)
 		diagram.slides = Weapons.slides(index)
 		diagram.echo = Weapons.hammer_echo(index)
+		diagram.attack = Weapons.attack_offsets(index)
 		diagram.hammer = Weapons.is_hammer(index)
 		diagram.accent = accent
 		screen.add_child(diagram)

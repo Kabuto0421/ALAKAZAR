@@ -164,6 +164,7 @@ func finish(model: RefCounted) -> void:
 		model.tick_walls()
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = model.turn_start_ap()
+		model.combo_boost = -1
 		model.storm_roll_wind()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 

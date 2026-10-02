@@ -284,6 +284,7 @@ func placed_recently() -> int:
 	return stats.placed_rounds.filter(func(r: int) -> bool: return round_number - r < WALL_TURNS).size()
 
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
+	combo_boost = -1
 	stats = _fresh_stats()
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
 	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else BOSS2_FORMATIONS[boss2_variant] if level == BOSS2_LEVEL else FORMATIONS[level]
@@ -874,6 +875,24 @@ func hammer_area(target: Vector2i, index: int = weapon) -> Array[Vector2i]:
 
 func targets() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
+	if Catalog.is_dagger(weapon):
+		# 短剣: slide up to three tiles along its diagonal and one back; strike only the next tile.
+		var along: Vector2i = WEAPONS[weapon].dagger
+		for k in range(1, 4):
+			var cell: Vector2i = player.cell + along * k
+			if not inside(cell):
+				break
+			if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
+				if k == 1:
+					result.append(cell)
+				break
+			if blocked(cell):
+				break
+			result.append(cell)
+		var back: Vector2i = player.cell - along
+		if inside(back) and enemy_at(back).is_empty() and cannon_at(back).is_empty() and not blocked(back):
+			result.append(back)
+		return result
 	if WEAPONS[weapon].get("ranged","") == "bishop":
 		for cell in bow_lines():
 			if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
@@ -917,10 +936,18 @@ func equip(index: int) -> bool:
 	return true
 
 func player_action(cell: Vector2i) -> bool:
+	var used := weapon
 	var done := _player_action(cell)
 	if done:
 		dig_abyss()
+		# クロス短剣: whichever half was used boosts the other for the rest of the turn.
+		if Catalog.pair_of(used) >= 0:
+			var other := Catalog.pair_of(used)
+			combo_boost = other if owned_weapons.has(other) else -1
 	return done
+
+## クロス短剣: the weapon (index) boosted for the rest of this turn by its pair, or -1.
+var combo_boost := -1
 
 func _player_action(cell: Vector2i) -> bool:
 	if can_swap_shadow(cell):
@@ -977,6 +1004,13 @@ func _player_action(cell: Vector2i) -> bool:
 					struck.append(other)
 		elif WEAPONS[weapon].get("ranged","") == "bishop":
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
+		# クロス短剣: boosted by the other half, the blow also lands on the four diagonal tiles.
+		if combo_boost == weapon and Catalog.is_dagger(weapon):
+			for side in DIAGONALS:
+				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.RIGHT})
+				var other := enemy_at(cell + side)
+				if not other.is_empty() and not struck.has(other):
+					struck.append(other)
 		# 加護: standing in the blessed ground, the blow also lands on the four tiles
 		# around the struck one (a cross).
 		if blessed(player.cell):

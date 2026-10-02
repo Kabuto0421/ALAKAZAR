@@ -1799,11 +1799,14 @@ func _draw_weapons() -> void:
 
 		if weapon.has("charge"):
 			extras.append("溜め%d/%d" % [model.blade_charge, model.blade_max()])
-		if extras.size() == 1 and not weapon.has("slide") and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
+		if model.combo_boost == index:
+			extras.append("強化中")
+		if extras.size() == 1 and not weapon.has("slide") and not Catalog.is_dagger(index) and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var echo := Catalog.hammer_echo(index)
+		var strikes := Catalog.attack_offsets(index)
 		var count := RangeDiagram.span(offsets + echo)
 		# Inside the frame; sliding weapons leave room for their arrows past the tiles.
 		var inner := 94.0-SLOT_FRAME*2-4
@@ -1822,13 +1825,20 @@ func _draw_weapons() -> void:
 				var offset := Vector2i(x-count/2,y-count/2)
 				var tile := Rect2(origin+Vector2(x,y)*cell_size+Vector2.ONE,Vector2.ONE*(cell_size-2))
 				var active := offsets.has(offset)
-				draw_rect(tile,Color(accent,0.3) if active else Color("172627"))
+				var striking := strikes.has(offset)
+				var tone: Color = Color("ff805a") if striking else accent
+				draw_rect(tile,Color(tone,0.3) if active else Color("172627"))
 				if echo.has(offset) and not active:
 					_hatch(tile, HAMMER_ECHO)
-				draw_rect(tile,accent if active else HAMMER_ECHO if echo.has(offset) else Color("3d5753"),false,1)
+				draw_rect(tile,tone if active else HAMMER_ECHO if echo.has(offset) else Color("3d5753"),false,1)
+				if striking:
+					var mid := tile.get_center()
+					var arm := cell_size * 0.2
+					draw_line(mid - Vector2(arm, arm), mid + Vector2(arm, arm), tone, 2)
+					draw_line(mid - Vector2(arm, -arm), mid + Vector2(arm, -arm), tone, 2)
 				if offset == Vector2i.ZERO:
 					_draw_player_portrait(index,tile.get_center(),cell_size*1.1,1)
-				elif active:
+				elif active and not striking:
 					draw_circle(tile.get_center(),maxf(2,cell_size*0.16),accent)
 		# Sliding weapons: arrows past the outer tiles.
 		for direction in Catalog.slides(index):
@@ -1915,7 +1925,7 @@ func _draw_intel() -> void:
 		var weapon: Dictionary = Rules.WEAPONS[selected_weapon]
 		_text(Vector2(852,133),weapon.name,25,Color(weapon.color))
 		_text(Vector2(852,177),"装備中",21,MUTED)
-		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing)
+		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing,2,false,Catalog.attack_offsets(selected_weapon))
 		_text(Vector2(852,495),"移動・攻撃範囲",23,INK)
 		_wrapped(Vector2(852,528),Rules.WEAPONS[selected_weapon].detail,18,MUTED,14)
 	else:
@@ -1952,10 +1962,13 @@ func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_i
 	var step := 52 if compact else 64
 	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)
-	if enemy.get("type","") in Rules.JUMPERS or RangeDiagram.span(offsets + echo) == 5 or RangeDiagram.span(attack) == 5:
-		count = 5
-		step = 38
-		self_cell = Vector2i(2,2)
+	var wide := maxi(RangeDiagram.span(offsets + echo), RangeDiagram.span(attack))
+	if enemy.get("type","") in Rules.JUMPERS:
+		wide = maxi(wide, 5)
+	if wide >= 5:
+		count = wide
+		step = 38 if wide == 5 else 30
+		self_cell = Vector2i(wide / 2, wide / 2)
 	var origin := Vector2(980-count*step/2.0,192 if compact else 236)
 	for y in range(count):
 		for x in range(count):

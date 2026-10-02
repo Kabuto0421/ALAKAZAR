@@ -54,7 +54,11 @@ const DATA = [
 	# A rare mid-game drop: moves like the cross sword, and its blow spreads in a cross.
 	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":2, "effect":"この武器の攻撃は2ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
 	# Added last so earlier weapon indices stay put.
-	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]}
+	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]},
+	# クロス短剣: two weapons sold as one set. Each slides up to three tiles along one diagonal (and
+	# one tile back), attacks only the tile next to it on that diagonal, and using one boosts the other.
+	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"ffe95a", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1)], "effect":"右上へ最大3マス進める（左下は1マス）。攻撃は右上の隣1マスだけ。炎短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃は右上の隣のみ", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
+	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"pair", "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1)], "effect":"右下へ最大3マス進める（左上は1マス）。攻撃は右下の隣1マスだけ。雷短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃は右下の隣のみ", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]}
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
@@ -88,6 +92,33 @@ static func hammer_echo(index: int) -> Array[Vector2i]:
 
 static func is_hammer(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and (DATA[index].id == "hammer" or DATA[index].get("hammer", false))
+
+## クロス短剣: the pair's second half is never offered alone (the first brings it along).
+static func is_pair_member(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "pair"
+
+static func is_dagger(index: int) -> bool:
+	return index >= 0 and index < DATA.size() and DATA[index].has("dagger")
+
+## The other half of a pair (-1 for a weapon that has none).
+static func pair_of(index: int) -> int:
+	if index < 0 or index >= DATA.size() or not DATA[index].has("pair"):
+		return -1
+	for other in DATA.size():
+		if DATA[other].id == DATA[index].pair:
+			return other
+	return -1
+
+## True for the half that is offered (it brings the other along).
+static func is_pair_head(index: int) -> bool:
+	return pair_of(index) >= 0 and not is_pair_member(index)
+
+## The tiles a dagger can attack (the rest of its reach is only for moving).
+static func attack_offsets(index: int) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if is_dagger(index):
+		result.assign(DATA[index].attack)
+	return result
 
 static func is_mid(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "mid"

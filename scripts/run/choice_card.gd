@@ -69,6 +69,10 @@ func _ready() -> void:
 		# The diagram already shows where it reaches: the text only explains what it
 		# cannot show (knockback, swaps, hammer echoes, the charge, pulls, the bow).
 		description = weapon.get("effect", "")
+		if Weapons.is_pair_head(int(offer.value)):
+			# クロス短剣: the card sells both halves.
+			title = "クロス短剣"
+			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は隣の1マスだけ。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
@@ -143,6 +147,13 @@ func _ready() -> void:
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.echo = Weapons.hammer_echo(int(offer.value))
+		diagram.attack = Weapons.attack_offsets(int(offer.value))
+		if Weapons.is_pair_head(int(offer.value)):
+			var partner := Weapons.pair_of(int(offer.value))
+			for offset in Weapons.offsets(partner):
+				if not diagram.offsets.has(offset):
+					diagram.offsets.append(offset)
+			diagram.attack.append_array(Weapons.attack_offsets(partner))
 		diagram.hammer = Weapons.is_hammer(int(offer.value))
 		diagram.context = context
 		diagram.accent = accent
