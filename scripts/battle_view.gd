@@ -2178,7 +2178,7 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,478),"ときどき潜り、影の下に浮上",18,CYAN)
 		_text(Vector2(852,504),"2ダメージ＋ノックバック",18,CYAN)
-		_text(Vector2(852,534),"大嵐：雷と波（波はボス以外を動かす）",15,MUTED)
+		_text(Vector2(852,534),"嵐：雷と津波（津波はボス以外を動かす）",15,MUTED)
 		_draw_threat(enemy,562)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
@@ -2646,7 +2646,10 @@ func _draw_tsunami() -> void:
 		draw_line(tail, tip, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 + side * 13.0, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
-	_text(BOARD + Vector2(6, 22), "大嵐 津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
+	var wave_label: String = "津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, "")
+	var label_at: Vector2 = BOARD + Vector2(0, -16)
+	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
+	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
 
 ## The great wave itself: a body of water with a curling crest sweeping across the whole board
 ## the way the tsunami runs, foam and spray along its front, then draining away.
