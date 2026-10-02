@@ -2359,6 +2359,11 @@ func _storm_shark() -> void:
 		lane_fronts.append(xs.max())
 	verify(shape.size() >= 14 and lane_fronts[0] < lane_fronts[3] and lane_fronts[7] < lane_fronts[4],"The tsunami is a crescent: its crest bulges forward in the middle")
 	verify(wp.wave_cells(Vector2i.UP, 3).all(func(c): return wp.inside(c)) and wp.wave_cells(Vector2i.LEFT, 4).size() == shape.size() or wp.wave_cells(Vector2i.LEFT, 4).size() > 10,"...in every direction, inside the board")
+	# The enemy turn starts with the great wave rushing over the board.
+	var rush := _shark_room()
+	rush.player.cell = Vector2i(1,1)
+	rush.storm_enemy_turn()
+	verify(rush.events.any(func(e): return e.kind == "tsunami" and e.dir == rush.storm.wind),"The enemy turn begins with the tsunami rushing across the board")
 	# A unit outside the wave is not carried.
 	var outside := _shark_room()
 	outside.storm.wind = Vector2i.RIGHT

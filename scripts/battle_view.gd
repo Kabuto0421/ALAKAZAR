@@ -2634,8 +2634,8 @@ func _draw_thunder_sigil() -> void:
 		draw_arc(middle, TILE * 0.78, 0, TAU, 40, core, 2.5 * u)
 		draw_polyline(PackedVector2Array([middle + Vector2(7, -26) * u, middle + Vector2(-8, -3) * u, middle + Vector2(7, -1) * u, middle + Vector2(-6, 27) * u]), core, 4.0 * u)
 
-## The tsunami: the tiles it covers washed in cyan, a curling crest drawn along its front
-## edge with foam, ripples inside it, and where each thing it carries will land.
+## The tsunami's warning: the tiles it will cover washed in cyan, and where each thing it
+## carries will land (the wave itself rushes over the board when the enemy turn begins: _draw_fx).
 func _draw_tsunami() -> void:
 	var wave: Array = model.storm.get("wave", [])
 	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
@@ -2648,50 +2648,6 @@ func _draw_tsunami() -> void:
 	for tile in wave:
 		var rect := Rect2(BOARD + Vector2(tile) * TILE + Vector2.ONE * 2, Vector2.ONE * (TILE - 4))
 		draw_rect(rect, Color(0.3, 0.85, 1.0, swell))
-	# The crest: a smooth curve along the band's front edge, bulging forward in the middle.
-	var n := model.board_size
-	var crest_a: int = int(model.storm.get("crest", 3))
-	var crest := PackedVector2Array()
-	for step in range(0, 41):
-		var f := float(step) / 40.0
-		var lane := f * float(n)
-		var bulge := sin(clampf((lane - 0.5) / float(n - 1), 0.0, 1.0) * PI) * 1.6
-		var edge := float(crest_a + 1) + bulge
-		var point := Vector2(edge, lane)
-		if wind == Vector2i.LEFT:
-			point = Vector2(float(n) - edge, lane)
-		elif wind == Vector2i.DOWN:
-			point = Vector2(lane, edge)
-		elif wind == Vector2i.UP:
-			point = Vector2(lane, float(n) - edge)
-		crest.append(BOARD + point * TILE)
-	draw_polyline(crest, Color(0.4, 0.95, 1.0, 0.4), 18.0 * u)
-	draw_polyline(crest, Color(0.9, 1.0, 1.0, 0.95), 4.0 * u)
-	for i in range(0, crest.size(), 4):
-		var wobble := sin(clock * 6.0 + float(i) * 0.7) * 3.0 * u
-		draw_circle(crest[i] + dir * (5.0 * u + wobble), 5.0 * u, Color(1, 1, 1, 0.9))
-	# The curl at both ends of the crest, hooking forward.
-	for end in [0, crest.size() - 1]:
-		var inward: Vector2 = (crest[1] - crest[0]).normalized() if end == 0 else (crest[end - 1] - crest[end]).normalized()
-		var hook: Vector2 = crest[end]
-		draw_line(hook, hook + dir * 22.0 * u - inward * 6.0 * u, Color(0.9, 1.0, 1.0, 0.95), 4.0 * u)
-	var lanes: Array = range(n)
-	var front := {}
-	for tile in wave:
-		var lane2: int = tile.y if wind.x != 0 else tile.x
-		var along: int = tile.x * wind.x + tile.y * wind.y
-		if not front.has(lane2) or along > front[lane2][0]:
-			front[lane2] = [along, tile]
-	lanes = front.keys()
-	# Ripples running through the band.
-	for lane in lanes:
-		var tile: Vector2i = front[lane][1]
-		var points := PackedVector2Array()
-		for step in range(0, 17):
-			var back := float(step) / 16.0 * TILE * 2.0
-			var wobble := sin(back * 0.18 - clock * 7.0) * 5.0 * u
-			points.append(_center(tile) + dir * (TILE * 0.5 - back) + side * wobble)
-		draw_polyline(points, Color(0.8, 1.0, 1.0, 0.45), 2.0 * u)
 	# Where everyone it carries will land: a bold arrow and the landing tile, the player's boldest.
 	for entry in _wave_plan():
 		var is_player: bool = int(entry.id) == -1
@@ -2716,6 +2672,58 @@ func _draw_tsunami() -> void:
 		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
 	_text(BOARD + Vector2(6, 22), "大嵐 津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95, 0.9))
 
+## The great wave itself: a body of water with a curling crest sweeping across the whole board
+## the way the tsunami runs, foam and spray along its front, then draining away.
+func _draw_tsunami_rush(effect: Dictionary, t: float, fade: float) -> void:
+	var n := model.board_size
+	var wdir: Vector2i = effect.dir
+	var u := TILE / 64.0
+	var sweep := ease(clampf(t / 0.7, 0.0, 1.0), 0.6)
+	var alpha := 1.0 if t < 0.7 else clampf(1.0 - (t - 0.7) / 0.3, 0.0, 1.0)
+	var to_world := func(a: float, lane: float) -> Vector2:
+		var p := Vector2(a, lane)
+		if wdir == Vector2i.LEFT:
+			p = Vector2(float(n) - a, lane)
+		elif wdir == Vector2i.DOWN:
+			p = Vector2(lane, a)
+		elif wdir == Vector2i.UP:
+			p = Vector2(lane, float(n) - a)
+		return BOARD + p * TILE
+	var base := lerpf(-2.5, float(n) + 2.0, sweep)
+	var layers := [[0.0, Color(0.45, 0.95, 1.0, 0.55)], [-1.1, Color(0.25, 0.7, 0.95, 0.5)], [-2.4, Color(0.12, 0.45, 0.8, 0.5)]]
+	var crest_points := PackedVector2Array()
+	for layer in layers:
+		var lag: float = layer[0]
+		var poly := PackedVector2Array()
+		for step in range(0, 41):
+			var lane := float(step) / 40.0 * float(n)
+			var bulge := sin(clampf((lane - 0.5) / float(n - 1), 0.0, 1.0) * PI) * 1.9
+			var edge := clampf(base + lag + bulge, 0.0, float(n))
+			poly.append(to_world.call(edge, lane))
+			if lag == 0.0:
+				crest_points.append(to_world.call(base + bulge, lane))
+		poly.append(to_world.call(0.0, float(n)))
+		poly.append(to_world.call(0.0, 0.0))
+		if poly.size() >= 4:
+			var color: Color = layer[1]
+			draw_colored_polygon(poly, Color(color, color.a * alpha))
+	# Foam along the crest and spray thrown ahead of it.
+	var clipped := PackedVector2Array()
+	for point in crest_points:
+		if Rect2(BOARD - Vector2.ONE * 6, Vector2.ONE * float(n) * TILE + Vector2.ONE * 12).has_point(point):
+			clipped.append(point)
+	if clipped.size() >= 2:
+		draw_polyline(clipped, Color(0.95, 1.0, 1.0, 0.95 * alpha), 7.0 * u)
+	var forward := Vector2(wdir)
+	for i in range(0, crest_points.size(), 2):
+		var point: Vector2 = crest_points[i]
+		if not Rect2(BOARD, Vector2.ONE * float(n) * TILE).has_point(point):
+			continue
+		var wobble := sin(clock * 11.0 + float(i) * 1.7)
+		draw_circle(point + forward * (6.0 + 6.0 * wobble) * u, (4.0 + 3.0 * absf(wobble)) * u, Color(1, 1, 1, 0.9 * alpha))
+		if i % 4 == 0:
+			draw_circle(point + forward * (18.0 + 10.0 * wobble) * u + forward.orthogonal() * 5.0 * wobble * u, 2.5 * u, Color(0.9, 1.0, 1.0, 0.8 * alpha))
+
 ## The wave's plan, worked out again only when something that matters has changed.
 var _wave_key := ""
 var _wave_cache: Array = []
@@ -2727,7 +2735,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"tsunami":1.5, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2864,6 +2872,8 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				draw_circle(pos + lane + back * (10 + t * 16), 7 + t * 8, Color("c9b79a", fade * 0.5))
 		"quake":
 			_draw_quake(effect, pos, t)
+		"tsunami":
+			_draw_tsunami_rush(effect, t, fade)
 		"dive":
 			# The shark breaks into glowing squares that drift apart.
 			var heart := pos + Vector2.ONE * TILE / 2

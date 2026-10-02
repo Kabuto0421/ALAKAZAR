@@ -2928,6 +2928,8 @@ func _wave_hits(unit: Dictionary) -> bool:
 func storm_enemy_turn() -> void:
 	if storm.is_empty() or time_stopped() or storm_shark().is_empty():
 		return
+	if not storm.wave.is_empty() and storm.wind != Vector2i.ZERO:
+		events.append({"kind":"tsunami", "id":-2, "cell":Vector2i.ZERO, "dir":storm.wind, "crest":storm.get("crest", 3)})
 	_storm_wind_push()
 	_storm_thunder()
 
