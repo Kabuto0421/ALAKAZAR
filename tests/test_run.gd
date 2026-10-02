@@ -2285,7 +2285,7 @@ func _cross_daggers() -> void:
 	var flame: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "flame_dagger")
 	verify(thunder >= 0 and flame >= 0 and W.pair_of(thunder) == flame and W.pair_of(flame) == thunder,"The two daggers are a pair")
 	verify(W.is_pair_head(thunder) and not W.is_pair_head(flame) and W.is_pair_member(flame),"Only the thunder dagger is offered (it brings the flame dagger)")
-	verify(Run.Rarity.tier({"kind":"weapon","value":thunder}) == Run.Rarity.RARE,"The set is rare")
+	verify(Run.Rarity.tier({"kind":"weapon","value":thunder}) == Run.Rarity.RARE and Run.Rarity.tier({"kind":"weapon","value":flame}) == Run.Rarity.RARE,"Both daggers are rare")
 	var m := fixture()
 	m.enemies.clear()
 	m.owned_weapons.assign([thunder, flame, 0])
