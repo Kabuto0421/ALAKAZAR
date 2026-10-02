@@ -342,7 +342,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
-		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "trio"}
+		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "shape": "bolts"}
 		storm_roll_wind()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
@@ -3003,14 +3003,16 @@ func _storm_wind_push() -> void:
 	trigger_fairies()
 	check_outcome()
 
-## The lightning: three places at once, each a cross of five tiles (the middle and its four
-## neighbours), joined on the board into one sigil. The three are spread out inside the 5x5 round
-## the player where they can be (no two touching).
+## One lightning bolt as offsets round its middle tile (a zigzag five tiles tall, eight tiles).
+const THUNDER_BOLT := [Vector2i(0,-2), Vector2i(1,-2), Vector2i(0,-1), Vector2i(-1,0), Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(-1,2)]
+
+## The lightning: three bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
+## player and kept apart where there is room. Whoever stands on a marked tile when it strikes
+## takes 1.
 func _storm_thunder() -> void:
 	if not storm.marks.is_empty():
 		var cells: Array = storm.marks.duplicate()
-		for center in storm.centers:
-			events.append({"kind":"thunder", "id":-2, "cell":center, "cells":cells})
+		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0], "cells":cells})
 		storm.marks = []
 		storm.centers = []
 		if cells.has(player.cell):
@@ -3022,27 +3024,29 @@ func _storm_thunder() -> void:
 	var roll := _storm_rng("thunder")
 	var pool: Array = square_around(player.cell, 2)
 	var centers: Array = []
+	var flips: Array = []
 	var tries := 0
 	while centers.size() < 3 and not pool.is_empty() and tries < 60:
 		tries += 1
 		var pick: int = roll.randi_range(0, pool.size() - 1)
 		var spot: Vector2i = pool[pick]
-		# Keep the three crosses apart if there is room for that.
-		if tries < 40 and centers.any(func(c: Vector2i) -> bool: return absi(c.x - spot.x) + absi(c.y - spot.y) < 3):
+		# Keep the three bolts apart if there is room for that.
+		if tries < 40 and centers.any(func(c: Vector2i) -> bool: return absi(c.x - spot.x) < 2 and absi(c.y - spot.y) < 4):
 			continue
 		centers.append(spot)
+		flips.append(roll.randi_range(0, 1) == 1)
 		pool.remove_at(pick)
 	var marks: Array = []
-	for center in centers:
-		for offset in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
-			var tile: Vector2i = center + offset
+	for i in centers.size():
+		for offset in THUNDER_BOLT:
+			var tile: Vector2i = centers[i] + Vector2i(-offset.x if flips[i] else offset.x, offset.y)
 			if inside(tile) and not marks.has(tile):
 				marks.append(tile)
 	storm.centers = centers
-	storm.shape = "trio"
+	storm.shape = "bolts"
 	storm.marks = marks
 	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0]})
-	add_log("雷の魔法陣…")
+	add_log("雷が落ちる…")
 
 # --- Rotorick: the slot boss --------------------------------------------------
 

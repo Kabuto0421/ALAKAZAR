@@ -1372,11 +1372,18 @@ func _draw_board() -> void:
 				if dive_core.has(cell):
 					draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(1.0,0.45,0.5,0.35+0.2*sin(clock*9.0)))
 			if storm_marks.has(cell):
-				# Lightning is coming: a warm, flickering warning.
-				var flick := 0.3 + 0.15 * sin(clock * 12.0 + x * 1.7 + y)
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.95,0.45,flick))
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.9,0.3,0.9),false,2)
-				pass  # the sigil joining the marks is drawn over the board (_draw_thunder_sigil)
+				# Lightning is coming: the tiles of the bolt glow, and only the bolt's outline is drawn.
+				var flick := 0.34 + 0.14 * sin(clock * 12.0 + x * 1.7 + y)
+				draw_rect(Rect2(pos,Vector2(64,64)),Color(1.0,0.93,0.35,flick))
+				var edge := Color(1.0,0.97,0.6,0.98)
+				if not storm_marks.has(cell + Vector2i.UP):
+					draw_line(pos+Vector2(0,1),pos+Vector2(64,1),edge,4)
+				if not storm_marks.has(cell + Vector2i.DOWN):
+					draw_line(pos+Vector2(0,63),pos+Vector2(64,63),edge,4)
+				if not storm_marks.has(cell + Vector2i.LEFT):
+					draw_line(pos+Vector2(1,0),pos+Vector2(1,64),edge,4)
+				if not storm_marks.has(cell + Vector2i.RIGHT):
+					draw_line(pos+Vector2(63,0),pos+Vector2(63,64),edge,4)
 			if model.cat_zone_at(cell):
 				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
@@ -2596,43 +2603,6 @@ func _draw_storm_frame() -> void:
 		var length := 14.0 + (k % 4) * 6.0
 		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(0.45, 1.0, 0.9, 0.16))
 	_draw_tsunami()
-	_draw_thunder_sigil()
-
-## The lightning sigil: three magic circles (a ring, a cross of light and a bolt on each of the
-## three struck tiles) joined by glowing lines into one constellation.
-func _draw_thunder_sigil() -> void:
-	var marks: Array = model.storm.get("marks", [])
-	if marks.is_empty():
-		return
-	var centers: Array = model.storm.get("centers", [])
-	var pulse := 0.65 + 0.35 * sin(clock * 9.0)
-	var u := TILE / 64.0
-	var core := Color(1.0, 0.98, 0.7, 0.95)
-	var glow := Color(1.0, 0.85, 0.2, 0.35 * pulse)
-	# The links between the three circles: one closed figure.
-	if centers.size() >= 2:
-		var path := PackedVector2Array()
-		for center in centers:
-			path.append(_center(center))
-		path.append(_center(centers[0]))
-		draw_polyline(path, glow, 12.0 * u)
-		draw_polyline(path, Color(core, 0.8), 2.5 * u)
-		for i in range(centers.size()):
-			var a: Vector2 = _center(centers[i])
-			var b: Vector2 = _center(centers[(i + 1) % centers.size()])
-			draw_circle((a + b) / 2.0, 4.5 * u, core)
-	for center in centers:
-		var middle := _center(center)
-		# The arms of the cross, along the marked tiles.
-		for dir in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
-			var end_cell: Vector2i = center + Vector2i(dir)
-			if model.inside(end_cell):
-				draw_line(middle, _center(end_cell), glow, 12.0 * u)
-				draw_line(middle, _center(end_cell), core, 3.0 * u)
-				draw_circle(_center(end_cell), 5.0 * u, core)
-		draw_arc(middle, TILE * 0.78, 0, TAU, 40, glow, 8.0 * u)
-		draw_arc(middle, TILE * 0.78, 0, TAU, 40, core, 2.5 * u)
-		draw_polyline(PackedVector2Array([middle + Vector2(7, -26) * u, middle + Vector2(-8, -3) * u, middle + Vector2(7, -1) * u, middle + Vector2(-6, 27) * u]), core, 4.0 * u)
 
 ## The tsunami's warning: the tiles it will cover washed in cyan, and where each thing it
 ## carries will land (the wave itself rushes over the board when the enemy turn begins: _draw_fx).
@@ -2896,15 +2866,13 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"thunder_warn":
 			draw_circle(pos, 10 + 24 * t, Color(1.0, 0.95, 0.5, 0.5 * fade))
 		"thunder":
-			# The strike: the whole sigil flashes white and one great bolt falls on its middle tile.
-			var spot := pos
-			for tile in effect.get("cells", []):
-				draw_rect(Rect2(_center(tile) - Vector2.ONE * (TILE / 2 - 3), Vector2.ONE * (TILE - 6)), Color(1.0, 0.97, 0.7, 0.6 * fade))
+			# The strike: every tile of the three bolts flashes white and crackles.
 			var u := TILE / 64.0
-			var bolt := PackedVector2Array([spot + Vector2(8, -30) * u, spot + Vector2(-8, -6) * u, spot + Vector2(6, -4) * u, spot + Vector2(-10, 30) * u])
-			draw_circle(spot, TILE * 1.2 * fade, Color(1.0, 0.95, 0.5, 0.35 * fade))
-			draw_polyline(bolt, Color(1, 1, 1, fade), 9.0 * fade * u + 1)
-			draw_polyline(bolt, Color(1.0, 0.9, 0.3, fade), 3.0 * u)
+			for tile in effect.get("cells", []):
+				var c := _center(tile)
+				draw_rect(Rect2(c - Vector2.ONE * TILE / 2.0, Vector2.ONE * TILE), Color(1.0, 0.98, 0.75, 0.75 * fade))
+				var jag := PackedVector2Array([c + Vector2(10, -28) * u, c + Vector2(-6, -6) * u, c + Vector2(8, -2) * u, c + Vector2(-8, 26) * u])
+				draw_polyline(jag, Color(1, 1, 1, fade), 3.0 * u)
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)

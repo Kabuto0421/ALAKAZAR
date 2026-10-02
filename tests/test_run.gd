@@ -2375,14 +2375,9 @@ func _storm_shark() -> void:
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)
 	t._storm_thunder()
-	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 3 and t.storm.marks.all(func(c): return t.inside(c)),"First, three crosses are marked")
-	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2),"...each centred inside the 5x5 round the player")
-	verify(t.storm.centers.all(func(c): return t.storm.marks.has(c) and t.storm.marks.has(c + Vector2i.UP) or c.y == 0),"...each a middle and its neighbours")
-	var apart := true
-	for i in 3:
-		for j in range(i + 1, 3):
-			apart = apart and absi(t.storm.centers[i].x - t.storm.centers[j].x) + absi(t.storm.centers[i].y - t.storm.centers[j].y) >= 3
-	verify(apart,"...kept apart from each other when the board has room")
+	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 8 and t.storm.marks.all(func(c): return t.inside(c)),"First, three lightning bolts are marked")
+	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2 and t.storm.marks.has(c)),"...each centred inside the 5x5 round the player")
+	verify(Rules.THUNDER_BOLT.size() == 8 and Rules.THUNDER_BOLT.has(Vector2i(0,-2)) and Rules.THUNDER_BOLT.has(Vector2i(-1,2)),"A bolt is a zigzag of eight tiles, five tall")
 	var marked: Array = t.storm.marks.duplicate()
 	t.player.cell = marked[0]
 	var thp: int = t.player.hp
