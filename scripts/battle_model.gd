@@ -3029,7 +3029,7 @@ const THUNDER_SHAPES := [
 func _storm_thunder() -> void:
 	if not storm.marks.is_empty():
 		var cells: Array = storm.marks.duplicate()
-		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0] if not storm.centers.is_empty() else player.cell, "cells":cells})
+		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0] if not storm.centers.is_empty() else player.cell, "cells":cells, "groups":storm.groups.duplicate(true)})
 		storm.marks = []
 		storm.centers = []
 		storm.groups = []
