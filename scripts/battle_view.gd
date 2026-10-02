@@ -1774,6 +1774,18 @@ func _combo_color() -> Color:
 		return Color(0, 0, 0, 0)
 	return Color(Rules.WEAPONS[model.combo_boost].color)
 
+## The powered-up dagger's slot takes on its own aura: tongues of light and sparks rising inside it.
+func _draw_slot_aura(rect: Rect2, color: Color) -> void:
+	for i in range(10):
+		var x := rect.position.x + (float(i) + 0.5) * rect.size.x / 10.0
+		var h := rect.size.y * (0.35 + 0.3 * sin(clock * 7.0 + float(i) * 1.9))
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 9.0, rect.end.y), Vector2(x, rect.end.y - h), Vector2(x + 9.0, rect.end.y)]), Color(color.lightened(0.25), 0.55))
+	for i in range(14):
+		var phase := fposmod(clock * 1.1 + float(i) * 0.071, 1.0)
+		var x := rect.position.x + fposmod(float(i) * 37.0 + sin(clock + float(i)) * 8.0, rect.size.x)
+		var y := rect.end.y - phase * rect.size.y
+		draw_circle(Vector2(x, y), 3.5 * (1.0 - phase) + 1.0, Color(color.lightened(0.5), 0.9 * (1.0 - phase)))
+
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
 	if model.board_size < 7:
@@ -1814,9 +1826,7 @@ func _draw_weapons() -> void:
 			extras.append("溜め%d/%d" % [model.blade_charge, model.blade_max()])
 		if model.combo_boost == index:
 			extras.append("強化中")
-			var beat := 0.5 + 0.5 * sin(clock * 6.0)
-			draw_rect(rect.grow(-2),Color(accent,0.15 + 0.15 * beat))
-			draw_rect(rect.grow(-3),Color(accent,0.6 + 0.4 * beat),false,3)
+			_draw_slot_aura(rect.grow(-SLOT_FRAME), accent)
 		if extras.size() == 1 and not weapon.has("slide") and not Catalog.is_dagger(index) and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
 			extras.append("跳ぶ")
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.

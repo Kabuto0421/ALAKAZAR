@@ -270,20 +270,16 @@ var aura := Color(0, 0, 0, 0)
 ## A glow and rising sparks round the character, in the powered-up dagger's colour.
 func _draw_aura() -> void:
 	var t := Time.get_ticks_msec() / 1000.0
-	var pulse := 0.5 + 0.5 * sin(t * 6.0)
-	for k in range(5):
-		draw_circle(Vector2(0, 0), 62.0 - k * 9.0 + pulse * 5.0, Color(aura, 0.06 + 0.05 * k))
 	# Tongues of light licking up from the feet.
-	for i in range(6):
-		var x := -30.0 + float(i) * 12.0
-		var h := 34.0 + 22.0 * sin(t * 7.0 + float(i) * 1.9)
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 6.0, 24.0), Vector2(x, 24.0 - h), Vector2(x + 6.0, 24.0)]), Color(aura, 0.35))
+	for i in range(7):
+		var x := -33.0 + float(i) * 11.0
+		var h := 36.0 + 24.0 * sin(t * 7.0 + float(i) * 1.9)
+		draw_colored_polygon(PackedVector2Array([Vector2(x - 6.0, 26.0), Vector2(x, 26.0 - h), Vector2(x + 6.0, 26.0)]), Color(aura.lightened(0.25), 0.6))
 	for i in range(18):
 		var phase := fposmod(t * 1.1 + float(i) * 0.057, 1.0)
 		var x := sin(float(i) * 2.4 + t * 1.5) * 28.0
 		var y := 28.0 - phase * 90.0
 		draw_circle(Vector2(x, y), 4.5 * (1.0 - phase) + 1.0, Color(aura.lightened(0.5), 0.95 * (1.0 - phase)))
-	draw_arc(Vector2(0, 2), 44.0 + pulse * 4.0, 0.0, TAU, 48, Color(aura, 0.7), 3.0)
 
 func _draw() -> void:
 	if aura.a > 0.0 and kind == "player":
