@@ -875,6 +875,9 @@ func _feedback(weapon_attack: bool = false) -> void:
 			continue
 		if event.kind == "dive" and actors.has(int(event.id)):
 			actors[int(event.id)].play_pose("dive")
+		elif event.kind == "cross_strike":
+			chain_shake = 0.4
+			chain_shake_power = 10.0
 		elif event.kind == "thunder":
 			chain_shake = 0.45
 			chain_shake_power = 12.0
@@ -2886,6 +2889,67 @@ func _draw_thunder_strike(effect: Dictionary, t: float, fade: float) -> void:
 			draw_arc(hit, (20.0 + land * 150.0) * u, 0.0, TAU, 48, Color(0.8, 1.0, 1.0, 0.9 * glow), (9.0 - 6.0 * land) * u)
 			draw_arc(hit, (10.0 + land * 90.0) * u, 0.0, TAU, 40, Color(1, 1, 1, 0.8 * glow), 4.0 * u)
 
+## クロス短剣's finisher: a flame slash and a lightning slash cross over the target in an X,
+## then burst; the diagonal tiles the blow spreads to flash with small crosses.
+func _draw_cross_strike(effect: Dictionary, pos: Vector2, t: float, fade: float) -> void:
+	var u := TILE / 64.0
+	var reach := TILE * 1.45
+	var fire_a := pos + Vector2(-1.0, -0.8) * reach
+	var fire_b := pos + Vector2(1.0, 0.9) * reach
+	var bolt_a := pos + Vector2(-1.0, 0.8) * reach
+	var bolt_b := pos + Vector2(1.0, -0.9) * reach
+	# The flash behind the cross.
+	draw_circle(pos, (26.0 + 80.0 * minf(t * 2.0, 1.0)) * u, Color(1, 0.97, 0.88, 0.5 * pow(fade, 2.0)))
+	var fire_draw := clampf(t / 0.22, 0.0, 1.0)
+	var bolt_draw := clampf((t - 0.08) / 0.22, 0.0, 1.0)
+	var body := minf(1.0, fade * 1.6)
+	# Flame slash: a curved sweep from the upper left to the lower right.
+	if fire_draw > 0.0:
+		var arc := PackedVector2Array()
+		for i in range(0, 17):
+			var k := float(i) / 16.0
+			if k > fire_draw:
+				break
+			var bend := sin(k * PI) * 0.35 * reach
+			arc.append(fire_a.lerp(fire_b, k) + Vector2(1, -1).normalized() * bend)
+		if arc.size() >= 2:
+			draw_polyline(arc, Color(1.0, 0.25, 0.1, 0.55 * body), 26.0 * u)
+			draw_polyline(arc, Color(1.0, 0.55, 0.15, 0.85 * body), 15.0 * u)
+			draw_polyline(arc, Color(1.0, 0.95, 0.6, body), 6.0 * u)
+	# Lightning slash: a jagged bolt from the lower left to the upper right.
+	if bolt_draw > 0.0:
+		var jag := PackedVector2Array()
+		for i in range(0, 13):
+			var k := float(i) / 12.0
+			if k > bolt_draw:
+				break
+			var wobble := Vector2(1, 1).normalized() * (sin(float(i) * 2.6 + t * 40.0) * 9.0 * u if i > 0 and i < 12 else 0.0)
+			jag.append(bolt_a.lerp(bolt_b, k) + wobble)
+		if jag.size() >= 2:
+			draw_polyline(jag, Color(0.2, 0.55, 1.0, 0.5 * body), 24.0 * u)
+			draw_polyline(jag, Color(0.45, 0.85, 1.0, 0.85 * body), 13.0 * u)
+			draw_polyline(jag, Color(0.92, 0.98, 1.0, body), 5.0 * u)
+	# The burst where they cross.
+	if t > 0.2:
+		var b := clampf((t - 0.2) / 0.8, 0.0, 1.0)
+		draw_arc(pos, (14.0 + b * 90.0) * u, 0.0, TAU, 40, Color(1.0, 0.9, 0.7, (1.0 - b) * 0.9), (8.0 - 5.0 * b) * u)
+		draw_arc(pos, (8.0 + b * 60.0) * u, 0.0, TAU, 32, Color(0.6, 0.9, 1.0, (1.0 - b) * 0.9), 4.0 * u)
+		for i in range(10):
+			var angle := TAU * float(i) / 10.0 + 0.3
+			var spark_color: Color = Color(1.0, 0.6, 0.2) if i % 2 == 0 else Color(0.5, 0.85, 1.0)
+			var from := pos + Vector2.from_angle(angle) * (16.0 + b * 40.0) * u
+			var to := pos + Vector2.from_angle(angle) * (28.0 + b * 100.0) * u
+			draw_line(from, to, Color(spark_color, (1.0 - b)), 3.0 * u)
+	# The tiles the blow spreads to: a small flame-and-lightning cross on each.
+	if t > 0.28:
+		var s := clampf((t - 0.28) / 0.6, 0.0, 1.0)
+		for tile in effect.get("cells", []):
+			var c := _center(tile)
+			var r := TILE * 0.32 * (0.6 + 0.4 * s)
+			draw_line(c + Vector2(-r, -r), c + Vector2(r, r), Color(1.0, 0.55, 0.2, (1.0 - s)), 5.0 * u)
+			draw_line(c + Vector2(-r, r), c + Vector2(r, -r), Color(0.5, 0.85, 1.0, (1.0 - s)), 5.0 * u)
+			draw_circle(c, TILE * 0.22 * (1.0 - s), Color(1, 1, 1, 0.6 * (1.0 - s)))
+
 ## The drop: a white flash, shockwaves off the water, a column of light the shark is projected
 ## inside, glitch bars and a scan line sweeping the board.
 func _draw_shark_emerge(effect: Dictionary, t: float, fade: float) -> void:
@@ -2989,7 +3053,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -3130,6 +3194,8 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			_draw_tsunami_rush(effect, t, fade)
 		"emerge":
 			_draw_shark_emerge(effect, t, fade)
+		"cross_strike":
+			_draw_cross_strike(effect, pos, t, fade)
 		"dive":
 			# The shark breaks into glowing squares that drift apart.
 			var heart := pos + Vector2.ONE * TILE / 2

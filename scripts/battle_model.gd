@@ -1006,8 +1006,11 @@ func _player_action(cell: Vector2i) -> bool:
 			events.append({"kind":"arrow", "cell":cell, "from":player.cell, "id":-2})
 		# クロス短剣: boosted by the other half, the blow also lands on the four diagonal tiles.
 		if combo_boost == weapon and Catalog.is_dagger(weapon):
+			var spread: Array[Vector2i] = []
 			for side in DIAGONALS:
-				events.append({"kind":"slash", "cell":cell + side, "id":-2, "dir":Vector2i.RIGHT})
+				spread.append(cell + side)
+			events.append({"kind":"cross_strike", "cell":cell, "id":-2, "cells":spread})
+			for side in DIAGONALS:
 				var other := enemy_at(cell + side)
 				if not other.is_empty() and not struck.has(other):
 					struck.append(other)
