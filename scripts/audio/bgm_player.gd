@@ -4,6 +4,11 @@ extends Node
 
 const BATTLE = preload("res://assets/audio/bgm/battle_loop.ogg")
 const BOSS = preload("res://assets/audio/bgm/boss_loop.ogg")
+## The storm shark's song. The fight starts 46 s in: seven seconds of the shark lurking under the
+## water, then the drop at 53 s is its entrance. The loop afterwards starts at that drop.
+const SHARK = preload("res://assets/audio/bgm/storm_shark.mp3")
+const SHARK_START := 46.0
+const SHARK_DROP := 53.0
 ## Between fights: the draft (picks and rewards) and the camp.
 const DRAFT = preload("res://assets/audio/bgm/draft_loop.ogg")
 const CAMP = preload("res://assets/audio/bgm/camp_loop.ogg")
@@ -46,6 +51,9 @@ var duck_tween: Tween
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
 	add_child(player)
+	var shark_song: AudioStreamMP3 = SHARK
+	shark_song.loop = true
+	shark_song.loop_offset = SHARK_DROP
 	rotorick.stream_count = LAYER_ORDER.size()
 	for i in LAYER_ORDER.size():
 		rotorick.set_sync_stream(i, ROTORICK_LAYERS[LAYER_ORDER[i]])
@@ -57,14 +65,25 @@ func _ready() -> void:
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:
-	var fight: AudioStream = king if theme == "king" else BOSS if theme == "boss" else rotorick if theme == "rotorick" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
+	var fight: AudioStream = king if theme == "king" else BOSS if theme == "boss" else rotorick if theme == "rotorick" else SHARK if theme == "shark" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
 	var victory: AudioStream = KING_VICTORY if theme == "king" else VICTORY
 	var track: AudioStream = (victory if won else DEFEAT) if result_shown else fight
 	if player.stream == track:
 		return
 	player.stream = track
 	if not muted and not held:
-		player.play()
+		_play()
+
+## Start the current stream (the shark's song begins part-way in).
+func _play() -> void:
+	player.play(SHARK_START if player.stream == SHARK else 0.0)
+
+## Seconds into the shark's entrance (0 at the start, 7 at the drop), from the song itself so the
+## picture stays on the beat; -1 when the song is not playing.
+func shark_clock() -> float:
+	if player.stream != SHARK or not player.playing:
+		return -1.0
+	return player.get_playback_position() + AudioServer.get_time_since_last_mix() - SHARK_START
 
 func toggle_mute() -> void:
 	muted = not muted
@@ -72,7 +91,7 @@ func toggle_mute() -> void:
 	if muted:
 		player.stop()
 	elif not held:
-		player.play()
+		_play()
 
 ## Keep the music silent for a sting (the boss intros), then start it from the top.
 func hold(seconds: float) -> void:
@@ -85,7 +104,7 @@ func hold(seconds: float) -> void:
 		return
 	held = false
 	if not muted and player.stream != null:
-		player.play()
+		_play()
 
 ## Dip the music under a sting (the king's rage and fall) and bring it back.
 func duck(seconds: float, depth_db: float = -12.0) -> void:

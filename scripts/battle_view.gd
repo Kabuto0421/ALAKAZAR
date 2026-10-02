@@ -257,7 +257,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
-	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else "rotorick" if model.level == Rules.BOSS2_LEVEL else "battle"
+	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else ("shark" if model.boss2_variant == 1 else "rotorick") if model.level == Rules.BOSS2_LEVEL else "battle"
 	TILE = 64.0 if model.board_size <= 8 else floorf(512.0/model.board_size)
 	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
 	# 8x8 (and the shrunk 10x10) fill the full height between the header and the weapon cards.
@@ -287,10 +287,57 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		_boss_intro()
 	if model.level == Rules.FINAL_LEVEL:
 		_final_intro()
+	elif model.level == Rules.BOSS2_LEVEL and model.boss2_variant == 1:
+		_shark_intro()
 	elif model.level == Rules.BOSS2_LEVEL:
 		# Rotorick: the reels spin up before his music starts.
 		bgm.hold(1.9)
 		_sting("rotorick_intro")
+
+## The storm shark's entrance, on the song's own clock: seven seconds of it circling as a shadow
+## under the water (the build-up), then the drop at 53 s throws it up out of the water, rebuilt as
+## a hologram.
+const SHARK_LURK := 7.0
+var shark_intro := false
+var shark_intro_t := 0.0
+var shark_title_t := -1.0
+func _shark_intro() -> void:
+	busy = true
+	shark_intro = true
+	shark_intro_t = 0.0
+	shark_title_t = -1.0
+	var token := generation
+	_update_controls()
+	var shark: Dictionary = model.storm_shark()
+	if not shark.is_empty() and actors.has(int(shark.id)):
+		actors[int(shark.id)].visible = false
+		actors[int(shark.id)].holo_build = 0.0
+		actors[int(shark.id)].holo_goal = 0.0
+	while shark_intro_t < SHARK_LURK:
+		await get_tree().process_frame
+		if token != generation or not is_inside_tree():
+			return
+	if token != generation:
+		return
+	shark_intro = false
+	shark_title_t = 0.0
+	if not shark.is_empty() and actors.has(int(shark.id)):
+		var actor = actors[int(shark.id)]
+		actor.visible = true
+		actor.holo_goal = 1.0
+		actor.play_pose("surface")
+		actor.flash = 0.35
+	if not shark.is_empty():
+		flashes.append({"kind": "emerge", "cell": shark.cell, "id": int(shark.id), "life": FX_LIFE["emerge"], "max_life": FX_LIFE["emerge"]})
+	chain_shake = 0.55
+	chain_shake_power = 14.0
+	queue_redraw()
+	await get_tree().create_timer(1.1).timeout
+	if token != generation:
+		return
+	busy = false
+	_sync_units(false)
+	_update_controls()
 
 ## The Prison King's entrance: black-out, the throne hall, his name, then the fight.
 func _final_intro() -> void:
@@ -1002,7 +1049,7 @@ func _update_controls() -> void:
 	bgm.set_king_rage(model.king_enraged())
 	result_button.text = "報酬を選ぶ →" if model.phase == Rules.Phase.WON else "結果へ →"
 	for actor in actors.values():
-		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened
+		actor.visible = (not model.terminal() or busy) and not show_rules and not inventory_ui.opened and not (shark_intro and actor.kind == "storm_shark")
 	inventory_ui.model = model
 	inventory_ui.visible = not show_rules
 	inventory_ui.refresh(not busy and model.phase == Rules.Phase.PLAYER and not show_rules,selected_item)
@@ -1100,6 +1147,14 @@ func _update_time_overlay(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	clock += delta
+	if shark_intro:
+		# The song's own clock when it plays (so the drop lands on the beat); else our own.
+		var song: float = bgm.shark_clock()
+		shark_intro_t = song if song >= 0.0 else shark_intro_t + delta
+	if shark_title_t >= 0.0:
+		shark_title_t += delta
+		if shark_title_t > 3.2:
+			shark_title_t = -1.0
 	if title_button.text == TITLE_SURE and clock - title_asked_at > 3.0:
 		title_button.text = TITLE_LABEL
 		title_button.remove_theme_color_override("font_color")
@@ -1261,6 +1316,7 @@ func _draw() -> void:
 	_draw_weapons()
 	_draw_intel()
 	_draw_flashes()
+	_draw_shark_title()
 	var turn_text := "敵のターン" if busy and model.phase==Rules.Phase.ENEMY else "あなたのターン"
 	if model.board_size >= 8:
 		# The 8x8 board reaches up here, so the turn label moves into the player panel.
@@ -2602,7 +2658,74 @@ func _draw_storm_frame() -> void:
 		var fall := fposmod(clock * (90.0 + (k % 5) * 25.0) + float(k) * 71.0, extent.y + 40.0) - 20.0
 		var length := 14.0 + (k % 4) * 6.0
 		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(0.45, 1.0, 0.9, 0.16))
+	if shark_intro:
+		_draw_shark_lurk()
+		return
 	_draw_tsunami()
+
+## The entrance's first seven seconds: the board seen from above the water, the shark only a
+## dark shape circling below, closing in on where it will rise as the music builds.
+func _draw_shark_lurk() -> void:
+	var t: float = clampf(shark_intro_t, 0.0, SHARK_LURK)
+	var build := t / SHARK_LURK
+	var extent := Vector2.ONE * model.board_size * TILE
+	var mid := BOARD + extent / 2.0
+	var u := TILE / 64.0
+	draw_rect(Rect2(BOARD, extent), Color(0.0, 0.08, 0.16, 0.38 + 0.2 * build))
+	# Light rippling on the water: slow bands of cyan sliding across.
+	for k in range(7):
+		var y := fposmod(clock * 22.0 + float(k) * extent.y / 7.0, extent.y)
+		draw_rect(Rect2(BOARD + Vector2(0, y), Vector2(extent.x, 2.0)), Color(0.5, 1.0, 1.0, 0.05 + 0.05 * build))
+	var shark := model.storm_shark()
+	var home: Vector2 = mid
+	if not shark.is_empty():
+		home = BOARD + (Vector2(shark.cell) + Vector2.ONE) * TILE
+	# The shadow: a wide ellipse around the board that tightens onto the spot it will rise from.
+	var close := ease(clampf((t - 4.6) / 2.2, 0.0, 1.0), 0.5)
+	var angle := 1.2 + t * (0.9 + 0.8 * build)
+	var orbit := mid + Vector2(cos(angle) * extent.x * 0.36, sin(angle) * extent.y * 0.3)
+	var at := orbit.lerp(home, close)
+	var moving := Vector2(-sin(angle), cos(angle) * 0.8)
+	var size := 156.0 * u * (1.05 + 0.5 * close)
+	var shade := Color(0.0, 0.03, 0.08, 0.5 + 0.2 * close)
+	var rect := Rect2(at - Vector2.ONE * size / 2.0, Vector2.ONE * size)
+	if moving.x > 0.0 and close < 0.8:
+		rect = Rect2(rect.position + Vector2(size, 0), Vector2(-size, size))
+	draw_texture_rect(UnitView.STORM_SHARK, rect, false, shade)
+	# Ripples breathing out of it, faster as the drop nears.
+	var rate := 0.9 + 1.6 * build
+	for k in range(4):
+		var phase := fposmod(clock * rate + float(k) * 0.25, 1.0)
+		draw_arc(at, (14.0 + phase * 110.0) * u, 0.0, TAU, 48, Color(0.55, 1.0, 1.0, (1.0 - phase) * (0.3 + 0.4 * build)), 2.0 * u)
+	# Where it will break the surface: a hologram marker drawing itself in.
+	if t > 3.0:
+		var m := clampf((t - 3.0) / 4.0, 0.0, 1.0)
+		var ring := TILE * 1.15
+		draw_arc(home, ring, -PI / 2.0, -PI / 2.0 + TAU * m, 48, Color(0.6, 1.0, 1.0, 0.5 + 0.4 * m), 3.0 * u)
+		draw_arc(home, ring * (0.55 + 0.1 * sin(clock * 9.0)), 0.0, TAU, 32, Color(1.0, 0.45, 0.5, 0.35 * m), 2.0 * u)
+	# The last second: the whole board flickers with the riser.
+	if t > 6.0:
+		var flick := (t - 6.0) * (0.12 + 0.1 * sin(clock * 40.0))
+		draw_rect(Rect2(BOARD, extent), Color(0.7, 1.0, 1.0, maxf(flick, 0.0)))
+
+## The title card after the drop.
+func _draw_shark_title() -> void:
+	if shark_title_t < 0.0:
+		return
+	var fade := clampf(minf(shark_title_t / 0.25, (3.2 - shark_title_t) / 0.7), 0.0, 1.0)
+	var glitch := Vector2(sin(clock * 53.0) * 5.0, 0.0) if shark_title_t < 0.5 else Vector2.ZERO
+	var middle := BOARD + Vector2.ONE * model.board_size * TILE / 2.0
+	var latin := "STORM SHARK"
+	var jp := "嵐　鮫"
+	var latin_w := 56.0 * 0.62 * float(latin.length())
+	var base := middle + Vector2(-latin_w / 2.0, TILE * 1.2)
+	draw_string_outline(ui_font, base + glitch + Vector2(-3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.9 * fade))
+	draw_string(ui_font, base + glitch + Vector2(-3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(1.0, 0.3, 0.45, 0.45 * fade))
+	draw_string(ui_font, base + glitch + Vector2(3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(0.3, 0.5, 1.0, 0.45 * fade))
+	draw_string(ui_font, base + glitch, latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(0.7, 1.0, 1.0, fade))
+	var jp_base := base + Vector2(latin_w / 2.0 - 64.0, 56.0)
+	draw_string_outline(ui_font, jp_base, jp, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, 8, Color(0.02, 0.1, 0.12, 0.9 * fade))
+	draw_string(ui_font, jp_base, jp, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.6, 1.0, 0.95, fade))
 
 ## The tsunami's warning: the tiles it will cover washed in cyan, and where each thing it
 ## carries will land (the wave itself rushes over the board when the enemy turn begins: _draw_fx).
@@ -2650,6 +2773,29 @@ func _draw_tsunami() -> void:
 	var label_at: Vector2 = BOARD + Vector2(0, -16)
 	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
 	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
+
+## The drop: a white flash, shockwaves off the water, a column of light the shark is projected
+## inside, glitch bars and a scan line sweeping the board.
+func _draw_shark_emerge(effect: Dictionary, t: float, fade: float) -> void:
+	var extent := Vector2.ONE * model.board_size * TILE
+	var u := TILE / 64.0
+	var at := BOARD + (Vector2(effect.cell) + Vector2.ONE) * TILE
+	draw_rect(Rect2(BOARD, extent), Color(0.85, 1.0, 1.0, 0.75 * pow(fade, 3.0)))
+	for k in range(3):
+		var r := clampf(t * 1.8 - float(k) * 0.18, 0.0, 1.0)
+		if r > 0.0:
+			draw_arc(at, (20.0 + r * 330.0) * u, 0.0, TAU, 64, Color(0.6, 1.0, 1.0, (1.0 - r) * 0.9), (7.0 - 4.0 * r) * u)
+	var width := TILE * 2.2 * (1.0 - clampf(t * 1.6, 0.0, 1.0)) + 6.0
+	draw_rect(Rect2(at.x - width / 2.0, BOARD.y, width, at.y - BOARD.y + TILE), Color(0.6, 1.0, 1.0, 0.35 * fade))
+	draw_rect(Rect2(at.x - width / 6.0, BOARD.y, width / 3.0, at.y - BOARD.y + TILE), Color(1, 1, 1, 0.6 * fade))
+	if t < 0.55:
+		for k in range(9):
+			var seedv := float((int(clock * 24.0) * 31 + k * 17) % 97) / 97.0
+			var y := BOARD.y + seedv * extent.y
+			var shift := (float((k * 13 + int(clock * 24.0)) % 11) - 5.0) * 7.0
+			draw_rect(Rect2(BOARD.x + shift, y, extent.x * (0.3 + 0.5 * seedv), 3.0 + 6.0 * seedv), Color(0.7, 1.0, 1.0, 0.45 * (1.0 - t / 0.55)))
+	var sweep_y := BOARD.y + clampf(t * 1.6, 0.0, 1.0) * extent.y
+	draw_rect(Rect2(BOARD.x, sweep_y - 2.0, extent.x, 4.0), Color(1, 1, 1, 0.8 * fade))
 
 ## The great wave itself: a body of water with a curling crest sweeping across the whole board
 ## the way the tsunami runs, foam and spray along its front, then draining away.
@@ -2731,7 +2877,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2870,6 +3016,8 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			_draw_quake(effect, pos, t)
 		"tsunami":
 			_draw_tsunami_rush(effect, t, fade)
+		"emerge":
+			_draw_shark_emerge(effect, t, fade)
 		"dive":
 			# The shark breaks into glowing squares that drift apart.
 			var heart := pos + Vector2.ONE * TILE / 2
