@@ -738,6 +738,9 @@ func _sync_units(animate: bool) -> void:
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
 		var target := _unit_center(unit)
+		if id == -1 and model.riding_wheel():
+			# Standing on the wheel: lifted a little above it.
+			target += Vector2(0, -14.0 * TILE / 64.0)
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
@@ -1419,7 +1422,7 @@ func _draw_board() -> void:
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
 				# The wheel turns under whoever rides it.
-				SpiritIcon.paint(self,mid + Vector2(0, 14 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,0.95)
+				SpiritIcon.paint(self,mid + Vector2(0, 8 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,1.25 if model.riding_wheel() else 0.95)
 				_turn_badge(pos,int(model.wheel.turns))
 			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
