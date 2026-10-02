@@ -67,24 +67,34 @@ for f in sorted(glob.glob("items/*.tres")):
     if m:
         paths.append(m.group(1))
 bg = frame((43, 220, 200), rings=False)
-# A soft teal glow behind the crowd instead of the dark ring-shaped panel.
+# Light rays and a glow behind the gathering.
 glow_layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
 gd = ImageDraw.Draw(glow_layer)
-for r, a in ((124, 14), (100, 16), (74, 18)):
-    gd.ellipse((128 - r, 128 - r, 128 + r, 128 + r), fill=(43, 220, 200, a))
+for k in range(16):
+    a0 = k * math.tau / 16
+    a1 = a0 + math.tau / 32
+    gd.polygon([(128, 128), (128 + math.cos(a0) * 190, 128 + math.sin(a0) * 190), (128 + math.cos(a1) * 190, 128 + math.sin(a1) * 190)], fill=(255, 235, 160, 16))
+for r, a in ((118, 16), (88, 20), (58, 26), (34, 34)):
+    gd.ellipse((128 - r, 128 - r, 128 + r, 128 + r), fill=(120, 240, 220, a))
 bg.alpha_composite(glow_layer)
-rows = [5, 4, 5, 4, 4]
-assert sum(rows) >= len(paths), "more fairies than the icon has room for: add a row"
-cell = 47
-y = 128 - cell * len(rows) / 2 + cell / 2
-k = 0
-for count in rows:
-    x0 = 128 - cell * count / 2 + cell / 2
+# A crowd gathered round its leader: 1 in the middle, then rings of 7 and 14, the
+# nearer ones in front (drawn last).
+leader = paths[0] if not any("magic_bolt" in x for x in paths) else next(x for x in paths if "magic_bolt" in x)
+others = [x for x in paths if x != leader]
+placed = [(leader, 128, 128, 84)]
+for ring, (count, radius, size, offset) in enumerate(((7, 56, 56, -math.pi / 2), (14, 98, 46, -math.pi / 2 + 0.2))):
     for i in range(count):
-        if k < len(paths):
-            put(bg, sprite(paths[k]), x0 + i * cell, y, cell)
-            k += 1
-    y += cell
+        if not others:
+            break
+        ang = offset + i * math.tau / count
+        placed.append((others.pop(0), 128 + math.cos(ang) * radius, 128 + math.sin(ang) * radius * 0.96, size))
+assert not others, "more fairies than the gathering has room for: add a ring"
+# Back to front, so the lower ones overlap the upper ones a little.
+for path, x, y, size in sorted(placed, key=lambda t: t[2]):
+    shadow = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse((x - size * 0.3, y + size * 0.3, x + size * 0.3, y + size * 0.46), fill=(0, 0, 0, 70))
+    bg.alpha_composite(shadow)
+    put(bg, sprite(path), x, y, size)
 save(bg, "fairy_master")
 
 # Not earned yet: a question mark in the same frame (red for Y O U　 D I E D).
