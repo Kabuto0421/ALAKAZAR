@@ -2901,7 +2901,7 @@ func _draw_cross_strike(effect: Dictionary, pos: Vector2, t: float, fade: float)
 	# The flash behind the cross.
 	draw_circle(pos, (26.0 + 80.0 * minf(t * 2.0, 1.0)) * u, Color(1, 0.97, 0.88, 0.5 * pow(fade, 2.0)))
 	var fire_draw := clampf(t / 0.22, 0.0, 1.0)
-	var bolt_draw := clampf((t - 0.08) / 0.22, 0.0, 1.0)
+	var bolt_draw := fire_draw
 	var body := minf(1.0, fade * 1.6)
 	# Flame slash: a curved sweep from the upper left to the lower right.
 	if fire_draw > 0.0:
