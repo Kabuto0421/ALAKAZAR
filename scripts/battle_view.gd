@@ -741,7 +741,7 @@ func _sync_units(animate: bool) -> void:
 		view.hearts_above = id == -1 and model.riding_wheel()
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
-			target += Vector2(10.0, -34.0) * TILE / 64.0
+			target += Vector2(7.0, -25.0) * TILE / 64.0
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
@@ -1344,10 +1344,10 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,lit))
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,0.5),false,1)
 			if model.cat_zone_at(cell):
-				# 猫の妖精's field: a cool teal ground, with a slow ring of light.
+				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.45,0.85,0.8,glow))
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.6,1.0,0.9,0.5),false,1)
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.71,0.88,0.29,glow))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.8,1.0,0.4,0.55),false,1)
 			if hammer_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1,0.55,0.25,0.25))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ffa45a"),false,3)
@@ -1423,7 +1423,7 @@ func _draw_board() -> void:
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
 			if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
 				# The wheel turns under whoever rides it.
-				SpiritIcon.paint(self,mid + Vector2(0, 8 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,1.25 if model.riding_wheel() else 0.95)
+				SpiritIcon.paint(self,mid + Vector2(0, 8 if model.riding_wheel() else 0),model.item_definition("wheel_fairy").icon,0.9)
 				_turn_badge(pos,int(model.wheel.turns))
 			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
