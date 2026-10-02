@@ -5,6 +5,7 @@ extends Control
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
 const Units = preload("res://scripts/unit_view.gd")
 const STEALTH = preload("res://assets/sprites/spirits/stealth_fairy.png")
+const WALL = preload("res://assets/sprites/spirits/wall_fairy.png")
 const GOLD := Color("ffd35b")
 
 var hp := 0
@@ -27,8 +28,8 @@ func _draw() -> void:
 			draw_rect(Rect2(ap_x + 26 + i * 22, 3, 18, 16), GOLD)
 		y += 26
 	if calls:
-		var icons := [[STEALTH, Rect2()], [Units.ACORN, Rect2()], [Units.WOLF_SHEET, Rect2(288,36,192,192)], [Units.HOLY_SPIRIT, Rect2()], [Units.GLUTTON, Rect2()]]
-		var names := ["隠密", "どんぐり", "一匹狼", "聖精霊", "暴食"]
+		var icons := [[STEALTH, Rect2()], [Units.ACORN, Rect2()], [Units.WOLF_SHEET, Rect2(288,36,192,192)], [Units.HOLY_SPIRIT, Rect2()], [Units.GLUTTON, Rect2()], [WALL, Rect2()]]
+		var names := ["隠密", "どんぐり", "一匹狼", "聖精霊", "暴食", "壁"]
 		var step := size.x / icons.size()
 		for k in icons.size():
 			var center := Vector2(step * (k + 0.5), y + 11)

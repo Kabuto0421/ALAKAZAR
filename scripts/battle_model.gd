@@ -16,7 +16,7 @@ const BIG_FAIRIES = ["axe_spirit", "holy_spirit", "guardian_fairy"]
 ## The two knights a broken holy spirit leaves: HP 2, AP 2 (like the executioner).
 const HOLY_KNIGHT_HP := 2
 const HOLY_KNIGHT_AP := 2
-const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精", "guardian": "守護神"}
+const ALLY_NAMES = {"acorn": "どんぐり妖精", "holy": "聖精霊", "holy_knight": "聖騎士", "wolf": "一匹狼の妖精", "glutton": "暴食妖精", "guardian": "守護神", "wall": "壁精霊"}
 ## Summoned allies, by fairy: HP, AP and HP once classed up. The summons, the reward
 ## cards, the ally panel and every text that quotes these numbers read them from here.
 const SUMMON_STATS := {
@@ -25,9 +25,10 @@ const SUMMON_STATS := {
 	"guardian_fairy": {"hp": 3, "ap": 1, "hp_plus": 4},
 	"holy_spirit": {"hp": 1, "ap": 1, "hp_plus": 1},
 	"lone_wolf": {"hp": 3, "ap": 2, "hp_plus": 3},
+	"wall_fairy": {"hp": 5, "ap": 0, "hp_plus": 5},
 }
 ## Which fairy each summoned ally type comes from.
-const ALLY_FAIRY := {"acorn": "acorn_fairy", "glutton": "glutton_fairy", "guardian": "guardian_fairy", "holy": "holy_spirit", "wolf": "lone_wolf"}
+const ALLY_FAIRY := {"acorn": "acorn_fairy", "glutton": "glutton_fairy", "guardian": "guardian_fairy", "holy": "holy_spirit", "wolf": "lone_wolf", "wall": "wall_fairy"}
 ## 守護神の妖精: HP added to every ally it calls back.
 const GUARDIAN_BONUS_HP := 1
 ## 暴食妖精: HP gained per bite.
@@ -188,7 +189,7 @@ const PLUS_TEXT := {
 	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に{stealth}。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
 	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
-	"wall_fairy": ["{turns}ターン残る3マスの壁", "攻撃範囲の空きマスから、選んだ\n向きへ一直線に3マスの壁を置く。\n置いたターンを含め{turns}ターン\n完全な障害物として残る。"],
+	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
@@ -263,7 +264,7 @@ func _fresh_stats() -> Dictionary:
 	return {"max_chain": 0, "placed_rounds": [], "guardian_calls": 0, "eaten": false, "fairy_set_off": false, "circles": 0}
 
 ## The fairies that are put down on the board and stay (the cards' 設置 label).
-const PLACED_FAIRIES := ["stealth_fairy", "wall_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit"]
+const PLACED_FAIRIES := ["stealth_fairy", "cannon_fairy", "vane_cannon", "firework_fairy", "capacitor_fairy", "shadow_stitch", "blessing_fairy", "abyss_spirit"]
 
 ## How many 設置 fairies were put down within the last WALL_TURNS rounds (so still standing).
 func placed_recently() -> int:
@@ -599,7 +600,7 @@ static func text_values(id: String) -> Dictionary:
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy"]
+const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy"]
 const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy"]
 ## A fairy's AP and uses per battle come only from its item data (ap_cost,
 ## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
@@ -628,7 +629,7 @@ static func ally_ap(type: String) -> int:
 
 ## Directional fairies ask for a direction after the tile (the upgraded wall does too).
 func is_directional(id: String) -> bool:
-	return item_definition(id).directional or (id in ["wall_fairy", "slash_fairy"] and is_plus(id))
+	return item_definition(id).directional or (id == "slash_fairy" and is_plus(id))
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -1273,6 +1274,7 @@ func summon_guardian(cell: Vector2i) -> void:
 			"acorn": summon_acorn(spot)
 			"glutton": summon_glutton(spot)
 			"wolf": summon_wolf(spot)
+			"wall": summon_wall(spot)
 			"holy": summon_holy(spot)
 			"stealth":
 				place_stealth(spot)
@@ -1836,6 +1838,10 @@ func act_allies() -> void:
 		if ally.hp <= 0 or terminal():
 			continue
 		ally.ap = 1
+		if ally.type == "wall":
+			# A wall never acts: it stands there until the enemy breaks it.
+			ally.ap = 0
+			continue
 		if ally.type in ["holy", "guardian"]:
 			# The guardian moves and strikes like the holy spirit.
 			_holy_action(ally)
@@ -1962,21 +1968,13 @@ func _holy_distance(holy: Dictionary) -> int:
 
 # --- wall, cannon and slash fairies ---------------------------------------
 
-func place_wall(cell: Vector2i) -> void:
-	walls[cell] = WALL_TURNS
+## 壁精霊: a wall that is an ally (HP 5, AP 0). Enemies and the player cannot pass it, it
+## never acts, and the enemy goes for it when it stands next to one.
+func summon_wall(cell: Vector2i) -> void:
+	allies.append({"id":next_ally_id, "type":"wall", "cell":cell, "hp":summon_hp("wall_fairy"), "ap":0, "facing":1, "plus":is_plus("wall_fairy")})
+	_note_summon("wall")
+	next_ally_id -= 1
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"wall"})
-
-## The upgraded wall: up to two more tiles in a straight line from the first,
-## stopping at the first tile that is taken or off the board.
-func wall_extension(cell: Vector2i, direction: Vector2i) -> Array[Vector2i]:
-	var result: Array[Vector2i] = []
-	if not CARDINALS.has(direction):
-		return result
-	var next := cell + direction
-	while result.size() < 2 and inside(next) and not blocked(next) and next != player.cell and enemy_at(next).is_empty():
-		result.append(next)
-		next += direction
-	return result
 
 ## A forged swap weapon's free swap is still unused this turn.
 func free_swap_ready() -> bool:
@@ -2287,10 +2285,7 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 		result.append(origin)
 	if id == "axe_spirit":
 		return axe_preview(origin, direction)
-	if id == "wall_fairy":
-		result.append(origin)
-		result.append_array(wall_extension(origin, direction))
-	elif id == "slash_fairy":
+	if id == "slash_fairy":
 		result.append_array(slash_cells(origin, direction) if is_plus(id) else side_slash_cells(origin))
 	elif id in ["cannon_fairy", "vane_cannon"]:
 		result.append_array(cannon_line(origin, direction, []))

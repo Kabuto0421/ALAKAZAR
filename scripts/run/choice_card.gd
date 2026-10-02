@@ -12,7 +12,7 @@ const RarityFrame = preload("res://scripts/run/rarity_frame.gd")
 ## or 使い切り (works once, right away).
 const KINDS := {
 	"acorn_fairy": "召喚", "holy_spirit": "召喚", "lone_wolf": "召喚", "glutton_fairy": "召喚", "guardian_fairy": "召喚",
-	"stealth_fairy": "設置", "wall_fairy": "設置", "cannon_fairy": "設置", "vane_cannon": "設置", "firework_fairy": "設置",
+	"stealth_fairy": "設置", "wall_fairy": "召喚", "cannon_fairy": "設置", "vane_cannon": "設置", "firework_fairy": "設置",
 	"capacitor_fairy": "設置", "shadow_stitch": "設置", "blessing_fairy": "設置", "abyss_spirit": "設置",
 }
 const KIND_COLORS := {"召喚": Color("7dff9a"), "設置": Color("9fd8ff"), "使い切り": Color("ffd08a")}

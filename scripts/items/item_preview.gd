@@ -186,14 +186,16 @@ static func _warp(time: float, accent: Color, art: Texture2D) -> void:
 	else:
 		_player(end)
 
-## A wall for five turns: nothing gets through.
+## A wall ally (HP 5, AP 0): nothing gets through, it never acts, and the enemy that
+## reaches it breaks it a heart at a time.
 static func _wall(time: float, art: Texture2D) -> void:
-	var p := _cycle(time, 2.6)
+	var p := _cycle(time, 4.0)
+	var hits := (1 if p > 0.4 else 0) + (1 if p > 0.7 else 0)
 	_art(art, Vector2(2,1))
-	var bump := sin(_ph(p, 0.4, 0.55) * PI) * 0.18
-	_enemy(Vector2(4,1).lerp(Vector2(3,1), _ph(p, 0.05, 0.35)) - Vector2(bump, 0))
-	if p > 0.5:
-		_cross(_center(Vector2(2.5,1)), 9)
+	_enemy(Vector2(4,1).lerp(Vector2(3,1), _ph(p, 0.05, 0.3)) - Vector2(sin(_ph(p, 0.4, 0.5) * PI) * 0.18 + sin(_ph(p, 0.7, 0.8) * PI) * 0.18, 0))
+	_say(_center(Vector2(2,0)) + Vector2(0, 8), "HP %d  AP 0" % (5 - hits), 13, GOLD)
+	_pop(Vector2(2,1), "−1", _ph(p, 0.4, 0.75), RED, 0, 20)
+	_pop(Vector2(2,1), "−1", _ph(p, 0.7, 1.0), RED, 0, 20)
 
 ## Hit its tile to fire down its line (two volleys once upgraded).
 static func _cannon(time: float, accent: Color, art: Texture2D, plus: bool) -> void:
@@ -820,6 +822,7 @@ static func _guardian(time: float) -> void:
 		[Vector2(4,1), Units.WOLF_SHEET, Rect2(800,36,192,192), 1.0, true],
 		[Vector2(4,2), Units.GLUTTON, Rect2(), 1.0, true],
 		[Vector2(0,1), Units.HOLY_SPIRIT, Rect2(), 2.0, true],
+		[Vector2(1,0), WALL, Rect2(), 1.0, true],
 	]
 	for k in calls.size():
 		var call: Array = calls[k]

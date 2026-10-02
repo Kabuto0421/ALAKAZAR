@@ -39,7 +39,7 @@ const PAGES := [
 		{"shots": ["fairy_once_a", "fairy_once_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "呼ぶとAP1", "sub": "1戦闘1回\n（クラスアップで\n変わるものもあり）"},
 		{"shots": ["fairy_range_a", "fairy_range_b"], "tags": ["前進剣のとき", "前斜剣のとき"], "caption": "置ける場所は武器次第"},
 	]},
-	{"title": "設置系の妖精", "lead": "壁・大砲・隠密妖精などの設置系は、置いたターンを含めて%dターンで消える。右下の数字が残りのターン。" % Rules.WALL_TURNS, "items": [
+	{"title": "設置系の妖精", "lead": "大砲・隠密妖精などの設置系は、置いたターンを含めて%dターンで消える。右下の数字が残りのターン。" % Rules.WALL_TURNS, "items": [
 		{"shots": ["cannon_a", "cannon_b"], "tags": ["大砲", "叩く −1 AP"], "caption": "大砲は武器で叩くと発射", "sub": "向きの直線上の敵すべてに1"},
 	]},
 	{"title": "敵にもAPがある", "lead": "敵にもAPがあり、移動も攻撃も1AP。同じ2マス先からでも、AP1の敵は寄るだけ、AP2の敵は寄ってそのまま殴ってくる。", "items": [

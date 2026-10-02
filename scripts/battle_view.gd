@@ -1891,6 +1891,7 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 ## Allies' portraits for the inspector: [texture, rect(, frame size for direction sheets)].
 const ALLY_PORTRAITS = {
 	"acorn": [UnitView.ACORN, Rect2(-28,-30,56,56)],
+	"wall": [UnitView.WALL, Rect2(-28,-30,56,56)],
 	"glutton": [UnitView.GLUTTON, Rect2(-28,-30,56,56)],
 	"wolf": [UnitView.WOLF_SHEET, Rect2(-32,-36,64,64), 256],
 	"holy": [UnitView.HOLY_SPIRIT, Rect2(-30,-32,60,60)],
@@ -1930,6 +1931,9 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			if ally.type == "holy_knight":
 				lines = ["敵より先に動く", "AP%d：隣の敵に1か、敵へ1歩" % Rules.HOLY_KNIGHT_AP, "これを1ターンに%d回" % Rules.HOLY_KNIGHT_AP]
 			intent = "近くの敵を攻撃"
+		"wall":
+			lines = ["敵も自分も通れない壁", "動かず、何もしない", "敵は隣にあると壊しにくる"]
+			intent = "ただ立っている"
 		"wolf":
 			moves = Rules.WOLF_MOVES
 			strikes = Rules.WOLF_MOVES

@@ -1,6 +1,7 @@
 extends Node2D
 
 const ACORN = preload("res://assets/sprites/spirits/acorn_fairy.png")
+const WALL = preload("res://assets/sprites/spirits/wall_fairy.png")
 ## The Prison King and his fortresses: 256px sprite-sheet frames in one row.
 const KING_SHEETS = {
 	"idle": [preload("res://assets/sprites/boss/prison_king_idle.png"), 6, 5.0],
@@ -298,6 +299,8 @@ func _draw() -> void:
 			_draw_player_sprite(PLAYER_ATLAS, source, weapon_row == 2 and facing == 2, tint)
 	elif kind == "acorn":
 		draw_texture_rect(ACORN,Rect2(-30,-35,60,60),false,tint)
+	elif kind == "wall":
+		draw_texture_rect(WALL,Rect2(-32,-38,64,64),false,tint)
 	elif kind == "wolf":
 		if sulking:
 			# Curled up with its back to the player.
@@ -401,7 +404,7 @@ static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, al
 	canvas.draw_texture_rect_region(sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind == "player" else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
+	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
 	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
 	max_hp = maxi(max_hp, hp)
 	var total := max_hp*11.0-1.0

@@ -303,24 +303,32 @@ func _initialize() -> void:
 	_achievement_scenarios()
 	_stealth_big()
 	_big_placement()
+	_guardian_wall()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
 
 func _new_fairies() -> void:
 	var planner := Planner.new()
-	# Wall spirit: a full obstacle for the placement turn and the next two.
+	# Wall spirit: an ally wall (HP 5, AP 0) that blocks its tile and the enemy breaks.
 	var m := fixture()
 	m.fairy_loadout.assign(["wall_fairy","cannon_fairy","slash_fairy"])
 	m.refill_fairies()
 	m.weapon = 0
-	verify(m.use_item("wall_fairy",Vector2i(2,2)) and m.blocked(Vector2i(2,2)),"Wall spirit blocks its tile")
+	m.enemies.clear()
+	verify(m.use_item("wall_fairy",Vector2i(2,2)) and m.blocked(Vector2i(2,2)) and m.allies.size() == 1 and m.allies[0].type == "wall","Wall spirit is an ally that blocks its tile")
+	verify(m.allies[0].hp == 5 and m.allies[0].ap == 0 and Rules.summon_ap("wall_fairy") == 0,"HP 5 and AP 0")
 	verify(not m.player_action(Vector2i(2,2)),"Player cannot walk into a wall")
-	for turn in range(Rules.WALL_TURNS):
-		verify(m.walls.has(Vector2i(2,2)),"Wall stands on player turn %d" % (turn+1))
-		planner.begin(m)
-		planner.finish(m)
-	verify(not m.walls.has(Vector2i(2,2)),"Wall crumbles before the sixth player turn")
+	m.enemies.append(m.make_enemy("heavy",Vector2i(3,2),0))
+	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),1))
+	for turn in range(3):
+		_enemy_turn(m)
+	var wall_left: int = m.allies[0].hp if not m.allies.is_empty() else 0
+	verify(wall_left < 5,"An enemy beside the wall goes for it and chips its HP")
+	verify(not m.walls.has(Vector2i(2,2)) and not m.allies.is_empty() or wall_left <= 0,"The wall does not crumble by turns any more, only by damage")
+	m.allies[0].hp = 0 if not m.allies.is_empty() else 0
+	m._bury_allies()
+	verify(m.allies.is_empty() and not m.blocked(Vector2i(2,2)),"A broken wall leaves the tile free")
 
 	# Lance cannon fires along its set direction when its tile is attacked.
 	m = fixture()
@@ -1143,10 +1151,9 @@ func _class_ups() -> void:
 	m = _plus_room("warp_fairy",[Vector2i(5,5)])
 	m.player.ap = 0
 	verify(m.fairy_ap_cost("warp_fairy") == 0 and m.use_item("warp_fairy",Vector2i(0,0)) and m.player.cell == Vector2i(0,0),"Warp+ works with 0 AP")
-	# Wall+: two tiles in the chosen direction.
+	# Wall+: costs 0 AP and comes twice, like the acorn.
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
-	verify(m.is_directional("wall_fairy") and not m.use_item("wall_fairy",Vector2i(2,2)),"Wall+ asks for a direction")
-	verify(m.use_item("wall_fairy",Vector2i(2,2),Vector2i.DOWN) and m.walls.has(Vector2i(2,2)) and m.walls.has(Vector2i(2,3)) and m.walls.has(Vector2i(2,4)) and m.walls.size() == 3,"Wall+ builds a three-tile line")
+	verify(m.fairy_ap_cost("wall_fairy") == 0 and m.fairy_charges == [2] and not m.is_directional("wall_fairy"),"Wall+ costs 0 AP and comes twice (no direction any more)")
 	# Lance cannon+: one shot as before, but 0 AP to place and two per battle.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
 	verify(m.fairy_ap_cost("cannon_fairy") == 0 and m.fairy_charges == [2],"Lance cannon+ costs 0 AP and comes twice")
@@ -2180,3 +2187,14 @@ func _big_placement() -> void:
 	var anchor: Vector2i = m.big_anchor(Vector2i(2,2))
 	verify(anchor != Vector2i(2,2) and anchor != Vector2i(-1,-1) and anchor.x <= 2 and anchor.y <= 2 and m._big_block_free(anchor),"With the usual block taken by an enemy, another free block holding the tile is found")
 	verify(m.big_anchor(Vector2i(3,2)) == Vector2i(-1,-1) or m.enemy_at(Vector2i(3,2)).is_empty() == false,"A tile under an enemy still gives no block")
+
+## The guardian calls a wall spirit back too, with +1 HP.
+func _guardian_wall() -> void:
+	var m := fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(0,0)
+	m.summon_wall(Vector2i(4,0))
+	m.allies.clear()
+	m.summon_guardian(Vector2i(2,2))
+	var walls: Array = m.allies.filter(func(a): return a.type == "wall")
+	verify(walls.size() == 1 and walls[0].hp == 6 and walls[0].ap == 0,"The guardian calls the wall spirit back with HP 6")
