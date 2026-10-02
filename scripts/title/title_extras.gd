@@ -20,11 +20,11 @@ const LOCKED := Color(0.06, 0.09, 0.12, 0.62)
 static func in_art() -> Array[String]:
 	return Roster.shown_items()
 
-## The free space: above the fairies and left of the logo's shadow (checked against the
+## The free space: above the fairies, left of the guardian's halo (checked against the
 ## art's pixels by the tests).
-const AREA := Rect2(90, 292, 800, 142)
-const SLOT := Vector2(84, 71)
-const SIZE := 68.0
+const AREA := Rect2(90, 300, 450, 176)
+const SLOT := Vector2(104, 88)
+const SIZE := 88.0
 
 var items: Array[Resource] = []
 var time := 0.0
