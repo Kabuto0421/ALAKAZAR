@@ -186,7 +186,7 @@ func _ready() -> void:
 		# What kind of fairy it is: a label just left of the rarity badge (or, when the
 		# corner tag leaves no room there, at the start of the row under the name).
 		var kind: String = KINDS.get(fairy_id, "使い切り")
-		var kind_label := _pill(Vector2(14,11),kind if kind != "設置" else "設置・5ターン",KIND_COLORS[kind])
+		var kind_label := _pill(Vector2(14,11),kind if kind != "設置" else ("設置・3ターン" if fairy_id == "wheel_fairy" else "設置・5ターン"),KIND_COLORS[kind])
 		var row := 68.0
 		var place_x := 14.0
 		var kind_x := badge.position.x-kind_label.get_minimum_size().x-6

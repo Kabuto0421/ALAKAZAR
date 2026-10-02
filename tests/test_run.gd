@@ -2269,13 +2269,13 @@ func _wheel_fairy() -> void:
 	verify(m.turn_start_ap() == 3,"The next turn would begin with 3 AP while riding")
 	_enemy_turn(m)
 	verify(m.player.ap == 3,"After the enemy turn the rider has 3 AP")
-	verify(m.player_action(Vector2i(2,2)) and not m.riding_wheel() and m.turn_start_ap() == 2,"Stepping off ends the bonus")
+	verify(m.player_action(Vector2i(2,2)) and m.riding_wheel() and m.wheel.cell == Vector2i(2,2) and m.turn_start_ap() == 3,"There is no getting off: the wheel goes with the rider")
 	# Enemies cannot stand on it.
-	verify(m.enemy_blocked(spot) and not m.blocked(spot),"Enemies cannot enter the wheel's tile (the player can)")
-	# Gone after five player turns.
-	for n in Rules.WALL_TURNS:
+	verify(m.enemy_blocked(Vector2i(2,2)) and not m.enemy_blocked(spot),"Enemies cannot enter the wheel's tile (it is under the rider now)")
+	# Gone after three turns, and the rider is back to 2 AP.
+	for n in Rules.WHEEL_TURNS:
 		m.tick_walls()
-	verify(m.wheel.is_empty(),"The wheel is gone after five turns")
+	verify(m.wheel.is_empty() and not m.riding_wheel() and m.turn_start_ap() == 2,"The wheel is gone after three turns and things are as before")
 
 func _shark_room() -> RefCounted:
 	var m := Rules.new()

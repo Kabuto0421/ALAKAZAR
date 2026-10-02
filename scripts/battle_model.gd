@@ -198,7 +198,7 @@ const PLUS_TEXT := {
 	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
 	"cat_fairy": ["{cost_plus} APで置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
-	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、乗っている間は\nAPが+1される。{turns}ターン残る。"],
+	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
@@ -659,7 +659,7 @@ func cat_zone_at(cell: Vector2i) -> bool:
 
 ## Where an enemy may not step: everything blocked, and the cat's field.
 func enemy_blocked(cell: Vector2i) -> bool:
-	return blocked(cell) or cat_zone_at(cell) or wheel.get("cell", Vector2i(-1, -1)) == cell or dive_reserved(cell)
+	return blocked(cell) or cat_zone_at(cell) or wheel_cell() == cell or dive_reserved(cell)
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -1601,17 +1601,28 @@ func square_around(cell: Vector2i, radius: int) -> Array[Vector2i]:
 				result.append(tile)
 	return result
 
-## 車輪の妖精: a wheel on the tile for WALL_TURNS turns. Stepping onto it is an ordinary move
-## (1 AP); a player who is standing on it when a new turn begins has 3 AP instead of 2.
-## Enemies cannot stand on it.
+## 車輪の妖精: a wheel on the tile for WHEEL_TURNS turns. Stepping onto it is an ordinary move
+## (1 AP); from then on the player rides it wherever they go (there is no getting off) and every
+## new turn starts with 3 AP instead of 2, until the wheel's turns run out. Enemies cannot stand on it.
 const WHEEL_BONUS_AP := 1
+const WHEEL_TURNS := 3
 func place_wheel(cell: Vector2i) -> void:
-	wheel = {"cell":cell, "turns":WALL_TURNS}
+	wheel = {"cell":cell, "turns":WHEEL_TURNS, "riding":false}
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
 	add_log("車輪が置かれた")
 
 func riding_wheel() -> bool:
-	return not wheel.is_empty() and wheel.cell == player.cell
+	return wheel_cell() != Vector2i(-1, -1) and wheel.get("riding", false)
+
+## Where the wheel is: under the player once they have ridden it (it goes with them).
+func wheel_cell() -> Vector2i:
+	if wheel.is_empty():
+		return Vector2i(-1, -1)
+	if wheel.cell == player.cell:
+		wheel.riding = true
+	if wheel.get("riding", false):
+		wheel.cell = player.cell
+	return wheel.cell
 
 ## The AP a new player turn starts with.
 func turn_start_ap() -> int:

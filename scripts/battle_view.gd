@@ -1518,7 +1518,7 @@ func _draw_board() -> void:
 				_turn_badge(pos,int(model.shadow.turns))
 				if model.is_plus("shadow_stitch"):
 					SpiritIcon.paint_plus(self,pos+Vector2(62,2),14)
-			if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
+			if model.wheel_cell() == cell:
 				# The wheel turns under whoever rides it.
 				SpiritIcon.paint(self,mid + (Vector2(-5, 8) if model.riding_wheel() else Vector2.ZERO),model.item_definition("wheel_fairy").icon,0.9)
 				_turn_badge(pos,int(model.wheel.turns))
@@ -2292,8 +2292,8 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		return {"title": "地雷", "icon": "", "turns": 0, "state": "", "lines": ["踏むと1ダメージ", "（自分・味方・敵とも）", "地雷兵は踏まない"], "color": Color("ff8b5a")}
 	if model.pits.has(cell):
 		return {"icon": "abyss_spirit", "title": "奈落", "turns": model.abyss_turns, "state": "", "lines": ["押し込んだ敵は落ちて即撃破", "2×2は落ちず手前で止まる", "動くと届く範囲に合わせて", "奈落も変わる"]}
-	if model.wheel.get("cell",Vector2i(-1,-1)) == cell:
-		return {"icon": "wheel_fairy", "turns": int(model.wheel.turns), "state": "乗っている（次のターンもAP+1）" if model.riding_wheel() else "乗っていない", "lines": ["乗って次のターンを迎えると", "乗っている間はAP+1", "敵は上に乗れない"]}
+	if model.wheel_cell() == cell:
+		return {"icon": "wheel_fairy", "turns": int(model.wheel.turns), "state": "乗っている（毎ターンAP+1）" if model.riding_wheel() else "乗っていない", "lines": ["乗ると降りられず、次のターンから", "3ターンの間AP+1", "敵は上に乗れない"]}
 	if model.cat_zone_at(cell):
 		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れない", "（中にいる敵は出るだけ）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
@@ -2718,7 +2718,12 @@ func _draw_shark_title() -> void:
 	var latin := "STORM SHARK"
 	var jp := "嵐　鮫"
 	var latin_w := 56.0 * 0.62 * float(latin.length())
-	var base := middle + Vector2(-latin_w / 2.0, TILE * 1.2)
+	# On whichever half of the board the shark is not.
+	var extent_y := model.board_size * TILE
+	var shark := model.storm_shark()
+	var shark_y: float = BOARD.y + (float(shark.cell.y) + 1.0) * TILE if not shark.is_empty() else middle.y
+	var title_y: float = BOARD.y + extent_y * (0.8 if shark_y < middle.y else 0.2)
+	var base := Vector2(BOARD.x + model.board_size * TILE / 2.0 - latin_w / 2.0, title_y)
 	draw_string_outline(ui_font, base + glitch + Vector2(-3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.9 * fade))
 	draw_string(ui_font, base + glitch + Vector2(-3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(1.0, 0.3, 0.45, 0.45 * fade))
 	draw_string(ui_font, base + glitch + Vector2(3, 0), latin, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, Color(0.3, 0.5, 1.0, 0.45 * fade))

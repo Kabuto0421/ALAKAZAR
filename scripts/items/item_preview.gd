@@ -720,14 +720,17 @@ static func _freeze(time: float, accent: Color, art: Texture2D, plus: bool) -> v
 ## Blessed ground for five turns: while you stand in its 3x3, your hits also land
 ## on the four tiles around the struck one (a cross). Step out and they do not.
 static func _wheel(time: float, accent: Color, art: Texture2D) -> void:
-	# Ride the wheel (a move onto it), and the next turn begins with three AP.
-	var p := _cycle(time, 4.4)
-	var ride := _ph(p, 0.1, 0.35)
-	_art(art, Vector2(3, 1))
-	_player(Vector2(1, 1).lerp(Vector2(3, 1), ride) + Vector2(0, 0.0))
-	if p > 0.35:
-		_say(_center(Vector2(3, 0)) + Vector2(0, 10), "乗った", 13, accent)
-	if p > 0.6:
+	# Ride the wheel (a move onto it), then keep riding wherever you go: the wheel goes with you,
+	# and the next turn begins with three AP.
+	var p := _cycle(time, 4.8)
+	var ride := _ph(p, 0.1, 0.3)
+	var drive := _ph(p, 0.4, 0.55)
+	var spot := Vector2(1, 1).lerp(Vector2(3, 1), ride).lerp(Vector2(4, 1), drive) if p > 0.3 else Vector2(1, 1).lerp(Vector2(3, 1), ride)
+	_art(art, Vector2(3, 1) if p < 0.3 else spot)
+	_player(spot)
+	if p > 0.3:
+		_say(_center(spot) + Vector2(0, -34), "乗ったまま", 13, accent)
+	if p > 0.65:
 		# The next turn: three gold boxes.
 		for i in 3:
 			cv.draw_rect(Rect2(Vector2(1.2 + i * 0.65, 2.25) * C, Vector2(0.55, 0.4) * C), GOLD)
