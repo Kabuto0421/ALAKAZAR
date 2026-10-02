@@ -79,6 +79,7 @@ const TYPES = {
 	"silver": {"name": "銀将兵", "hp": 1, "ap": 2},
 	"king": {"name": "監獄の王", "hp": 10, "ap": 1, "size": 3},
 	"fortress": {"name": "要塞監獄", "hp": 3, "ap": 1, "size": 2},
+	"storm_shark": {"name": "嵐鮫", "hp": 8, "ap": 2, "size": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 }
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
@@ -107,7 +108,7 @@ const KING_RAGE_HP := 5
 ## Shogi generals: they always face left (towards where the player starts).
 const GENERALS = ["gold", "silver"]
 ## Two-by-two bosses: their cell is the top-left of the footprint.
-const BIG = ["rook", "prison", "slot", "shadow"]
+const BIG = ["rook", "prison", "slot", "shadow", "storm_shark"]
 ## Chargers that move like a rook (飛車) with a braced direction.
 const CHARGERS = ["rook", "slot"]
 ## Ranged soldiers never melee; they attack from their own tile.
@@ -139,6 +140,12 @@ const BOSS_FORMATIONS = [
 	preload("res://scenes/formations/run_boss_02.tscn"),
 ]
 var boss_variant := 0
+## The second boss is drawn from these rooms: Rotorick, or the storm shark.
+const BOSS2_FORMATIONS = [
+	preload("res://scenes/formations/run_boss_03.tscn"),
+	preload("res://scenes/formations/run_boss_04.tscn"),
+]
+var boss2_variant := 0
 ## Rotorick's reel: results are drawn from this seed so look-ahead copies never disturb them.
 var slot_seed := 0
 var slot_rolls := 0
@@ -279,7 +286,7 @@ func placed_recently() -> int:
 func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	stats = _fresh_stats()
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
-	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else FORMATIONS[level]
+	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else BOSS2_FORMATIONS[boss2_variant] if level == BOSS2_LEVEL else FORMATIONS[level]
 	var layout: Node = scene.instantiate()
 	board_size = layout.board_size
 	# The player always opens the fight.
@@ -310,6 +317,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	blessing = {}
 	cat = {}
 	wheel = {}
+	storm = {}
 	summoned_kinds.clear()
 	abyss_turns = 0
 	time_stop = 0
@@ -330,9 +338,12 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 	layout.free()
+	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
+		storm = {"wind": Vector2i.ZERO, "marks": [], "centers": []}
+		storm_roll_wind()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
 ## Deep copy used to look ahead (e.g. which enemies would hit the player).
@@ -648,7 +659,7 @@ func cat_zone_at(cell: Vector2i) -> bool:
 
 ## Where an enemy may not step: everything blocked, and the cat's field.
 func enemy_blocked(cell: Vector2i) -> bool:
-	return blocked(cell) or cat_zone_at(cell) or wheel.get("cell", Vector2i(-1, -1)) == cell
+	return blocked(cell) or cat_zone_at(cell) or wheel.get("cell", Vector2i(-1, -1)) == cell or dive_reserved(cell)
 
 func blocked(cell: Vector2i) -> bool:
 	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
@@ -827,7 +838,7 @@ func distance(a: Vector2i, b: Vector2i) -> int:
 ## so it is not an "enemy at" its tiles (see shadow_at).
 func enemy_at(cell: Vector2i) -> Dictionary:
 	for enemy in enemies:
-		if enemy.hp > 0 and enemy.type != "shadow" and (enemy.cell == cell or (enemy.get("size", 1) > 1 and footprint(enemy).has(cell))):
+		if enemy.hp > 0 and enemy.type != "shadow" and not enemy.get("diving", false) and (enemy.cell == cell or (enemy.get("size", 1) > 1 and footprint(enemy).has(cell))):
 			return enemy
 	return {}
 
@@ -2731,6 +2742,229 @@ func footprint_distance(enemy: Dictionary, target: Vector2i) -> int:
 		best = mini(best, distance(cell, target))
 	return best
 
+
+# --- 嵐鮫: the storm shark ------------------------------------------------------------------
+
+const STORM_BOSS := "storm_shark"
+## Chance, each enemy turn it is surfaced, that the shark dives instead of fighting.
+const DIVE_CHANCE := 0.3
+const DIVE_DAMAGE := 2
+## The storm: {wind: Vector2i (the arrow shown to the player), marks: cells of the coming
+## lightning, centers: where the three strikes land}; empty when there is no storm.
+var storm: Dictionary = {}
+
+func storm_shark() -> Dictionary:
+	for enemy in enemies:
+		if enemy.type == STORM_BOSS and enemy.hp > 0:
+			return enemy
+	return {}
+
+## A seeded roll, the same on a look-ahead copy of the board.
+func _storm_rng(salt: String) -> RandomNumberGenerator:
+	var roll := RandomNumberGenerator.new()
+	roll.seed = hash([slot_seed, round_number, salt])
+	return roll
+
+## The 4x4 round the shark's shadow covers, round the 2x2 block whose top-left is `anchor`
+## (the four corners are left out), clipped to the board.
+func dive_area(anchor: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for dy in range(-1, 3):
+		for dx in range(-1, 3):
+			if (dx == -1 or dx == 2) and (dy == -1 or dy == 2):
+				continue
+			var tile := anchor + Vector2i(dx, dy)
+			if inside(tile):
+				result.append(tile)
+	return result
+
+## Where the shark would come up for a player standing on `cell`: a 2x2 block that holds
+## the player, inside the board, free of terrain, and that leaves the player room to be
+## knocked out of it. Blocks nearer the middle of the board win.
+func dive_anchor_for(cell: Vector2i) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_score := -1.0e9
+	for offset in [Vector2i(0,0), Vector2i(1,0), Vector2i(0,1), Vector2i(1,1)]:
+		var anchor: Vector2i = cell - offset
+		var ok := true
+		for tile in footprint({"cell":anchor, "size":2}):
+			if not inside(tile) or obstacles.has(tile) or pits.has(tile) or walls.has(tile) or not cannon_at(tile).is_empty():
+				ok = false
+		if not ok:
+			continue
+		var score := -Vector2(anchor).distance_to(Vector2(board_size - 2, board_size - 2) / 2.0)
+		if _knock_target(cell, anchor) == Vector2i(-1, -1):
+			score -= 100.0
+		if score > best_score:
+			best = anchor
+			best_score = score
+	return best
+
+## The tile a unit on `cell` is knocked to by something coming up at the 2x2 block `anchor`:
+## one step straight away from the block's middle, or (-1,-1) when that is not free.
+func _knock_target(cell: Vector2i, anchor: Vector2i) -> Vector2i:
+	var away := Vector2(cell) - (Vector2(anchor) + Vector2(0.5, 0.5))
+	var dir := Vector2i(int(signf(away.x)), 0) if absf(away.x) >= absf(away.y) else Vector2i(0, int(signf(away.y)))
+	var order: Array[Vector2i] = [dir]
+	order.append(Vector2i(0, int(signf(away.y))) if dir.x != 0 else Vector2i(int(signf(away.x)), 0))
+	for step in order:
+		if step == Vector2i.ZERO:
+			continue
+		var to: Vector2i = cell + step
+		if inside(to) and not blocked(to) and not (to == player.cell and cell != player.cell) and enemy_at(to).is_empty():
+			return to
+	return Vector2i(-1, -1)
+
+## Is the cell kept free for a shark that is about to come up?
+func dive_reserved(cell: Vector2i) -> bool:
+	for enemy in enemies:
+		if enemy.get("diving", false) and enemy.hp > 0 and footprint({"cell":enemy.dive_anchor, "size":2}).has(cell):
+			return true
+	return false
+
+## One enemy turn of the shark. It dives on a roll (2 AP: it goes under and shows its
+## shadow over the player), comes up the turn after (2 AP: 2 damage and a knock-back),
+## and otherwise fights like the moving prison. `first` is true on the turn's first beat.
+func shark_dive(shark: Dictionary) -> void:
+	var anchor := dive_anchor_for(player.cell)
+	if anchor == Vector2i(-1, -1):
+		return
+	shark.diving = true
+	shark.dive_anchor = anchor
+	shark.dive_area = dive_area(anchor)
+	shark.ap = 0
+	events.append({"kind":"dive", "cell":shark.cell, "id":shark.id, "area":shark.dive_area, "anchor":anchor})
+	add_log("嵐鮫が潜った。影の下は危険！")
+
+func shark_surface(shark: Dictionary) -> void:
+	var anchor: Vector2i = shark.dive_anchor
+	shark.diving = false
+	shark.ap = 0
+	var struck: Array[Vector2i] = shark.dive_area
+	var block := footprint({"cell":anchor, "size":2})
+	events.append({"kind":"surface", "cell":anchor, "id":shark.id, "area":struck})
+	shark.cell = anchor
+	shark.surfaced_round = round_number
+	shark.erase("dive_area")
+	shark.erase("dive_anchor")
+	# The player and the allies in the shadow take 2 and are thrown clear.
+	if struck.has(player.cell):
+		player.hp -= DIVE_DAMAGE
+		events.append({"kind":"hit", "cell":player.cell, "id":-1, "by":shark.id, "damage":DIVE_DAMAGE})
+		add_log("嵐鮫が浮上 / HP −%d" % DIVE_DAMAGE)
+		var to := _knock_target(player.cell, anchor)
+		if to != Vector2i(-1, -1):
+			events.append({"kind":"knock", "cell":player.cell, "to":to, "id":-1})
+			player.cell = to
+	for ally in allies.duplicate():
+		if ally.hp > 0 and struck.has(ally.cell):
+			ally.hp -= DIVE_DAMAGE
+			events.append({"kind":"hit", "cell":ally.cell, "id":ally.id, "damage":DIVE_DAMAGE})
+	_bury_allies()
+	check_outcome()
+	# Anyone still standing on its tiles is squeezed out of the way.
+	for cell in block:
+		if cell == player.cell and not terminal():
+			var out := _knock_target(player.cell, anchor)
+			if out != Vector2i(-1, -1):
+				player.cell = out
+
+## The first beat of the shark's turn: surface if it is under, maybe dive, else nothing.
+## Returns true when it used its turn.
+func shark_opening(shark: Dictionary) -> bool:
+	if shark.get("diving", false):
+		shark_surface(shark)
+		return true
+	# Never two dives back to back: the turn after it surfaces it fights.
+	if round_number >= 3 and int(shark.get("surfaced_round", -9)) != round_number - 1 and _storm_rng("dive").randf() < DIVE_CHANCE:
+		shark_dive(shark)
+		return shark.get("diving", false)
+	return false
+
+# --- the storm: wind and lightning ------------------------------------------------------
+
+func storm_active() -> bool:
+	return not storm.is_empty()
+
+## A new wind for the player's coming turn (shown as arrows round the board).
+func storm_roll_wind() -> void:
+	if storm.is_empty():
+		return
+	var roll := _storm_rng("wind")
+	storm.wind = CARDINALS[roll.randi_range(0, 3)]
+
+## At the start of the enemy turn: the wind moves everyone but the shark one tile, then
+## lightning is either called down on last turn's marks or new marks are laid.
+func storm_enemy_turn() -> void:
+	if storm.is_empty() or time_stopped() or storm_shark().is_empty():
+		return
+	_storm_wind_push()
+	_storm_thunder()
+
+func _storm_wind_push() -> void:
+	var dir: Vector2i = storm.wind
+	if dir == Vector2i.ZERO:
+		return
+	var units: Array = [player]
+	units.append_array(allies.filter(func(a: Dictionary) -> bool: return a.hp > 0))
+	units.append_array(enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0 and e.type not in [STORM_BOSS, "shadow"] and not e.get("diving", false)))
+	# The ones in front go first, so a line of units moves together.
+	units.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a.cell.x * dir.x + a.cell.y * dir.y) > (b.cell.x * dir.x + b.cell.y * dir.y))
+	for unit in units:
+		var moved := {"cell": unit.cell + dir, "size": unit.get("size", 1)}
+		var own := footprint(unit)
+		var free := true
+		for tile in footprint(moved):
+			if not inside(tile):
+				free = false
+			elif own.has(tile):
+				continue
+			elif obstacles.has(tile) or walls.has(tile) or pits.has(tile) or fairies.has(tile) or not cannon_at(tile).is_empty() or shadow.get("cell", Vector2i(-1, -1)) == tile:
+				free = false
+			elif tile == player.cell and unit != player:
+				free = false
+			elif not enemy_at(tile).is_empty() and enemy_at(tile).id != unit.id:
+				free = false
+			elif not ally_at(tile).is_empty() and ally_at(tile).id != unit.id:
+				free = false
+		if not free:
+			continue
+		events.append({"kind":"wind", "cell":unit.cell, "to":unit.cell + dir, "id":unit.id})
+		unit.cell += dir
+		trigger_mine(unit)
+	trigger_fairies()
+	check_outcome()
+
+func _storm_thunder() -> void:
+	if not storm.marks.is_empty():
+		var cells: Array = storm.marks.duplicate()
+		for center in storm.centers:
+			events.append({"kind":"thunder", "id":-2, "cell":center})
+		storm.marks = []
+		storm.centers = []
+		if cells.has(player.cell):
+			player.hp -= 1
+			events.append({"kind":"hit", "cell":player.cell, "id":-1, "damage":1})
+			add_log("雷に打たれた / HP −1")
+			check_outcome()
+		return
+	var roll := _storm_rng("thunder")
+	var pool: Array = square_around(player.cell, 2)
+	var centers: Array = []
+	while centers.size() < 3 and not pool.is_empty():
+		var pick: int = roll.randi_range(0, pool.size() - 1)
+		centers.append(pool[pick])
+		pool.remove_at(pick)
+	var marks: Array = []
+	for center in centers:
+		for offset in [Vector2i.ZERO, Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var tile: Vector2i = center + offset
+			if inside(tile) and not marks.has(tile):
+				marks.append(tile)
+	storm.centers = centers
+	storm.marks = marks
+	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0]})
+	add_log("雷の予兆…")
 
 # --- Rotorick: the slot boss --------------------------------------------------
 

@@ -306,6 +306,8 @@ func _initialize() -> void:
 	_guardian_wall()
 	_cat_fairy()
 	_wheel_fairy()
+	_storm_shark()
+	_second_boss_room()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2274,3 +2276,111 @@ func _wheel_fairy() -> void:
 	for n in Rules.WALL_TURNS:
 		m.tick_walls()
 	verify(m.wheel.is_empty(),"The wheel is gone after five turns")
+
+func _shark_room() -> RefCounted:
+	var m := Rules.new()
+	m.boss2_variant = 1
+	m.reset(Rules.BOSS2_LEVEL)
+	m.phase = Rules.Phase.PLAYER
+	return m
+
+## 嵐鮫: a 2x2 boss (HP 8, AP 2) that dives under the player's feet, in a storm of wind and lightning.
+func _storm_shark() -> void:
+	var m := _shark_room()
+	var shark: Dictionary = m.storm_shark()
+	verify(not shark.is_empty() and shark.hp == 8 and shark.ap == 2 and shark.size == 2 and m.board_size == 8,"The storm shark: HP 8, AP 2, 2x2, on an 8x8 board")
+	verify(m.storm_active() and m.storm.wind != Vector2i.ZERO,"A fight with it is a storm (the wind is already blowing)")
+	verify(Rules.new().storm.is_empty(),"Other fights have no storm")
+	# Dive: it goes under, its tiles are free, a 12-tile shadow lies on the player.
+	m.player.cell = Vector2i(3,3)
+	var home: Vector2i = shark.cell
+	m.shark_dive(shark)
+	verify(shark.diving and m.enemy_at(home).is_empty() and shark.dive_area.size() == 12 and shark.dive_area.has(Vector2i(3,3)),"Diving: it leaves the board and a 12-tile shadow falls on the player")
+	var anchor: Vector2i = shark.dive_anchor
+	verify(m.footprint({"cell":anchor,"size":2}).has(Vector2i(3,3)) and shark.dive_area.has(anchor - Vector2i(1,0)) and not shark.dive_area.has(anchor - Vector2i(1,1)) and not shark.dive_area.has(anchor + Vector2i(2,2)),"The shadow is the 4x4 round the block with its corners cut")
+	verify(m.dive_reserved(anchor) and m.enemy_blocked(anchor),"Other enemies keep out of the block it will come up in")
+	# Surface: 2 damage, knocked clear, the shark stands at the middle.
+	var hp: int = m.player.hp
+	m.shark_surface(shark)
+	verify(m.player.hp == hp - 2 and not shark.diving and shark.cell == anchor and not m.footprint(shark).has(m.player.cell),"It comes up: 2 damage, the player thrown out of its block")
+	# Dodging: a player who left the shadow is untouched.
+	var d := _shark_room()
+	var ds: Dictionary = d.storm_shark()
+	d.player.cell = Vector2i(2,2)
+	d.shark_dive(ds)
+	d.player.cell = Vector2i(7,7)
+	var before: int = d.player.hp
+	d.shark_surface(ds)
+	verify(d.player.hp == before,"Stepping out of the shadow dodges it")
+	# A normal turn: the shark beside the player bites for 1.
+	var f := _shark_room()
+	var fs: Dictionary = f.storm_shark()
+	f.player.cell = fs.cell + Vector2i(-1,0)
+	f.storm = {"wind": Vector2i.ZERO, "marks": [], "centers": []}
+	var fhp: int = f.player.hp
+	f.phase = Rules.Phase.ENEMY
+	fs.ap = 1
+	f.big_step(fs, Vector2i.LEFT)
+	verify(f.player.hp == fhp - 1,"Next to the player it bites for 1 (1 AP)")
+	# Wind: everyone but the shark moves one tile; the blocked stay put.
+	var w := _shark_room()
+	w.enemies.clear()
+	var ws: Dictionary = w.make_enemy("storm_shark", Vector2i(5,5), 0)
+	w.enemies.append(ws)
+	var soldier: Dictionary = w.make_enemy("heavy", Vector2i(2,1), 1)
+	var walled: Dictionary = w.make_enemy("heavy", Vector2i(7,1), 2)
+	w.enemies.append_array([soldier, walled])
+	w.player.cell = Vector2i(0,3)
+	w.storm = {"wind": Vector2i.RIGHT, "marks": [], "centers": []}
+	w._storm_wind_push()
+	verify(w.player.cell == Vector2i(1,3) and soldier.cell == Vector2i(3,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wind moves the player and the soldiers one tile; the boss and the wall-bound stay")
+	# Thunder alternates: marks, then the strike.
+	var t := _shark_room()
+	t.player.cell = Vector2i(4,4)
+	t._storm_thunder()
+	verify(t.storm.centers.size() == 3 and t.storm.marks.size() >= 3 and t.storm.marks.all(func(c): return t.inside(c)),"First, three crosses are marked within 5x5 of the player")
+	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2),"...each centred inside the 5x5 round the player")
+	var marked: Array = t.storm.marks.duplicate()
+	t.player.cell = marked[0]
+	var thp: int = t.player.hp
+	t._storm_thunder()
+	verify(t.player.hp == thp - 1 and t.storm.marks.is_empty(),"Next turn they strike: 1 damage to a player still standing there")
+	t._storm_thunder()
+	var marks2: Array = t.storm.marks.duplicate()
+	t.player.cell = Vector2i(0,0) if not marks2.has(Vector2i(0,0)) else Vector2i(7,7)
+	var thp2: int = t.player.hp
+	t._storm_thunder()
+	verify(t.player.hp == thp2,"A player who stepped off the marks is not hurt")
+	# Whole fights: the planner plays many turns with no hang.
+	for seed_value in 12:
+		var g := _shark_room()
+		g.slot_seed = seed_value * 7919 + 13
+		var turns := 0
+		while not g.terminal() and turns < 30:
+			turns += 1
+			g.player.ap = 2
+			# The player does nothing; the enemy turn plays out.
+			_enemy_turn(g)
+		verify(turns >= 1 and g.storm.size() > 0,"A %d-turn storm fight ran to the end (seed %d)" % [turns, seed_value])
+
+## The second boss room is Rotorick or the storm shark, drawn at the camp before it.
+func _second_boss_room() -> void:
+	var seen := {}
+	for seed_value in 40:
+		var run := Run.new()
+		run.start(seed_value)
+		run.stage = Rules.MID_LEVELS[-1]
+		run.state = Run.State.REWARD
+		run.advance()
+		seen[run.battle.boss2_variant] = true
+	verify(seen.has(0) and seen.has(1),"Both second-boss rooms come up across runs")
+	var forced := Run.new()
+	forced.start(5)
+	forced.boss2_choice = 1
+	forced.stage = Rules.MID_LEVELS[-1]
+	forced.state = Run.State.REWARD
+	forced.advance()
+	forced.state = Run.State.CAMP
+	forced.stage = Rules.MID_LEVELS[-1]
+	forced._leave_camp()
+	verify(forced.battle.level == Rules.BOSS2_LEVEL and forced.battle.storm_shark().hp == 8,"Choosing the shark's room puts it in the boss fight")

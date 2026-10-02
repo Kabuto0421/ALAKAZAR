@@ -63,7 +63,9 @@ const HOLY_SPIRIT = preload("res://assets/sprites/spirits/holy_spirit.png")
 const GUARDIAN = preload("res://assets/sprites/spirits/guardian_fairy.png")
 const HOLY_KNIGHT = preload("res://assets/sprites/spirits/holy_knight_directions.png")
 const AXE_DASH = preload("res://assets/sprites/spirits/axe_spirit_dash.png")
-const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow"]
+const BOSS_KINDS = ["rook", "prison", "executioner", "slot", "shadow", "storm_shark"]
+## The storm shark, a hologram (placeholder artwork until the real picture arrives).
+const STORM_SHARK = preload("res://assets/sprites/boss/storm_shark.png")
 ## Soldier sheets: 128 px cells, columns up/right/down/left, optional second row
 ## for a state (archer aiming, analyst holding a learned weapon), draw size.
 const SOLDIER_SHEETS = {
@@ -80,6 +82,10 @@ var kind := "player"
 ## Lone wolf inside the player's reach: it will skip its turn.
 ## Hearts over the head instead of under the feet (a rider on the wheel hides the ground).
 var hearts_above := false
+## 0-1: how much of a hologram boss is projected (the storm shark dissolves when it dives
+## and is rebuilt when it comes up); holo_goal is where it is heading.
+var holo_build := 1.0
+var holo_goal := 1.0
 var sulking := false
 ## 氷結妖精: enemy turns this unit stays frozen (0 = not frozen).
 var frozen := 0
@@ -130,6 +136,7 @@ func sparkle() -> void:
 
 func _process(delta: float) -> void:
 	flash = maxf(0.0, flash-delta)
+	holo_build = move_toward(holo_build, holo_goal, delta * 1.8)
 	clock += delta
 	if sparkle_elapsed >= 0.0:
 		sparkle_elapsed += delta
@@ -244,6 +251,8 @@ static func draw_general(canvas: CanvasItem, kind: String, tint: Color = Color.W
 func _draw() -> void:
 	if span > 2:
 		draw_circle(Vector2(0,76),52,Color(0,0,0,0.3))
+	elif kind == "storm_shark":
+		pass  # a hologram casts no shadow
 	elif span > 1:
 		draw_circle(Vector2(0,44),30,Color(0,0,0,0.3))
 	elif kind == "wolf":
@@ -331,6 +340,8 @@ func _draw() -> void:
 		_draw_drone(tint)
 	elif kind in ["cavalry","horse"]:
 		_draw_cavalry(tint)
+	elif kind == "storm_shark":
+		draw_hologram(self, STORM_SHARK, Rect2(Vector2(-78,-78), Vector2.ONE * 156), facing == 1, tint, holo_build)
 	elif kind in BOSS_KINDS:
 		draw_boss(self, kind, facing, braced, tint, 1.0, reel)
 	elif SOLDIER_SHEETS.has(kind):
@@ -368,6 +379,35 @@ func _draw() -> void:
 			draw_rect(Rect2(-15,2,4,13),Color("b8d7c5"))
 	draw_set_transform(Vector2.ZERO)
 
+## A hologram: translucent cyan with a ghost of red and blue either side, scan lines drifting
+## down it, a flicker and now and then a sideways glitch. `build` (0-1) is how much of it is
+## projected: it is rebuilt from the top down (and dissolves from the bottom up).
+static func draw_hologram(canvas: CanvasItem, texture: Texture2D, rect: Rect2, flip: bool, tint: Color, build: float) -> void:
+	if build <= 0.01:
+		return
+	var t: float = Time.get_ticks_msec() / 1000.0
+	var alpha := (0.78 + 0.1 * sin(t * 11.0)) * tint.a
+	var glitch := Vector2(rect.size.x * 0.03 * sin(t * 37.0), 0) if int(t * 6.0) % 7 == 0 else Vector2.ZERO
+	var shown := rect.size.y * build
+	# Only the top `build` of the picture is there; a bright line marks the edge of the projection.
+	var source_h := texture.get_height() * build
+	var region := Rect2(0, 0, texture.get_width(), source_h)
+	var dest := Rect2(rect.position + glitch, Vector2(rect.size.x, shown))
+	if flip:
+		dest = Rect2(dest.position + Vector2(dest.size.x, 0), Vector2(-dest.size.x, dest.size.y))
+	var base := Color(0.55, 1.0, 0.95, alpha) * Color(tint.r, tint.g * 0.4 + 0.6, tint.b * 0.4 + 0.6, 1.0)
+	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(-3, 0), dest.size), region, Color(1.0, 0.25, 0.4, alpha * 0.28))
+	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(3, 0), dest.size), region, Color(0.25, 0.5, 1.0, alpha * 0.28))
+	canvas.draw_texture_rect_region(texture, dest, region, base)
+	var left := minf(rect.position.x, rect.end.x)
+	for k in range(0, int(shown), 5):
+		var y := rect.position.y + k + fposmod(t * 22.0, 5.0)
+		if y < rect.position.y + shown:
+			canvas.draw_line(Vector2(left, y), Vector2(left + rect.size.x, y), Color(0.7, 1.0, 1.0, 0.16), 1)
+	if build < 0.99:
+		var edge := rect.position.y + shown
+		canvas.draw_line(Vector2(left, edge), Vector2(left + rect.size.x, edge), Color(0.9, 1.0, 1.0, 0.9), 2)
+
 ## Sheets use the game facing order: up, right, down, left.
 static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: bool, tint: Color = Color.WHITE, factor: float = 1.0, reel_value: int = 0) -> void:
 	match boss:
@@ -393,6 +433,8 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 				canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-60,-42)*factor, Vector2(120,106)*factor), crop, tint)
 			else:
 				canvas.draw_texture_rect_region(ROOK_ATLAS, Rect2(Vector2(-76,-84)*factor, Vector2.ONE*152*factor), Rect2(direction*56, 0, 56, 56), tint)
+		"storm_shark":
+			draw_hologram(canvas, STORM_SHARK, Rect2(Vector2(-78,-78)*factor, Vector2.ONE*156*factor), direction == 1, tint, 1.0)
 		"prison":
 			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-76,-82)*factor, Vector2.ONE*152*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
@@ -406,7 +448,9 @@ static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, al
 	canvas.draw_texture_rect_region(sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
 
 func _draw_status() -> void:
-	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
+	if kind == "storm_shark" and holo_build < 0.6:
+		return
+	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 8 if kind == "storm_shark" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
 	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
 	max_hp = maxi(max_hp, hp)
 	var total := max_hp*11.0-1.0

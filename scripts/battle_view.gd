@@ -734,6 +734,7 @@ func _sync_units(animate: bool) -> void:
 			actors[id] = actor
 		var view: Node2D = actors[id]
 		view.hp = _shown_hp(id, unit.hp)
+		view.holo_goal = 0.0 if unit.get("diving", false) else 1.0
 		# "!" on enemies about to hit the player, and on a glutton about to bite them.
 		view.charge_warning = id != -1 and threats.has(id)
 		view.weapon_row = Rules.WEAPONS[model.weapon].row
@@ -1247,6 +1248,7 @@ func _draw() -> void:
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
+	_draw_storm_frame()
 	_draw_player_panel()
 	_draw_weapons()
 	_draw_intel()
@@ -1308,6 +1310,14 @@ func _draw_board() -> void:
 	var circle_zone: Array[Vector2i] = []
 	if model.is_circle(model.weapon) and model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty() and model.targets().has(hover_cell) and model.enemy_at(hover_cell).is_empty() and not model.blocked(hover_cell):
 		circle_zone = model.circle_preview(hover_cell)
+	# The storm shark: the shadow it dives under, and where the lightning is marked.
+	var dive_cells: Array = []
+	var dive_core: Array = []
+	for enemy in model.enemies:
+		if enemy.get("diving", false) and enemy.hp > 0:
+			dive_cells.append_array(enemy.dive_area)
+			dive_core.append_array(model.footprint({"cell":enemy.dive_anchor, "size":2}))
+	var storm_marks: Array = model.storm.get("marks", [])
 	var danger: Array[Vector2i] = []
 	for enemy in model.enemies:
 		if enemy.hp > 0 and enemy.get("state","") == "aim":
@@ -1321,7 +1331,7 @@ func _draw_board() -> void:
 			draw_set_transform(BOARD+Vector2(cell)*TILE,0,Vector2.ONE*TILE/64.0)
 			var pos := Vector2.ZERO
 			var mid := Vector2(32,32)
-			var base := Color("665b48")
+			var base := Color("4a5a60") if model.storm_active() else Color("665b48")
 			var shade := 0.88+float((x*13+y*7)%5)*0.025
 			if model.level == Rules.FINAL_LEVEL:
 				# The prison's flagstones, and the throne dais under the king.
@@ -1343,6 +1353,22 @@ func _draw_board() -> void:
 				var lit := 0.16 + (0.08 if model.blessed(model.player.cell) else 0.0) + 0.04 * sin(clock * 2.5 + x + y)
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,lit))
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,0.5),false,1)
+			if dive_cells.has(cell):
+				# The shark's shadow: a pulsing holographic grid.
+				var pulse := 0.28 + 0.12 * sin(clock * 6.0)
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.3,1.0,0.95,pulse))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.6,1.0,1.0,0.8),false,2)
+				for k in range(1,4):
+					draw_line(pos+Vector2(2,k*16),pos+Vector2(62,k*16),Color(0.6,1.0,1.0,0.25),1)
+					draw_line(pos+Vector2(k*16,2),pos+Vector2(k*16,62),Color(0.6,1.0,1.0,0.25),1)
+				if dive_core.has(cell):
+					draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(1.0,0.45,0.5,0.35+0.2*sin(clock*9.0)))
+			if storm_marks.has(cell):
+				# Lightning is coming: a warm, flickering warning.
+				var flick := 0.3 + 0.15 * sin(clock * 12.0 + x * 1.7 + y)
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.95,0.45,flick))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.9,0.3,0.9),false,2)
+				draw_polyline(PackedVector2Array([pos+Vector2(36,10),pos+Vector2(24,34),pos+Vector2(34,34),pos+Vector2(26,56)]),Color(1,1,0.8,0.85),3)
 			if model.cat_zone_at(cell):
 				# 猫の妖精's field: yellow-green ground, with a slow glow.
 				var glow := 0.15 + 0.05 * sin(clock * 2.0 + x * 0.7 + y * 0.7)
@@ -2133,12 +2159,18 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		# Same wording as the stealth fairy, from the enemy's side.
 		var y := _wrapped(Vector2(852,436),"ロトリックの残像。誰でも通り抜けられる。",17,INK,15)
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
+	elif enemy.type == "storm_shark":
+		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
+		_text(Vector2(852,478),"ときどき潜り、影の下に浮上",18,CYAN)
+		_text(Vector2(852,504),"2ダメージ＋ノックバック",18,CYAN)
+		_text(Vector2(852,534),"大嵐：雷と風（風はボス以外を動かす）",15,MUTED)
+		_draw_threat(enemy,562)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,476),"壊すと執行兵が2体出る",19,CYAN)
 		_draw_released_soldier()
 		_draw_threat(enemy,568)
-	_text(Vector2(852,592 if enemy.type == "prison" else 574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
+	_text(Vector2(852,596 if enemy.type in ["prison", "storm_shark"] else 574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 
 ## What a broken moving prison lets out: the executioner with its HP 2 and AP 2, and the
 ## four directions it walks in.
@@ -2239,7 +2271,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	for i in range(hearts):
 		_draw_heart(Vector2(909+i*(12 if huge else 16 if many else 30),167),11 if huge else 14 if many else 25,Color("ff5b62"),i<int(enemy.hp))
 	# Three hearts reach further right, so AP moves over for them.
-	var ap_x := 1040.0 if huge else 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
+	var ap_x := 1030.0 if huge else 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
 	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 	for i in range(ap_boxes):
@@ -2255,7 +2287,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,520),"赤：構えた向きへ次に突進" if enemy.get("state","") == "brace" else "次の敵ターンに構える",19,GOLD if enemy.get("state","") == "brace" else MUTED)
 		_text(Vector2(852,574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
 		return
-	if enemy.type in ["prison", "shadow"]:
+	if enemy.type in ["prison", "shadow", "storm_shark"]:
 		_draw_big_range(enemy)
 		return
 	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
@@ -2542,8 +2574,48 @@ func _draw_big_damage(pos: Vector2, fade: float, amount: int) -> void:
 		draw_string(LATIN, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.1, 0.02, 0.2, fade))
 	draw_string(LATIN, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.83, 0.36, fade))
 
+## The storm round the board: the wind's arrows in the margin (every tile of the shark's
+## fight is blown that way at the start of the enemy turn) and a thin digital rain.
+func _draw_storm_frame() -> void:
+	if not model.storm_active():
+		return
+	draw_set_transform(Vector2.ZERO)
+	var extent := Vector2.ONE * model.board_size * TILE
+	# Digital rain over the floor: small falling blocks.
+	for k in range(36):
+		var seed_x := fposmod(float(k) * 53.0 + 17.0, extent.x)
+		var fall := fposmod(clock * (90.0 + (k % 5) * 25.0) + float(k) * 71.0, extent.y + 40.0) - 20.0
+		var length := 14.0 + (k % 4) * 6.0
+		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(0.45, 1.0, 0.9, 0.16))
+	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
+	if wind == Vector2i.ZERO:
+		return
+	var dir := Vector2(wind)
+	var side := dir.orthogonal()
+	var drift := fposmod(clock * 26.0, 16.0)
+	var color := Color(0.55, 1.0, 0.95, 0.8 + 0.2 * sin(clock * 5.0))
+	var rows := model.board_size
+	for k in range(rows):
+		if k % 2 == 1 and rows > 6:
+			continue
+		var along := (float(k) + 0.5) * TILE
+		# Both margins parallel to the wind get a column of arrows; the two others get one each.
+		var positions: Array[Vector2] = []
+		if wind.x != 0:
+			positions.append(BOARD + Vector2(-20, along))
+			positions.append(BOARD + Vector2(extent.x + 20, along))
+		else:
+			positions.append(BOARD + Vector2(along, -16))
+			positions.append(BOARD + Vector2(along, extent.y + 16))
+		for at in positions:
+			var tip: Vector2 = at + dir * (10.0 + drift * 0.3)
+			draw_line(tip - dir * 28.0, tip, color, 4)
+			draw_line(tip, tip - dir * 12.0 + side * 9.0, color, 4)
+			draw_line(tip, tip - dir * 12.0 - side * 9.0, color, 4)
+	_text(BOARD + Vector2(extent.x - 120, -24), "大嵐 風 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, ""), 18, Color(0.6, 1.0, 0.95))
+
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"dive":0.8, "surface":0.9, "thunder":0.8, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -2680,6 +2752,31 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				draw_circle(pos + lane + back * (10 + t * 16), 7 + t * 8, Color("c9b79a", fade * 0.5))
 		"quake":
 			_draw_quake(effect, pos, t)
+		"dive":
+			# The shark breaks into glowing squares that drift apart.
+			var heart := pos + Vector2.ONE * TILE / 2
+			for k in range(18):
+				var angle := float(k) * 2.4
+				var out := (20.0 + float(k % 5) * 14.0) * t
+				var block := heart + Vector2(cos(angle), sin(angle) * 0.7) * out + Vector2(0, -30.0 * t)
+				draw_rect(Rect2(block - Vector2(4, 4), Vector2(8, 8)), Color(0.55, 1.0, 0.95, fade))
+		"surface":
+			# It comes up with a ring of cyan light running out across the shadow.
+			var middle := pos + Vector2.ONE * TILE / 2
+			draw_arc(middle, TILE * (0.6 + 2.2 * t), 0, TAU, 48, Color(0.6, 1.0, 1.0, fade), 5.0 * fade + 1)
+			draw_circle(middle, TILE * 1.2 * fade, Color(0.6, 1.0, 0.95, 0.25 * fade))
+		"thunder_warn":
+			draw_circle(pos, 10 + 24 * t, Color(1.0, 0.95, 0.5, 0.5 * fade))
+		"thunder":
+			# Bolts from the sky to each marked centre, and a white flash over the tile.
+			var spot := pos
+			var top := Vector2(spot.x + sin(float(effect.cell.x)) * 18.0, BOARD.y - 30.0)
+			var points := PackedVector2Array([top])
+			for step in range(1, 6):
+				points.append(top.lerp(spot, float(step) / 5.0) + Vector2(sin(float(step) * 3.1 + float(effect.cell.y)) * 14.0, 0))
+			points.append(spot)
+			draw_polyline(points, Color(1, 1, 0.8, fade), 5.0 * fade + 1)
+			draw_circle(spot, 40.0 * fade, Color(1.0, 0.95, 0.6, 0.55 * fade))
 		"javelin", "arrow":
 			# The projectile flies from the thrower to where it lands.
 			var from := _center(effect.from)

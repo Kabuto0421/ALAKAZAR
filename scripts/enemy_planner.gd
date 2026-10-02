@@ -15,6 +15,7 @@ func begin(model: RefCounted) -> void:
 	model.events.clear()
 	model.bless_heal()
 	model.round_number += 1
+	model.storm_enemy_turn()
 	staging.clear()
 	var infantry: Array = model.enemies.filter(func(e: Dictionary) -> bool: return e.type == "infantry")
 	var reserved: Array[Vector2i] = []
@@ -45,6 +46,8 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "突進" if enemy.state == "brace" else "構える"
 		elif enemy.type == "prison":
 			enemy.intent = "接近"
+		elif enemy.type == "storm_shark":
+			enemy.intent = "浮上" if enemy.get("diving", false) else "接近・潜水"
 		elif enemy.type == "shield":
 			enemy.intent = "盾を構えて前進"
 		elif enemy.type == "analyst":
@@ -91,6 +94,12 @@ func beat(model: RefCounted, index: int) -> void:
 				enemy.ap = 0
 			continue
 		if enemy.type == "prison":
+			_prison_action(model, enemy)
+			continue
+		if enemy.type == "storm_shark":
+			if enemy.get("diving", false) or enemy.ap == Rules.TYPES.storm_shark.ap:
+				if model.shark_opening(enemy):
+					continue
 			_prison_action(model, enemy)
 			continue
 		if enemy.type == "king":
@@ -155,6 +164,7 @@ func finish(model: RefCounted) -> void:
 		model.tick_walls()
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = model.turn_start_ap()
+		model.storm_roll_wind()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 func _options(model: RefCounted, enemy: Dictionary) -> Array[Vector2i]:

@@ -27,6 +27,8 @@ var pending: Dictionary = {}
 var rng := RandomNumberGenerator.new()
 ## Forces the first boss room (0: horses, 1: rook + moving prison); -1 draws it at random.
 var boss_choice := -1
+## Forces the second boss room (0: Rotorick, 1: the storm shark); -1 draws it at random.
+var boss2_choice := -1
 # Expand these pools to introduce additional resource-defined fairy effects.
 var starting_fairy_pool: Array[String] = ["magic_bolt","stealth_fairy","acorn_fairy"]
 ## Magic circle weapons: 3% of rewards, and only on a simple (plain moving) weapon.
@@ -284,6 +286,8 @@ func advance() -> void:
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
 	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
+		if stage == Battle.MID_LEVELS[-1]:
+			battle.boss2_variant = boss2_choice if boss2_choice >= 0 else rng.randi_range(0, Battle.BOSS2_FORMATIONS.size() - 1)
 		# Camps: before Rotorick, before the last late fight, and before the Prison King.
 		state = State.CAMP
 	else:
