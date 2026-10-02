@@ -271,7 +271,7 @@ var aura := Color(0, 0, 0, 0)
 func _draw_aura() -> void:
 	pass  # the glow now sits on the tile and the weapon slot, not on the character
 
-## A frame that burns (flames licking along its top and bottom edges) or, for a yellow colour,
+## A frame that burns (flames licking along its top and bottom edges) or, for a blue colour,
 ## crackles (short bright arcs running round its border). Used on the powered-up dagger's slot
 ## and the player's tile.
 static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> void:
@@ -279,7 +279,7 @@ static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> vo
 	var beat := 0.5 + 0.5 * sin(t * 8.0)
 	canvas.draw_rect(rect, Color(color, 0.12 + 0.1 * beat))
 	canvas.draw_rect(rect, Color(color.lightened(0.2), 0.9), false, 3.0)
-	if color.g > 0.7:
+	if color.b > color.r + 0.2:
 		# Crackling: a jittery bright line round the border, restarting often.
 		var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y), rect.position]
 		var ring := PackedVector2Array()
@@ -294,23 +294,23 @@ static func draw_frame_fire(canvas: CanvasItem, rect: Rect2, color: Color) -> vo
 				ring.append(at + normal * sin(t * 37.0 + float(k) * 4.1 + float(side) * 1.7) * 4.0)
 		ring.append(ring[0])
 		canvas.draw_polyline(ring, Color(color, 0.55), 6.0)
-		canvas.draw_polyline(ring, Color(1.0, 1.0, 0.85, 0.95), 2.0)
+		canvas.draw_polyline(ring, Color(0.88, 0.97, 1.0, 0.95), 2.0)
 		for k in range(3):
 			var phase := fposmod(t * 2.0 + float(k) * 0.33, 1.0)
 			var from := rect.position + Vector2(rect.size.x * fposmod(float(k) * 0.37 + t * 0.2, 1.0), 0.0)
 			var tip := from + Vector2(sin(t * 20.0 + float(k)) * 6.0, -10.0 - 8.0 * phase)
-			canvas.draw_line(from, tip, Color(1.0, 1.0, 0.85, 1.0 - phase), 2.0)
+			canvas.draw_line(from, tip, Color(0.88, 0.97, 1.0, 1.0 - phase), 2.0)
 	else:
 		var across := maxi(int(rect.size.x / 18.0), 3)
 		draw_flames(canvas, Vector2(rect.get_center().x, rect.position.y + 4.0), rect.size.x, minf(rect.size.y * 0.35, 26.0), color, across, false)
 		draw_flames(canvas, Vector2(rect.get_center().x, rect.end.y - 1.0), rect.size.x, minf(rect.size.y * 0.3, 20.0), color, across, false)
 
-## A flame (or, for a yellow colour, crackling lightning) rising from a base line: curved
+## A flame (or, for a blue colour, crackling lightning) rising from a base line: curved
 ## tongues in three layers that sway and flicker, with embers drifting up. `origin` is the
 ## middle of the base, `width` how far the base spreads, `height` the tallest flame.
 static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, height: float, color: Color, tongues := 6, embers := true) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
-	var electric := color.g > 0.7
+	var electric := color.b > color.r + 0.2
 	if electric:
 		for i in range(maxi(tongues - 1, 2)):
 			var x0 := origin.x + (float(i) / float(maxi(tongues - 2, 1)) - 0.5) * width
@@ -322,7 +322,7 @@ static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, heigh
 				var jag := 0.0 if k == 0 else sin(t * 23.0 + float(i) * 5.0 + float(k) * 2.9) * 10.0 * f
 				points.append(Vector2(x0 + jag, origin.y - f * reach))
 			canvas.draw_polyline(points, Color(color, 0.5), 7.0)
-			canvas.draw_polyline(points, Color(1.0, 1.0, 0.85, 0.95), 2.5)
+			canvas.draw_polyline(points, Color(0.88, 0.97, 1.0, 0.95), 2.5)
 	else:
 		for i in range(tongues):
 			var f := float(i) / float(tongues - 1)

@@ -57,7 +57,7 @@ const DATA = [
 	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]},
 	# クロス短剣: two weapons sold as one set. Each slides up to three tiles along one diagonal (and
 	# one tile back), attacks only the tile next to it on that diagonal, and using one boosts the other.
-	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"ffe95a", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1)], "effect":"右上へ最大3マス進める（左下は1マス）。攻撃は右上の隣1マスだけ。炎短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃は右上の隣のみ", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
+	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"5cc8ff", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1)], "effect":"右上へ最大3マス進める（左下は1マス）。攻撃は右上の隣1マスだけ。炎短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃は右上の隣のみ", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
 	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"pair", "rare":true, "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1)], "effect":"右下へ最大3マス進める（左上は1マス）。攻撃は右下の隣1マスだけ。雷短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃は右下の隣のみ", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]}
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
