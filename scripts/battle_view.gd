@@ -1776,15 +1776,7 @@ func _combo_color() -> Color:
 
 ## The powered-up dagger's slot takes on its own aura: tongues of light and sparks rising inside it.
 func _draw_slot_aura(rect: Rect2, color: Color) -> void:
-	for i in range(10):
-		var x := rect.position.x + (float(i) + 0.5) * rect.size.x / 10.0
-		var h := rect.size.y * (0.35 + 0.3 * sin(clock * 7.0 + float(i) * 1.9))
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 9.0, rect.end.y), Vector2(x, rect.end.y - h), Vector2(x + 9.0, rect.end.y)]), Color(color.lightened(0.25), 0.55))
-	for i in range(14):
-		var phase := fposmod(clock * 1.1 + float(i) * 0.071, 1.0)
-		var x := rect.position.x + fposmod(float(i) * 37.0 + sin(clock + float(i)) * 8.0, rect.size.x)
-		var y := rect.end.y - phase * rect.size.y
-		draw_circle(Vector2(x, y), 3.5 * (1.0 - phase) + 1.0, Color(color.lightened(0.5), 0.9 * (1.0 - phase)))
+	UnitView.draw_flames(self, Vector2(rect.get_center().x, rect.end.y), rect.size.x * 0.95, rect.size.y * 0.72, color)
 
 func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.

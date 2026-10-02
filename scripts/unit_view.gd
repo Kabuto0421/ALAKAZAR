@@ -269,17 +269,60 @@ var aura := Color(0, 0, 0, 0)
 
 ## A glow and rising sparks round the character, in the powered-up dagger's colour.
 func _draw_aura() -> void:
+	draw_flames(self, Vector2(0, 26), 70.0, 78.0, aura)
+
+## A flame (or, for a yellow colour, crackling lightning) rising from a base line: curved
+## tongues in three layers that sway and flicker, with embers drifting up. `origin` is the
+## middle of the base, `width` how far the base spreads, `height` the tallest flame.
+static func draw_flames(canvas: CanvasItem, origin: Vector2, width: float, height: float, color: Color) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
-	# Tongues of light licking up from the feet.
-	for i in range(7):
-		var x := -33.0 + float(i) * 11.0
-		var h := 36.0 + 24.0 * sin(t * 7.0 + float(i) * 1.9)
-		draw_colored_polygon(PackedVector2Array([Vector2(x - 6.0, 26.0), Vector2(x, 26.0 - h), Vector2(x + 6.0, 26.0)]), Color(aura.lightened(0.25), 0.6))
-	for i in range(18):
-		var phase := fposmod(t * 1.1 + float(i) * 0.057, 1.0)
-		var x := sin(float(i) * 2.4 + t * 1.5) * 28.0
-		var y := 28.0 - phase * 90.0
-		draw_circle(Vector2(x, y), 4.5 * (1.0 - phase) + 1.0, Color(aura.lightened(0.5), 0.95 * (1.0 - phase)))
+	var electric := color.g > 0.7
+	if electric:
+		for i in range(5):
+			var x0 := origin.x + (float(i) / 4.0 - 0.5) * width
+			var points := PackedVector2Array()
+			var steps := 7
+			var reach := height * (0.55 + 0.4 * absf(sin(t * 9.0 + float(i) * 2.3)))
+			for k in range(steps + 1):
+				var f := float(k) / float(steps)
+				var jag := 0.0 if k == 0 else sin(t * 23.0 + float(i) * 5.0 + float(k) * 2.9) * 10.0 * f
+				points.append(Vector2(x0 + jag, origin.y - f * reach))
+			canvas.draw_polyline(points, Color(color, 0.5), 7.0)
+			canvas.draw_polyline(points, Color(1.0, 1.0, 0.85, 0.95), 2.5)
+	else:
+		var tongues := 6
+		for i in range(tongues):
+			var f := float(i) / float(tongues - 1)
+			var x0 := origin.x + (f - 0.5) * width
+			# The middle flames are tallest; each one breathes in its own time.
+			var tall := height * (0.45 + 0.55 * sin(f * PI)) * (0.8 + 0.2 * sin(t * 8.0 + float(i) * 2.1))
+			var wide := width / float(tongues) * 0.95
+			for layer in range(3):
+				var shrink := 1.0 - 0.28 * float(layer)
+				var shade: Color = [color, color.lightened(0.35), Color(1.0, 0.95, 0.6)][layer]
+				var alpha: float = [0.5, 0.65, 0.85][layer]
+				var left := PackedVector2Array()
+				var right := PackedVector2Array()
+				var steps := 10
+				for k in range(steps + 1):
+					var h := float(k) / float(steps)
+					# A teardrop: full at the foot, narrowing to a curling tip.
+					var half := wide * 0.5 * shrink * pow(1.0 - h, 0.7) * (0.6 + 0.4 * sin(minf(h * 3.0, 1.0) * PI * 0.5 + 0.6))
+					var sway := sin(t * 6.0 + float(i) * 1.7 + h * 3.2) * wide * 0.45 * h * h
+					var y := origin.y - h * tall * shrink
+					left.append(Vector2(x0 + sway - half, y))
+					right.append(Vector2(x0 + sway + half, y))
+				right.reverse()
+				var outline := PackedVector2Array()
+				outline.append_array(left)
+				outline.append_array(right)
+				if Geometry2D.triangulate_polygon(outline).size() >= 3:
+					canvas.draw_colored_polygon(outline, Color(shade, alpha))
+	for i in range(12):
+		var phase := fposmod(t * 0.9 + float(i) * 0.083, 1.0)
+		var x := origin.x + sin(float(i) * 2.4 + t * 1.3) * width * 0.5
+		var y := origin.y - phase * height * 1.15
+		canvas.draw_circle(Vector2(x, y), 2.8 * (1.0 - phase) + 0.8, Color(color.lightened(0.55), 0.9 * (1.0 - phase)))
 
 func _draw() -> void:
 	if aura.a > 0.0 and kind == "player":
