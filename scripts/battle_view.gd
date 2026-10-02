@@ -2662,6 +2662,12 @@ func _draw_tsunami() -> void:
 				_text(from_c + Vector2(-22, -TILE * 0.5 - 4), "動かない", 15, Color(1.0, 0.55, 0.5))
 			continue
 		var pulse := 0.6 + 0.4 * sin(clock * 7.0)
+		# The way it sweeps them: the tiles on the road, then the landing tile.
+		var road: Vector2i = entry.from
+		while road != entry.to:
+			road += wind
+			if road != entry.to:
+				draw_rect(Rect2(BOARD + Vector2(road) * TILE + Vector2.ONE * 6, Vector2.ONE * (TILE * size - 12)), Color(0.5, 1.0, 0.95, 0.09 * bold))
 		draw_rect(landing, Color(0.5, 1.0, 0.95, (0.16 + 0.1 * pulse) * bold))
 		draw_rect(landing, Color(0.7, 1.0, 1.0, bold), false, 4 if is_player else 2)
 		var tail := from_c + dir * TILE * 0.18

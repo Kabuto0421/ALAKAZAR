@@ -2337,7 +2337,7 @@ func _storm_shark() -> void:
 			if not w.storm.wave.has(Vector2i(x, y)):
 				w.storm.wave.append(Vector2i(x, y))
 	w._storm_wind_push()
-	verify(w.player.cell == Vector2i(1,3) and soldier.cell == Vector2i(3,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wave moves the player and the soldiers one tile; the boss and the wall-bound stay")
+	verify(w.player.cell == Vector2i(7,3) and soldier.cell == Vector2i(6,1) and walled.cell == Vector2i(7,1) and ws.cell == Vector2i(5,5),"The wave sweeps the player and the soldiers on to the edge (or to whoever is in the way); the boss stays")
 	# The plan shown on the board is exactly where the wave takes everyone.
 	var wp := _shark_room()
 	wp.player.cell = Vector2i(2,3)

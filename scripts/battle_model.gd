@@ -2923,7 +2923,8 @@ func _wave_hits(unit: Dictionary) -> bool:
 	var cells: Array = storm.get("wave", [])
 	return footprint(unit).any(func(tile: Vector2i) -> bool: return cells.has(tile))
 
-## At the start of the enemy turn: the tsunami carries everyone it covers (but the shark) one tile, then
+## At the start of the enemy turn: the tsunami sweeps everyone it covers (but the shark) on in
+## its direction until something stops them, then
 ## lightning is either called down on last turn's marks or new marks are laid.
 func storm_enemy_turn() -> void:
 	if storm.is_empty() or time_stopped() or storm_shark().is_empty():
@@ -2972,27 +2973,33 @@ func _storm_wind_push() -> void:
 	# The ones in front go first, so a line of units moves together.
 	units.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return (a.cell.x * dir.x + a.cell.y * dir.y) > (b.cell.x * dir.x + b.cell.y * dir.y))
 	for unit in units:
-		var moved := {"cell": unit.cell + dir, "size": unit.get("size", 1)}
-		var own := footprint(unit)
-		var free := true
-		for tile in footprint(moved):
-			if not inside(tile):
-				free = false
-			elif own.has(tile):
-				continue
-			elif obstacles.has(tile) or walls.has(tile) or pits.has(tile) or fairies.has(tile) or not cannon_at(tile).is_empty() or shadow.get("cell", Vector2i(-1, -1)) == tile:
-				free = false
-			elif tile == player.cell and unit != player:
-				free = false
-			elif not enemy_at(tile).is_empty() and enemy_at(tile).id != unit.id:
-				free = false
-			elif not ally_at(tile).is_empty() and ally_at(tile).id != unit.id:
-				free = false
-		if not free:
-			continue
-		events.append({"kind":"wind", "cell":unit.cell, "to":unit.cell + dir, "id":unit.id})
-		unit.cell += dir
-		trigger_mine(unit)
+		# The tsunami does not stop at one tile: it sweeps its load on until something is in the way.
+		var start: Vector2i = unit.cell
+		for step in range(board_size):
+			var moved := {"cell": unit.cell + dir, "size": unit.get("size", 1)}
+			var own := footprint(unit)
+			var free := true
+			for tile in footprint(moved):
+				if not inside(tile):
+					free = false
+				elif own.has(tile):
+					continue
+				elif obstacles.has(tile) or walls.has(tile) or pits.has(tile) or fairies.has(tile) or not cannon_at(tile).is_empty() or shadow.get("cell", Vector2i(-1, -1)) == tile:
+					free = false
+				elif tile == player.cell and unit != player:
+					free = false
+				elif not enemy_at(tile).is_empty() and enemy_at(tile).id != unit.id:
+					free = false
+				elif not ally_at(tile).is_empty() and ally_at(tile).id != unit.id:
+					free = false
+			if not free:
+				break
+			unit.cell += dir
+			trigger_mine(unit)
+			if unit.hp <= 0:
+				break
+		if unit.cell != start:
+			events.append({"kind":"wind", "cell":start, "to":unit.cell, "id":unit.id})
 	trigger_fairies()
 	check_outcome()
 
