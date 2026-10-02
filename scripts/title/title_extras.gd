@@ -23,7 +23,7 @@ static func in_art() -> Array[String]:
 ## The free space: above the fairies, left of the guardian's halo (checked against the
 ## art's pixels by the tests).
 const AREA := Rect2(90, 300, 450, 176)
-const SLOT := Vector2(104, 88)
+const SLOT := Vector2(98, 88)
 const SIZE := 88.0
 
 var items: Array[Resource] = []
