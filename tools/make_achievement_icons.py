@@ -77,12 +77,12 @@ for k in range(16):
 for r, a in ((118, 16), (88, 20), (58, 26), (34, 34)):
     gd.ellipse((128 - r, 128 - r, 128 + r, 128 + r), fill=(120, 240, 220, a))
 bg.alpha_composite(glow_layer)
-# A crowd gathered round its leader: 1 in the middle, then rings of 7 and 14, the
+# A crowd gathered round its leader: 1 in the middle, then rings of 7 and 16, the
 # nearer ones in front (drawn last).
 leader = paths[0] if not any("magic_bolt" in x for x in paths) else next(x for x in paths if "magic_bolt" in x)
 others = [x for x in paths if x != leader]
 placed = [(leader, 128, 128, 84)]
-for ring, (count, radius, size, offset) in enumerate(((7, 56, 56, -math.pi / 2), (14, 98, 46, -math.pi / 2 + 0.2))):
+for ring, (count, radius, size, offset) in enumerate(((7, 56, 56, -math.pi / 2), (16, 98, 44, -math.pi / 2 + 0.2))):
     for i in range(count):
         if not others:
             break
