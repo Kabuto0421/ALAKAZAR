@@ -658,6 +658,10 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
 				_react_to_hit(event, hit_direction)
 		queue_redraw()
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0):
+			# A beat of hit-stop on every blow that lands, so the second strike feels like the first.
+			Engine.time_scale = 0.05
+			get_tree().create_timer(0.05, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 		await get_tree().create_timer(duration - impact_time).timeout
 	else:
 		_sync_units(animate)
@@ -1044,12 +1048,22 @@ func _react_to_hit(event: Dictionary, direction: Vector2 = Vector2.ZERO) -> void
 	if direction == Vector2.ZERO and actors.has(-1):
 		direction = actor.position - actors[-1].position
 	actor.play_hit_reaction(direction)
-	var power := 3.0 + 2.0 * int(actor.span)
+	# Every blow lands as hard as the first: a run of hits in one turn builds, never fades.
+	if streak_round != model.round_number:
+		streak_round = model.round_number
+		hit_streak = 0
+	hit_streak += 1
+	var power := 3.0 + 2.0 * int(actor.span) + 1.5 * mini(hit_streak - 1, 3)
 	if chain_shake <= 0.14:
-		chain_shake = 0.14
+		chain_shake = 0.2
 		chain_shake_power = power
 	else:
+		chain_shake = maxf(chain_shake, 0.2)
 		chain_shake_power = maxf(chain_shake_power, power)
+
+## Blows landed so far this turn (each one shakes the board a little harder, up to a point).
+var hit_streak := 0
+var streak_round := -1
 
 ## 守護神の妖精: the board dims, a pillar of light drops the guardian in, and each ally
 ## it calls fades in on its beat as a streak of light reaches it.
