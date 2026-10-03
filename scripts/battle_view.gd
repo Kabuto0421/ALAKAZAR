@@ -2510,17 +2510,22 @@ func _draw_king_barrier() -> void:
 			for k in range(links):
 				var along := fposmod(float(k) / float(maxi(links, 1)) + clock * 0.5, 1.0)
 				draw_circle(from.lerp(centre, along), 4.0, Color(1.0, 0.85, 0.8, 0.9))
-		# The dome.
-		var radius := TILE * 2.15
-		draw_circle(centre, radius, Color(tone, 0.10 + 0.12 * strength + 0.05 * beat))
-		draw_arc(centre, radius, 0.0, TAU, 56, Color(tone, 0.55 + 0.3 * beat), 5.0, true)
-		draw_arc(centre, radius - 8.0, 0.0, TAU, 56, Color(1, 1, 1, 0.18), 2.0, true)
-		var hexagon := PackedVector2Array()
-		for k in range(7):
-			hexagon.append(centre + Vector2.from_angle(clock * 0.6 + k * TAU / 6.0) * (radius - 18.0))
-		draw_polyline(hexagon, Color(tone, 0.45), 2.0)
+		# The barrier: a square of red glass exactly over his 3x3, with scanning lines and corner brackets.
+		var box := Rect2(BOARD + Vector2(king.cell) * TILE, Vector2.ONE * TILE * 3.0).grow(3.0)
+		draw_rect(box, Color(tone, 0.12 + 0.12 * strength + 0.05 * beat))
+		draw_rect(box, Color(tone, 0.6 + 0.3 * beat), false, 5.0)
+		draw_rect(box.grow(-9.0), Color(1, 1, 1, 0.2), false, 2.0)
+		for k in range(1, 6):
+			var y := box.position.y + fposmod(clock * 40.0 + k * box.size.y / 6.0, box.size.y)
+			draw_line(Vector2(box.position.x + 4.0, y), Vector2(box.end.x - 4.0, y), Color(tone, 0.18), 2.0)
+		var arm := TILE * 0.5
+		for corner in [box.position, Vector2(box.end.x, box.position.y), box.end, Vector2(box.position.x, box.end.y)]:
+			var sx := 1.0 if corner.x < centre.x else -1.0
+			var sy := 1.0 if corner.y < centre.y else -1.0
+			draw_line(corner, corner + Vector2(sx * arm, 0), Color(1, 0.85, 0.85, 0.95), 7.0)
+			draw_line(corner, corner + Vector2(0, sy * arm), Color(1, 0.85, 0.85, 0.95), 7.0)
 		# One pip per fortress over his head.
-		var pip_y := centre.y - TILE * 2.45
+		var pip_y := centre.y - TILE * 1.5 - 22.0
 		for k in range(total):
 			var at := Vector2(centre.x + (k - (total - 1) / 2.0) * 26.0, pip_y)
 			if k < left:
@@ -3675,20 +3680,25 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
 		"barrier_up":
-			# The barrier rises: a red ring swelling out from the king.
-			var king_at := BOARD + (Vector2(effect.cell) + Vector2(0.0, 0.0)) * TILE + Vector2.ONE * TILE / 2.0
-			draw_arc(king_at, TILE * (0.8 + 1.6 * t), 0, TAU, 48, Color(1.0, 0.25, 0.25, fade), 8.0, true)
-			draw_arc(king_at, TILE * (0.4 + 1.2 * t), 0, TAU, 48, Color(1, 1, 1, fade * 0.7), 3.0, true)
-			_text(king_at + Vector2(-64, -TILE * 2.7 - t * 16.0), "障壁展開", 34, Color(1.0, 0.55, 0.55, fade))
+			# The barrier rises: a red square swelling out to his 3x3, then holding.
+			var up_centre := BOARD + Vector2(effect.cell) * TILE + Vector2.ONE * TILE / 2.0
+			var half := TILE * (0.6 + 1.0 * minf(t * 2.0, 1.0))
+			var up_box := Rect2(up_centre - Vector2.ONE * half, Vector2.ONE * half * 2.0)
+			draw_rect(up_box, Color(1.0, 0.2, 0.2, 0.35 * fade))
+			draw_rect(up_box, Color(1.0, 0.45, 0.45, fade), false, 7.0)
+			draw_rect(up_box.grow(-8.0), Color(1, 1, 1, 0.6 * fade), false, 2.0)
+			_text(up_centre + Vector2(-64, -TILE * 2.0 - t * 16.0), "障壁展開", 40, Color(1.0, 0.55, 0.55, fade))
 		"barrier_block":
 			# The shot is turned away: blue sparks ring the dome and "無敵" / "ブロック" rise.
 			var block_at := BOARD + Vector2(effect.cell) * TILE + Vector2.ONE * TILE / 2.0
-			draw_arc(block_at, TILE * (1.7 + 0.5 * t), 0, TAU, 48, Color(0.5, 0.85, 1.0, fade), 5.0, true)
+			var flash_box := Rect2(block_at - Vector2.ONE * TILE * 1.5, Vector2.ONE * TILE * 3.0).grow(3.0 + 10.0 * t)
+			draw_rect(flash_box, Color(0.5, 0.85, 1.0, 0.28 * fade))
+			draw_rect(flash_box, Color(0.7, 0.93, 1.0, fade), false, 6.0)
 			for k in range(10):
 				var ray := Vector2.from_angle(k * TAU / 10.0 + 0.3)
-				draw_line(block_at + ray * TILE * (1.7 + 0.2 * t), block_at + ray * TILE * (1.95 + 0.5 * t), Color(0.8, 0.95, 1.0, fade), 3.0)
-			_text(block_at + Vector2(-34, -TILE * 2.2 - t * 18.0), "無敵", 32, Color(0.62, 0.91, 1.0, fade))
-			_text(block_at + Vector2(-36, -TILE * 2.2 + 26.0 - t * 18.0), "ブロック", 20, Color(1, 1, 1, fade))
+				draw_line(block_at + ray * TILE * (1.2 + 0.2 * t), block_at + ray * TILE * (1.5 + 0.5 * t), Color(0.8, 0.95, 1.0, fade), 3.0)
+			_text(block_at + Vector2(-44, -TILE * 1.9 - t * 18.0), "無敵", 42, Color(0.62, 0.91, 1.0, fade))
+			_text(block_at + Vector2(-44, -TILE * 1.9 + 30.0 - t * 18.0), "ブロック", 24, Color(1, 1, 1, fade))
 		"chain_cut":
 			# A fortress falls: its chain snaps in the middle, the halves recoil and sparks fly.
 			var chain_from := BOARD + (Vector2(effect.cell) + Vector2.ONE) * TILE
@@ -3710,7 +3720,7 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 				var shard_at := shatter_at + direction * TILE * (1.0 + 2.6 * t) 
 				var side := Vector2(-direction.y, direction.x)
 				draw_colored_polygon(PackedVector2Array([shard_at + direction * 14.0, shard_at + side * 7.0, shard_at - side * 7.0]), Color(0.75, 0.93, 1.0, fade * 0.9))
-			draw_arc(shatter_at, TILE * (1.0 + 3.0 * t), 0, TAU, 56, Color(0.8, 0.95, 1.0, fade), 6.0, true)
+			draw_rect(Rect2(shatter_at - Vector2.ONE * TILE * (1.5 + 1.6 * t), Vector2.ONE * TILE * (3.0 + 3.2 * t)), Color(0.8, 0.95, 1.0, fade), false, 6.0)
 			var banner_at := BOARD + Vector2(model.board_size * TILE / 2.0, model.board_size * TILE * 0.28)
 			_text(banner_at + Vector2(-132, 14), "障壁崩壊", 66, Color(0.62, 0.94, 1.0, minf(1.0, fade * 2.0)))
 		"knock_home":
