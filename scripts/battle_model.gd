@@ -3195,9 +3195,6 @@ func slot_spin(enemy: Dictionary) -> void:
 				weapon = owned_weapons[locked_slot]
 		4:
 			_mark_floor(enemy)
-		7:
-			# The jackpot also sets the floor to burn: after its two charges, a checkerboard burns.
-			_mark_floor(enemy)
 		5:
 			enemy.state = "stun"
 	enemy.intent = "出目 %d" % reel
@@ -3205,20 +3202,18 @@ func slot_spin(enemy: Dictionary) -> void:
 
 ## Marks the checkerboard (the tiles of the colour it stands on) to burn.
 func _mark_floor(enemy: Dictionary) -> void:
-	floor_cells.clear()
 	var parity: int = (enemy.cell.x + enemy.cell.y) % 2
 	for y in range(board_size):
 		for x in range(board_size):
-			if (x + y) % 2 == parity:
+			if (x + y) % 2 == parity and not floor_cells.has(Vector2i(x, y)):
 				floor_cells.append(Vector2i(x, y))
 
 ## Enemy turn: resolve the shown reel, charge, then spin again.
 func slot_turn(enemy: Dictionary) -> void:
 	if phase != Phase.ENEMY or enemy.hp <= 0:
 		return
-	# A floor marked by an earlier reel burns first; the jackpot's burns after its charges.
-	if int(enemy.reel) != 7:
-		_burn_floor(enemy)
+	# A floor marked last turn (reel 4, or the jackpot's) burns first.
+	_burn_floor(enemy)
 	if terminal():
 		return
 	match int(enemy.reel):
@@ -3235,8 +3230,9 @@ func slot_turn(enemy: Dictionary) -> void:
 			_sure_charge(enemy)
 			if enemy.ap > 0 and not terminal() and enemy.hp > 0:
 				rook_charge(enemy)
-			if not terminal():
-				_burn_floor(enemy)
+			# The jackpot leaves a checkerboard burning at the start of the next enemy turn.
+			if not terminal() and enemy.hp > 0:
+				_mark_floor(enemy)
 		_:
 			rook_charge(enemy)
 	shadow_strike()

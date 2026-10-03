@@ -828,28 +828,34 @@ func _rotorick() -> void:
 	m.walls[Vector2i(3,3)] = 3
 	_enemy_turn(m)
 	verify(m.player.hp <= 4 and not m.walls.has(Vector2i(3,3)),"Reel 7 smashes a wall spirit and keeps chasing")
-	# 7 also marks the floor, and it burns after the charges, not before.
+	# 7 leaves a burning floor for the NEXT enemy turn, not this one.
 	m = _slot_room()
 	boss = _slot_ready(m, 7)
 	m.slot_spin(boss)
 	while int(boss.reel) != 7:
 		m.slot_rolls += 1
 		m.slot_spin(boss)
-	verify(not m.floor_cells.is_empty(),"Reel 7 marks the floor to burn")
+	m.floor_cells.clear()
 	boss.facing = 3
 	boss.state = "brace"
 	m.player.cell = Vector2i(0,0)
 	m.phase = Rules.Phase.ENEMY
 	m.events.clear()
 	m.slot_turn(boss)
-	var last_dash := -1
-	var first_burn := -1
-	for k in m.events.size():
-		if m.events[k].kind == "dash":
-			last_dash = k
-		if m.events[k].kind == "burn" and first_burn < 0:
-			first_burn = k
-	verify(last_dash >= 0 and first_burn > last_dash,"The floor burns after the jackpot's charges")
+	var burned_now := false
+	for e in m.events:
+		if e.kind == "burn":
+			burned_now = true
+	verify(not burned_now,"The jackpot does not burn the floor on its own turn")
+	verify(not m.floor_cells.is_empty(),"The jackpot leaves the floor marked for the next turn")
+	m.phase = Rules.Phase.ENEMY
+	m.events.clear()
+	m.slot_turn(boss)
+	var burned_next := false
+	for e in m.events:
+		if e.kind == "burn":
+			burned_next = true
+	verify(burned_next,"The marked floor burns at the start of the next enemy turn")
 	verify(float(Rules.REEL_WEIGHTS[5]) < float(Rules.REEL_WEIGHTS[1]) and Rules.REEL_WEIGHTS[7] == 1,"The jam (5) is rarer than the ordinary reels; 7 stays the rarest")
 	# Winning ignores leftover shadows.
 	m = _slot_room()
