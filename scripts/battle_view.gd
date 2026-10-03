@@ -602,7 +602,7 @@ func _react_to_weapon_hits(weapon_action: Dictionary) -> void:
 	var hit_direction := Vector2(weapon_action.destination - weapon_action.origin)
 	for event in model.events:
 		# Hits further down a cannon chain react when their shot lands.
-		if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
+		if event.kind == "hit" and int(event.id) >= 0 and event.get("delay", 0.0) <= 0.0:
 			_react_to_hit(event, hit_direction)
 
 func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> void:
@@ -1021,8 +1021,8 @@ func _feedback(weapon_attack: bool = false) -> void:
 		if event.kind == "hit" and int(event.id) >= 0 and actors.has(int(event.id)):
 			flash.span = int(actors[int(event.id)].span)
 			flash.life = maxf(flash.life, 0.62)
-			if not weapon_attack and flash.get("delay", 0.0) <= 0.0:
-				_react_to_hit(event)
+		if event.kind == "hit" and int(event.id) >= 0 and not weapon_attack and flash.get("delay", 0.0) <= 0.0:
+			_react_to_hit(event)
 		flash.max_life = flash.life
 		flashes.append(flash)
 		if event.kind == "circle":
@@ -1054,20 +1054,24 @@ func _feedback(weapon_attack: bool = false) -> void:
 ## (the unit does that), and the board jolts, harder for bigger enemies.
 func _react_to_hit(event: Dictionary, direction: Vector2 = Vector2.ZERO) -> void:
 	var id := int(event.id)
-	if id < 0 or not actors.has(id):
+	if id < 0:
 		return
-	var actor: Node2D = actors[id]
-	if direction == Vector2.ZERO:
-		direction = Vector2(event.get("dir", Vector2i.ZERO))
-	if direction == Vector2.ZERO and actors.has(-1):
-		direction = actor.position - actors[-1].position
-	actor.play_hit_reaction(direction)
+	# A killing blow has already removed the enemy's view: the board still shakes for it.
+	var span := 1
+	if actors.has(id):
+		var actor: Node2D = actors[id]
+		span = int(actor.span)
+		if direction == Vector2.ZERO:
+			direction = Vector2(event.get("dir", Vector2i.ZERO))
+		if direction == Vector2.ZERO and actors.has(-1):
+			direction = actor.position - actors[-1].position
+		actor.play_hit_reaction(direction)
 	# Every blow lands as hard as the first: a run of hits in one turn builds, never fades.
 	if streak_round != model.round_number:
 		streak_round = model.round_number
 		hit_streak = 0
 	hit_streak += 1
-	var power := 3.0 + 2.0 * int(actor.span) + 1.5 * mini(hit_streak - 1, 3)
+	var power := 3.0 + 2.0 * span + 1.5 * mini(hit_streak - 1, 3)
 	if chain_shake <= 0.14:
 		chain_shake = 0.2
 		chain_shake_power = power
