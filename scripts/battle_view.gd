@@ -2855,7 +2855,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
 	elif enemy.type == "king":
 		if enemy.hp <= Rules.KING_RAGE_HP:
-			_text(Vector2(852,546),"怒り：要塞が兵を2体ずつ出す",19,Color("ff6b6b"))
+			_text(Vector2(852,546),"怒り：要塞を壊すまで障壁で無敵",19,Color("ff6b6b"))
 		if model.king_shielded(enemy):
 			_text(Vector2(852,500),"要塞が残っているあいだは無敵（あと%d基）" % enemy.barrier_cells.size(),18,Color("ff9a9a"))
 		elif enemy.get("barrier_broken", false):
@@ -2863,7 +2863,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		var next := model.next_revival()
 		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
 	elif enemy.type == "fortress":
-		_text(Vector2(852,450),"毎ターン兵を%d体出す" % (2 if model.king_enraged() else 1),18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"))
+		_text(Vector2(852,450),"毎ターン兵を1体出す。壊すと王の障壁が弱まる" if model.king_enraged() else "毎ターン兵を1体出す",18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"))
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":

@@ -2078,7 +2078,7 @@ func _prison_king() -> void:
 	m.check_outcome()
 	verify(m.enemies.size() == before - 1 and not m.enemies.has(forts[1]),"A broken fortress just crumbles (no soldiers)")
 	verify(m.ruins.has(forts[1].cell),"A broken fortress leaves rubble behind")
-	# Enraged at half HP: each fortress sends out two a turn.
+	# Enraged at half HP: the barrier goes up (the fortresses keep sending one soldier a turn).
 	verify(not m.king_enraged(),"Not enraged at full health")
 	king.hp = Rules.KING_RAGE_HP
 	m.check_outcome()
@@ -2087,7 +2087,7 @@ func _prison_king() -> void:
 	before = m.enemies.size()
 	m.round_number += 2
 	m.fortress_turn(forts[0])
-	verify(m.enemies.size() == before + 2,"An enraged king's fortress sends out two")
+	verify(m.enemies.size() == before + 1,"Even enraged, a fortress still sends out just one soldier")
 	# The barrier: enraged with a fortress standing, nothing hurts him.
 	verify(king.get("barrier_max", 0) == 1 and m.king_shielded(king),"Enraged with a fortress left, the king is shielded")
 	m.events.clear()

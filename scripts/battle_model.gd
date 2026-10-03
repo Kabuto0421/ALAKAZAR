@@ -102,7 +102,7 @@ const HABITS := {
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
-## At this HP or below the Prison King is enraged: each fortress sends out two a turn.
+## At this HP or below the Prison King is enraged: a barrier shields him until every fortress falls.
 const KING_REVIVE_EVERY := 2
 const KING_RAGE_HP := 5
 ## Shogi generals: they always face left (towards where the player starts).
@@ -2774,7 +2774,7 @@ func _check_rage() -> void:
 			king.enraged = true
 			events.append({"kind":"roar", "cell":king.cell + Vector2i.ONE, "id":-2})
 			events.append({"kind":"king_rage", "cell":king.cell + Vector2i.ONE, "id":-2})
-			add_log("監獄の王が怒り狂った！ 要塞監獄が兵を2体ずつ出す")
+			add_log("監獄の王が怒り狂った！")
 			var held := {}
 			for fortress in enemies:
 				if fortress.type == "fortress" and fortress.hp > 0:
@@ -2821,10 +2821,10 @@ func _check_barrier() -> void:
 			events.append({"kind":"barrier_break", "cell":king.cell + Vector2i.ONE, "id":king.id})
 			add_log("障壁崩壊！ 王に攻撃が通る")
 
-## 要塞監獄: every turn it lets out one soldier of a random kind (two once the king is enraged).
+## 要塞監獄: every turn it lets out one soldier of a random kind.
 func fortress_turn(fortress: Dictionary) -> void:
 	fortress.ap = 0
-	for k in 2 if king_enraged() else 1:
+	for k in 1:
 		var kind := _soldier_kind(fortress, k)
 		if _spawn_soldier(fortress, kind, false):
 			fortress.intent = "出撃"
