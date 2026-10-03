@@ -405,7 +405,7 @@ func _play_lottery(token: int) -> bool:
 ## While the draw plays (or the entrance), the reel on Rotorick's chest keeps spinning.
 var reel_hold := false
 const REEL_COLORS = {1: Color("ffd35b"), 2: Color("ffd35b"), 3: Color("ffd35b"), 4: Color("ff4b3b"), 5: Color("c9c9c9"), 6: Color("c79bff"), 7: Color("ff3b4a")}
-const REEL_SHORT = {1: "1枠のみ", 2: "2枠のみ", 3: "3枠のみ", 4: "床焼き", 5: "故障・停止", 6: "残像", 7: "刑の執行"}
+const REEL_SHORT = {1: "武器制限[1]", 2: "武器制限[2]", 3: "武器制限[3]", 4: "ダメージ床", 5: "故障・停止", 6: "残像", 7: "AP+1"}
 
 ## The Prison King's entrance: black-out, the throne hall, his name, then the fight.
 func _final_intro() -> void:
@@ -2380,7 +2380,7 @@ const REEL_LINES = {
 	4: ["判決、四。床を焼きます。", "赤黒マスに次の敵ターンで1ダメージ"],
 	5: ["ERROR 05 ─ 停止中", "次の敵ターンは突進しない"],
 	6: ["判決、六。残像を置いていきます。", "残像の隣に入ると1ダメージ"],
-	7: ["刑を執行します。", "AP+1・2回突進・1回目は必中"],
+	7: ["刑を執行します。", "AP+1・2回突進・突進のあと床焼き"],
 }
 
 
@@ -2483,7 +2483,7 @@ func _draw_reel_badge() -> void:
 			continue
 		var reel_now: int = int(enemy.reel)
 		var colour: Color = REEL_COLORS.get(reel_now, CasinoFx.GOLD)
-		var size := Vector2(150, 60)
+		var size := Vector2(250, 60)
 		var at := BOARD + Vector2(enemy.cell) * TILE + Vector2(TILE - size.x / 2.0, -size.y - 30.0)
 		var rect := Rect2(at, size)
 		# No room above the top row: hang below Rotorick instead.
@@ -2495,7 +2495,7 @@ func _draw_reel_badge() -> void:
 		draw_rect(rect, Color(colour, pulse), false, 4)
 		draw_rect(rect.grow(4), Color(colour, 0.25 * pulse), false, 2)
 		_text(rect.position + Vector2(14, 46), str(reel_now), 48, colour)
-		_text(rect.position + Vector2(50, 38), REEL_SHORT.get(reel_now, ""), 20, Color("f1e9d8"))
+		_text(rect.position + Vector2(52, 38), REEL_SHORT.get(reel_now, ""), 22, Color("f1e9d8"))
 		return
 
 func _mini_zone_of(cell: Vector2i) -> int:
@@ -2517,8 +2517,6 @@ func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	var top := 322.0
 	var line_color := Color("ffd35b") if reel == 5 else Color("f1e9d8")
 	var y := _wrapped(Vector2(852,top),lines[0] if reel == 5 else "「%s」" % lines[0],18,line_color,15)
-	if reel == 7:
-		y = _wrapped(Vector2(852,y+2),"逃げ場は無い。",24,Color("ff3b3b"),10)
 	_draw_reel_diagram(reel, Rect2(852,y+4,256,92))
 	var y_end := _wrapped(Vector2(852,y+122),lines[1],18,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
 	if enemy.hp <= Rules.MINI_SLOT_HP:

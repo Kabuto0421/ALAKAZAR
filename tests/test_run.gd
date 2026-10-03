@@ -813,13 +813,13 @@ func _rotorick() -> void:
 	var hp_before: int = m.player.hp
 	m.player_action(start + Vector2i(-1,0))
 	verify(m.player.hp == hp_before - 1 and m.enemies.filter(func(e): return e.type == "shadow").is_empty(),"Stepping next to the shadow gets you cut once, then it fades")
-	# 7: AP+1 and a charge that always lands.
+	# 7: AP+1 (two charges), no guaranteed hit.
 	m = _slot_room()
 	boss = _slot_ready(m, 7)
 	boss.facing = 3
 	m.player.cell = Vector2i(1,5)
 	_enemy_turn(m)
-	verify(m.player.hp <= 4,"Reel 7: even a dodged line is chased down and hit")
+	verify(m.player.hp <= 4,"Reel 7: two charges; the second turns on a player who dodged the first")
 	m = _slot_room()
 	boss = _slot_ready(m, 7)
 	boss.facing = 3
@@ -827,7 +827,7 @@ func _rotorick() -> void:
 	m.walls[Vector2i(3,2)] = 3
 	m.walls[Vector2i(3,3)] = 3
 	_enemy_turn(m)
-	verify(m.player.hp <= 4 and not m.walls.has(Vector2i(3,3)),"Reel 7 smashes a wall spirit and keeps chasing")
+	verify(m.player.hp == 5 and m.walls.has(Vector2i(3,2)),"Reel 7 has no guaranteed hit: a wall spirit in the lane protects you")
 	# 7 leaves a burning floor for the NEXT enemy turn, not this one.
 	m = _slot_room()
 	boss = _slot_ready(m, 7)

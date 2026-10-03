@@ -3246,10 +3246,10 @@ func slot_turn(enemy: Dictionary) -> void:
 			rook_charge(enemy)
 		7:
 			enemy.ap = 2
-			_sure_charge(enemy)
+			rook_charge(enemy)
 			if enemy.ap > 0 and not terminal() and enemy.hp > 0:
 				rook_charge(enemy)
-			# The jackpot leaves a checkerboard burning at the start of the next enemy turn.
+			# The jackpot (AP+1, two charges) also leaves a checkerboard burning at the start of the next enemy turn.
 			if not terminal() and enemy.hp > 0:
 				_mark_floor(enemy)
 		_:
@@ -3350,20 +3350,6 @@ func _burn_floor(enemy: Dictionary) -> void:
 	add_log("刑場の床が焼けた")
 	floor_cells.clear()
 	check_outcome()
-
-## Reel 7: the first charge always reaches the player; blockers in the way are smashed first.
-func _sure_charge(enemy: Dictionary) -> void:
-	var before: int = player.hp
-	rook_charge(enemy)
-	for attempt in 3:
-		if player.hp < before or terminal() or enemy.hp <= 0:
-			return
-		# The homing follow-up is part of the same sure strike, so it costs no extra AP.
-		var from: Vector2i = enemy.cell
-		enemy.ap += 1
-		rook_charge(enemy)
-		if enemy.cell == from:
-			return
 
 ## Reel 6: Rotorick leaves a purple hologram of itself where it stood.
 func _leave_shadow(enemy: Dictionary) -> void:
