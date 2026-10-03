@@ -1392,7 +1392,7 @@ func _draw_board() -> void:
 			slash_zone.append(hover_cell)
 	# 氷結妖精 / 加護の妖精: hovering a legal tile shows the square they cover.
 	if selected_item in ["freeze_fairy", "blessing_fairy", "cat_fairy"] and model.item_targets(selected_item).has(hover_cell):
-		var radius := 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
+		var radius := Rules.CAT_RADIUS if selected_item == "cat_fairy" else 2 if selected_item == "blessing_fairy" and model.is_plus("blessing_fairy") else 1
 		slash_zone = model.square_around(hover_cell, radius)
 	# Magic circle: hovering a move shows the area it would close.
 	var circle_zone: Array[Vector2i] = []
@@ -1554,9 +1554,10 @@ func _draw_board() -> void:
 				# The wheel turns under whoever rides it.
 				SpiritIcon.paint(self,mid + (Vector2(-5, 8) if model.riding_wheel() else Vector2.ZERO),model.item_definition("wheel_fairy").icon,0.9)
 				_turn_badge(pos,int(model.wheel.turns))
-			if model.cat.get("cell",Vector2i(-1,-1)) == cell:
-				SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
-				_turn_badge(pos,int(model.cat.turns))
+			for field in model.cats:
+				if field.cell == cell:
+					SpiritIcon.paint(self,mid,model.item_definition("cat_fairy").icon,1.1)
+					_turn_badge(pos,int(field.turns))
 			if model.blessing.get("cell",Vector2i(-1,-1)) == cell:
 				SpiritIcon.paint(self,mid,model.item_definition("blessing_fairy").icon,0.9)
 				_turn_badge(pos,int(model.blessing.turns))
@@ -2358,7 +2359,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.wheel_cell() == cell:
 		return {"icon": "wheel_fairy", "turns": int(model.wheel.turns), "state": "乗っている（毎ターンAP+1）" if model.riding_wheel() else "乗っていない", "lines": ["乗ると降りられず、次のターンから", "3ターンの間AP+1", "敵は上に乗れない"]}
 	if model.cat_zone_at(cell):
-		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れず、避けて動く", "（中の敵は出て行く）", "攻撃は止めない"]}
+		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat_at_zone(cell).turns), "state": "", "lines": ["敵は入れず、避けて動く", "（中の敵は出て行く）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):

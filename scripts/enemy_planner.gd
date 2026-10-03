@@ -115,7 +115,7 @@ func beat(model: RefCounted, index: int) -> void:
 			_archer_action(model, enemy)
 			continue
 		# 猫の妖精: ordinary walkers visibly steer clear of the cat's field.
-		if not model.cat.is_empty() and enemy.type in CAT_AVOIDERS and _cat_avoid(model, enemy):
+		if not model.cats.is_empty() and enemy.type in CAT_AVOIDERS and _cat_avoid(model, enemy):
 			continue
 		var adjacent_ally := false
 		for offset in model.enemy_offsets(enemy):
@@ -190,7 +190,7 @@ func _cat_avoid(model: RefCounted, enemy: Dictionary) -> bool:
 			var out_b := 0 if model.cat_zone_at(b) else 1
 			if out_a != out_b:
 				return out_a > out_b
-			return model.distance(a, model.cat.cell) > model.distance(b, model.cat.cell))
+			return model.cat_distance(a) > model.cat_distance(b))
 		if not exits.is_empty():
 			enemy.intent = "猫から逃げる"
 			model.enemy_step(enemy, exits[0])

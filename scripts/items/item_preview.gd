@@ -738,13 +738,13 @@ static func _wheel(time: float, accent: Color, art: Texture2D) -> void:
 		_say(_center(Vector2(4, 2)) + Vector2(0, 2), "+1", 16, GREEN)
 
 static func _cat(time: float, accent: Color, art: Texture2D) -> void:
-	# The cat's 3x3 field: an enemy comes up to its edge and cannot step in (a cross);
-	# then one that was inside simply walks out.
+	# The cat's 5x5 field (cut off by the edge of this small board): an enemy comes up to its edge
+	# and cannot step in (a cross); then one that was inside simply walks out.
 	var p := _cycle(time, 4.8)
-	var area := Rect2(Vector2(1, 0) * C, Vector2(3, 3) * C)
+	var area := Rect2(Vector2(-1, -1) * C, Vector2(5, 5) * C).intersection(Rect2(Vector2.ZERO, Vector2(5, 3) * C))
 	cv.draw_rect(area, Color(accent, 0.18 + 0.05 * sin(time * 3.0)))
 	cv.draw_rect(area, accent, false, 2)
-	_art(art, Vector2(2, 1))
+	_art(art, Vector2(1, 1))
 	if p < 0.55:
 		var q := p / 0.55
 		var nudge := sin(_ph(q, 0.35, 0.6) * PI) * 0.2
@@ -756,7 +756,7 @@ static func _cat(time: float, accent: Color, art: Texture2D) -> void:
 		var q := (p - 0.55) / 0.45
 		# Already inside when the field appeared: it can only leave.
 		_enemy(Vector2(3, 0).lerp(Vector2(4, 0), _ph(q, 0.2, 0.6)))
-		_say(_center(Vector2(2, 2)) + Vector2(0, -4), "出るだけ", 13, accent)
+		_say(_center(Vector2(2, 2)) + Vector2(0, -4), "出て行く", 13, accent)
 		_steps(1, 2)
 
 static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) -> void:

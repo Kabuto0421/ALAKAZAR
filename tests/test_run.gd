@@ -848,7 +848,7 @@ func _expiring_and_rewards() -> void:
 	# Summoners also get 1 AP off; the meteor only gets more meteors.
 	um.fairy_plus["acorn_fairy"] = true
 	um.fairy_plus["meteor_fairy"] = true
-	verify(um.fairy_ap_cost("acorn_fairy") == 0 and um.fairy_uses("acorn_fairy") == 2,"A classed-up acorn: 0 AP, twice a battle")
+	verify(um.fairy_ap_cost("acorn_fairy") == 1 and um.fairy_uses("acorn_fairy") == 2,"A classed-up acorn: still 1 AP, twice a battle")
 	verify(um.fairy_ap_cost("meteor_fairy") == 1 and um.fairy_uses("meteor_fairy") == 1 and um.meteor_count() == 2,"A classed-up meteor: 1 AP, once a battle, two meteors")
 	verify(um.item_definition("warp_fairy").ap_cost == 1 and um.fairy_ap_cost("warp_fairy") == 1 and um.fairy_uses("warp_fairy") == 1,"The warp fairy costs 1 AP, once a battle")
 	# A magic bolt flies through a cannon and sets it off; an acorn beside a cannon fires it.
@@ -1146,12 +1146,12 @@ func _class_ups() -> void:
 	verify(m.use_item("stealth_fairy",Vector2i(2,2)) and m.fairies.has(Vector2i(2,2)),"Stealth fairy+ strikes and stays")
 	verify(m.enemies.filter(func(e): return e.hp == 7).size() == 1,"...for 2 damage")
 	verify(m.fairy_uses("stealth_fairy") == 1 and m.fairy_ap_cost("stealth_fairy") == 1,"Stealth fairy+ keeps its AP and uses")
-	# Acorn+: HP 2 and diagonal attacks.
+	# Acorn+: HP 2 (no diagonal attacks, and it still costs its AP).
 	m = _plus_room("acorn_fairy",[Vector2i(3,3)])
 	m.use_item("acorn_fairy",Vector2i(2,2))
 	verify(m.allies.size() == 1 and m.allies[0].hp == 2,"Acorn+ has 2 HP")
 	m.act_allies()
-	verify(_hurt(m,Vector2i(3,3)),"Acorn+ attacks a diagonal neighbour")
+	verify(not _hurt(m,Vector2i(3,3)),"Acorn+ does not attack a diagonal neighbour")
 	# Warp+: costs no AP (still once a battle).
 	m = _plus_room("warp_fairy",[Vector2i(5,5)])
 	m.player.ap = 0
@@ -2205,59 +2205,77 @@ func _guardian_wall() -> void:
 	verify(walls.size() == 1 and walls[0].hp == 6 and walls[0].ap == 0,"The guardian calls the wall spirit back with HP 6")
 
 ## 猫の妖精: a 3x3 field enemies cannot enter (those inside can only leave); 5 turns.
+## An 8x8 room (the second boss's board), emptied.
+func _cat_room() -> RefCounted:
+	var m := Rules.new()
+	m.boss2_variant = 0
+	m.reset(Rules.BOSS2_LEVEL)
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.player.cell = Vector2i(0,0)
+	return m
+
 func _cat_fairy() -> void:
 	var planner := Planner.new()
-	var m := fixture()
-	m.enemies.clear()
+	var m := _cat_room()
 	m.player.cell = Vector2i(0,2)
 	m.fairy_loadout.assign(["cat_fairy"])
 	m.refill_fairies()
-	verify(m.fairy_ap_cost("cat_fairy") == 1 and m.fairy_uses("cat_fairy") == 1 and m.fairy_ap_cost("cat_fairy", 1) == 0 and m.fairy_uses("cat_fairy", 1) == 1,"The cat fairy: 1 AP, once a battle; the class-up only makes it 0 AP")
+	verify(m.fairy_ap_cost("cat_fairy") == 1 and m.fairy_uses("cat_fairy") == 1 and m.fairy_ap_cost("cat_fairy", 1) == 1 and m.fairy_uses("cat_fairy", 1) == 2,"The cat fairy: 1 AP, once a battle; the class-up makes it twice (the AP stays)")
+	verify(Run.Rarity.tier({"kind":"fairy","value":"cat_fairy"}) == Run.Rarity.RARE,"The cat fairy is rare")
 	var spot: Vector2i = m.item_targets("cat_fairy")[0]
-	verify(m.use_item("cat_fairy", spot) and not m.cat.is_empty() and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(1,1)) and not m.cat_zone_at(spot + Vector2i(2,0)),"It makes a 3x3 field round the tile")
+	verify(m.use_item("cat_fairy", spot) and not m.cats.is_empty() and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(2,2)) and not m.cat_zone_at(spot + Vector2i(3,0)),"It makes a 5x5 field round the tile")
 	# An enemy beside the field cannot step in.
-	var edge: Vector2i = spot + Vector2i(2,0)
+	var edge: Vector2i = spot + Vector2i(3,0)
 	var foe: Dictionary = m.make_enemy("heavy", edge, 0)
 	m.enemies.append(foe)
-	m.enemies.append(m.make_enemy("heavy", Vector2i(5,5), 1))
+	m.enemies.append(m.make_enemy("heavy", Vector2i(7,7), 1))
 	m.phase = Rules.Phase.ENEMY
 	foe.ap = 1
-	verify(not m.enemy_step(foe, spot + Vector2i(1,0)) and foe.cell == edge,"An enemy cannot step into the field")
+	verify(not m.enemy_step(foe, spot + Vector2i(2,0)) and foe.cell == edge,"An enemy cannot step into the field")
 	m.phase = Rules.Phase.PLAYER
 	# Over a few enemy turns no enemy ends a turn inside it.
 	for turn in 4:
 		_enemy_turn(m)
 		verify(not m.enemies.any(func(e): return m.cat_zone_at(e.cell)),"No enemy enters the field (turn %d)" % (turn + 1))
+	# Two fields at once once classed up (two uses).
+	var twin := _cat_room()
+	twin.fairy_plus["cat_fairy"] = true
+	twin.fairy_loadout.assign(["cat_fairy"])
+	twin.refill_fairies()
+	twin.enemies.append(twin.make_enemy("heavy", Vector2i(7,7), 0))
+	var first_spot: Vector2i = twin.item_targets("cat_fairy")[0]
+	twin.player.ap = 2
+	verify(twin.use_item("cat_fairy", first_spot) and twin.player.ap == 1,"The classed-up cat still costs 1 AP")
+	var second_targets: Array = twin.item_targets("cat_fairy")
+	verify(not second_targets.is_empty() and twin.use_item("cat_fairy", second_targets[0]) and twin.cats.size() == 2 and twin.player.ap == 0,"...and can be placed a second time")
+	verify(not twin.use_item("cat_fairy", twin.item_targets("cat_fairy")[0]) if not twin.item_targets("cat_fairy").is_empty() else true,"...but not a third time")
 	# One that stands inside when it appears may leave.
-	var inside: RefCounted = fixture()
-	inside.enemies.clear()
-	inside.player.cell = Vector2i(0,0)
-	var trapped: Dictionary = inside.make_enemy("heavy", Vector2i(3,3), 0)
+	var inside := _cat_room()
+	var trapped: Dictionary = inside.make_enemy("heavy", Vector2i(5,3), 0)
 	inside.enemies.append(trapped)
-	inside.enemies.append(inside.make_enemy("heavy", Vector2i(5,5), 1))
-	inside.cat = {"cell":Vector2i(3,3), "turns":5}
+	inside.enemies.append(inside.make_enemy("heavy", Vector2i(7,7), 1))
+	inside.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
 	inside.phase = Rules.Phase.ENEMY
 	trapped.ap = 1
-	trapped.cell = Vector2i(4,3)
-	verify(inside.enemy_step(trapped, Vector2i(5,3)) and trapped.cell == Vector2i(5,3),"An enemy inside the field can walk out of it")
+	verify(inside.enemy_step(trapped, Vector2i(6,3)) and trapped.cell == Vector2i(6,3),"An enemy inside the field can walk out of it")
 	trapped.cell = Vector2i(3,3)
 	trapped.ap = 1
 	verify(inside.enemy_step(trapped, Vector2i(4,3)) == false,"Inside the field, stepping to another field tile is refused")
 	verify(inside.enemy_step(trapped, Vector2i(3,4)) == false,"...and so is every tile of it")
 	# --- Enemies steer clear of the field in plain sight ---
-	var det := fixture()
-	det.enemies.clear()
-	det.cat = {"cell":Vector2i(2,2), "turns":5}
-	det.player.cell = Vector2i(4,2)
-	var walker: Dictionary = det.make_enemy("infantry", Vector2i(0,2), 0)
+	var det := _cat_room()
+	det.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
+	det.player.cell = Vector2i(7,3)
+	var walker: Dictionary = det.make_enemy("infantry", Vector2i(0,3), 0)
 	det.enemies.append(walker)
-	det.enemies.append(det.make_enemy("heavy", Vector2i(5,5), 1))
+	det.enemies.append(det.make_enemy("heavy", Vector2i(7,7), 1))
 	det.phase = Rules.Phase.ENEMY
 	walker.ap = 2
 	planner.beat(det, 0)
-	verify(walker.cell != Vector2i(0,2) and not det.cat_zone_at(walker.cell) and walker.intent == "猫を避けて回り込む","An enemy whose way runs through the field goes round it, and says so")
+	verify(walker.cell != Vector2i(0,3) and not det.cat_zone_at(walker.cell) and walker.intent == "猫を避けて回り込む","An enemy whose way runs through the field goes round it, and says so")
 	var went_round := true
-	for turn in 6:
+	for turn in 8:
 		det.phase = Rules.Phase.ENEMY
 		walker.ap = 2
 		planner.beat(det, 0)
@@ -2265,37 +2283,39 @@ func _cat_fairy() -> void:
 		went_round = went_round and not det.cat_zone_at(walker.cell)
 	verify(went_round and det.distance(walker.cell, det.player.cell) <= 2,"...and still gets near the player without once entering the field")
 	# Inside the field it walks out first.
-	var inn := fixture()
-	inn.enemies.clear()
-	inn.cat = {"cell":Vector2i(2,2), "turns":5}
-	inn.player.cell = Vector2i(5,0)
-	var inner: Dictionary = inn.make_enemy("infantry", Vector2i(3,2), 0)
+	var inn := _cat_room()
+	inn.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
+	inn.player.cell = Vector2i(0,0)
+	var inner: Dictionary = inn.make_enemy("infantry", Vector2i(5,3), 0)
 	inn.enemies.append(inner)
-	inn.enemies.append(inn.make_enemy("heavy", Vector2i(5,5), 1))
+	inn.enemies.append(inn.make_enemy("heavy", Vector2i(7,7), 1))
 	inn.phase = Rules.Phase.ENEMY
 	inner.ap = 1
 	planner.beat(inn, 0)
 	verify(not inn.cat_zone_at(inner.cell) and inner.intent == "猫から逃げる","An enemy inside the field leaves it, and says so")
 	# With the player sealed inside, the enemy holds at the edge.
-	var sealed := fixture()
-	sealed.enemies.clear()
-	sealed.cat = {"cell":Vector2i(2,2), "turns":5}
-	sealed.player.cell = Vector2i(2,2)
-	var waiting: Dictionary = sealed.make_enemy("infantry", Vector2i(5,2), 0)
+	var sealed := _cat_room()
+	sealed.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
+	sealed.player.cell = Vector2i(3,3)
+	var waiting: Dictionary = sealed.make_enemy("infantry", Vector2i(7,3), 0)
 	sealed.enemies.append(waiting)
-	sealed.enemies.append(sealed.make_enemy("heavy", Vector2i(5,5), 1))
+	sealed.enemies.append(sealed.make_enemy("heavy", Vector2i(7,7), 1))
 	sealed.phase = Rules.Phase.ENEMY
 	waiting.ap = 2
 	planner.beat(sealed, 0)
 	planner.beat(sealed, 1)
 	verify(not sealed.cat_zone_at(waiting.cell) and waiting.intent == "猫を避けて足止め" and waiting.ap == 0,"With no way round, the enemy waits at the edge, and says so")
-	# The field lasts five player turns.
-	var t := fixture()
-	t.cat = {"cell":Vector2i(2,2), "turns":Rules.WALL_TURNS}
+	# The field lasts five player turns; two fields run on their own clocks.
+	var t := _cat_room()
+	t.cats.assign([{"cell":Vector2i(3,3), "turns":Rules.WALL_TURNS}])
 	for n in Rules.WALL_TURNS:
-		verify(not t.cat.is_empty(),"The field stands on turn %d" % (n + 1))
+		verify(not t.cats.is_empty(),"The field stands on turn %d" % (n + 1))
 		t.tick_walls()
-	verify(t.cat.is_empty(),"...and is gone after five")
+	verify(t.cats.is_empty(),"...and is gone after five")
+	var two := _cat_room()
+	two.cats.assign([{"cell":Vector2i(1,1), "turns":1}, {"cell":Vector2i(5,5), "turns":3}])
+	two.tick_walls()
+	verify(two.cats.size() == 1 and two.cats[0].cell == Vector2i(5,5) and two.cat_zone_at(Vector2i(6,6)) and not two.cat_zone_at(Vector2i(1,1)),"Each field has its own turns")
 	verify(m.stats.placed_rounds.size() == 1,"Placing it counts as a placed fairy")
 
 ## 車輪の妖精: ride it (a move onto it) and the turns that begin with you on it have 3 AP.

@@ -194,10 +194,10 @@ var fairy_plus: Dictionary = {}
 const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
 	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に{stealth}。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
-	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
+	"acorn_fairy": ["HP{hp_plus}・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["{cost_plus} APでワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
-	"cat_fairy": ["{cost_plus} APで置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
+	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲5×5が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
 	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
@@ -255,8 +255,9 @@ var abyss_turns := 0
 var time_stop := 0
 ## 加護の妖精: {cell, turns, radius}. While the player stands in it, attacks also hit up and down.
 var blessing: Dictionary = {}
-## 猫の妖精: {cell, turns} while its field stands; enemies cannot step into the 3x3 around the cell.
-var cat: Dictionary = {}
+## 猫の妖精: [{cell, turns}] while its fields stand (two once classed up); enemies cannot step into the
+## 5x5 around a cell.
+var cats: Array[Dictionary] = []
 ## 車輪の妖精: {cell, turns} while its wheel stands. Riding it (standing on it as your turn begins) gives +1 AP.
 var wheel: Dictionary = {}
 ## Ally kinds summoned by fairies this battle, in order (the guardian calls them all back).
@@ -316,7 +317,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	cannons.clear()
 	shadow = {}
 	blessing = {}
-	cat = {}
+	cats = []
 	wheel = {}
 	storm = {}
 	summoned_kinds.clear()
@@ -620,8 +621,8 @@ static func text_values(id: String) -> Dictionary:
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy", "wheel_fairy", "warp_fairy"]
-const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy", "wheel_fairy", "warp_fairy"]
+const PLUS_AP_CUT: Array[String] = ["time_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "wheel_fairy", "warp_fairy"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "wheel_fairy", "warp_fairy"]
 ## A fairy's AP and uses per battle come only from its item data (ap_cost,
 ## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
 func fairy_ap_cost(id: String, plus: int = -1) -> int:
@@ -651,12 +652,25 @@ static func ally_ap(type: String) -> int:
 func is_directional(id: String) -> bool:
 	return item_definition(id).directional or (id == "slash_fairy" and is_plus(id))
 
-## 猫の妖精's field: the 3x3 around its cat.
+## 猫の妖精's field: the 5x5 around a cat.
+const CAT_RADIUS := 2
 func cat_zone_at(cell: Vector2i) -> bool:
-	if cat.is_empty():
-		return false
-	var gap: Vector2i = (cell - cat.cell).abs()
-	return gap.x <= 1 and gap.y <= 1
+	return not cat_at_zone(cell).is_empty()
+
+## The field (a {cell, turns}) a tile lies in, or {}.
+func cat_at_zone(cell: Vector2i) -> Dictionary:
+	for field in cats:
+		var gap: Vector2i = (cell - field.cell).abs()
+		if gap.x <= CAT_RADIUS and gap.y <= CAT_RADIUS:
+			return field
+	return {}
+
+## How far a tile is from the nearest cat.
+func cat_distance(cell: Vector2i) -> int:
+	var nearest := 99
+	for field in cats:
+		nearest = mini(nearest, distance(cell, field.cell))
+	return nearest
 
 ## Where an enemy may not step: everything blocked, and the cat's field.
 func enemy_blocked(cell: Vector2i) -> bool:
@@ -1692,10 +1706,10 @@ func wheel_cell() -> Vector2i:
 func turn_start_ap() -> int:
 	return 2 + (WHEEL_BONUS_AP if riding_wheel() else 0)
 
-## 猫の妖精: for WALL_TURNS turns enemies cannot enter the 3x3 around the cat (those already
+## 猫の妖精: for WALL_TURNS turns enemies cannot enter the 5x5 around the cat (those already
 ## inside may only walk out). It stops no attack, only movement.
 func place_cat(cell: Vector2i) -> void:
-	cat = {"cell":cell, "turns":WALL_TURNS}
+	cats.append({"cell":cell, "turns":WALL_TURNS})
 	events.append({"kind":"summon", "cell":cell, "id":-2, "fx":"holy"})
 	add_log("猫のフィールドが現れた")
 
@@ -2008,9 +2022,7 @@ func _basic_ally_action(ally: Dictionary) -> void:
 		return
 	var adjacent: Array[Dictionary] = []
 	for enemy in enemies:
-		var gap: Vector2i = (enemy.cell - ally.cell).abs()
-		# The upgraded acorn also reaches the diagonal neighbours.
-		if enemy.hp > 0 and (distance(ally.cell,enemy.cell) == 1 or (ally.get("plus", false) and gap == Vector2i.ONE)):
+		if enemy.hp > 0 and distance(ally.cell,enemy.cell) == 1:
 			adjacent.append(enemy)
 	adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
 		return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
@@ -2138,10 +2150,10 @@ func tick_walls() -> void:
 		if wheel.turns <= 0:
 			wheel = {}
 			add_log("車輪が消えた")
-	if not cat.is_empty():
-		cat.turns -= 1
-		if cat.turns <= 0:
-			cat = {}
+	for index in range(cats.size() - 1, -1, -1):
+		cats[index].turns -= 1
+		if cats[index].turns <= 0:
+			cats.remove_at(index)
 			add_log("猫のフィールドが消えた")
 	if not blessing.is_empty():
 		blessing.turns -= 1
