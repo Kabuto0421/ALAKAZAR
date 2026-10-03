@@ -597,6 +597,14 @@ func _act(cell: Vector2i) -> void:
 	selected_enemy_id = -2
 	_finish_player_action(true,{"origin":origin,"destination":cell,"attacking":attacking,"weapon":used_weapon,"boosted":was_boosted})
 
+## Every enemy a weapon blow struck staggers and shakes the board, whatever the weapon.
+func _react_to_weapon_hits(weapon_action: Dictionary) -> void:
+	var hit_direction := Vector2(weapon_action.destination - weapon_action.origin)
+	for event in model.events:
+		# Hits further down a cannon chain react when their shot lands.
+		if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
+			_react_to_hit(event, hit_direction)
+
 func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> void:
 	busy = true
 	var token := generation
@@ -652,11 +660,7 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			quake_shake = QUAKE_SHAKE_TIME
 		_sync_units(false)
 		_feedback(true)
-		var hit_direction := Vector2(weapon_action.destination - weapon_action.origin)
-		for event in model.events:
-			# Hits further down a cannon chain react when their shot lands.
-			if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
-				_react_to_hit(event, hit_direction)
+		_react_to_weapon_hits(weapon_action)
 		queue_redraw()
 		await get_tree().create_timer(duration - impact_time).timeout
 	else:
@@ -671,6 +675,9 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			weapon_effects.add_child(effect)
 			action_duration = effect.duration()
 		_feedback(not weapon_action.is_empty() and weapon_action.attacking)
+		# Bows, staffs and the rest shake the board and stagger the enemy just like a swing does.
+		if not weapon_action.is_empty() and weapon_action.attacking:
+			_react_to_weapon_hits(weapon_action)
 		# Let the magic circle play out before the turn moves on.
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle"):
 			action_duration = maxf(action_duration, MagicCircleFx.BURST + 0.4)
