@@ -658,10 +658,6 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			if event.kind == "hit" and actors.has(event.id) and event.get("delay", 0.0) <= 0.0:
 				_react_to_hit(event, hit_direction)
 		queue_redraw()
-		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0):
-			# A beat of hit-stop on every blow that lands, so the second strike feels like the first.
-			Engine.time_scale = 0.05
-			get_tree().create_timer(0.05, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 		await get_tree().create_timer(duration - impact_time).timeout
 	else:
 		_sync_units(animate)
@@ -959,7 +955,17 @@ func _event_sound(event: Dictionary) -> String:
 			return "fortress_collapse"
 	return ""
 
+## A beat of hit-stop: time nearly freezes for a moment, so a blow lands with weight. Every hit on an
+## enemy gets one (weapons, fairies, cannons' first shot, allies), never stacked on a running one.
+func _hit_stop(seconds: float = 0.05) -> void:
+	if Engine.time_scale < 1.0:
+		return
+	Engine.time_scale = 0.05
+	get_tree().create_timer(seconds, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
+
 func _feedback(weapon_attack: bool = false) -> void:
+	if model.events.any(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0 and float(e.get("delay", 0.0)) <= 0.0 and int(e.get("damage", 1)) > 0):
+		_hit_stop()
 	# A magic circle shows its own "99"s: no ordinary hit popups under it.
 	var casting := model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle")
 	var heard := {}
