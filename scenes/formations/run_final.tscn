@@ -14,7 +14,7 @@ script = ExtResource("2")
 enemy_kind = 16
 
 [node name="Enemy2_fortress" type="Node2D" parent="."]
-position = Vector2(544, 96)
+position = Vector2(544, 160)
 script = ExtResource("2")
 enemy_kind = 17
 
