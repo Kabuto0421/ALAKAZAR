@@ -2058,7 +2058,7 @@ func _draw_weapons() -> void:
 			extras.append("跳ぶ")
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
-		var echo := Catalog.hammer_echo(index)
+		var echo := Catalog.hammer_echo(index, model.weapon_power.has(index))
 		var strikes := Catalog.attack_offsets(index, model.weapon_power.has(index))
 		var count := RangeDiagram.span(offsets + echo)
 		# Inside the frame; sliding weapons leave room for their arrows past the tiles.
@@ -2218,7 +2218,7 @@ func _draw_range(offsets: Array, accent: Color, enemy: Dictionary = {}, weapon_i
 	# Hammers: where the blow also reaches when it strikes the tile to the right.
 	var echo: Array[Vector2i] = []
 	if enemy.is_empty() and weapon_index >= 0:
-		echo = Catalog.hammer_echo(weapon_index)
+		echo = Catalog.hammer_echo(weapon_index, model.weapon_power.has(weapon_index))
 	var step := 52 if compact else 64
 	# Cavalry and two-tile weapons need a larger preview for their jumps.
 	var self_cell: Vector2i = Vector2i(1,1)

@@ -27,13 +27,13 @@ const DATA = [
 	{"id":"swallow", "name":"飛燕剣", "short":"飛燕", "row":2, "color":"9fe0ff", "detail":"右の1マスと、右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(2,-2),Vector2i(2,2)]},
 	{"id":"glance", "name":"見返剣", "short":"見返", "row":2, "color":"c9a0ff", "detail":"右の1マスと、左の桂馬2つ", "offsets":[Vector2i(1,0),Vector2i(-2,-1),Vector2i(-2,1)]},
 	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
-	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・右・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(1,0),Vector2i(0,1)]},
+	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・左・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(-1,0),Vector2i(0,1)]},
 	# Knockback: a struck enemy is shoved one tile away; if it cannot move it takes 1 more.
 	{"id":"shield", "name":"盾打ち", "short":"盾", "row":2, "color":"b8d7c5", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を右の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右の1マス。無傷で敵を右の奥までノックバック", "offsets":[Vector2i(1,0)]},
 	{"id":"sweep", "name":"薙ぎ払い", "short":"薙払", "row":2, "color":"d7c5b8", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を上下の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"上・下の1マス。無傷で敵を上下の奥までノックバック", "offsets":[Vector2i(0,-1),Vector2i(0,1)]},
 	{"id":"gale", "name":"突風剣", "short":"突風", "row":2, "color":"c5f0ff", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を外側の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右上・右・右下。無傷で敵を外側の奥までノックバック", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1)]},
 	# Mid-game weapons, dropped after the first boss.
-	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":3, "effect":"この武器の攻撃は3ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は3ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
+	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。鍛えると、叩いたマスの上下と、その右の縦3マスにも響く。", "detail":"右の1マス。叩いたマスの上下左右に響く（鍛えると上下＋右の縦3マス）", "offsets":[Vector2i(1,0)]},
 	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "effect":"この武器は斜め4方向の直線上にいる敵を射て、1ダメージを与える。この武器では移動できない。", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 # Weapons with their own mechanics (not just a shape).
 	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "effect":"この武器はふさがるまで右へ進める。", "detail":"右へ、ふさがるまで一直線に進む。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
@@ -45,10 +45,9 @@ const DATA = [
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
-	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大5）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると5）", "offsets":[Vector2i(1,0)]},
 	# A rare mid-game drop: moves like the cross sword, and its blow spreads in a cross.
-	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":2, "effect":"この武器の攻撃は2ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
+	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
 	# Added last so earlier weapon indices stay put.
 	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]},
 	# クロス短剣: two weapons sold as one set. Each slides up to three tiles along one diagonal (and
@@ -76,20 +75,21 @@ static func can_forge(index: int) -> bool:
 
 ## Where a hammer's blow spreads, relative to the struck tile: the tiles above and
 ## below it and the column beyond; the cross hammer, the four tiles around it.
-static func hammer_shape(index: int) -> Array[Vector2i]:
+static func hammer_shape(index: int, forged: bool = false) -> Array[Vector2i]:
 	var result: Array[Vector2i] = [Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,-1), Vector2i(1,0), Vector2i(1,1)]
-	if DATA[index].get("area", "") == "cross":
+	# The plain hammer starts with the cross; forging widens it to the full blow.
+	if DATA[index].get("area", "") == "cross" or (DATA[index].id == "hammer" and not forged):
 		result.assign([Vector2i(0,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(-1,0), Vector2i(1,0)])
 	return result
 
 ## The tiles a hammer's blow also reaches when it strikes the tile to its right
 ## (the example the range diagrams show), relative to the player.
-static func hammer_echo(index: int) -> Array[Vector2i]:
+static func hammer_echo(index: int, forged: bool = false) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if not is_hammer(index):
 		return result
 	var target := Vector2i(1,0)
-	for offset in hammer_shape(index):
+	for offset in hammer_shape(index, forged):
 		if offset != Vector2i.ZERO and target + offset != Vector2i.ZERO:
 			result.append(target + offset)
 	return result

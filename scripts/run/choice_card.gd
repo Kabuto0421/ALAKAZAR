@@ -159,7 +159,7 @@ func _ready() -> void:
 		diagram.size = Vector2(side,side)
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.slides = Weapons.slides(int(offer.value))
-		diagram.echo = Weapons.hammer_echo(int(offer.value))
+		diagram.echo = Weapons.hammer_echo(int(offer.value), plus)
 		diagram.attack = Weapons.attack_offsets(int(offer.value), plus)
 		diagram.context = context
 		diagram.accent = accent

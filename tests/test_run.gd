@@ -481,7 +481,7 @@ func _threats_and_weapons() -> void:
 	verify(jump_pairs == 7,"Seven odd two-tile weapons are in the early pool (mirror twins removed)")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
 	verify(W.opening_pool().size() == 7,"Seven up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 10 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
+	verify(W.early_reward_pool().size() == 9 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield and the swap staff")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -556,7 +556,7 @@ func _mid_weapons() -> void:
 	var hammer: int = W.DATA.map(func(d): return d.id).find("hammer")
 	var bow: int = W.DATA.map(func(d): return d.id).find("bow")
 	verify(W.is_mid(hammer) and W.is_mid(bow) and not W.single_pool().has(hammer) and not W.single_pool().has(bow),"Hammer and bow never drop early")
-	# Hammer: pawn move, 3 damage, shakes the side tiles and the three beyond.
+	# Hammer: pawn move, 1 damage, a cross-shaped blow; forged it hits for 2 and shakes the wide area.
 	var m := fixture()
 	m.owned_weapons.assign([0,1,hammer])
 	m.weapon = hammer
@@ -565,15 +565,31 @@ func _mid_weapons() -> void:
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("heavy",Vector2i(2,2),0))
 	m.enemies.append(m.make_enemy("heavy",Vector2i(2,1),1))
-	m.enemies.append(m.make_enemy("infantry",Vector2i(3,3),2))
-	m.enemies.append(m.make_enemy("infantry",Vector2i(4,2),3))
-	verify(m.hammer_area(Vector2i(2,2)).size() == 6,"Hammer area is the target, two sides and three beyond")
+	m.enemies.append(m.make_enemy("infantry",Vector2i(3,2),2))
+	m.enemies.append(m.make_enemy("infantry",Vector2i(3,3),3))
+	verify(m.hammer_area(Vector2i(2,2)).size() == 5,"The plain hammer's blow is the target and the four tiles around it")
+	verify(m.weapon_damage(hammer) == 1,"The hammer hits for 1")
 	verify(m.player_action(Vector2i(2,2)) and m.player.cell == Vector2i(1,2),"Hammer attacks without moving")
-	verify(m.enemy_at(Vector2i(2,2)).is_empty() and m.enemy_at(Vector2i(2,1)).is_empty() and m.enemy_at(Vector2i(3,3)).is_empty(),"Three damage to everything in the area")
-	verify(not m.enemy_at(Vector2i(4,2)).is_empty(),"The area stops three tiles wide")
+	verify(m.enemy_at(Vector2i(2,2)).hp == 1 and m.enemy_at(Vector2i(2,1)).hp == 1 and m.enemy_at(Vector2i(3,2)).is_empty(),"One damage to everything in the cross")
+	verify(not m.enemy_at(Vector2i(3,3)).is_empty(),"The diagonal tile is outside the plain blow")
 	verify(m.events.any(func(e): return e.kind == "quake"),"The hammer shows a quake effect")
+	m.enemies.clear()
 	m.player.cell = Vector2i(1,2)
 	verify(m.player_action(Vector2i(2,2)) and m.player.cell == Vector2i(2,2),"Hammer can also step forward")
+	# Forged: 2 damage, and the blow takes the target, its two sides and the three beyond.
+	var forged := fixture()
+	forged.owned_weapons.assign([0,1,hammer])
+	forged.weapon = hammer
+	forged.weapon_power[hammer] = 1
+	forged.player.cell = Vector2i(1,2)
+	forged.enemies.clear()
+	forged.enemies.append(forged.make_enemy("heavy",Vector2i(2,2),0))
+	forged.enemies.append(forged.make_enemy("heavy",Vector2i(2,1),1))
+	forged.enemies.append(forged.make_enemy("infantry",Vector2i(3,3),2))
+	forged.enemies.append(forged.make_enemy("infantry",Vector2i(4,2),3))
+	verify(forged.hammer_area(Vector2i(2,2)).size() == 6 and forged.weapon_damage(hammer) == 2,"Forging widens the blow to the full area and adds 1 damage")
+	forged.player_action(Vector2i(2,2))
+	verify(forged.enemy_at(Vector2i(2,2)).is_empty() and forged.enemy_at(Vector2i(2,1)).is_empty() and forged.enemy_at(Vector2i(3,3)).is_empty() and not forged.enemy_at(Vector2i(4,2)).is_empty(),"The forged blow reaches the tiles beyond but stops three wide")
 	# Bow: bishop lines, attack only.
 	m = fixture()
 	m.owned_weapons.assign([0,1,bow])
@@ -964,7 +980,7 @@ func _expiring_and_rewards() -> void:
 	var Rarity = load("res://scripts/run/rarity.gd")
 	verify(Rarity.tier({"kind":"fairy","value":"glutton_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"meteor_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"guardian_fairy"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"fairy","value":"magic_bolt"}) == Rarity.COMMON,"Glutton and meteor super rare, magic bolt common")
 	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
-	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.RARE and Rarity.tier({"kind":"weapon","value":wids.find("mallet")}) == Rarity.UNCOMMON,"Rook spear super rare; the hammers sit one tier up (hammer rare, mallet uncommon)")
+	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.RARE and wids.find("mallet") < 0,"Rook spear super rare; the hammer sits one tier up (rare); the mallet is gone")
 	verify(Rarity.tier({"kind":"fairy","value":"holy_spirit"}) == Rarity.SUPER_RARE,"The holy spirit is super rare")
 	# Fairy cards draw a rarity first: 激レア about 1% early, rising to 10% at the end.
 	var odds: Array = Run.FAIRY_TIER_ODDS
@@ -1484,21 +1500,19 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 46,"39 weapons plus the eight-knight general, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 45,"39 weapons plus the eight-knight general, the king staff, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
 	verify(W.offsets(thunder) == [Vector2i(1,-1), Vector2i(-1,1)],"雷剣 reaches up-right and down-left")
 	# 十字槌: a rare mid-game hammer that moves like the cross sword and spreads in a cross.
 	var cross_hammer: int = ids.find("cross_hammer")
-	verify(W.mid_pool().has(cross_hammer) and W.is_hammer(cross_hammer) and W.base_damage(cross_hammer) == 2,"The cross hammer is a mid-game hammer that hits for 2")
+	verify(W.mid_pool().has(cross_hammer) and W.is_hammer(cross_hammer) and W.base_damage(cross_hammer) == 1,"The cross hammer is a mid-game hammer that hits for 1")
 	verify(Run.Rarity.tier({"kind":"weapon","value":cross_hammer}) == Run.Rarity.SUPER_RARE,"...and a super rare one (hammers are a tier above)")
 	var ch := _weapon_room("cross_hammer",[Vector2i(2,1),Vector2i(1,1),Vector2i(3,1),Vector2i(2,0),Vector2i(3,2)])
 	verify(ch.hammer_area(Vector2i(2,1)).size() == 5,"Its blow covers the target and the four tiles around it")
-	verify(ch.player_action(Vector2i(1,1)) and ch.enemy_at(Vector2i(1,1)).hp == 3 and ch.enemy_at(Vector2i(2,1)).hp == 3 and ch.enemy_at(Vector2i(3,1)).hp == 5 and ch.enemy_at(Vector2i(2,0)).hp == 5,"Striking up: 2 to the target and to its side, nothing beyond the cross")
+	verify(ch.player_action(Vector2i(1,1)) and ch.enemy_at(Vector2i(1,1)).hp == 4 and ch.enemy_at(Vector2i(2,1)).hp == 4 and ch.enemy_at(Vector2i(3,1)).hp == 5 and ch.enemy_at(Vector2i(2,0)).hp == 5,"Striking up: 1 to the target and to its side, nothing beyond the cross")
 	verify(W.base_damage(ids.find("rook_spear")) == 0 and W.base_damage(ids.find("bishop_blade")) == 0 and not W.can_forge(ids.find("rook_spear")) and not W.can_forge(ids.find("bishop_blade")),"Rook spear and bishop blade: 0 damage, cannot be forged")
-	var mallet: int = ids.find("mallet")
-	verify(W.early_reward_pool().has(mallet) and W.is_hammer(mallet) and W.base_damage(mallet) == 1,"The mallet: an early hammer that hits for 1")
 	verify(W.mid_pool().has(ids.find("king_staff")) and W.DATA[ids.find("king_staff")].swap,"The king staff (swap on all 8 neighbours) drops after the first boss")
 	m = _weapon_room("king_staff",[Vector2i(2,3)])
 	verify(m.player_action(Vector2i(2,3)) and m.player.cell == Vector2i(2,3) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The king staff trades places diagonally without damage")

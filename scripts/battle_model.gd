@@ -898,7 +898,7 @@ func bow_lines() -> Array[Vector2i]:
 ## column beyond; the cross hammer, the target and the four tiles around it.
 func hammer_area(target: Vector2i, index: int = weapon) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for offset in Catalog.hammer_shape(index):
+	for offset in Catalog.hammer_shape(index, weapon_power.has(index)):
 		if inside(target + offset):
 			result.append(target + offset)
 	return result

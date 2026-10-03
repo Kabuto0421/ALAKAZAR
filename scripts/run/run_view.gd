@@ -325,7 +325,7 @@ func _loadout() -> void:
 		diagram.size = Vector2(78,78)
 		diagram.offsets = Weapons.offsets(index)
 		diagram.slides = Weapons.slides(index)
-		diagram.echo = Weapons.hammer_echo(index)
+		diagram.echo = Weapons.hammer_echo(index, run.battle.weapon_power.has(index))
 		diagram.attack = Weapons.attack_offsets(index, run.battle.weapon_power.has(index))
 		diagram.hammer = Weapons.is_hammer(index)
 		diagram.accent = accent
