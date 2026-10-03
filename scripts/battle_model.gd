@@ -819,6 +819,11 @@ func damage_enemy(enemy: Dictionary, amount: int, travel: Vector2i = Vector2i.ZE
 	if shield_blocks(enemy, Vector2i(-99, -99), travel):
 		_block(enemy)
 		return
+	if enemy.type == "king":
+		amount = _king_hit_amount(enemy, amount)
+		if amount <= 0:
+			_barrier_block(enemy)
+			return
 	if strike_guard:
 		if struck_ids.has(enemy.id):
 			return
@@ -1077,6 +1082,11 @@ func _player_action(cell: Vector2i) -> bool:
 				continue
 			# Knockback weapons deal no damage of their own (unless forged): only the shove.
 			var damage := weapon_damage(weapon)
+			if damage > 0 and target.type == "king":
+				damage = _king_hit_amount(target, damage)
+				if damage <= 0:
+					_barrier_block(target)
+					continue
 			if damage > 0:
 				target.hp -= damage
 				events.append({"kind": "hit", "cell": target.cell, "id": target.id, "damage": damage})
@@ -1284,6 +1294,7 @@ func trigger_mine(unit: Dictionary) -> void:
 func check_outcome() -> void:
 	_note_fallen()
 	_check_rage()
+	_check_barrier()
 	_release_prisoners()
 	_bury_allies()
 	enemies = enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0)
@@ -1767,7 +1778,10 @@ func meteor_strike() -> void:
 			if enemy.is_empty() or struck.has(enemy):
 				continue
 			struck.append(enemy)
-			enemy.hp -= METEOR_DAMAGE
+			if enemy.type == "king" and _king_hit_amount(enemy, METEOR_DAMAGE) <= 0:
+				_barrier_block(enemy)
+				continue
+			enemy.hp -= METEOR_DAMAGE if enemy.type != "king" else _king_hit_amount(enemy, METEOR_DAMAGE)
 			events.append({"kind":"hit", "cell":enemy.cell, "id":enemy.id, "damage":METEOR_DAMAGE})
 			if enemy.hp <= 0:
 				kills += 1
@@ -2761,6 +2775,51 @@ func _check_rage() -> void:
 			events.append({"kind":"roar", "cell":king.cell + Vector2i.ONE, "id":-2})
 			events.append({"kind":"king_rage", "cell":king.cell + Vector2i.ONE, "id":-2})
 			add_log("監獄の王が怒り狂った！ 要塞監獄が兵を2体ずつ出す")
+			var held := {}
+			for fortress in enemies:
+				if fortress.type == "fortress" and fortress.hp > 0:
+					held[int(fortress.id)] = fortress.cell
+			if not held.is_empty():
+				king.barrier_cells = held
+				king.barrier_max = held.size()
+				events.append({"kind":"barrier_up", "cell":king.cell + Vector2i.ONE, "id":king.id, "from":held.values()})
+				add_log("王を赤い障壁が包んだ。要塞監獄を壊すまで攻撃は通らない")
+
+## Enraged, the king is protected by a barrier fed from his fortresses: nothing hurts him until
+## every fortress is broken. Before he is enraged, a blow that would take him below the rage line
+## stops there (so the rage and the barrier always come first while a fortress stands).
+func fortress_alive() -> bool:
+	return enemies.any(func(e: Dictionary) -> bool: return e.type == "fortress" and e.hp > 0)
+
+func king_shielded(king: Dictionary) -> bool:
+	return king.type == "king" and king.get("enraged", false) and not king.get("barrier_broken", false) and fortress_alive()
+
+## How much of a blow reaches the king (0 = blocked).
+func _king_hit_amount(king: Dictionary, amount: int) -> int:
+	if king.type != "king" or not fortress_alive() or king.get("barrier_broken", false):
+		return amount
+	if king.get("enraged", false) or king.hp <= KING_RAGE_HP:
+		return 0
+	return mini(amount, king.hp - KING_RAGE_HP)
+
+func _barrier_block(king: Dictionary) -> void:
+	events.append({"kind":"barrier_block", "cell":king.cell + Vector2i.ONE, "id":king.id})
+	add_log("王の障壁が攻撃を弾いた")
+
+## A fortress that falls cuts its chain to the king; the last one brings the barrier down.
+func _check_barrier() -> void:
+	for king in enemies:
+		if king.type != "king" or king.hp <= 0 or not king.has("barrier_cells") or king.get("barrier_broken", false):
+			continue
+		var held: Dictionary = king.barrier_cells
+		for fortress in enemies:
+			if fortress.type == "fortress" and fortress.hp <= 0 and held.has(int(fortress.id)):
+				events.append({"kind":"chain_cut", "cell":fortress.cell, "to":king.cell, "id":fortress.id})
+				held.erase(int(fortress.id))
+		if held.is_empty():
+			king.barrier_broken = true
+			events.append({"kind":"barrier_break", "cell":king.cell + Vector2i.ONE, "id":king.id})
+			add_log("障壁崩壊！ 王に攻撃が通る")
 
 ## 要塞監獄: every turn it lets out one soldier of a random kind (two once the king is enraged).
 func fortress_turn(fortress: Dictionary) -> void:

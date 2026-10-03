@@ -681,6 +681,8 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			action_duration = maxf(action_duration, BossCinematic.LIFE["fall"])
 		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "meteor"):
 			action_duration = maxf(action_duration, FX_LIFE["meteor"])
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "barrier_break"):
+			action_duration = maxf(action_duration, FX_LIFE["barrier_break"])
 		for event in model.events:
 			if event.kind == "guardian":
 				# The guardian lands, its allies pop in one by one, then the light bursts.
@@ -947,6 +949,10 @@ func _event_sound(event: Dictionary) -> String:
 		"summon":
 			if event.has("by"):
 				return "king_revive" if event.get("fx", "") == "revive" else "fortress_spawn"
+		"chain_cut":
+			return "fortress_crack"
+		"barrier_break":
+			return "fortress_collapse"
 	return ""
 
 func _feedback(weapon_attack: bool = false) -> void:
@@ -1783,6 +1789,7 @@ func _draw_board() -> void:
 			for q in range(4):
 				var start := clock * 1.6 + q * TAU / 4.0
 				draw_arc(box.get_center(), reticle, start, start + 0.9, 10, Color("ff5b62", 0.9), 3, true)
+	_draw_king_barrier()
 	_draw_mini_slot_badge()
 	_draw_reel_badge()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
@@ -2478,6 +2485,50 @@ func _draw_mini_zone_tile(cell: Vector2i, k: int) -> void:
 			draw_line(neighbours[side][0], neighbours[side][1], Color(tone, 0.25), 8)
 			draw_line(neighbours[side][0], neighbours[side][1], edge_color, 3)
 
+## The Prison King's barrier: a red dome on him, a pulsing chain from every fortress that still feeds
+## it, and pips over his head (one per fortress, filled while it stands). It thins from red to
+## nothing as the fortresses fall.
+func _draw_king_barrier() -> void:
+	for king in model.enemies:
+		if king.type != "king" or king.hp <= 0 or not model.king_shielded(king):
+			continue
+		var left: int = king.barrier_cells.size()
+		var total: int = maxi(1, int(king.get("barrier_max", 1)))
+		var strength := float(left) / float(total)
+		var centre := BOARD + (Vector2(king.cell) + Vector2(1.5, 1.5)) * TILE
+		var beat := 0.5 + 0.5 * sin(clock * 5.0)
+		var tone := Color(1.0, 0.18 + 0.5 * (1.0 - strength), 0.2 + 0.7 * (1.0 - strength))
+		# The chains, from each fortress that still feeds the barrier.
+		for fortress in model.enemies:
+			if fortress.type != "fortress" or fortress.hp <= 0 or not king.barrier_cells.has(int(fortress.id)):
+				continue
+			var from := BOARD + (Vector2(fortress.cell) + Vector2.ONE) * TILE
+			draw_line(from, centre, Color(tone, 0.28 + 0.2 * beat), 6.0)
+			draw_line(from, centre, Color(1.0, 0.7, 0.7, 0.5 + 0.3 * beat), 2.0)
+			var length := from.distance_to(centre)
+			var links := int(length / 24.0)
+			for k in range(links):
+				var along := fposmod(float(k) / float(maxi(links, 1)) + clock * 0.5, 1.0)
+				draw_circle(from.lerp(centre, along), 4.0, Color(1.0, 0.85, 0.8, 0.9))
+		# The dome.
+		var radius := TILE * 2.15
+		draw_circle(centre, radius, Color(tone, 0.10 + 0.12 * strength + 0.05 * beat))
+		draw_arc(centre, radius, 0.0, TAU, 56, Color(tone, 0.55 + 0.3 * beat), 5.0, true)
+		draw_arc(centre, radius - 8.0, 0.0, TAU, 56, Color(1, 1, 1, 0.18), 2.0, true)
+		var hexagon := PackedVector2Array()
+		for k in range(7):
+			hexagon.append(centre + Vector2.from_angle(clock * 0.6 + k * TAU / 6.0) * (radius - 18.0))
+		draw_polyline(hexagon, Color(tone, 0.45), 2.0)
+		# One pip per fortress over his head.
+		var pip_y := centre.y - TILE * 2.45
+		for k in range(total):
+			var at := Vector2(centre.x + (k - (total - 1) / 2.0) * 26.0, pip_y)
+			if k < left:
+				draw_circle(at, 9.0, Color(1.0, 0.25, 0.25))
+				draw_circle(at, 9.0, Color(1, 1, 1, 0.8), false, 2.0)
+			else:
+				draw_arc(at, 9.0, 0.0, TAU, 20, Color(0.7, 0.9, 1.0, 0.7), 3.0, true)
+
 ## The drawn number, big, floating over Rotorick so the result can't be missed.
 func _draw_reel_badge() -> void:
 	if reel_hold:
@@ -2800,6 +2851,10 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "king":
 		if enemy.hp <= Rules.KING_RAGE_HP:
 			_text(Vector2(852,546),"怒り：要塞が兵を2体ずつ出す",19,Color("ff6b6b"))
+		if model.king_shielded(enemy):
+			_text(Vector2(852,500),"要塞が残っているあいだは無敵（あと%d基）" % enemy.barrier_cells.size(),18,Color("ff9a9a"))
+		elif enemy.get("barrier_broken", false):
+			_text(Vector2(852,500),"障壁崩壊：攻撃が通る",18,Color("9fe8ff"))
 		var next := model.next_revival()
 		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
 	elif enemy.type == "fortress":
@@ -3425,7 +3480,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "barrier_block":0.8, "chain_cut":0.9, "barrier_break":1.7, "barrier_up":1.4, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -3619,6 +3674,45 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"barrier_up":
+			# The barrier rises: a red ring swelling out from the king.
+			var king_at := BOARD + (Vector2(effect.cell) + Vector2(0.0, 0.0)) * TILE + Vector2.ONE * TILE / 2.0
+			draw_arc(king_at, TILE * (0.8 + 1.6 * t), 0, TAU, 48, Color(1.0, 0.25, 0.25, fade), 8.0, true)
+			draw_arc(king_at, TILE * (0.4 + 1.2 * t), 0, TAU, 48, Color(1, 1, 1, fade * 0.7), 3.0, true)
+			_text(king_at + Vector2(-64, -TILE * 2.7 - t * 16.0), "障壁展開", 34, Color(1.0, 0.55, 0.55, fade))
+		"barrier_block":
+			# The shot is turned away: blue sparks ring the dome and "無敵" / "ブロック" rise.
+			var block_at := BOARD + Vector2(effect.cell) * TILE + Vector2.ONE * TILE / 2.0
+			draw_arc(block_at, TILE * (1.7 + 0.5 * t), 0, TAU, 48, Color(0.5, 0.85, 1.0, fade), 5.0, true)
+			for k in range(10):
+				var ray := Vector2.from_angle(k * TAU / 10.0 + 0.3)
+				draw_line(block_at + ray * TILE * (1.7 + 0.2 * t), block_at + ray * TILE * (1.95 + 0.5 * t), Color(0.8, 0.95, 1.0, fade), 3.0)
+			_text(block_at + Vector2(-34, -TILE * 2.2 - t * 18.0), "無敵", 32, Color(0.62, 0.91, 1.0, fade))
+			_text(block_at + Vector2(-36, -TILE * 2.2 + 26.0 - t * 18.0), "ブロック", 20, Color(1, 1, 1, fade))
+		"chain_cut":
+			# A fortress falls: its chain snaps in the middle, the halves recoil and sparks fly.
+			var chain_from := BOARD + (Vector2(effect.cell) + Vector2.ONE) * TILE
+			var chain_to := BOARD + (Vector2(effect.to) + Vector2(1.5, 1.5)) * TILE
+			var mid := chain_from.lerp(chain_to, 0.5)
+			var gap := 0.04 + 0.4 * t
+			draw_line(chain_from, chain_from.lerp(chain_to, 0.5 - gap), Color(1.0, 0.35, 0.3, fade), 5.0)
+			draw_line(chain_to, chain_to.lerp(chain_from, 0.5 - gap), Color(1.0, 0.35, 0.3, fade), 5.0)
+			for k in range(12):
+				var spark := Vector2.from_angle(k * TAU / 12.0 + 0.2) * (10.0 + 60.0 * t) * (1.0 if k % 2 == 0 else 0.6)
+				draw_line(mid + spark * 0.5, mid + spark, Color(1.0, 0.9, 0.5, fade), 3.0)
+			draw_circle(mid, 14.0 * (1.0 - t) + 3.0, Color(1, 1, 1, fade))
+		"barrier_break":
+			# The barrier shatters like glass: shards fly out and the words flash up.
+			var shatter_at := BOARD + Vector2(effect.cell) * TILE + Vector2.ONE * TILE / 2.0
+			draw_rect(Rect2(BOARD, Vector2.ONE * model.board_size * TILE), Color(1, 1, 1, 0.35 * fade * fade))
+			for k in range(18):
+				var direction := Vector2.from_angle(k * TAU / 18.0 + 0.1)
+				var shard_at := shatter_at + direction * TILE * (1.0 + 2.6 * t) 
+				var side := Vector2(-direction.y, direction.x)
+				draw_colored_polygon(PackedVector2Array([shard_at + direction * 14.0, shard_at + side * 7.0, shard_at - side * 7.0]), Color(0.75, 0.93, 1.0, fade * 0.9))
+			draw_arc(shatter_at, TILE * (1.0 + 3.0 * t), 0, TAU, 56, Color(0.8, 0.95, 1.0, fade), 6.0, true)
+			var banner_at := BOARD + Vector2(model.board_size * TILE / 2.0, model.board_size * TILE * 0.28)
+			_text(banner_at + Vector2(-132, 14), "障壁崩壊", 66, Color(0.62, 0.94, 1.0, minf(1.0, fade * 2.0)))
 		"knock_home":
 			# Blown back: speed lines streak from where it stood to where it lands, then an impact star.
 			var half_span := Vector2.ONE * TILE / 2.0 * (1.0 if effect.get("big", false) else 0.0)

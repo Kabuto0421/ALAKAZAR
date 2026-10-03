@@ -2088,6 +2088,28 @@ func _prison_king() -> void:
 	m.round_number += 2
 	m.fortress_turn(forts[0])
 	verify(m.enemies.size() == before + 2,"An enraged king's fortress sends out two")
+	# The barrier: enraged with a fortress standing, nothing hurts him.
+	verify(king.get("barrier_max", 0) == 1 and m.king_shielded(king),"Enraged with a fortress left, the king is shielded")
+	m.events.clear()
+	m.damage_enemy(king, 3)
+	verify(king.hp == Rules.KING_RAGE_HP and m.events.any(func(e): return e.kind == "barrier_block"),"A blow on the shielded king is blocked")
+	m.damage_enemy(king, Rules.CIRCLE_DAMAGE)
+	verify(king.hp == Rules.KING_RAGE_HP,"...even a magic circle's 99")
+	m.events.clear()
+	forts[0].hp = 0
+	m.check_outcome()
+	verify(m.events.any(func(e): return e.kind == "chain_cut") and m.events.any(func(e): return e.kind == "barrier_break") and king.get("barrier_broken", false) and not m.king_shielded(king),"Breaking the last fortress cuts its chain and drops the barrier")
+	m.damage_enemy(king, 2)
+	verify(king.hp == Rules.KING_RAGE_HP - 2,"With the barrier down the king takes damage")
+	# Before the rage, a huge blow cannot skip it: the king stops at the rage line.
+	var early := Rules.new()
+	early.reset(Rules.FINAL_LEVEL)
+	early.phase = Rules.Phase.PLAYER
+	var early_king: Dictionary = early.enemies.filter(func(e): return e.type == "king")[0]
+	early.damage_enemy(early_king, Rules.CIRCLE_DAMAGE)
+	verify(early_king.hp == Rules.KING_RAGE_HP,"A huge blow on an unenraged king stops at the rage line while a fortress stands")
+	early.check_outcome()
+	verify(early_king.enraged and early.king_shielded(early_king),"...and the rage and barrier come up")
 	king.hp = 10
 	# Rooted: shoves and blasts do not move them.
 	var cell: Vector2i = king.cell
