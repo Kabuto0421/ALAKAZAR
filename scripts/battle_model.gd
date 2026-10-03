@@ -195,7 +195,7 @@ const PLUS_TEXT := {
 	"magic_bolt": ["前後の直線上の敵すべてに1", "攻撃範囲に配置（敵の上なら\nその敵にも1）。\n選んだ向きとその反対向きの\n直線上の敵すべてに1。"],
 	"stealth_fairy": ["刺しても消えない", "攻撃範囲の空きマスに配置。\n隠密中は通行をふさぐ。\n縦横に隣接した敵1体に{stealth}。\n刺しても消えず{turns}ターン残る\n（1ターンに1回）。"],
 	"acorn_fairy": ["HP{hp_plus}・斜めも攻撃する味方", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横斜め1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
-	"warp_fairy": ["毎戦闘{uses_plus}回ワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
+	"warp_fairy": ["{cost_plus} APでワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
 	"cat_fairy": ["{cost_plus} APで置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲3×3が{turns}ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
 	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
@@ -620,8 +620,8 @@ static func text_values(id: String) -> Dictionary:
 ## the AP cost. Summoners also get 1 AP off; a few are set by hand: the lone wolf and
 ## the shadow get 0 AP instead of an extra use, the holy spirit only its four knights, the meteor and the stealth fairy only
 ## their own change.
-const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy", "wheel_fairy"]
-const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy", "wheel_fairy"]
+const PLUS_AP_CUT: Array[String] = ["time_fairy", "acorn_fairy", "glutton_fairy", "guardian_fairy", "lone_wolf", "shadow_stitch", "cannon_fairy", "capacitor_fairy", "wall_fairy", "cat_fairy", "wheel_fairy", "warp_fairy"]
+const PLUS_NO_EXTRA_USE: Array[String] = ["glutton_fairy", "lone_wolf", "shadow_stitch", "meteor_fairy", "stealth_fairy", "holy_spirit", "time_fairy", "blessing_fairy", "cat_fairy", "wheel_fairy", "warp_fairy"]
 ## A fairy's AP and uses per battle come only from its item data (ap_cost,
 ## initial_count) and these class-up rules. `plus`: 1 classed up, 0 plain, -1 as it is now.
 func fairy_ap_cost(id: String, plus: int = -1) -> int:

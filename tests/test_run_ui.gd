@@ -465,21 +465,28 @@ func check_fairy_book() -> void:
 	verify(Book.unseen().is_empty(),"The title screen has announced what it showed")
 	title.queue_free()
 	await process_frame
-	# A fairy used since the last time waits in the dark, then pops out after the menu appears.
+	# A fairy used since the last time waits in the dark, then pops out just as ALAKAZAR
+	# appears after the drum roll (the brass call).
 	Book.record_use("meteor_fairy")
 	title = load("res://title.tscn").instantiate()
 	root.add_child(title)
 	await process_frame
 	title.music.stop()
-	title.reveal=title.MENU_TIME
+	title.reveal=title.CALL_TIME-0.2
 	title._update_reveal()
-	verify(by_item.call(title,"meteor_fairy").node.modulate==Extras.LOCKED,"A newly used fairy waits in the dark while the menu appears...")
-	title.reveal=title.MENU_TIME+0.5
+	verify(by_item.call(title,"meteor_fairy").node.modulate==Extras.LOCKED,"A newly used fairy waits in the dark until ALAKAZAR appears...")
+	var motes_before: int = title.fx._motes.size()
+	title.reveal=title.CALL_TIME+0.1
 	title._update_reveal()
-	verify(by_item.call(title,"meteor_fairy").node.modulate==Color.WHITE and by_item.call(title,"meteor_fairy").node.scale.x>1.1,"...then steps out with a pop")
-	title.reveal=title.MENU_TIME+3.0
+	verify(title.fx._motes.size() > motes_before,"A shower of sparks goes up with the new fairy")
+	verify(by_item.call(title,"meteor_fairy").node.modulate.r>1.0 and by_item.call(title,"meteor_fairy").node.scale.x>1.1,"...then steps out with a bright pop on the brass call")
+	title.reveal=title.CALL_TIME+3.0
 	title._update_reveal()
-	verify(is_equal_approx(by_item.call(title,"meteor_fairy").node.scale.x,1.0),"...and settles")
+	verify(is_equal_approx(by_item.call(title,"meteor_fairy").node.scale.x,1.0) and by_item.call(title,"meteor_fairy").node.modulate==Color.WHITE,"...and settles")
+	# The gentle horn of the fanfare has no rain; the later parts do.
+	var fanfare_look: Dictionary = title._grade_at(5.0)
+	var war_look: Dictionary = title._grade_at(20.0)
+	verify(is_equal_approx(float(fanfare_look.rain),0.0) and is_equal_approx(float(war_look.rain),1.0),"No rain under the fanfare's horn, rain in the later parts")
 	title.queue_free()
 	await process_frame
 	Book.recording=false

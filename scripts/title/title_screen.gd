@@ -50,18 +50,19 @@ const MUSIC_DB := -8.0
 
 ## How the picture is graded in each part of the song (the sections of the cue sheet):
 ## gain on the forest side (l) and the city side (r), saturation, brightness, vignette,
-## scanlines, digital rain on the city side and on the forest side (dleft), and how many
+## scanlines, digital rain on the city side and on the forest side (dleft), whether the ordinary
+## slanting rain falls at all (rain: not under the gentle horn of the fanfare), and how many
 ## seconds the change from the part before takes.
 const GRADES := {
-	"fanfare": {"l": Color(1.0, 1.0, 1.0), "r": Color(1.0, 1.0, 1.0), "sat": 1.0, "bri": 1.0, "vig": 0.25, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 1.0},
-	"glen": {"l": Color(0.96, 1.07, 1.02), "r": Color(0.7, 0.76, 0.92), "sat": 0.95, "bri": 0.93, "vig": 0.4, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 1.4},
-	"war": {"l": Color(0.98, 1.0, 0.94), "r": Color(1.22, 0.88, 0.84), "sat": 1.1, "bri": 1.0, "vig": 0.3, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "blend": 0.3},
-	"cyber": {"l": Color(0.58, 0.84, 1.16), "r": Color(0.68, 1.0, 1.3), "sat": 0.55, "bri": 1.0, "vig": 0.4, "scan": 0.16, "digital": 1.0, "dleft": 0.0, "blend": 0.2},
-	"build": {"l": Color(0.7, 0.9, 1.25), "r": Color(0.82, 1.06, 1.38), "sat": 0.6, "bri": 1.06, "vig": 0.5, "scan": 0.22, "digital": 1.0, "dleft": 0.0, "blend": 0.8},
-	"climax": {"l": Color(0.92, 1.06, 1.3), "r": Color(1.0, 1.14, 1.42), "sat": 0.85, "bri": 1.16, "vig": 0.3, "scan": 0.1, "digital": 1.0, "dleft": 0.0, "blend": 0.1},
-	"finish": {"l": Color(0.7, 0.9, 1.2), "r": Color(0.76, 1.0, 1.26), "sat": 0.62, "bri": 1.0, "vig": 0.45, "scan": 0.14, "digital": 1.0, "dleft": 0.0, "blend": 0.8},
-	"outro": {"l": Color(0.55, 0.72, 0.98), "r": Color(0.6, 0.78, 1.04), "sat": 0.3, "bri": 0.62, "vig": 0.75, "scan": 0.1, "digital": 0.6, "dleft": 0.0, "blend": 0.9},
-	"fusion": {"l": Color(1.06, 1.12, 0.9), "r": Color(0.84, 1.06, 1.32), "sat": 1.32, "bri": 1.06, "vig": 0.3, "scan": 0.04, "digital": 0.8, "dleft": 0.6, "blend": 0.12},
+	"fanfare": {"l": Color(1.0, 1.0, 1.0), "r": Color(1.0, 1.0, 1.0), "sat": 1.0, "bri": 1.0, "vig": 0.25, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "rain": 0.0, "blend": 1.0},
+	"glen": {"l": Color(0.96, 1.07, 1.02), "r": Color(0.7, 0.76, 0.92), "sat": 0.95, "bri": 0.93, "vig": 0.4, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "rain": 1.0, "blend": 1.4},
+	"war": {"l": Color(0.98, 1.0, 0.94), "r": Color(1.22, 0.88, 0.84), "sat": 1.1, "bri": 1.0, "vig": 0.3, "scan": 0.0, "digital": 0.0, "dleft": 0.0, "rain": 1.0, "blend": 0.3},
+	"cyber": {"l": Color(0.58, 0.84, 1.16), "r": Color(0.68, 1.0, 1.3), "sat": 0.55, "bri": 1.0, "vig": 0.4, "scan": 0.16, "digital": 1.0, "dleft": 0.0, "rain": 1.0, "blend": 0.2},
+	"build": {"l": Color(0.7, 0.9, 1.25), "r": Color(0.82, 1.06, 1.38), "sat": 0.6, "bri": 1.06, "vig": 0.5, "scan": 0.22, "digital": 1.0, "dleft": 0.0, "rain": 1.0, "blend": 0.8},
+	"climax": {"l": Color(0.92, 1.06, 1.3), "r": Color(1.0, 1.14, 1.42), "sat": 0.85, "bri": 1.16, "vig": 0.3, "scan": 0.1, "digital": 1.0, "dleft": 0.0, "rain": 1.0, "blend": 0.1},
+	"finish": {"l": Color(0.7, 0.9, 1.2), "r": Color(0.76, 1.0, 1.26), "sat": 0.62, "bri": 1.0, "vig": 0.45, "scan": 0.14, "digital": 1.0, "dleft": 0.0, "rain": 1.0, "blend": 0.8},
+	"outro": {"l": Color(0.55, 0.72, 0.98), "r": Color(0.6, 0.78, 1.04), "sat": 0.3, "bri": 0.62, "vig": 0.75, "scan": 0.1, "digital": 0.6, "dleft": 0.0, "rain": 1.0, "blend": 0.9},
+	"fusion": {"l": Color(1.06, 1.12, 0.9), "r": Color(0.84, 1.06, 1.32), "sat": 1.32, "bri": 1.06, "vig": 0.3, "scan": 0.04, "digital": 0.8, "dleft": 0.6, "rain": 1.0, "blend": 0.12},
 }
 ## The big hits: the flash (colour, strength), the jolt, the colour of the lightning, the
 ## colour split and the glitch bands.
@@ -116,6 +117,7 @@ var heroes: Control
 ## was last shown (they step out of their silhouettes after the menu appears).
 var hero_units: Array[Dictionary] = []
 var fresh_items: Array[String] = []
+var unlock_burst_done := false
 var extras: Node2D
 var enemies: TextureRect
 var logo: TextureRect
@@ -204,7 +206,7 @@ func _layer(texture: Texture2D) -> TextureRect:
 
 ## The hero and the fairies, one picture each, in their places on the art. A fairy that has
 ## not been used yet stands in the dark; the ones used since the title was last shown wait
-## in the dark too, and step out of it just after the menu appears (_update_reveal).
+## in the dark too, and step out of it when ALAKAZAR appears after the drum roll (_update_unlocks).
 func _build_heroes() -> void:
 	heroes = Control.new()
 	heroes.size = Vector2(1920, 1080)
@@ -423,6 +425,7 @@ func _follow_music(t: float) -> Dictionary:
 	gradient.set_shader_parameter("glitch", tear)
 	gradient.set_shader_parameter("pulse", kick_pulse * 0.5)
 	fx.digital = look.digital
+	fx.rain = look.rain
 	fx.digital_left = look.dleft
 	fx.energy = energy
 	# The Prison army's lights: red on the war drums, cyan on the cyber kicks.
@@ -529,20 +532,35 @@ func _update_reveal() -> void:
 	fx.sparks.modulate.a = fx.modulate.a
 
 ## Each fairy in colour once it has been used, as a silhouette before; the newly used ones
-## step out of the dark just after the menu appears, with a little pop.
+## step out of the dark just as ALAKAZAR appears after the drum roll (the brass call), with
+## a pop, a white flash and a shower of gold sparks.
 func _update_unlocks() -> void:
-	var pop := reveal - (MENU_TIME + 0.4)
+	var pop := reveal - CALL_TIME
 	for unit in hero_units:
 		var rect: TextureRect = unit.node
 		var item: String = unit.item
 		var used := item == "" or FairyBook.has_used(item)
 		if used and item in fresh_items and pop < 0.0:
 			used = false
-		rect.modulate = Color.WHITE if used else TitleExtras.LOCKED
+		var bright := 1.0
 		var grow := 1.0
 		if used and item in fresh_items and pop < 0.7:
-			grow = 1.0 + 0.4 * pow(1.0 - pop / 0.7, 2.0)
+			var k := pow(1.0 - pop / 0.7, 2.0)
+			grow = 1.0 + 0.4 * k
+			bright = 1.0 + 1.6 * k
+		rect.modulate = Color(bright, bright, bright, 1.0) if used else TitleExtras.LOCKED
 		rect.scale = Vector2.ONE * grow
+	if not unlock_burst_done and pop >= 0.0:
+		unlock_burst_done = true
+		# Only when it happens live (a skip jumps past it).
+		if pop < 0.5:
+			for unit in hero_units:
+				if unit.item != "" and unit.item in fresh_items and FairyBook.has_used(unit.item):
+					var rect: TextureRect = unit.node
+					var x: float = rect.position.x + rect.size.x * 0.5 + ART_SHIFT.x + HEROES_SHIFT.x
+					var y: float = rect.position.y + rect.size.y * 0.55 + ART_SHIFT.y
+					fx.spark_burst(x, 18, Color(1.0, 0.85, 0.4), 0.45, y)
+					fx.spark_burst(x, 10, Color(1.0, 1.0, 1.0), 0.3, y)
 
 static func _ease(t: float, from: float, to: float) -> float:
 	return ease(clampf((t - from) / (to - from), 0.0, 1.0), 0.4)

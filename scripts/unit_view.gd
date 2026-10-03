@@ -624,11 +624,16 @@ static func draw_hologram(canvas: CanvasItem, texture: Texture2D, rect: Rect2, f
 	var source_h := texture.get_height() * build
 	var region := Rect2(0, 0, texture.get_width(), source_h)
 	var dest := Rect2(rect.position + glitch, Vector2(rect.size.x, shown))
+	# Mirrored: flip the canvas about the picture's own middle (a negative-width rectangle moves
+	# the picture a whole width sideways), then put the transform back for the scan lines.
 	if flip:
-		dest = Rect2(dest.position + Vector2(dest.size.x, 0), Vector2(-dest.size.x, dest.size.y))
+		canvas.draw_set_transform_matrix(outer * Transform2D(0.0, Vector2(-1.0, 1.0), 0.0, rect.get_center()))
+		dest.position -= rect.get_center()
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(-3, 0), dest.size), region, Color(1.0, 0.25, 0.4, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, Rect2(dest.position + Vector2(3, 0), dest.size), region, Color(0.25, 0.5, 1.0, alpha * 0.28))
 	canvas.draw_texture_rect_region(texture, dest, region, base)
+	if flip:
+		canvas.draw_set_transform_matrix(outer)
 	for k in range(0, int(shown), 5):
 		var y := rect.position.y + k + fposmod(t * 22.0, 5.0)
 		if y < rect.position.y + shown:

@@ -18,6 +18,8 @@ var time := 0.0
 var digital := 0.0
 ## Digital rain on the forest's side too (only when both worlds play together).
 var digital_left := 0.0
+## 1: the ordinary slanting rain falls, 0: it does not (the gentle horn of the fanfare).
+var rain := 1.0
 ## 0-1: how hard the music plays (how much rain falls).
 var energy := 0.5
 
@@ -96,10 +98,11 @@ func twinkle(seed: int) -> void:
 	fly[3] = maxf(fly[3], 0.55)
 
 ## Sparks thrown up from the ground at x (the EDM lead's notes).
-func spark_burst(x: float, count: int, color: Color, power: float = 1.0) -> void:
+func spark_burst(x: float, count: int, color: Color, power: float = 1.0, y: float = -1.0) -> void:
 	for k in count:
 		var vel := Vector2(_rng.randf_range(-140, 140), -_rng.randf_range(450, 900) * power)
-		_add_mote(Vector2(x + _rng.randf_range(-16, 16), _rng.randf_range(790, 880)), vel, _rng.randf_range(0.5, 0.95), color, _rng.randf_range(3.5, 6.0), 900.0, true)
+		var ground := _rng.randf_range(790, 880) if y < 0.0 else y + _rng.randf_range(-12, 12)
+		_add_mote(Vector2(x + _rng.randf_range(-16, 16), ground), vel, _rng.randf_range(0.5, 0.95), color, _rng.randf_range(3.5, 6.0), 900.0, true)
 
 ## A big hit: a lightning bolt from the sky to where the armies meet, and a shock ring
 ## spreading along the ground.
@@ -169,7 +172,7 @@ func draw_motes(canvas: CanvasItem) -> void:
 
 func _draw_rain() -> void:
 	var count := int(lerpf(0.0, 150.0, pow(energy, 1.5)))
-	var slant_a := 1.0 - digital
+	var slant_a := (1.0 - digital) * rain
 	for n in count:
 		var drop: Array = _drops[n]
 		var speed: float = drop[1]

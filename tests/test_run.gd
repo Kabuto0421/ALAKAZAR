@@ -850,7 +850,7 @@ func _expiring_and_rewards() -> void:
 	um.fairy_plus["meteor_fairy"] = true
 	verify(um.fairy_ap_cost("acorn_fairy") == 0 and um.fairy_uses("acorn_fairy") == 2,"A classed-up acorn: 0 AP, twice a battle")
 	verify(um.fairy_ap_cost("meteor_fairy") == 1 and um.fairy_uses("meteor_fairy") == 1 and um.meteor_count() == 2,"A classed-up meteor: 1 AP, once a battle, two meteors")
-	verify(um.item_definition("warp_fairy").ap_cost == 0,"The warp fairy costs 0 AP")
+	verify(um.item_definition("warp_fairy").ap_cost == 1 and um.fairy_ap_cost("warp_fairy") == 1 and um.fairy_uses("warp_fairy") == 1,"The warp fairy costs 1 AP, once a battle")
 	# A magic bolt flies through a cannon and sets it off; an acorn beside a cannon fires it.
 	var bm := fixture()
 	bm.enemies.clear()
@@ -1152,10 +1152,10 @@ func _class_ups() -> void:
 	verify(m.allies.size() == 1 and m.allies[0].hp == 2,"Acorn+ has 2 HP")
 	m.act_allies()
 	verify(_hurt(m,Vector2i(3,3)),"Acorn+ attacks a diagonal neighbour")
-	# Warp+: costs no AP.
+	# Warp+: costs no AP (still once a battle).
 	m = _plus_room("warp_fairy",[Vector2i(5,5)])
 	m.player.ap = 0
-	verify(m.fairy_ap_cost("warp_fairy") == 0 and m.use_item("warp_fairy",Vector2i(0,0)) and m.player.cell == Vector2i(0,0),"Warp+ works with 0 AP")
+	verify(m.fairy_ap_cost("warp_fairy") == 0 and m.fairy_uses("warp_fairy") == 1 and m.use_item("warp_fairy",Vector2i(0,0)) and m.player.cell == Vector2i(0,0),"Warp+ works with 0 AP, and is still once a battle")
 	# Wall+: costs 0 AP and comes twice, like the acorn.
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
 	verify(m.fairy_ap_cost("wall_fairy") == 0 and m.fairy_charges == [2] and not m.is_directional("wall_fairy"),"Wall+ costs 0 AP and comes twice (no direction any more)")
