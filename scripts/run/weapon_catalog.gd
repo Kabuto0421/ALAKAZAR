@@ -44,8 +44,6 @@ const DATA = [
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
-	{"id":"gold", "name":"金将剣", "short":"金将", "row":2, "color":"ffd35b", "tier":"mid", "detail":"右3マス・上下・左（斜め後ろ以外の6マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(0,-1),Vector2i(0,1),Vector2i(-1,0)]},
-	{"id":"silver", "name":"銀将剣", "short":"銀将", "row":2, "color":"d8e2ee", "tier":"mid", "detail":"右3マスと左斜め2マス（5マス）", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1),Vector2i(-1,-1),Vector2i(-1,1)]},
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
 	{"id":"mallet", "name":"木槌", "short":"木槌", "row":0, "color":"c8a878", "early":true, "hammer":true, "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下と、その右の縦3マスにも同じダメージを与える。", "detail":"右の1マス。攻撃は1ダメージで、横2マス＋その右3マスにも響く", "offsets":[Vector2i(1,0)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大5）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると5）", "offsets":[Vector2i(1,0)]},

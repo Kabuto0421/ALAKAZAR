@@ -25,7 +25,7 @@ func fixture() -> RefCounted:
 
 func _initialize() -> void:
 	var run := Run.new()
-	run.start(44)
+	run.start(43)
 	run.boss2_choice = 0
 	run.boss_choice = 0
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
@@ -125,7 +125,20 @@ func _initialize() -> void:
 	m.enemies.clear()
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating the boss opens a reward")
-	verify(run.offers.slice(0,3).any(func(o): return Run.Weapons.is_mid(o.value)),"After the boss a hammer or bow is offered")
+	var mid_hits := 0
+	for seed_value in 60:
+		var after_boss := Run.new()
+		after_boss.start(seed_value)
+		after_boss.choose(0)
+		after_boss.choose(0)
+		after_boss.stage = Rules.BOSS_LEVEL
+		after_boss.start_battle()
+		after_boss.battle.enemies.clear()
+		after_boss.battle.check_outcome()
+		after_boss.finish_battle()
+		if after_boss.offers.slice(0,3).any(func(o): return o.kind == "weapon" and Run.Weapons.is_mid(o.value)):
+			mid_hits += 1
+	verify(mid_hits > 5,"After the boss a hammer, bow or other mid-game weapon often shows up (%d / 60)" % mid_hits)
 	run.skip_reward()
 	verify(run.state==Run.State.BATTLE and m.level==4 and m.board_size==6,"Mid-game fight 1 follows the boss")
 	var mid_types: Array = m.enemies.map(func(e): return e.type)
@@ -1471,7 +1484,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 48,"39 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 46,"39 weapons plus the eight-knight general, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
@@ -1489,7 +1502,7 @@ func _mechanic_weapons() -> void:
 	verify(W.mid_pool().has(ids.find("king_staff")) and W.DATA[ids.find("king_staff")].swap,"The king staff (swap on all 8 neighbours) drops after the first boss")
 	m = _weapon_room("king_staff",[Vector2i(2,3)])
 	verify(m.player_action(Vector2i(2,3)) and m.player.cell == Vector2i(2,3) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The king staff trades places diagonally without damage")
-	verify(["eight_knight","gold","silver"].all(func(id): return W.mid_pool().has(ids.find(id))),"The generals drop after the first boss")
+	verify(W.mid_pool().has(ids.find("eight_knight")) and ids.find("gold") < 0 and ids.find("silver") < 0,"The eight-knight general drops after the first boss; the gold and silver swords are gone")
 	verify(W.late_pool().size() == 2 and ["rook_spear","bishop_blade"].all(func(id): return W.late_pool().has(ids.find(id))),"The rook spear and bishop blade are the late drops")
 	# Sliding weapons are super rare: next to never before Rotorick, now and then after it.
 	var before := 0
@@ -1571,6 +1584,10 @@ func _resonance() -> void:
 	verify(m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, passed).has(Vector2i(3,2)) and passed.size() == 1,"The line runs through cannons")
 	m.walls[Vector2i(3,2)] = 2
 	verify(not m.cannon_line(Vector2i(1,2), Vector2i.RIGHT, []).has(Vector2i(4,2)),"Walls still stop a shot")
+	# The lance, vane and capacitor cannons reach 5 tiles, no further (the magic bolt still flies on).
+	var wide := Rules.new()
+	wide.reset(Rules.FINAL_LEVEL)
+	verify(wide.cannon_line(Vector2i(0,5), Vector2i.RIGHT, [], Rules.CANNON_RANGE).size() == 5 and wide.cannon_line(Vector2i(0,5), Vector2i.RIGHT, []).size() > 5,"A cannon shot reaches 5 tiles; without the limit it runs to the edge")
 
 func _knockback() -> void:
 	var W := Run.Weapons

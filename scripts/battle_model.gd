@@ -203,8 +203,8 @@ const PLUS_TEXT := {
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
 	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲5×5が3ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
 	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
-	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上の敵すべてに1。"],
-	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの直線上に2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
+	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上（射程5マス）の\n敵すべてに1。"],
+	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの射程5マスの直線上に\n2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
 	"firework_fairy": ["叩くと周囲8マスの敵に爆発", "攻撃範囲の空きマスに設置。\n攻撃すると爆発して消える。\n周囲8マスの敵に1ダメージ。\n自分と味方は巻き込まない。"],
 	"shadow_stitch": ["置くのも入れ替わりも{cost_plus} AP", "全武器の範囲外の空きマスに\n影を縫い止める。{turns}ターン残る。\n{swap_ap_plus} APで影と入れ替わる\n（1ターン1回）。"],
 	"lone_wolf": ["{cost_plus} APで呼べる", "攻撃範囲内の空きマスに\n召喚。HP{hp_plus}・AP{ally_ap}。銀の動きで\n1歩ずつ近づき、届く敵に{wolf_bite}。\n武器が届く所ではすねて動かず、\n届かない所で移動・攻撃する。"],
@@ -219,7 +219,7 @@ const PLUS_TEXT := {
 	"holy_spirit": ["壊れると聖騎士が4体出る", "激レア・2×2の味方（HP{hp_plus}）。\n辺に触れた敵に1、いなければ\n敵へ1マス寄る。壊れると\n聖騎士（HP{knight_hp}・AP{knight_ap}）が4体出る。"],
 	"axe_spirit": ["毎戦闘{uses_plus}回使える", "2×2。選んだマスを含む2×2から\n向きへ突進。当たった敵に1、\n押し出してぶつけるとさらに1。\n消える。毎戦闘{uses_plus}回。\n大砲に当たると誘爆。"],
 	"time_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回止められる", "自分のマスを押して呼ぶ。\n時が止まり、次の敵のターン\n（{time_stop}ターン）は敵が誰も動かず、\n攻撃もしない。\n味方は動ける。毎戦闘{uses_plus}回。"],
-	"capacitor_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n{charge}溜まると縦横4方向の直線上の\n敵すべてに1。溜め直せる。"],
+	"capacitor_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置。\n叩いた時に電気が1溜まる。\n{charge}溜まると縦横4方向の\n射程5マスの敵すべてに1。\n溜め直せる。"],
 }
 ## The slash spirit's class-up is an evolution into the flying slash.
 ## Class-ups that turn a fairy into another one (none now: the flying slash became 斬撃精霊+).
@@ -2302,7 +2302,7 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 		# Each volley may hit a big enemy once (the guard counts per volley, not per chain).
 		struck_ids.clear()
 		var first_event := events.size()
-		var cells := cannon_line(cannon.cell, shot_dir, passed)
+		var cells := cannon_line(cannon.cell, shot_dir, passed, CANNON_RANGE)
 		events.append({"kind":"muzzle", "cell":cannon.cell, "id":-2, "dir":shot_dir})
 		for cell in cells:
 			events.append({"kind":"shot", "cell":cell, "id":-2, "dir":shot_dir})
@@ -2318,14 +2318,21 @@ func _fire_cannon(cannon: Dictionary, fired: Array) -> void:
 	if cannon.kind == "vane":
 		cannon.dir = CARDINALS[(CARDINALS.find(cannon.dir) + 1) % 4]
 
+## How far the lance, vane and capacitor cannons reach (tiles from the cannon).
+const CANNON_RANGE := 5
+
 ## A cannon shot's path: it flies through other cannons (collected in `passed`,
 ## which then resonate) and stops only at walls, obstacles, allies or the edge.
-func cannon_line(origin: Vector2i, direction: Vector2i, passed: Array) -> Array[Vector2i]:
+func cannon_line(origin: Vector2i, direction: Vector2i, passed: Array, limit: int = 0) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if not CARDINALS.has(direction):
 		return result
 	var cell := origin + direction
+	var steps := 0
 	while inside(cell):
+		steps += 1
+		if limit > 0 and steps > limit:
+			break
 		var other := cannon_at(cell)
 		if not other.is_empty():
 			passed.append(other)
@@ -2354,7 +2361,7 @@ func _charge_capacitor(cannon: Dictionary, fired: Array) -> void:
 	add_log("蓄電の妖精が放電！")
 	var passed: Array = []
 	for direction in CARDINALS:
-		for cell in cannon_line(cannon.cell, direction, passed):
+		for cell in cannon_line(cannon.cell, direction, passed, CANNON_RANGE):
 			events.append({"kind":"zap", "cell":cell, "id":-2, "dir":direction})
 			var enemy := enemy_at(cell)
 			if not enemy.is_empty():
@@ -2461,9 +2468,9 @@ func directional_preview(id: String, origin: Vector2i, direction: Vector2i) -> A
 	if id == "slash_fairy":
 		result.append_array(slash_cells(origin, direction) if is_plus(id) else side_slash_cells(origin))
 	elif id in ["cannon_fairy", "vane_cannon"]:
-		result.append_array(cannon_line(origin, direction, []))
+		result.append_array(cannon_line(origin, direction, [], CANNON_RANGE))
 		if is_plus(id):
-			result.append_array(cannon_line(origin, -direction, []))
+			result.append_array(cannon_line(origin, -direction, [], CANNON_RANGE))
 	else:
 		result.append_array(ray_cells(origin, direction))
 		if id == "magic_bolt" and is_plus(id):

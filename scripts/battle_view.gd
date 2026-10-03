@@ -2710,11 +2710,12 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		var y := _wrapped(Vector2(852,436),"ロトリックの残像。誰でも通り抜けられる。",17,INK,15)
 		_wrapped(Vector2(852,y),"縦横に隣接したプレイヤーに1ダメージを与えて消える。",17,tone,15)
 	elif enemy.type == "storm_shark":
-		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
-		_text(Vector2(852,478),"ときどき潜り、影の下に浮上",18,CYAN)
-		_text(Vector2(852,504),"2ダメージ＋ノックバック",18,CYAN)
-		_text(Vector2(852,534),"嵐：雷と津波（津波はボス以外を動かす）",15,MUTED)
-		_draw_threat(enemy,562)
+		_text(Vector2(852,440),"2×2で縦横に1マスずつ動く",18,tone)
+		_text(Vector2(852,464),"ときどき潜り、影の下に浮上",18,CYAN)
+		_text(Vector2(852,488),"2ダメージ＋ノックバック",18,CYAN)
+		_text(Vector2(852,514),"嵐：S字の雷4本",15,MUTED)
+		_text(Vector2(852,534),"津波：盤面の全員を運ぶ",15,MUTED)
+		_draw_threat(enemy,560)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,476),"壊すと執行兵が2体出る",19,CYAN)

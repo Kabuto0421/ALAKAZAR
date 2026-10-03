@@ -254,7 +254,7 @@ func _ready() -> void:
 			_badge(demo.position+Vector2(demo.size.x,-4),24)
 		if fairy_id in SILVER_EXAMPLES:
 			# These examples assume the silver general's sword, whose reach is outlined white.
-			demo.legend = "例：銀将剣"
+			demo.legend = "例：右3＋左斜め2の武器"
 			demo.legend_color = Color("d8e2ee")
 		var marks_top := demo.position.y+demo.size.y+6
 		if marks_height > 0:
