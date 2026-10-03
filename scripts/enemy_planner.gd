@@ -114,6 +114,9 @@ func beat(model: RefCounted, index: int) -> void:
 		if enemy.type == "archer":
 			_archer_action(model, enemy)
 			continue
+		# 猫の妖精: ordinary walkers visibly steer clear of the cat's field.
+		if not model.cat.is_empty() and enemy.type in CAT_AVOIDERS and _cat_avoid(model, enemy):
+			continue
 		var adjacent_ally := false
 		for offset in model.enemy_offsets(enemy):
 			var cell: Vector2i = enemy.cell + offset
@@ -167,6 +170,73 @@ func finish(model: RefCounted) -> void:
 		model.combo_boost = -1
 		model.storm_roll_wind()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
+
+## Who steers round the cat's field (bosses and the like are left to their own rules).
+const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer"]
+
+## An enemy in the cat's field walks out of it first; one whose straight way to the player runs
+## through the field goes round it (the shortest way over free tiles), or waits at its edge when
+## there is no way. Returns true when it used its action.
+func _cat_avoid(model: RefCounted, enemy: Dictionary) -> bool:
+	# Inside the field: get out, to the free tile that is furthest from the cat.
+	if model.cat_zone_at(enemy.cell):
+		var exits: Array[Vector2i] = []
+		for direction in DIRECTIONS:
+			var cell: Vector2i = enemy.cell + direction
+			if model.inside(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell and not model.blocked(cell):
+				exits.append(cell)
+		exits.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+			var out_a := 0 if model.cat_zone_at(a) else 1
+			var out_b := 0 if model.cat_zone_at(b) else 1
+			if out_a != out_b:
+				return out_a > out_b
+			return model.distance(a, model.cat.cell) > model.distance(b, model.cat.cell))
+		if not exits.is_empty():
+			enemy.intent = "猫から逃げる"
+			model.enemy_step(enemy, exits[0])
+			return true
+		return false
+	var to_player: int = model.distance(enemy.cell, model.player.cell)
+	if to_player <= 1:
+		return false
+	# The shortest way over free tiles to a tile beside the player (the field is a wall to it).
+	var first := {enemy.cell: enemy.cell}
+	var depth := {enemy.cell: 0}
+	var queue: Array[Vector2i] = [enemy.cell]
+	var head := 0
+	var step: Vector2i = enemy.cell
+	var length := -1
+	while head < queue.size() and length < 0:
+		var current: Vector2i = queue[head]
+		head += 1
+		for direction in DIRECTIONS:
+			var next: Vector2i = current + direction
+			if first.has(next) or not model.inside(next) or model.enemy_blocked(next) or next == model.player.cell or model.mines.has(next):
+				continue
+			if not model.enemy_at(next).is_empty() and model.enemy_at(next).id != enemy.id:
+				continue
+			first[next] = next if current == enemy.cell else first[current]
+			depth[next] = depth[current] + 1
+			if model.distance(next, model.player.cell) <= 1:
+				step = first[next]
+				length = depth[next]
+				break
+			queue.append(next)
+	if length > 0:
+		# Only when the field really is in the way (the straight route would be shorter).
+		if length > to_player - 1:
+			enemy.intent = "猫を避けて回り込む"
+			model.enemy_step(enemy, step)
+			return true
+		return false
+	# No way at all: if the field is what shuts the straight way, hold at its edge.
+	for direction in DIRECTIONS:
+		var cell: Vector2i = enemy.cell + direction
+		if model.inside(cell) and model.distance(cell, model.player.cell) < to_player and model.cat_zone_at(cell):
+			enemy.intent = "猫を避けて足止め"
+			enemy.ap = 0
+			return true
+	return false
 
 func _options(model: RefCounted, enemy: Dictionary) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []

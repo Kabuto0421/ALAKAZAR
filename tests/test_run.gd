@@ -2244,6 +2244,51 @@ func _cat_fairy() -> void:
 	trapped.ap = 1
 	verify(inside.enemy_step(trapped, Vector2i(4,3)) == false,"Inside the field, stepping to another field tile is refused")
 	verify(inside.enemy_step(trapped, Vector2i(3,4)) == false,"...and so is every tile of it")
+	# --- Enemies steer clear of the field in plain sight ---
+	var det := fixture()
+	det.enemies.clear()
+	det.cat = {"cell":Vector2i(2,2), "turns":5}
+	det.player.cell = Vector2i(4,2)
+	var walker: Dictionary = det.make_enemy("infantry", Vector2i(0,2), 0)
+	det.enemies.append(walker)
+	det.enemies.append(det.make_enemy("heavy", Vector2i(5,5), 1))
+	det.phase = Rules.Phase.ENEMY
+	walker.ap = 2
+	planner.beat(det, 0)
+	verify(walker.cell != Vector2i(0,2) and not det.cat_zone_at(walker.cell) and walker.intent == "猫を避けて回り込む","An enemy whose way runs through the field goes round it, and says so")
+	var went_round := true
+	for turn in 6:
+		det.phase = Rules.Phase.ENEMY
+		walker.ap = 2
+		planner.beat(det, 0)
+		planner.beat(det, 1)
+		went_round = went_round and not det.cat_zone_at(walker.cell)
+	verify(went_round and det.distance(walker.cell, det.player.cell) <= 2,"...and still gets near the player without once entering the field")
+	# Inside the field it walks out first.
+	var inn := fixture()
+	inn.enemies.clear()
+	inn.cat = {"cell":Vector2i(2,2), "turns":5}
+	inn.player.cell = Vector2i(5,0)
+	var inner: Dictionary = inn.make_enemy("infantry", Vector2i(3,2), 0)
+	inn.enemies.append(inner)
+	inn.enemies.append(inn.make_enemy("heavy", Vector2i(5,5), 1))
+	inn.phase = Rules.Phase.ENEMY
+	inner.ap = 1
+	planner.beat(inn, 0)
+	verify(not inn.cat_zone_at(inner.cell) and inner.intent == "猫から逃げる","An enemy inside the field leaves it, and says so")
+	# With the player sealed inside, the enemy holds at the edge.
+	var sealed := fixture()
+	sealed.enemies.clear()
+	sealed.cat = {"cell":Vector2i(2,2), "turns":5}
+	sealed.player.cell = Vector2i(2,2)
+	var waiting: Dictionary = sealed.make_enemy("infantry", Vector2i(5,2), 0)
+	sealed.enemies.append(waiting)
+	sealed.enemies.append(sealed.make_enemy("heavy", Vector2i(5,5), 1))
+	sealed.phase = Rules.Phase.ENEMY
+	waiting.ap = 2
+	planner.beat(sealed, 0)
+	planner.beat(sealed, 1)
+	verify(not sealed.cat_zone_at(waiting.cell) and waiting.intent == "猫を避けて足止め" and waiting.ap == 0,"With no way round, the enemy waits at the edge, and says so")
 	# The field lasts five player turns.
 	var t := fixture()
 	t.cat = {"cell":Vector2i(2,2), "turns":Rules.WALL_TURNS}

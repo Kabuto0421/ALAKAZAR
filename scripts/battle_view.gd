@@ -2358,7 +2358,7 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 	if model.wheel_cell() == cell:
 		return {"icon": "wheel_fairy", "turns": int(model.wheel.turns), "state": "乗っている（毎ターンAP+1）" if model.riding_wheel() else "乗っていない", "lines": ["乗ると降りられず、次のターンから", "3ターンの間AP+1", "敵は上に乗れない"]}
 	if model.cat_zone_at(cell):
-		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れない", "（中にいる敵は出るだけ）", "攻撃は止めない"]}
+		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat.turns), "state": "", "lines": ["敵は入れず、避けて動く", "（中の敵は出て行く）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
 	if model.circle_tiles.has(cell):
