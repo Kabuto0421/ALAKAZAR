@@ -747,6 +747,9 @@ func use_item(id: String, cell: Vector2i, direction: Vector2i = Vector2i.ZERO, s
 	strike_guard = false
 	if id in PLACED_FAIRIES:
 		stats.placed_rounds.append(round_number)
+	if id == "warp_fairy":
+		# Warping while holding a dagger counts as using it (like the 影縫い swap).
+		power_up_pair()
 	add_log("%sを使用" % fairy_title(id))
 	check_outcome()
 	dig_abyss()
@@ -946,10 +949,16 @@ func player_action(cell: Vector2i) -> bool:
 	if done:
 		dig_abyss()
 		# クロス短剣: whichever half was used boosts the other for the rest of the turn.
-		if Catalog.pair_of(used) >= 0:
-			var other := Catalog.pair_of(used)
-			combo_boost = other if owned_weapons.has(other) else -1
+		# (Swapping places with the shadow counts as using the held dagger: kept on purpose.)
+		power_up_pair(used)
 	return done
+
+## クロス短剣: the held dagger counts as used, so the other half is boosted for the rest of the turn.
+## A slide, a strike, a 影縫い swap and the warp fairy all do it.
+func power_up_pair(used: int = weapon) -> void:
+	var other := Catalog.pair_of(used)
+	if other >= 0:
+		combo_boost = other if owned_weapons.has(other) else -1
 
 ## クロス短剣: the weapon (index) boosted for the rest of this turn by its pair, or -1.
 var combo_boost := -1

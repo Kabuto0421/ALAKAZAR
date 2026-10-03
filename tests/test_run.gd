@@ -2631,6 +2631,35 @@ func _cross_daggers() -> void:
 	verify(fd.targets().has(Vector2i(2,4)),"A free tile behind is still a move")
 	fd.obstacles.append(Vector2i(2,4))
 	verify(not fd.targets().has(Vector2i(2,4)),"A blocked tile behind is still not a target")
+	# --- 影縫い and the warp fairy count as using the held dagger (kept on purpose) ---
+	var ss := fixture()
+	ss.owned_weapons.assign([thunder, flame, 0])
+	ss.fairy_loadout.assign(["shadow_stitch"])
+	ss.refill_fairies()
+	ss.weapon = thunder
+	ss.player.cell = Vector2i(1,1)
+	ss.player.ap = 2
+	verify(ss.combo_boost == -1,"No boost to begin with")
+	ss.shadow = {"cell":Vector2i(3,3), "ready":true, "turns":3}
+	verify(ss.can_swap_shadow(Vector2i(3,3)) and ss.player_action(Vector2i(3,3)) and ss.combo_boost == flame and ss.player.cell == Vector2i(3,3),"Swapping with the shadow while holding a dagger boosts the other half")
+	var wp := fixture()
+	wp.owned_weapons.assign([thunder, flame, 0])
+	wp.fairy_loadout.assign(["warp_fairy"])
+	wp.refill_fairies()
+	wp.weapon = flame
+	wp.player.cell = Vector2i(1,1)
+	wp.player.ap = 2
+	var warp_spot := Vector2i(4,4)
+	verify(wp.item_targets("warp_fairy").has(warp_spot) and wp.use_item("warp_fairy", warp_spot) and wp.player.cell == warp_spot and wp.combo_boost == thunder,"Warping while holding a dagger boosts the other half")
+	var wn := fixture()
+	wn.owned_weapons.assign([0, 1, 2])
+	wn.fairy_loadout.assign(["warp_fairy"])
+	wn.refill_fairies()
+	wn.weapon = 0
+	wn.player.cell = Vector2i(1,1)
+	wn.player.ap = 2
+	wn.use_item("warp_fairy", Vector2i(4,4))
+	verify(wn.combo_boost == -1,"Warping with an ordinary weapon boosts nothing")
 	# A set takes two slots.
 	var run := Run.new()
 	run.start(7)
