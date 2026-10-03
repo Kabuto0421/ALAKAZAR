@@ -3015,25 +3015,10 @@ func wave_cells(dir: Vector2i, crest: int) -> Array[Vector2i]:
 				cells.append(cell)
 	return cells
 
-## The wave carries everyone it covers and everyone in its path ahead of it: the band
-## sweeps the whole board to the far side (that is how it is drawn), so a unit standing
-## where it will pass is swept along too. Only the ones already behind the band are left.
-func _wave_hits(unit: Dictionary) -> bool:
-	var dir: Vector2i = storm.get("wind", Vector2i.ZERO)
-	var cells: Array = storm.get("wave", [])
-	if cells.is_empty() or dir == Vector2i.ZERO:
-		return false
-	return footprint(unit).any(func(tile: Vector2i) -> bool: return _wave_covers(tile, dir, cells))
-
-func _wave_covers(tile: Vector2i, dir: Vector2i, cells: Array) -> bool:
-	# Travelling towards `dir`, "ahead" means a larger coordinate along it, within the same lane.
-	var along := tile.x * dir.x + tile.y * dir.y
-	var lane := tile.y if dir.x != 0 else tile.x
-	for cell in cells:
-		var cell_lane: int = cell.y if dir.x != 0 else cell.x
-		if cell_lane == lane and cell.x * dir.x + cell.y * dir.y <= along:
-			return true
-	return false
+## The great wave runs over the whole board (that is how it is drawn), so it carries everyone
+## on it, wherever they stand, towards its direction.
+func _wave_hits(_unit: Dictionary) -> bool:
+	return storm.get("wind", Vector2i.ZERO) != Vector2i.ZERO and not storm.get("wave", []).is_empty()
 
 ## At the start of the enemy turn: the tsunami sweeps everyone it covers (but the shark) on in
 ## its direction until something stops them, then

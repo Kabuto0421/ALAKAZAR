@@ -2907,13 +2907,13 @@ func _storm_shark() -> void:
 	rush.player.cell = Vector2i(1,1)
 	rush.storm_enemy_turn()
 	verify(rush.events.any(func(e): return e.kind == "tsunami" and e.dir == rush.storm.wind),"The enemy turn begins with the tsunami rushing across the board")
-	# A unit outside the wave is not carried.
+	# The wave carries everyone, wherever they stand.
 	var outside := _shark_room()
 	outside.storm.wind = Vector2i.RIGHT
 	outside.storm.wave = outside.wave_cells(Vector2i.RIGHT, 5)
 	outside.player.cell = Vector2i(0,0)
 	outside._storm_wind_push()
-	verify(outside.player.cell == Vector2i(0,0),"Someone the tsunami does not cover stays where they are")
+	verify(outside.player.cell == Vector2i(outside.board_size - 1,0),"The tsunami runs over the whole board: even someone behind its band is carried to the far side")
 	# The wave sweeps the whole board, so someone standing ahead of it in its path is carried too.
 	var ahead := _shark_room()
 	ahead.storm.wind = Vector2i.RIGHT
