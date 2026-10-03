@@ -2914,6 +2914,13 @@ func _storm_shark() -> void:
 	outside.player.cell = Vector2i(0,0)
 	outside._storm_wind_push()
 	verify(outside.player.cell == Vector2i(0,0),"Someone the tsunami does not cover stays where they are")
+	# The wave sweeps the whole board, so someone standing ahead of it in its path is carried too.
+	var ahead := _shark_room()
+	ahead.storm.wind = Vector2i.RIGHT
+	ahead.storm.wave = ahead.wave_cells(Vector2i.RIGHT, 3)
+	ahead.player.cell = Vector2i(5,0)
+	ahead._storm_wind_push()
+	verify(ahead.player.cell == Vector2i(ahead.board_size - 1,0),"Someone standing in the tsunami's path ahead of it is swept to the far side")
 	# Thunder alternates: marks, then the strike.
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)

@@ -32,24 +32,24 @@ void fragment() {
 			float sweep = time * 3.2 + float(k) * 3.14159;
 			float beam = pow(max(0.0, cos(ang - sweep * (k == 0 ? 0.5 : -0.5) - 0.8)), 24.0);
 			float fall = 1.0 - clamp(length(to) / 1.5, 0.0, 1.0);
-			col += vec3(1.0, 0.1, 0.1) * beam * fall * 0.8;
-			alpha = max(alpha, beam * fall * 0.35);
+			col += vec3(1.0, 0.1, 0.1) * beam * fall * 0.45;
+			alpha = max(alpha, beam * fall * 0.16);
 		}
 	}
 	if (mode == 5) {
 		// ERROR: scanlines, tearing bars of cyan/magenta/yellow and a flicker.
 		float line = step(0.5, fract(uv.y * 90.0));
 		col += vec3(0.0) * line;
-		alpha = max(alpha, line * 0.10);
+		alpha = max(alpha, line * 0.04);
 		float band_id = floor(uv.y * 14.0 + floor(time * 9.0) * 3.0);
 		float on = step(0.86, hash(vec2(band_id, floor(time * 9.0))));
 		vec3 bar = hash(vec2(band_id, 3.0)) < 0.33 ? vec3(0.0, 1.0, 1.0) : (hash(vec2(band_id, 7.0)) < 0.5 ? vec3(1.0, 0.1, 0.8) : vec3(1.0, 0.9, 0.1));
 		float span = step(hash(vec2(band_id, 11.0)), uv.x) * step(uv.x, hash(vec2(band_id, 13.0)) * 0.6 + 0.4);
-		col += bar * on * span * 0.55;
-		alpha = max(alpha, on * span * 0.30);
+		col += bar * on * span * 0.35;
+		alpha = max(alpha, on * span * 0.10);
 		float flick = step(0.93, hash(vec2(floor(time * 14.0), 5.0)));
-		col += vec3(1.0, 0.9, 0.3) * flick * 0.25;
-		alpha = max(alpha, flick * 0.18);
+		col += vec3(1.0, 0.9, 0.3) * flick * 0.15;
+		alpha = max(alpha, flick * 0.07);
 	}
 	// Marquee bulbs in the outer band.
 	float rim = 0.045;

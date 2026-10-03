@@ -1635,11 +1635,15 @@ func _draw_board() -> void:
 			if zone_index >= 0:
 				_draw_mini_zone_tile(cell, zone_index)
 			if model.floor_cells.has(cell):
-				# Reel 4: a red-and-black checker marks the execution floor.
+				# A burning floor (reel 4, or the drawn strip): a loud red-and-black checker, a
+				# pulsing white-hot border and a "!" so it still reads under the casino lights.
+				var beat := 0.5 + 0.5 * sin(clock * 9.0)
 				for q in range(4):
-					var sub := Rect2(pos+Vector2(4+(q%2)*28,4+(q/2)*28),Vector2(28,28))
-					draw_rect(sub,Color(0.85,0.1,0.1,0.55) if (q%2)==(q/2) else Color(0.05,0.02,0.02,0.6))
-				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff3b3b"),false,2)
+					var sub := Rect2(pos+Vector2(3+(q%2)*29,3+(q/2)*29),Vector2(29,29))
+					draw_rect(sub,Color(1.0,0.12,0.08,0.92) if (q%2)==(q/2) else Color(0.1,0.0,0.0,0.92))
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(1.0,0.95-0.55*beat,0.8-0.7*beat),false,4)
+				draw_rect(Rect2(pos+Vector2(1,1),Vector2(62,62)),Color(1.0,0.15,0.1,0.35+0.35*beat),false,2)
+				_text(pos+Vector2(26,44),"!",34,Color(1,1,1,0.55+0.4*beat))
 			if danger.has(cell):
 				# Aimed archer: the lane its arrow will fly down next turn.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
@@ -2450,14 +2454,14 @@ func _draw_mini_zone_tile(cell: Vector2i, k: int) -> void:
 	var horizontal := box.size.x >= box.size.y
 	var local := (BOARD + Vector2(cell) * TILE - box.position) / box.size
 	var tone := Color("ff3b4a") if drawn else Color("46d9ff")
-	var glow := (0.30 + 0.12 * sin(clock * 9.0)) if drawn else 0.12
+	var glow := (0.48 + 0.14 * sin(clock * 9.0)) if drawn else 0.12
 	draw_rect(Rect2(Vector2(2,2),Vector2(60,60)),Color(tone,glow))
 	if drawn:
 		# Hazard chevrons running along the block toward the charge.
 		var shift := fmod(clock * 46.0, 32.0)
 		for stripe in range(-2, 4):
 			var at := float(stripe) * 32.0 + shift
-			draw_line(Vector2(at, 64.0), Vector2(at + 32.0, 0.0), Color("ff9a3b", 0.38), 8)
+			draw_line(Vector2(at, 64.0), Vector2(at + 32.0, 0.0), Color("ffb03b", 0.6), 9)
 	else:
 		# A band of light sweeping along the block.
 		var progress := fmod(clock * 0.55 + float(k) * 0.3, 1.4) - 0.2

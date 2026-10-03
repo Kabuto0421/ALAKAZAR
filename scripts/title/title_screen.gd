@@ -15,6 +15,7 @@ extends Control
 ## a shock ring and a flash. The build-up zooms in, the outro closes letterbox bars.
 
 const Achievements = preload("res://scripts/title/achievements.gd")
+const CatalogView = preload("res://scripts/ui/catalog_view.gd")
 const Sync = preload("res://scripts/title/title_sync.gd")
 const TitleFx = preload("res://scripts/title/title_fx.gd")
 const TitleExtras = preload("res://scripts/title/title_extras.gd")
@@ -275,6 +276,26 @@ func _build_menu() -> void:
 				_select(i)
 				_activate())
 		menu.add_child(hit)
+	# A small button in the corner opens the weapon and fairy catalog.
+	var catalog_button := Button.new()
+	catalog_button.text = "カタログ [C]"
+	catalog_button.position = Vector2(1448, 1000)
+	catalog_button.size = Vector2(240, 56)
+	catalog_button.focus_mode = Control.FOCUS_NONE
+	catalog_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	catalog_button.add_theme_font_override("font", FONT)
+	catalog_button.add_theme_font_size_override("font_size", 30)
+	for state in ["normal", "hover", "pressed"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = Color(0.05, 0.09, 0.1, 0.85) if state == "normal" else Color(0.09, 0.17, 0.17, 0.95)
+		box.border_color = CREAM if state == "normal" else GOLD
+		box.set_border_width_all(3)
+		box.set_corner_radius_all(8)
+		catalog_button.add_theme_stylebox_override(state, box)
+	catalog_button.add_theme_color_override("font_color", CREAM)
+	catalog_button.add_theme_color_override("font_hover_color", GOLD)
+	catalog_button.pressed.connect(_open_catalog)
+	menu.add_child(catalog_button)
 	cursor = Label.new()
 	cursor.text = "▶"
 	cursor.add_theme_font_override("font", FONT)
@@ -308,8 +329,17 @@ func _select(index: int) -> void:
 	cursor.size = Vector2(48, 66)
 	cursor.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
+## The weapon and fairy catalog (C, or the button in the corner).
+var catalog: Control
+func _open_catalog() -> void:
+	if leaving or reveal < MENU_TIME or is_instance_valid(achievements_page) or is_instance_valid(catalog):
+		return
+	catalog = CatalogView.new()
+	add_child(catalog)
+	move_child(catalog, curtain.get_index())
+
 func _activate() -> void:
-	if leaving or reveal < MENU_TIME or is_instance_valid(achievements_page):
+	if leaving or reveal < MENU_TIME or is_instance_valid(achievements_page) or is_instance_valid(catalog):
 		return
 	if selected == 0:
 		_start_game()
@@ -335,6 +365,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if not event is InputEventKey:
+		return
+	if is_instance_valid(catalog):
+		return
+	if event.keycode == KEY_C and not is_instance_valid(achievements_page):
+		_open_catalog()
+		get_viewport().set_input_as_handled()
 		return
 	if is_instance_valid(achievements_page):
 		if event.keycode in [KEY_ESCAPE, KEY_BACKSPACE, KEY_ENTER, KEY_KP_ENTER, KEY_SPACE, KEY_Z, KEY_X]:

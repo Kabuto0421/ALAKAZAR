@@ -47,6 +47,28 @@ func run() -> void:
 	verify(title.enemies.texture == title.ENEMIES,"The king stands on the title screen before he is beaten")
 	verify(title.item_labels.size() == 2 and title.item_labels[0].text == "GAME START" and title.item_labels[1].text == "実績","Title menu: GAME START and 実績")
 	verify(title.item_labels.all(func(l): return l.get_theme_font_size("font_size") >= 52),"The menu items are big")
+	# The catalog: every weapon and fairy as the reward cards, opened from the title.
+	title.reveal = title.MENU_TIME
+	title._open_catalog()
+	verify(is_instance_valid(title.catalog),"The catalog opens from the title screen")
+	var catalog_weapons := 0
+	for index in title.CatalogView.Weapons.DATA.size():
+		if not title.CatalogView.Weapons.is_pair_member(index):
+			catalog_weapons += 1
+	verify(title.catalog.entries("weapon").size() == catalog_weapons and catalog_weapons >= 30,"The weapon catalog lists every weapon (the cross dagger set as one card)")
+	verify(title.catalog.entries("fairy").size() == title.CatalogView.Rules.ITEMS.size(),"The fairy catalog lists every fairy")
+	var tiers: Array = title.catalog.entries("weapon").map(func(o): return title.CatalogView.Rarity.tier(o))
+	var sorted_ok := true
+	for k in range(1, tiers.size()):
+		sorted_ok = sorted_ok and tiers[k] >= tiers[k - 1]
+	verify(sorted_ok,"The catalog runs from common to super rare")
+	verify(title.catalog.grid.get_child_count() == title.catalog.entries("weapon").size(),"One card per weapon is built")
+	title.catalog._show("fairy")
+	await process_frame
+	verify(title.catalog.grid.get_child_count() == title.CatalogView.Rules.ITEMS.size(),"The fairy tab builds one card per fairy")
+	title.catalog.close()
+	await process_frame
+	verify(not is_instance_valid(title.catalog),"The catalog closes")
 	verify(title.music.playing and title.MUSIC.loop and title.MUSIC.loop_offset > 10.0,"The title theme plays and loops after its fanfare")
 	title.reveal = title.MENU_TIME
 	title.selected = 1
