@@ -796,7 +796,7 @@ static func _blessing(time: float, accent: Color, art: Texture2D, plus: bool) ->
 		_steps(0 if inside else 1, 2)
 
 ## Called from your own tile: meteors hit random tiles in reach (here: holding
-## silver), 3 to every enemy in the 3x3. You and your allies are safe.
+## silver), 2 to every enemy in the 3x3. You and your allies are safe.
 static func _meteor(time: float, art: Texture2D, count: int) -> void:
 	var p := _cycle(time, 3.4)
 	_reach(Vector2i(0,1))
@@ -824,7 +824,7 @@ static func _meteor(time: float, art: Texture2D, count: int) -> void:
 	for enemy in enemies:
 		var hit: float = hits.get(enemy, 2.0)
 		_enemy(enemy, 1.0 - _ph(p, hit + 0.12, hit + 0.24))
-		_pop(enemy, "−3", _ph(p, hit, hit + 0.35), RED, 0, 20)
+		_pop(enemy, "−2", _ph(p, hit, hit + 0.35), RED, 0, 20)
 
 ## Called from your own tile: time stops, and on the enemies' turn nobody moves (the
 ## other half of the loop shows the same enemies stepping in when time runs).

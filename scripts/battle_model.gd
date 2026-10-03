@@ -52,6 +52,8 @@ const FREEZE_TURNS := 3
 const METEOR_DAMAGE := 2
 ## Player turns a placed spirit (wall, cannons, stealth) stands, counting the turn it is placed.
 const WALL_TURNS := 5
+## The stealth fairy and the abyss spirit last three turns.
+const SHORT_TURNS := 3
 ## Cannon kinds: "lance" fires straight, "vane" fires then turns clockwise, "firework" bursts around itself once.
 const CANNON_TITLES = {"lance": "槍砲精霊", "vane": "風見砲の妖精", "firework": "花火妖精", "capacitor": "蓄電の妖精"}
 ## Capacitor: hits (weapon or a chained shot) needed to discharge.
@@ -172,6 +174,8 @@ var fairy_charges: Array[int] = []
 var start_hp := MAX_HP
 ## Camp forging: weapon index -> extra damage (each weapon can be forged once).
 var weapon_power: Dictionary = {}
+## A forge's new tile for a weapon (index -> offset from the player), where the weapon takes one.
+var weapon_extra: Dictionary = {}
 ## Weapon enchantments: weapon index -> "circle" (the magic circle).
 var enchants: Dictionary = {}
 ## Magic circle: tiles the player has walked over with a circle weapon (they stay all fight).
@@ -303,6 +307,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		fairy_loadout.assign(["magic_bolt"])
 		start_hp = MAX_HP
 		weapon_power.clear()
+		weapon_extra.clear()
 		fairy_plus.clear()
 		enchants.clear()
 	weapon = owned_weapons[0]
@@ -603,8 +608,8 @@ static func fairy_text(id: String, text: String) -> String:
 
 static func text_values(id: String) -> Dictionary:
 	var values := {
-		"turns": WALL_TURNS, "freeze": FREEZE_TURNS, "freeze_plus": FREEZE_TURNS + 1,
-		"abyss_plus": WALL_TURNS + 2, "meteor": METEOR_DAMAGE, "stealth": STEALTH_DAMAGE, "charge": CAPACITOR_FULL,
+		"turns": SHORT_TURNS if id in ["stealth_fairy", "abyss_spirit"] else WALL_TURNS, "freeze": FREEZE_TURNS, "freeze_plus": FREEZE_TURNS + 1,
+		"abyss_plus": SHORT_TURNS + 2, "meteor": METEOR_DAMAGE, "stealth": STEALTH_DAMAGE, "charge": CAPACITOR_FULL,
 		"bite": CIRCLE_DAMAGE, "growth": GLUTTON_GROWTH, "guardian_bonus": GUARDIAN_BONUS_HP,
 		"knight_hp": HOLY_KNIGHT_HP, "knight_ap": HOLY_KNIGHT_AP,
 		"wolf_bite": WOLF_BITE,
@@ -884,14 +889,20 @@ const DIAGONALS = [Vector2i(-1,-1), Vector2i(1,-1), Vector2i(1,1), Vector2i(-1,1
 ## Bow: diagonal lines like a bishop; only the first enemy (or cannon) on each line.
 func bow_lines() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
+	# Unforged, the bow only reaches two tiles along each diagonal; forged, all the way.
+	var reach: int = 99 if weapon_power.has(weapon) else BOW_BASE_REACH
 	for direction in DIAGONALS:
 		var cell: Vector2i = player.cell + direction
-		while inside(cell):
+		var steps := 0
+		while inside(cell) and steps < reach:
+			steps += 1
 			result.append(cell)
 			if not enemy_at(cell).is_empty() or blocked(cell):
 				break
 			cell += direction
 	return result
+
+const BOW_BASE_REACH := 2
 
 ## Hammer: the struck tile, its two side tiles, and the three tiles beyond.
 ## Where a hammer's blow spreads: the target, the tiles above and below it and the
@@ -926,6 +937,7 @@ func targets() -> Array[Vector2i]:
 				result.append(back)
 			elif not blocked(back):
 				result.append(back)
+		_add_extra_tile(result)
 		return result
 	if WEAPONS[weapon].get("ranged","") == "bishop":
 		for cell in bow_lines():
@@ -945,18 +957,32 @@ func targets() -> Array[Vector2i]:
 					break
 				result.append(cell)
 				cell += direction
+		_add_extra_tile(result)
 		return result
-	for offset in Catalog.offsets(weapon):
+	for offset in weapon_offsets(weapon):
 		var cell: Vector2i = player.cell + offset
 		if inside(cell):
 			result.append(cell)
 	return result
 
+## A forged sliding weapon or dagger also reaches its one new tile (a jump: free tile or an enemy).
+func _add_extra_tile(result: Array[Vector2i]) -> void:
+	if not weapon_extra.has(weapon):
+		return
+	var cell: Vector2i = player.cell + Vector2i(weapon_extra[weapon])
+	if not inside(cell) or result.has(cell):
+		return
+	if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty() or not blocked(cell):
+		result.append(cell)
+
 func targets_for_facing(_direction_index: int) -> Array[Vector2i]:
 	return targets()
 
 func weapon_offsets(index: int, _direction_index: int = 1) -> Array[Vector2i]:
-	return Catalog.offsets(index)
+	var result: Array[Vector2i] = Catalog.offsets(index)
+	if weapon_extra.has(index):
+		result.append(Vector2i(weapon_extra[index]))
+	return result
 
 func turn_to(_direction_index: int) -> bool:
 	return false
@@ -1098,6 +1124,10 @@ func _player_action(cell: Vector2i) -> bool:
 				add_log("%sを撃破" % TYPES[target.type].name)
 			elif Catalog.knockback(weapon) > 0:
 				var away := Vector2i(signi(cell.x - player.cell.x), signi(cell.y - player.cell.y))
+				if weapon_extra.has(weapon) and cell - player.cell == Vector2i(weapon_extra[weapon]):
+					# A forged tile pushes along its main axis (sideways wins a tie).
+					var gap: Vector2i = cell - player.cell
+					away = Vector2i(signi(gap.x), 0) if absi(gap.x) >= absi(gap.y) else Vector2i(0, signi(gap.y))
 				# Shoved all the way, until something stops it.
 				knock_back(target, away, board_size * 2)
 			elif WEAPONS[weapon].get("pull", false) and target == enemy and int(target.get("size", 1)) == 1:
@@ -1276,7 +1306,7 @@ const BOOST_DAMAGE := 1
 func weapon_damage(index: int) -> int:
 	var bonus: int = BOOST_DAMAGE if combo_boost == index and Catalog.is_dagger(index) else 0
 	bonus += blade_charge if WEAPONS[index].has("charge") else 0
-	return Catalog.base_damage(index) + int(weapon_power.get(index, 0)) + bonus
+	return Catalog.base_damage(index) + bonus
 
 func trigger_mine(unit: Dictionary) -> void:
 	if unit.type == "miner" or not mines.has(unit.cell):
@@ -1654,9 +1684,9 @@ func _gravity_push(center: Vector2i, tiles: int) -> void:
 			if enemy.hp <= 0:
 				break
 
-## 奈落の精霊: for WALL_TURNS turns (2 more upgraded) the tiles no weapon reaches become pits.
+## 奈落の精霊: for SHORT_TURNS turns (2 more upgraded) the tiles no weapon reaches become pits.
 func summon_abyss() -> void:
-	abyss_turns = WALL_TURNS + 2 if is_plus("abyss_spirit") else WALL_TURNS
+	abyss_turns = SHORT_TURNS + 2 if is_plus("abyss_spirit") else SHORT_TURNS
 	events.append({"kind":"summon", "cell":player.cell, "id":-2, "fx":"abyss"})
 	add_log("奈落が口を開けた")
 	dig_abyss()
@@ -2204,7 +2234,7 @@ func tick_walls() -> void:
 
 func place_stealth(cell: Vector2i) -> void:
 	fairies.append(cell)
-	fairy_turns[cell] = WALL_TURNS
+	fairy_turns[cell] = SHORT_TURNS
 	_note_summon("stealth")
 
 func cannon_at(cell: Vector2i) -> Dictionary:

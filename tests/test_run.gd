@@ -195,17 +195,23 @@ func _initialize() -> void:
 	run.choose(0)
 	run.stage = Run.LAST_NORMAL_STAGE
 	run.state = Run.State.CAMP
+	run._roll_camp_tiles()
+	var drawn_tile: Vector2i = run.camp_tiles.get(run.battle.owned_weapons[0], Vector2i.ZERO)
+	verify(run.camp_tiles.has(run.battle.owned_weapons[0]) and drawn_tile != Vector2i.ZERO and maxi(absi(drawn_tile.x), absi(drawn_tile.y)) <= 3,"Arriving at a camp draws the tile a forge would add")
 	run.camp_forge()
 	var forged: int = run.battle.owned_weapons[0]
-	verify(run.camp_forge_weapon(0) and run.battle.weapon_power[forged]==1,"Forging raises the chosen weapon's power")
+	var base_offsets: Array[Vector2i] = Run.Weapons.offsets(forged)
+	verify(run.camp_forge_weapon(0) and run.battle.weapon_power[forged]==1 and run.battle.weapon_extra.get(forged) == drawn_tile,"Forging adds the drawn tile to the chosen weapon")
 	m = run.battle
 	m.equip(forged)
+	verify(m.weapon_offsets(forged).size() == base_offsets.size() + 1 and m.weapon_offsets(forged).has(drawn_tile) and not base_offsets.has(drawn_tile),"...a tile the weapon did not reach before")
 	m.enemies.clear()
-	var target: Vector2i = m.player.cell + m.weapon_offsets(forged)[0]
-	var tough: Dictionary = m.make_enemy("heavy",target,0)
-	m.enemies.append(tough)
-	m.enemies.append(m.make_enemy("heavy",Vector2i(6,6),1))
-	verify(m.player_action(target) and tough.hp<=0,"A forged weapon deals 2 damage")
+	var target: Vector2i = m.player.cell + drawn_tile
+	if m.inside(target):
+		var tough: Dictionary = m.make_enemy("heavy",target,0)
+		m.enemies.append(tough)
+		m.enemies.append(m.make_enemy("heavy",Vector2i(6,6),1))
+		verify(m.targets().has(target) and m.player_action(target) and tough.hp == tough.hp and m.weapon_damage(forged) == 1,"The new tile can be struck, and a forge adds no damage")
 
 	m=fixture()
 	m.fairy_loadout.assign(["acorn_fairy","magic_bolt","stealth_fairy"])
@@ -587,9 +593,9 @@ func _mid_weapons() -> void:
 	forged.enemies.append(forged.make_enemy("heavy",Vector2i(2,1),1))
 	forged.enemies.append(forged.make_enemy("infantry",Vector2i(3,3),2))
 	forged.enemies.append(forged.make_enemy("infantry",Vector2i(4,2),3))
-	verify(forged.hammer_area(Vector2i(2,2)).size() == 6 and forged.weapon_damage(hammer) == 2,"Forging widens the blow to the full area and adds 1 damage")
+	verify(forged.hammer_area(Vector2i(2,2)).size() == 6 and forged.weapon_damage(hammer) == 1,"Forging widens the blow to the full area (and adds no damage)")
 	forged.player_action(Vector2i(2,2))
-	verify(forged.enemy_at(Vector2i(2,2)).is_empty() and forged.enemy_at(Vector2i(2,1)).is_empty() and forged.enemy_at(Vector2i(3,3)).is_empty() and not forged.enemy_at(Vector2i(4,2)).is_empty(),"The forged blow reaches the tiles beyond but stops three wide")
+	verify(forged.enemy_at(Vector2i(2,2)).hp == 1 and forged.enemy_at(Vector2i(2,1)).hp == 1 and forged.enemy_at(Vector2i(3,3)).is_empty() and not forged.enemy_at(Vector2i(4,2)).is_empty(),"The forged blow reaches the tiles beyond but stops three wide")
 	# Bow: bishop lines, attack only.
 	m = fixture()
 	m.owned_weapons.assign([0,1,bow])
@@ -604,7 +610,9 @@ func _mid_weapons() -> void:
 	verify(shots == [Vector2i(0,1),Vector2i(3,4)],"Bow hits the first enemy on each diagonal line")
 	verify(not m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(1,2),"Bow cannot move")
 	verify(m.player_action(Vector2i(3,4)) and m.enemy_at(Vector2i(3,4)).is_empty() and m.player.cell == Vector2i(1,2),"Bow shoots from where the player stands")
-	verify(m.targets().has(Vector2i(4,5)),"With the front enemy gone, the line reaches further")
+	verify(not m.targets().has(Vector2i(4,5)),"The unforged bow reaches only two tiles along each diagonal")
+	m.weapon_power[m.weapon] = 1
+	verify(m.targets().has(Vector2i(4,5)),"Forged, the line reaches further (all the way)")
 	m.fairy_loadout.assign(["wall_fairy"])
 	m.refill_fairies()
 	var spots: Array = m.item_targets("wall_fairy")
@@ -1136,13 +1144,17 @@ func _expiring_and_rewards() -> void:
 	cplanner.begin(cm)
 	cplanner.finish(cm)
 	verify(int(cm.cannon_at(Vector2i(3,3)).charge) == 0,"A capacitor does not charge at the end of the turn")
-	# Placed spirits (cannons, stealth) vanish after five player turns, like walls.
+	# Placed cannons vanish after five player turns, like walls; the stealth fairy after three.
 	var m := fixture()
 	m.place_cannon(Vector2i(3,3), Vector2i.UP, "vane")
 	m.place_stealth(Vector2i(4,4))
-	for k in Rules.WALL_TURNS - 1:
+	for k in Rules.SHORT_TURNS - 1:
 		m.tick_walls()
-	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through four turn changes")
+	verify(m.cannons.size() == 1 and m.fairies.size() == 1,"Placed spirits last through the first turn changes")
+	m.tick_walls()
+	verify(m.fairies.is_empty() and m.cannons.size() == 1,"The stealth fairy vanishes on the third turn, the cannon stays")
+	for k in Rules.WALL_TURNS - Rules.SHORT_TURNS - 1:
+		m.tick_walls()
 	m.tick_walls()
 	verify(m.cannons.is_empty() and m.fairies.is_empty(),"...and vanish on the fifth, like the wall")
 	# The reward right before a boss leans to uncommon weapons (the three-tile ones).
@@ -1490,12 +1502,12 @@ func _mechanic_weapons() -> void:
 	verify(m.enemies[0].hp == 2 and m.weapon_damage(m.weapon) == 1,"Its hit spends the charge")
 	m.tick_walls()
 	verify(m.weapon_damage(m.weapon) == 1,"A turn it was used in stores nothing")
-	# Forged: hits for 2 and stores up to +3, so up to 5.
+	# Forged: stores up to +3, so up to 4.
 	m = _weapon_room("charge_blade",[Vector2i(2,2)])
 	m.weapon_power[m.weapon] = 1
 	for k in 5:
 		m.tick_walls()
-	verify(m.weapon_damage(m.weapon) == 5,"Forged, the charge blade builds up to 5")
+	verify(m.weapon_damage(m.weapon) == 4,"Forged, the charge blade builds up to 4")
 	# Pools: the lance is a pre-boss reward, the rook and bishop mid-game drops, the staff an early reward.
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
@@ -1924,7 +1936,7 @@ func _abyss() -> void:
 	m.enemies.append(foe)
 	m.enemies.append(m.make_enemy("heavy",Vector2i(5,5),1))
 	verify(m.item_targets("abyss_spirit") == [m.player.cell],"The abyss is called on the player's own tile")
-	verify(m.use_item("abyss_spirit",m.player.cell) and m.player.ap == 1 and m.abyss_turns == Rules.WALL_TURNS,"Calling it costs 1 AP and lasts five turns")
+	verify(m.use_item("abyss_spirit",m.player.cell) and m.player.ap == 1 and m.abyss_turns == Rules.SHORT_TURNS,"Calling it costs 1 AP and lasts three turns")
 	var reach: Array = m.all_reach()
 	verify(not m.pits.is_empty() and m.pits.all(func(c): return not reach.has(c)) and not m.pits.has(foe.cell) and m.pits.has(Vector2i(3,2)),"Every empty tile out of reach is a pit; enemies' tiles are spared")
 	verify(m.blocked(Vector2i(3,2)),"Pits block walking")
@@ -1949,8 +1961,8 @@ func _abyss() -> void:
 	rm.phase = Rules.Phase.ENEMY
 	rm.rook_charge(rook)
 	verify(rook.hp == 5 and rook.cell == Vector2i(4,2) and rm.pits.has(Vector2i(3,2)),"A charging rook is too big to fall: it stays where it stands, the abyss untouched")
-	# The abyss closes after five turns.
-	for k in Rules.WALL_TURNS - 1:
+	# The abyss closes after three turns.
+	for k in Rules.SHORT_TURNS - 1:
 		m.tick_walls()
 	verify(m.abyss_turns == 1 and not m.pits.is_empty(),"The abyss stays open until its last turn")
 	m.tick_walls()
@@ -2658,7 +2670,7 @@ func _cross_daggers() -> void:
 	var side_hp: int = side_target.hp
 	var forged_damage: int = fg.weapon_damage(thunder)
 	fg.player_action(Vector2i(2,2))
-	verify(forged_damage == 3 and side_target.hp == side_hp - 3,"A forged, boosted dagger (1 + 1 forged + 1 boost) spreads its full damage")
+	verify(forged_damage == 2 and side_target.hp == side_hp - 2,"A boosted dagger (1 + 1 boost) spreads its full damage, forged or not")
 	# No AP, no action.
 	var z := fixture()
 	z.enemies.clear()
@@ -2779,7 +2791,7 @@ func _cross_daggers() -> void:
 	fb.weapon_power[thunder] = 1
 	verify(fb.targets().has(Vector2i(2,4)) and W.attack_offsets(thunder, true).has(Vector2i(-1,1)) and W.attack_offsets(thunder).has(Vector2i(-1,1)),"Forged or not, the dagger strikes the tile behind it (and the diagram says so)")
 	var behind_hp: int = behind.hp
-	verify(fb.player_action(Vector2i(2,4)) and behind.hp == behind_hp - 2 and fb.player.cell == Vector2i(3,3) and fb.combo_boost == flame,"The backward strike does the forged damage, does not move the player, and boosts the other half")
+	verify(fb.player_action(Vector2i(2,4)) and behind.hp == behind_hp - 1 and fb.player.cell == Vector2i(3,3) and fb.combo_boost == flame,"The backward strike does 1, does not move the player, and boosts the other half")
 	var fc := fixture()
 	fc.enemies.clear()
 	fc.owned_weapons.assign([thunder, flame, 0])

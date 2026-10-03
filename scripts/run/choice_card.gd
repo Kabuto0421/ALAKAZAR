@@ -53,6 +53,9 @@ var note_color := Rarity.INFO
 var preview_plus := false
 ## A reward offer of the クロス短剣 shows the whole set (both daggers); owned ones show alone.
 var show_pair := false
+## Camp: the tile this weapon's forge would add (none = (99, 99)).
+const NO_TILE := Vector2i(99, 99)
+var extra_tile := NO_TILE
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
@@ -77,6 +80,22 @@ func _ready() -> void:
 			title = "クロス短剣"
 			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は斜め前3マス先まで。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
+		if plus:
+			# What forging does to this kind of weapon (the new tile is drawn green in the diagram).
+			match Weapons.forge_kind(int(offer.value)):
+				"tile":
+					forged_line = "鍛えた効果：動いて攻撃できるマスが1つ増える（緑）。"
+				"area":
+					forged_line = "鍛えた効果：叩く範囲が、叩いたマスの上下と右の縦3マスにも広がる。"
+				"charge":
+					forged_line = "鍛えた効果：最大4ダメージまで溜められる。"
+				"bow":
+					forged_line = "鍛えた効果：射程が斜めの端までのびる（素は2マス）。"
+				"swap":
+					forged_line = "鍛えた効果：毎ターン最初の入れ替えが0 AP。"
+			if forged_line != "":
+				base_description = description
+				description += "\n" + forged_line
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)
@@ -151,7 +170,13 @@ func _ready() -> void:
 			side = minf(side, (size.x-30)/2.0)
 		diagram.position = Vector2((size.x-side)/2,68) if not pair_head else Vector2(size.x/2.0-side-3,68)
 		diagram.size = Vector2(side,side)
+		var shown_extra := extra_tile
+		if shown_extra == NO_TILE and model != null and model.weapon_extra.has(int(offer.value)):
+			shown_extra = Vector2i(model.weapon_extra[int(offer.value)])
 		diagram.offsets = Weapons.offsets(int(offer.value))
+		if shown_extra != NO_TILE:
+			diagram.offsets.append(shown_extra)
+			diagram.extra = [shown_extra]
 		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.echo = Weapons.hammer_echo(int(offer.value), plus)
 		diagram.attack = Weapons.attack_offsets(int(offer.value), plus)
@@ -210,7 +235,7 @@ func _ready() -> void:
 		# What kind of fairy it is: a label just left of the rarity badge (or, when the
 		# corner tag leaves no room there, at the start of the row under the name).
 		var kind: String = KINDS.get(fairy_id, "使い切り")
-		var kind_label := _pill(Vector2(14,11),kind if kind != "設置" else ("設置・3ターン" if fairy_id in ["wheel_fairy", "cat_fairy"] else "設置・5ターン"),KIND_COLORS[kind])
+		var kind_label := _pill(Vector2(14,11),kind if kind != "設置" else ("設置・3ターン" if fairy_id in ["wheel_fairy", "cat_fairy", "stealth_fairy", "abyss_spirit"] else "設置・5ターン"),KIND_COLORS[kind])
 		var row := 68.0
 		var place_x := 14.0
 		var kind_x := badge.position.x-kind_label.get_minimum_size().x-6

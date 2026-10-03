@@ -322,11 +322,13 @@ func advance() -> void:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
+		_roll_camp_tiles()
 	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
 		if stage == Battle.MID_LEVELS[-1]:
 			battle.boss2_variant = boss2_choice if boss2_choice >= 0 else rng.randi_range(0, Battle.BOSS2_FORMATIONS.size() - 1)
 		# Camps: before Rotorick, before the last late fight, and before the Prison King.
 		state = State.CAMP
+		_roll_camp_tiles()
 	else:
 		stage += 1
 		start_battle()
@@ -340,9 +342,27 @@ func camp_rest() -> bool:
 	_leave_camp()
 	return true
 
+## Arriving at a camp draws, for each weapon that forges into a new tile, the tile its forge would
+## add (so the forge screen can show it, and it stays the same for this camp). 5% of the time it
+## is a tile on the outer ring of the 7x7.
+var camp_tiles: Dictionary = {}
+const OUTER_TILE_CHANCE := 0.05
+
+func _roll_camp_tiles() -> void:
+	camp_tiles.clear()
+	for index in battle.owned_weapons:
+		if battle.weapon_power.has(index) or not Rarity.can_forge(index) or Weapons.forge_kind(index) != "tile":
+			continue
+		var outer: bool = rng.randf() < OUTER_TILE_CHANCE
+		var pool: Array[Vector2i] = Weapons.extra_candidates(index, outer)
+		if pool.is_empty():
+			pool = Weapons.extra_candidates(index, not outer)
+		if not pool.is_empty():
+			camp_tiles[index] = pool[rng.randi_range(0, pool.size() - 1)]
+
 ## Each weapon can be forged once.
 func can_forge() -> bool:
-	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index) and Weapons.can_forge(index))
+	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index) and Rarity.can_forge(index))
 
 func can_class_up() -> bool:
 	return battle.fairy_loadout.any(func(id: String) -> bool: return battle.can_class_up(id))
@@ -360,9 +380,11 @@ func camp_forge_weapon(slot: int) -> bool:
 	if state != State.CAMP_FORGE or slot < 0 or slot >= battle.owned_weapons.size():
 		return false
 	var index: int = battle.owned_weapons[slot]
-	if battle.weapon_power.has(index) or not Weapons.can_forge(index):
+	if battle.weapon_power.has(index) or not Rarity.can_forge(index):
 		return false
 	battle.weapon_power[index] = 1
+	if camp_tiles.has(index):
+		battle.weapon_extra[index] = camp_tiles[index]
 	_leave_camp()
 	return true
 
@@ -388,6 +410,7 @@ func camp_back() -> void:
 
 func _leave_camp() -> void:
 	offers.clear()
+	camp_tiles.clear()
 	if stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
 		stage = Battle.LATE_LEVELS[2] if stage == Battle.LATE_LEVELS[1] else Battle.FINAL_LEVEL
 		start_battle()

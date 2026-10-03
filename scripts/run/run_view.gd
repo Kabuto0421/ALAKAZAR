@@ -200,11 +200,13 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgra
 			_compare(card, coverage, forging)
 		if forging or upgrading:
 			# Camp: the card shows the result; items already improved cannot be picked again.
-			var done: bool = (run.battle.weapon_power.has(int(card.offer.value)) or not Weapons.can_forge(int(card.offer.value))) if forging else not run.battle.can_class_up(str(card.offer.value))
+			var done: bool = (run.battle.weapon_power.has(int(card.offer.value)) or not Rarity.can_forge(int(card.offer.value))) if forging else not run.battle.can_class_up(str(card.offer.value))
 			card.preview_plus = not done
+			if forging and not done and run.camp_tiles.has(int(card.offer.value)):
+				card.extra_tile = run.camp_tiles[int(card.offer.value)]
 			card.disabled = done
 			if done:
-				card.tag = "強化できない" if forging and not Weapons.can_forge(int(card.offer.value)) else "強化済み"
+				card.tag = "強化できない" if forging and not Rarity.can_forge(int(card.offer.value)) else "強化済み"
 				card.modulate = Color(1,1,1,0.45)
 				card.note = ""
 				card.action_text = ""
@@ -323,7 +325,9 @@ func _loadout() -> void:
 		var diagram := Diagram.new()
 		diagram.position = at+Vector2(36,10)
 		diagram.size = Vector2(78,78)
-		diagram.offsets = Weapons.offsets(index)
+		diagram.offsets = run.battle.weapon_offsets(index)
+		if run.battle.weapon_extra.has(index):
+			diagram.extra = [Vector2i(run.battle.weapon_extra[index])]
 		diagram.slides = Weapons.slides(index)
 		diagram.echo = Weapons.hammer_echo(index, run.battle.weapon_power.has(index))
 		diagram.attack = Weapons.attack_offsets(index, run.battle.weapon_power.has(index))

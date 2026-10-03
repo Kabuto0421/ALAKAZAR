@@ -13,6 +13,9 @@ var echo: Array[Vector2i] = []
 var hammer := false
 ## Daggers: the one tile they can strike (the rest of their reach is for moving), drawn with a cross.
 var attack: Array[Vector2i] = []
+## The tile a forge adds (drawn in green).
+var extra: Array[Vector2i] = []
+const NEW_TILE := Color("7dff9a")
 const ATTACK := Color("ff805a")
 const ECHO := Color("ffa04a")
 
@@ -52,6 +55,9 @@ func _draw() -> void:
 			elif known:
 				fill = Color("25393a")
 				border = Color("4b6663")
+			if extra.has(offset):
+				fill = Color(NEW_TILE,0.35)
+				border = NEW_TILE
 			var strikes := attack.has(offset)
 			if strikes:
 				fill = Color(ATTACK,0.3)
@@ -81,7 +87,7 @@ func _draw() -> void:
 				draw_line(c - Vector2(r, r), c + Vector2(r, r), ATTACK, maxf(2, step * 0.1))
 				draw_line(c - Vector2(r, -r), c + Vector2(r, -r), ATTACK, maxf(2, step * 0.1))
 			elif active:
-				draw_circle(rect.get_center(),maxf(2,step*0.12),Color(accent,0.5) if known else accent)
+				draw_circle(rect.get_center(),maxf(2,step*0.12),Color(accent,0.5) if known else (NEW_TILE if extra.has(offset) else accent))
 			elif known:
 				draw_circle(rect.get_center(),maxf(1.5,step*0.08),Color("6f8a86"))
 	# Sliding weapons: an arrow on the outermost tile of each line shows it keeps going.

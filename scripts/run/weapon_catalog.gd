@@ -34,7 +34,7 @@ const DATA = [
 	{"id":"gale", "name":"突風剣", "short":"突風", "row":2, "color":"c5f0ff", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を外側の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右上・右・右下。無傷で敵を外側の奥までノックバック", "offsets":[Vector2i(1,-1),Vector2i(1,0),Vector2i(1,1)]},
 	# Mid-game weapons, dropped after the first boss.
 	{"id":"hammer", "name":"ハンマー", "short":"槌", "row":0, "color":"c9d6e0", "tier":"mid", "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。鍛えると、叩いたマスの上下と、その右の縦3マスにも響く。", "detail":"右の1マス。叩いたマスの上下左右に響く（鍛えると上下＋右の縦3マス）", "offsets":[Vector2i(1,0)]},
-	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "effect":"この武器は斜め4方向の直線上にいる敵を射て、1ダメージを与える。この武器では移動できない。", "detail":"斜め4方向に一直線に射る。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
+	{"id":"bow", "name":"弓", "short":"弓", "row":2, "color":"b7e07a", "tier":"mid", "ranged":"bishop", "effect":"この武器は斜め4方向の2マス先までの直線上にいる敵を射て、1ダメージを与える。この武器では移動できない。", "detail":"斜め4方向の2マス先まで射る（鍛えると端まで）。移動はできない", "offsets":[Vector2i(-2,-2),Vector2i(-1,-1),Vector2i(1,-1),Vector2i(2,-2),Vector2i(-2,2),Vector2i(-1,1),Vector2i(1,1),Vector2i(2,2)]},
 # Weapons with their own mechanics (not just a shape).
 	{"id":"lance", "name":"香車槍", "short":"香車", "row":2, "color":"ffb070", "tier":"boss", "from_rotorick":true, "slide":[Vector2i.RIGHT], "effect":"この武器はふさがるまで右へ進める。", "detail":"右へ、ふさがるまで一直線に進む。最初の敵を攻撃", "offsets":[Vector2i(1,0),Vector2i(2,0)]},
 	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横4方向へ、ふさがるまで進める", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
@@ -45,7 +45,7 @@ const DATA = [
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
-	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大5）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると5）", "offsets":[Vector2i(1,0)]},
+	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大4）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると4）", "offsets":[Vector2i(1,0)]},
 	# A rare mid-game drop: moves like the cross sword, and its blow spreads in a cross.
 	{"id":"cross_hammer", "name":"十字槌", "short":"十字槌", "row":0, "color":"9fd0ff", "tier":"mid", "rare":true, "hammer":true, "area":"cross", "damage":1, "effect":"この武器の攻撃は1ダメージを与え、叩いたマスの上下左右にも同じダメージを与える。", "detail":"縦横4マス。叩いたマスの上下左右にも響く", "offsets":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT]},
 	# Added last so earlier weapon indices stay put.
@@ -75,6 +75,39 @@ const START_CHOICE_COUNT := 3
 ## 飛車槍・角剣: 0 damage and they cannot be forged.
 static func can_forge(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and not DATA[index].get("no_forge", false)
+
+## What forging does to a weapon: "area" (the hammer's blow widens), "charge" (the big sword
+## stores one more), "bow" (the bow's reach is no longer cut short), "swap" (the first swap of
+## a turn is free) or "tile" (one new tile to move to and strike, drawn at the camp).
+static func forge_kind(index: int) -> String:
+	if index < 0 or index >= DATA.size() or not can_forge(index):
+		return ""
+	if is_hammer(index):
+		return "area"
+	if DATA[index].has("charge"):
+		return "charge"
+	if DATA[index].get("ranged", "") == "bishop":
+		return "bow"
+	if DATA[index].get("swap", false):
+		return "swap"
+	return "tile"
+
+## The tiles a forge could add: inside the 5x5 round the player (not already reached), or on the
+## outer ring of the 7x7 (the rare jackpot).
+static func extra_candidates(index: int, outer: bool) -> Array[Vector2i]:
+	var taken: Array[Vector2i] = offsets(index)
+	var result: Array[Vector2i] = []
+	for dy in range(-3, 4):
+		for dx in range(-3, 4):
+			var cell := Vector2i(dx, dy)
+			var ring := maxi(absi(dx), absi(dy))
+			if cell == Vector2i.ZERO or taken.has(cell) or (ring == 3) != outer or ring > 3:
+				continue
+			# A sliding weapon already reaches along its lines.
+			if slides(index).any(func(line: Vector2i) -> bool: return line.x * dy == line.y * dx and (dx * line.x + dy * line.y) > 0):
+				continue
+			result.append(cell)
+	return result
 
 ## Where a hammer's blow spreads, relative to the struck tile: the tiles above and
 ## below it and the column beyond; the cross hammer, the four tiles around it.

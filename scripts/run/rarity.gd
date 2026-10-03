@@ -47,3 +47,7 @@ static func _weapon_tier(offer: Dictionary) -> int:
 	if Weapons.is_mid(index) or Weapons.is_boss_reward(index) or Weapons.from_rotorick(index) or UNCOMMON_WEAPONS.has(id):
 		return UNCOMMON
 	return COMMON
+
+## Super rare weapons cannot be forged (nor can the ones that are never forgeable).
+static func can_forge(index: int) -> bool:
+	return Weapons.can_forge(index) and tier({"kind": "weapon", "value": index}) < SUPER_RARE
