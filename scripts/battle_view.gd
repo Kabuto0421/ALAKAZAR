@@ -1653,6 +1653,7 @@ func _draw_board() -> void:
 		var glyph_at := BOARD + Vector2(anchor) * TILE + Vector2(TILE * 0.52, TILE * 1.62)
 		_text(glyph_at + Vector2(2,2),str(k+1),104,Color(0,0,0,0.5))
 		_text(glyph_at,str(k+1),104,Color(1.0,0.4,0.35,0.95) if drawn_zone else Color(0.55,0.92,1.0,0.65))
+	_draw_mini_slot_badge()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
 	if model.time_stopped():
@@ -2217,6 +2218,36 @@ func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int)
 		_text(Vector2(at.x,y),line,size,color)
 		y += size+6
 	return y
+
+## The mini slot on the board: three little windows over the numbered blocks, the drawn one lit
+## and pointed at, like a slot machine's payline (above the blocks, or below them on the top rows).
+func _draw_mini_slot_badge() -> void:
+	if model.mini_zones.is_empty():
+		return
+	var drawn := _mini_drawn()
+	var top_row: int = model.mini_zones[0][0].y
+	var side := 30.0
+	var gap := 8.0
+	var width := side * 3 + gap * 2
+	var centre_x := BOARD.x + TILE * model.board_size / 2.0
+	var above := top_row >= 1
+	var y := BOARD.y + top_row * TILE - side - 10.0 if above else BOARD.y + (top_row + 2) * TILE + 10.0
+	var left := centre_x - width / 2.0
+	var frame := Rect2(left - 10, y - 6, width + 20, side + 12)
+	draw_rect(frame, Color(0.06, 0.03, 0.04, 0.92))
+	draw_rect(frame, Color("ff5b62"), false, 3)
+	_text(Vector2(frame.position.x, frame.position.y - 4), "ミニスロット", 14, Color("f1e9d8"))
+	for k in 3:
+		var window := Rect2(left + k * (side + gap), y, side, side)
+		var lit := drawn == k + 1
+		var pulse := 0.65 + 0.35 * sin(clock * 8.0) if lit else 1.0
+		draw_rect(window, Color(0.35, 0.08, 0.08, 0.95) if lit else Color("0b1415"))
+		draw_rect(window, Color("ffd35b") if lit else Color("46625e"), false, 3 if lit else 2)
+		_text(window.position + Vector2(8, 24), str(k + 1), 24, Color(1, 0.82, 0.3, pulse) if lit else Color(0.5, 0.6, 0.6))
+	if drawn > 0:
+		var tip := Vector2(left + (drawn - 1) * (side + gap) + side / 2.0, y - 2.0 if above else y + side + 2.0)
+		var step := -1.0 if above else 1.0
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, step * 8), tip + Vector2(-7, step * -1.0), tip + Vector2(7, step * -1.0)]), Color("ffd35b"))
 
 func _mini_zone_of(cell: Vector2i) -> int:
 	for k in model.mini_zones.size():
