@@ -25,7 +25,8 @@ func fixture() -> RefCounted:
 
 func _initialize() -> void:
 	var run := Run.new()
-	run.start(42)
+	run.start(43)
+	run.boss2_choice = 0
 	run.boss_choice = 0
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
 	verify(run.offers.size() == 3 and run.offers.all(func(o): return Run.Weapons.is_early(o.value) and Run.Weapons.goes_up_and_down(o.value)),"Three early starting weapons that all go both up and down")
