@@ -647,7 +647,7 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 	match boss:
 		"slot":
 			# Always drawn facing front; the reel picks the frame (row-major, 8th = spinning).
-			var frame: int = 7 if reel_value <= 0 else reel_value - 1
+			var frame: int = 7 if reel_value <= 0 or reel_value >= 8 else reel_value - 1
 			canvas.draw_texture_rect_region(ROTORICK_ATLAS, Rect2(Vector2(-86,-94)*factor, Vector2.ONE*172*factor), Rect2((frame % 4)*112, (frame / 4)*112, 112, 112), tint)
 		"shadow":
 			# A flickering purple hologram: translucent, with scan lines.

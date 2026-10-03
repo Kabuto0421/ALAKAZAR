@@ -1509,6 +1509,10 @@ func _draw_board() -> void:
 					var sub := Rect2(pos+Vector2(4+(q%2)*28,4+(q/2)*28),Vector2(28,28))
 					draw_rect(sub,Color(0.85,0.1,0.1,0.55) if (q%2)==(q/2) else Color(0.05,0.02,0.02,0.6))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff3b3b"),false,2)
+			if _on_payline(cell):
+				# Rotorick's payline: gold lines that strike next enemy turn.
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(1.0,0.82,0.2,0.32))
+				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("ffd35b"),false,2)
 			if danger.has(cell):
 				# Aimed archer: the lane its arrow will fly down next turn.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
@@ -2176,7 +2180,14 @@ const REEL_LINES = {
 	5: ["ERROR 05 ─ 停止中", "次の敵ターンは突進しない"],
 	6: ["判決、六。残像を置いていきます。", "残像の隣に入ると1ダメージ"],
 	7: ["刑を執行します。", "AP+1・2回突進・1回目は必中"],
+	8: ["ペイライン、揃い。", "金色の3本線に次の敵ターンで1ダメージ"],
 }
+
+func _on_payline(cell: Vector2i) -> bool:
+	for line in model.payline_lines:
+		if line.has(cell):
+			return true
+	return false
 
 ## Draws text wrapped every `per_line` characters; returns the y after the last line.
 func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int) -> float:
@@ -2254,6 +2265,12 @@ func _draw_reel_diagram(reel: int, box: Rect2) -> void:
 			tile.call(victim,Color("2bdcc8"),false)
 			draw_circle(victim,6,Color("2bdcc8"))
 			draw_line(victim+Vector2(-12,-12),victim+Vector2(12,12),red,3)
+		8:
+			# Three gold lines: a row, a column and a diagonal.
+			for k in 3:
+				var y0 := box.position.y+24+k*30
+				draw_line(Vector2(box.position.x+20,y0),Vector2(box.end.x-20,y0),gold,5)
+			_text(c+Vector2(-34,-30),"揃い",20,red)
 		7:
 			# Two charges; the first always lands.
 			boss.call(c+Vector2(-70,0),Color("3a2a18"))

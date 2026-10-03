@@ -153,6 +153,8 @@ var slot_rolls := 0
 var locked_slot := -1
 ## Reel 4: tiles that burn at the start of the next enemy turn.
 var floor_cells: Array[Vector2i] = []
+## Rotorick's payline interrupt (HP 3): three lines marked for the next enemy turn.
+var payline_lines: Array = []
 ## Mid-game fights after the first boss, then a camp and the second boss.
 const MID_LEVELS = [4, 5, 6]
 ## Late-game fights after Rotorick; a camp follows and ends the run (no boss yet).
@@ -328,6 +330,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	ruins.clear()
 	locked_slot = -1
 	floor_cells.clear()
+	payline_lines.clear()
 	circle_tiles.clear()
 	blade_charge = 0
 	blade_used = false
@@ -1283,6 +1286,7 @@ func check_outcome() -> void:
 	if not enemies.any(func(e: Dictionary) -> bool: return e.type == "slot"):
 		locked_slot = -1
 		floor_cells.clear()
+		payline_lines.clear()
 	if player.hp <= 0:
 		phase = Phase.LOST
 	elif level == FINAL_LEVEL and not enemies.any(func(e: Dictionary) -> bool: return e.type == "king"):
@@ -3216,6 +3220,16 @@ func slot_turn(enemy: Dictionary) -> void:
 	_burn_floor(enemy)
 	if terminal():
 		return
+	# At HP 3 it interrupts once: this turn it only marks three paylines, which strike next turn.
+	if int(enemy.reel) != 8 and enemy.hp <= PAYLINE_HP and not enemy.get("payline_done", false):
+		enemy.payline_done = true
+		_mark_paylines(enemy)
+		enemy.reel = 8
+		enemy.last_reel = 8
+		enemy.ap = 0
+		enemy.intent = "ペイライン"
+		add_log("ロトリック：ペイライン、揃い")
+		return
 	match int(enemy.reel):
 		5:
 			# The reel jammed: no charge this turn, no damage to itself.
@@ -3225,6 +3239,9 @@ func slot_turn(enemy: Dictionary) -> void:
 		6:
 			_leave_shadow(enemy)
 			rook_charge(enemy)
+		8:
+			enemy.ap = 0
+			_fire_paylines(enemy)
 		7:
 			enemy.ap = 2
 			_sure_charge(enemy)
@@ -3240,6 +3257,52 @@ func slot_turn(enemy: Dictionary) -> void:
 		if enemy.state != "brace":
 			rook_brace(enemy)
 		slot_spin(enemy)
+
+const PAYLINE_HP := 3
+
+## Three lines across the board: the player's row, a column and a diagonal.
+func _mark_paylines(_enemy: Dictionary) -> void:
+	payline_lines.clear()
+	var pick: int = absi(hash([slot_seed, slot_rolls, "payline"]))
+	slot_rolls += 1
+	var row: Array = []
+	for x in range(board_size):
+		row.append(Vector2i(x, player.cell.y))
+	var col: Array = []
+	var column := pick % board_size
+	for y in range(board_size):
+		col.append(Vector2i(column, y))
+	var diag: Array = []
+	var down: bool = (pick / board_size) % 2 == 0
+	var offset: int = (pick / (board_size * 2)) % board_size - board_size / 2
+	for i in range(board_size):
+		var x := i
+		var y := i + offset if down else board_size - 1 - i + offset
+		if y >= 0 and y < board_size:
+			diag.append(Vector2i(x, y))
+	payline_lines = [row, col, diag]
+
+## The paylines strike: each line crossing a tile hits whoever stands there once.
+func _fire_paylines(enemy: Dictionary) -> void:
+	var tally := {}
+	for line in payline_lines:
+		for cell in line:
+			tally[cell] = int(tally.get(cell, 0)) + 1
+	for cell in tally:
+		events.append({"kind":"burn", "cell":cell, "id":-2})
+		for n in int(tally[cell]):
+			if player.cell == cell:
+				_hit_player(enemy)
+			var other := enemy_at(cell)
+			if not other.is_empty() and other.type not in ["slot", "shadow"]:
+				damage_enemy(other, 1)
+			var ally := ally_at(cell)
+			if not ally.is_empty():
+				ally.hp -= 1
+				events.append({"kind":"hit", "cell":cell, "id":ally.id})
+	add_log("ペイラインが走った")
+	payline_lines.clear()
+	check_outcome()
 
 func _burn_floor(enemy: Dictionary) -> void:
 	if floor_cells.is_empty():

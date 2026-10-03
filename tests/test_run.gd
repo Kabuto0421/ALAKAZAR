@@ -856,6 +856,26 @@ func _rotorick() -> void:
 		if e.kind == "burn":
 			burned_next = true
 	verify(burned_next,"The marked floor burns at the start of the next enemy turn")
+	# At HP 3 Rotorick interrupts once: it marks paylines now and fires them next turn.
+	m = _slot_room()
+	boss = _slot_ready(m, 1)
+	boss.hp = 3
+	m.player.cell = Vector2i(0,0)
+	m.player.hp = 5
+	m.phase = Rules.Phase.ENEMY
+	m.events.clear()
+	m.slot_turn(boss)
+	verify(int(boss.reel) == 8 and m.payline_lines.size() == 3,"HP 3 interrupts with three paylines")
+	verify(m.player.hp == 5,"The interrupt turn itself deals no damage")
+	verify(m.payline_lines[0].has(m.player.cell),"One payline runs through the player's row")
+	m.phase = Rules.Phase.ENEMY
+	m.slot_turn(boss)
+	verify(m.player.hp < 5 and m.payline_lines.is_empty(),"The paylines strike on the following turn")
+	m.phase = Rules.Phase.ENEMY
+	boss.reel = 1
+	boss.state = "brace"
+	m.slot_turn(boss)
+	verify(int(boss.reel) != 8,"The interrupt happens only once")
 	verify(float(Rules.REEL_WEIGHTS[5]) < float(Rules.REEL_WEIGHTS[1]) and Rules.REEL_WEIGHTS[7] == 1,"The jam (5) is rarer than the ordinary reels; 7 stays the rarest")
 	# Winning ignores leftover shadows.
 	m = _slot_room()
