@@ -964,7 +964,8 @@ func _hit_stop(seconds: float = 0.05) -> void:
 	get_tree().create_timer(seconds, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 
 func _feedback(weapon_attack: bool = false) -> void:
-	if model.events.any(func(e: Dictionary) -> bool: return e.kind == "hit" and int(e.id) >= 0 and float(e.get("delay", 0.0)) <= 0.0 and int(e.get("damage", 1)) > 0):
+	# A shove counts as a blow too (the knockback weapons deal no damage but hit just as hard).
+	if model.events.any(func(e: Dictionary) -> bool: return (e.kind == "hit" and int(e.id) >= 0 and int(e.get("damage", 1)) > 0 or e.kind == "push") and float(e.get("delay", 0.0)) <= 0.0):
 		_hit_stop()
 	# A magic circle shows its own "99"s: no ordinary hit popups under it.
 	var casting := model.events.any(func(e: Dictionary) -> bool: return e.kind == "circle")
