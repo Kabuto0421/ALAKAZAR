@@ -3325,6 +3325,7 @@ func _mark_paylines(_enemy: Dictionary) -> void:
 		if y >= 0 and y < board_size:
 			diag.append(Vector2i(x, y))
 	payline_lines = [row, col, diag]
+	events.append({"kind":"payline", "id":-2, "cell":player.cell})
 
 ## The paylines strike: each line crossing a tile hits whoever stands there once.
 func _fire_paylines(enemy: Dictionary) -> void:
