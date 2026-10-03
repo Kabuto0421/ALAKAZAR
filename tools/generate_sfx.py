@@ -26,6 +26,9 @@ Needs numpy and soundfile (`pip install numpy soundfile`). Deterministic.
     python3 tools/generate_sfx.py king_hit step   # only these
 
 Writes assets/audio/sfx/<name>.ogg (mono, 44.1 kHz).
+
+Not made here (picked from the CC0 retro collection by Juhani Junkala and used as they are):
+sword_swing, meteor, cross_strike, plus the recorded hammer_slam.
 """
 
 import os
@@ -364,30 +367,7 @@ def chain_link(k, link):
     return buf, "hit", 0.05
 
 
-def cross_strike(k):
-    """クロス短剣's finisher: a flame slash and a lightning slash cross in front of the hero.
-
-    0.00-0.28 s  two sweeps close in on the middle, a low fiery whoosh and a high crackling one;
-    0.30 s       the crossing: blades clashing, a low boom, a crack and a lightning zap;
-    after        embers crackle, the current sizzles away and a D-minor shimmer rings out.
-    """
-    fire = k.whoosh(0.3, 120, 900, 500, 3200, peak=0.92) * 0.9 + k.grit(0.3, 200, 1800, 260, 0.25) * 0.25
-    bolt = k.whoosh(0.3, 2500, 9000, 1800, 9800, peak=0.9) * 0.5 + k.grit(0.3, 3000, 10000, 520, 0.2) * 0.35
-    clash = layer(k.iron(0.55, 1250, 0.5, 0.8), k.iron(0.4, 1870, 0.3, 0.45))
-    boom = k.thump(0.45, 110, 38, 0.13) * 1.4
-    crack = k.burst(0.12, 1800, 9500, 0.02) * 1.1
-    zap = layer(k.tone(k.glide(4200, 700, 0.16, 0.6), 0.16, "saw") * k.decay(0.16, 0.05) * 0.35,
-                k.grit(0.2, 3500, 10500, 700, 0.08) * 0.5)
-    embers = k.grit(0.6, 700, 4200, 110, 0.35) * 0.4
-    sizzle = k.grit(0.5, 4500, 10500, 360, 0.3) * 0.3
-    shimmer = layer(k.glass("D6", 0.8, 0.22), k.glass("A6", 0.7, 0.14))
-    return mix(1.2,
-               (0.0, fire, 2.6), (0.0, bolt, 2.0),
-               (0.30, clash, 0.9), (0.30, boom, 1.0), (0.30, crack, 0.9), (0.30, zap, 0.9),
-               (0.34, embers, 0.8), (0.36, sizzle, 0.7), (0.34, shimmer, 0.8)), "big", 0.2
-
-
-EFFECTS = [step, enemy_step, king_revive, fortress_spawn, king_hit, fortress_crack, fortress_collapse, king_collapse, cross_strike]
+EFFECTS = [step, enemy_step, king_revive, fortress_spawn, king_hit, fortress_crack, fortress_collapse, king_collapse]
 
 
 def main():

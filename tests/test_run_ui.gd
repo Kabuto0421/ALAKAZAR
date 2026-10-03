@@ -215,7 +215,7 @@ func run() -> void:
 	verify(app.battle_view.grid_buttons.filter(func(b): return b.visible).size()==25,"5x5 has 25 active hit targets")
 	# Sound: footsteps and the boss sounds exist, and the M key silences effects with the music.
 	var battle = app.battle_view
-	var sounds: Array = ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse"]
+	var sounds: Array = ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit", "fortress_crack", "fortress_collapse", "king_collapse", "sword_swing", "meteor", "cross_strike"]
 	verify(sounds.all(func(n): return battle.sfx.has(n) and ResourceLoader.exists("res://assets/audio/sfx/%s.ogg" % n)),"Every remaining sound effect has its file")
 	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
 	# Weapons: J, K, L and the mouse wheel; fairies: 1, 2, 3.

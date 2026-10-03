@@ -383,6 +383,8 @@ godot --headless --path . --script res://tests/test_cavalry.gd
 「Ruins Delver Prototype」から素材・描画デザイン・移動コードを引き継ぎ、独立したプロジェクトとして開発しています。取り込み時の素材記録は [ASSET_PROVENANCE.md](ASSET_PROVENANCE.md) にあります。その後に追加・差し替えた素材をすべて網羅する一覧ではありません。
 
 フォントのライセンスは `assets/fonts/OFL-*.txt` に収録しています。
+
+**効果音のクレジット**：通常の武器の攻撃音（`sword_swing`）・隕石妖精の音（`meteor`）・クロス攻撃の音（`cross_strike`）は、Juhani Junkala 作「The Essential Retro Video Game Sound Effects Collection [512 sounds]」（[OpenGameArt](https://opengameart.org/content/512-sound-effects-8-bit-style)、**CC0**）から使っています。詳細は `assets/audio/sfx/CREDITS.md` にあります（Ogg形式への変換と音量調整のみ）。
 - 戦闘中の左の妖精欄は、クラスアップ後の妖精だけ説明の代わりに「残り n/m回 ・ n AP」（使用回数／使用AP）を表示します。
 - 2×2の妖精（風斧精霊・聖精霊・守護神の妖精）は、押したマスが2×2の**左上**になります（右と下に広がる）。その並びが置けない時（4マスのどれかが埋まっている、盤の外に出る）は、押したマスを含む別の2×2を探して置きます（主人公から遠い並びを優先）。どれも置けない時だけ、そのマスは選べません。
 

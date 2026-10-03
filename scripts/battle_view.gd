@@ -871,6 +871,10 @@ func _feedback(weapon_attack: bool = false) -> void:
 		if sound != "" and not heard.has(sound):
 			heard[sound] = true
 			_sound(sound)
+		# The meteor's rumble is timed to land with the rock (0.35 s into its fall).
+		if event.kind == "meteor" and not heard.has("meteor") and sfx != null:
+			heard["meteor"] = true
+			sfx.play_at_impact("meteor", 0.35)
 	for event in model.events:
 		if casting and event.kind == "hit" and event.id >= 0:
 			continue
