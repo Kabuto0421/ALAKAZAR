@@ -876,14 +876,14 @@ func hammer_area(target: Vector2i, index: int = weapon) -> Array[Vector2i]:
 func targets() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if Catalog.is_dagger(weapon):
-		# 短剣: slide up to three tiles along its diagonal and one back; strike only the next tile.
+		# 短剣: slide up to three tiles along its diagonal and one back; strike the first enemy within three tiles ahead.
 		var along: Vector2i = WEAPONS[weapon].dagger
 		for k in range(1, 4):
 			var cell: Vector2i = player.cell + along * k
 			if not inside(cell):
 				break
 			if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty():
-				if k == 1:
+				if k <= DAGGER_STRIKE_RANGE:
 					result.append(cell)
 				break
 			if blocked(cell):
@@ -3066,6 +3066,8 @@ func _storm_wind_push() -> void:
 
 ## One lightning bolt: an S-tetromino, flat or upright, either way round (offsets round a tile).
 const THUNDER_BOLTS := 4
+## How far ahead along its diagonal a dagger can strike (it moves up to 3 and strikes up to 3).
+const DAGGER_STRIKE_RANGE := 3
 const THUNDER_SHAPES := [
 	[Vector2i(0,0), Vector2i(1,0), Vector2i(-1,1), Vector2i(0,1)],
 	[Vector2i(-1,0), Vector2i(0,0), Vector2i(0,1), Vector2i(1,1)],

@@ -72,7 +72,7 @@ func _ready() -> void:
 		if Weapons.is_pair_head(int(offer.value)):
 			# クロス短剣: the card sells both halves.
 			title = "クロス短剣"
-			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は隣の1マスだけ。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
+			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は斜め前3マス先まで。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
