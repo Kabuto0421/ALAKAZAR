@@ -1159,7 +1159,7 @@ func _expiring_and_rewards() -> void:
 				uncommon_cards += 1
 	verify(uncommon_cards > 600 * 0.75,"The reward before the boss is mostly uncommon weapons (%d/600)" % uncommon_cards)
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.is_boss_reward(i))
-	verify(threes.size() == 17,"Sixteen three-tile weapons (nine, the four corners, two forks and the lower-bow sword) and the lance feed the pre-boss reward")
+	verify(threes.size() == 19,"Sixteen three-tile weapons (nine, the four corners, two forks and the lower-bow sword) and the lance feed the pre-boss reward")
 
 ## Fixture with one upgraded fairy in hand and heavies (HP 3) placed as asked.
 func _plus_room(id: String, foes: Array) -> RefCounted:
@@ -1500,7 +1500,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 46,"39 weapons plus the eight-knight general, the king staff, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 48,"39 weapons plus the eight-knight general, the king staff, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
@@ -2487,7 +2487,7 @@ func _cross_daggers() -> void:
 	var thunder: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "thunder_dagger")
 	var flame: int = W.DATA.find_custom(func(d: Dictionary) -> bool: return d.id == "flame_dagger")
 	verify(thunder >= 0 and flame >= 0 and W.pair_of(thunder) == flame and W.pair_of(flame) == thunder,"The two daggers are a pair")
-	verify(W.is_pair_head(thunder) and not W.is_pair_head(flame) and W.is_pair_member(flame),"Only the thunder dagger is offered (it brings the flame dagger)")
+	verify(not W.is_pair_head(thunder) and not W.is_pair_member(flame),"Each dagger is offered on its own (no longer a set)")
 	verify(Run.Rarity.tier({"kind":"weapon","value":thunder}) == Run.Rarity.RARE and Run.Rarity.tier({"kind":"weapon","value":flame}) == Run.Rarity.RARE,"Both daggers are rare")
 	var m := fixture()
 	m.enemies.clear()
@@ -2507,7 +2507,7 @@ func _cross_daggers() -> void:
 	verify(m.targets().has(Vector2i(5,1)) and m.targets().has(Vector2i(4,2)) and m.targets().has(Vector2i(3,3)),"An enemy three tiles ahead can be attacked too")
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("heavy", Vector2i(1,5), 0))
-	verify(not m.targets().has(Vector2i(1,5)),"The step-back tile is never an attack")
+	verify(m.targets().has(Vector2i(1,5)),"The step-back tile can be attacked too")
 	m.player.cell = Vector2i(0,5)
 	m.enemies.clear()
 	m.enemies.append(m.make_enemy("heavy", Vector2i(3,2), 0))
@@ -2574,7 +2574,7 @@ func _cross_daggers() -> void:
 	e.walls.clear()
 	# An enemy behind cannot be struck; one ahead can; it cannot be passed.
 	e.enemies.append(e.make_enemy("heavy", Vector2i(0,0), 0))
-	verify(not e.targets().has(Vector2i(0,0)),"An enemy on the step-back tile cannot be attacked")
+	verify(e.targets().has(Vector2i(0,0)),"An enemy on the step-back tile can be attacked")
 	e.enemies.clear()
 	# A cannon on the next tile can be struck (and still boosts the pair).
 	var c := fixture()
@@ -2677,42 +2677,13 @@ func _cross_daggers() -> void:
 	a.reset(2, true)
 	verify(a.combo_boost == -1,"A new battle starts unboosted")
 	# Rewards: the flame dagger is never offered alone, nor the set when half is already owned.
-	var offered_flame := false
-	var offered_thunder_with_flame_owned := false
-	for seed_value in 60:
-		var r := Run.new()
-		r.start(seed_value)
-		r.battle.owned_weapons.assign([0, 1, flame])
-		r.battle.enemies.clear()
-		r.battle.check_outcome()
-		r.stage = 2
-		if r.finish_battle():
-			for offer in r.offers:
-				if offer.kind == "weapon" and int(offer.value) == flame:
-					offered_flame = true
-				if offer.kind == "weapon" and int(offer.value) == thunder:
-					offered_thunder_with_flame_owned = true
-	verify(not offered_flame and not offered_thunder_with_flame_owned,"The flame dagger is not offered alone, and the set is not offered when a half is owned")
-	# One free slot: one half goes in, the other asks for a slot; leaving undoes it all.
+	# A dagger takes one slot like any weapon.
 	var one := Run.new()
 	one.start(9)
 	one.battle.owned_weapons.assign([0, 1])
 	one.state = Run.State.REWARD
 	one.offers.assign([{"kind":"weapon","value":thunder}])
-	verify(one.choose(0) and one.state == Run.State.REPLACE and one.battle.owned_weapons.has(thunder) and one.pending.remaining == [flame],"One free slot: the first half is placed, the second needs a slot")
-	one.cancel_replace()
-	verify(one.state == Run.State.REWARD and one.battle.owned_weapons.size() == 2 and not one.battle.owned_weapons.has(thunder),"Leaving the swap screen undoes the half that was placed")
-	one.state = Run.State.REWARD
-	verify(one.choose(0) and one.replace(0) and one.battle.owned_weapons.has(thunder) and one.battle.owned_weapons.has(flame) and one.battle.owned_weapons.size() == 3 and one.state != Run.State.REPLACE,"...and choosing again completes the set")
-	var two := Run.new()
-	two.start(11)
-	two.battle.owned_weapons.assign([0, 1, 2])
-	two.state = Run.State.REWARD
-	two.offers.assign([{"kind":"weapon","value":thunder}])
-	two.choose(0)
-	two.replace(2)
-	two.cancel_replace()
-	verify(two.battle.owned_weapons.size() == 3 and two.battle.owned_weapons.has(2) and not two.battle.owned_weapons.has(thunder),"Leaving after one replacement puts the old weapon back")
+	verify(one.choose(0) and one.state != Run.State.REPLACE and one.battle.owned_weapons.size() == 3 and one.battle.owned_weapons.has(thunder) and not one.battle.owned_weapons.has(flame),"A dagger alone takes one free slot (the other half does not come with it)")
 	# --- The boost: cross damage 2 ---
 	var dm := fixture()
 	dm.enemies.clear()
@@ -2804,9 +2775,9 @@ func _cross_daggers() -> void:
 	behind.hp = 5
 	fb.enemies.append(behind)
 	fb.enemies.append(fb.make_enemy("heavy", Vector2i(5,5), 1))
-	verify(not fb.targets().has(Vector2i(2,4)),"An unforged dagger cannot strike behind it")
+	verify(fb.targets().has(Vector2i(2,4)),"An unforged dagger can strike behind it too (its whole reach is attackable)")
 	fb.weapon_power[thunder] = 1
-	verify(fb.targets().has(Vector2i(2,4)) and W.attack_offsets(thunder, true).has(Vector2i(-1,1)) and not W.attack_offsets(thunder).has(Vector2i(-1,1)),"A forged dagger can strike the tile behind it (and the diagram says so)")
+	verify(fb.targets().has(Vector2i(2,4)) and W.attack_offsets(thunder, true).has(Vector2i(-1,1)) and W.attack_offsets(thunder).has(Vector2i(-1,1)),"Forged or not, the dagger strikes the tile behind it (and the diagram says so)")
 	var behind_hp: int = behind.hp
 	verify(fb.player_action(Vector2i(2,4)) and behind.hp == behind_hp - 2 and fb.player.cell == Vector2i(3,3) and fb.combo_boost == flame,"The backward strike does the forged damage, does not move the player, and boosts the other half")
 	var fc := fixture()
@@ -2859,20 +2830,18 @@ func _cross_daggers() -> void:
 	wn.player.ap = 2
 	wn.use_item("warp_fairy", Vector2i(4,4))
 	verify(wn.combo_boost == -1,"Warping with an ordinary weapon boosts nothing")
-	# A set takes two slots.
+	# Each dagger takes one slot; with the slots full it asks which weapon to give up.
 	var run := Run.new()
 	run.start(7)
 	run.battle.owned_weapons.assign([0])
 	run.state = Run.State.REWARD
 	run.offers.assign([{"kind":"weapon","value":thunder}])
-	verify(run.choose(0) and run.state != Run.State.REPLACE and run.battle.owned_weapons.size() == 3 and run.battle.owned_weapons.has(thunder) and run.battle.owned_weapons.has(flame),"With two free slots the pair joins the loadout")
+	verify(run.choose(0) and run.state != Run.State.REPLACE and run.battle.owned_weapons.size() == 2 and run.battle.owned_weapons.has(thunder) and not run.battle.owned_weapons.has(flame),"A dagger takes one slot only")
 	run.battle.owned_weapons.assign([0, 1, 2])
 	run.state = Run.State.REWARD
 	run.offers.assign([{"kind":"weapon","value":thunder}])
-	verify(run.choose(0) and run.state == Run.State.REPLACE,"With the slots full, the pair asks which weapons to give up")
-	verify(run.replace(0) and run.state == Run.State.REPLACE and run.battle.owned_weapons[0] == thunder,"The first dagger takes a slot")
-	verify(not run.replace(0),"...that slot cannot be taken again")
-	verify(run.replace(1) and run.battle.owned_weapons[1] == flame and run.state != Run.State.REPLACE,"The second dagger takes another slot, and the choice is done")
+	verify(run.choose(0) and run.state == Run.State.REPLACE,"With the slots full, the dagger asks which weapon to give up")
+	verify(run.replace(0) and run.state != Run.State.REPLACE and run.battle.owned_weapons[0] == thunder,"...and takes that slot")
 
 func _shark_room() -> RefCounted:
 	var m := Rules.new()

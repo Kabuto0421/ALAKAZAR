@@ -922,9 +922,8 @@ func targets() -> Array[Vector2i]:
 		var back: Vector2i = player.cell - along
 		if inside(back):
 			if not enemy_at(back).is_empty() or not cannon_at(back).is_empty():
-				# Forged, the dagger can strike backwards too (one tile).
-				if weapon_power.has(weapon):
-					result.append(back)
+				# The tile behind it is part of its reach: it can strike there too.
+				result.append(back)
 			elif not blocked(back):
 				result.append(back)
 		return result

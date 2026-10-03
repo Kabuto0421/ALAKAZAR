@@ -77,12 +77,6 @@ func _ready() -> void:
 			title = "クロス短剣"
 			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は斜め前3マス先まで。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
-		if plus and Weapons.is_dagger(int(offer.value)):
-			# Forged: it can strike the tile it steps back to (shown in green below).
-			var back: Vector2i = -Vector2i(Weapons.DATA[int(offer.value)].dagger)
-			forged_line = "鍛えた効果：" + ("左下" if back.y > 0 else "左上") + "の1マスにも攻撃できる。"
-			base_description = description
-			description += "\n" + forged_line
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)

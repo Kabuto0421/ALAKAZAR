@@ -52,8 +52,8 @@ const DATA = [
 	{"id":"thunder", "name":"雷剣", "short":"雷", "row":2, "color":"ffe95a", "detail":"右上と左下の1マス", "offsets":[Vector2i(1,-1),Vector2i(-1,1)]},
 	# クロス短剣: two weapons sold as one set. Each slides up to three tiles along one diagonal (and
 	# one tile back), attacks the first enemy up to three tiles ahead on that diagonal, and using one boosts the other.
-	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"5cc8ff", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3)], "effect":"右上へ最大3マス進める（左下は1マス）。攻撃は右上の3マス先まで（その場で、最初の敵に）。炎短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃は右上3マス先まで", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
-	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"pair", "rare":true, "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3)], "effect":"右下へ最大3マス進める（左上は1マス）。攻撃は右下の3マス先まで（その場で、最初の敵に）。雷短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃は右下3マス先まで", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]},
+	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"5cc8ff", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3)], "effect":"クロス短剣の片方。右上へ最大3マス、左下へ1マスまで動け、そのどのマスの敵も攻撃できる（その場で、最初の敵に）。炎短剣を使った後に使うと強力で、攻撃力+1、当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃もその範囲", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
+	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"mid", "rare":true, "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3)], "effect":"クロス短剣の片方。右下へ最大3マス、左上へ1マスまで動け、そのどのマスの敵も攻撃できる（その場で、最初の敵に）。雷短剣を使った後に使うと強力で、攻撃力+1、当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃もその範囲", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]},
 	# Six more odd three-tile weapons (pre-boss rewards, uncommon): the four corners of the player's
 	# 3x3 and the two forks that cut ahead on both diagonals.
 	{"id":"corner_ul", "name":"左上隅剣", "short":"左上隅", "row":2, "color":"9ad0ff", "detail":"左上・上・左の3マス", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(-1,0)]},
@@ -63,6 +63,8 @@ const DATA = [
 	{"id":"fork_up", "name":"上叉剣", "short":"上叉", "row":2, "color":"c8a0ff", "detail":"左上・右上・右の3マス", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,0)]},
 	{"id":"fork_down", "name":"下叉剣", "short":"下叉", "row":2, "color":"a0f0e0", "detail":"左下・右下・右の3マス", "offsets":[Vector2i(-1,1),Vector2i(1,1),Vector2i(1,0)]},
 	{"id":"lower", "name":"下弦剣", "short":"下弦", "row":2, "color":"90ffcf", "detail":"左下・下・右下", "offsets":[Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
+	{"id":"hook_down", "name":"下鉤剣", "short":"下鉤", "row":2, "color":"ffb0d8", "detail":"左・下・右斜め下の3マス", "offsets":[Vector2i(-1,0),Vector2i(0,1),Vector2i(1,1)]},
+	{"id":"hook_up", "name":"上鉤剣", "short":"上鉤", "row":2, "color":"b0d8ff", "detail":"左・上・右斜め上の3マス", "offsets":[Vector2i(-1,0),Vector2i(0,-1),Vector2i(1,-1)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
@@ -99,8 +101,9 @@ static func is_hammer(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and (DATA[index].id == "hammer" or DATA[index].get("hammer", false))
 
 ## クロス短剣: the pair's second half is never offered alone (the first brings it along).
-static func is_pair_member(index: int) -> bool:
-	return index >= 0 and index < DATA.size() and DATA[index].get("tier","") == "pair"
+static func is_pair_member(_index: int) -> bool:
+	# Each dagger is offered on its own now; the pairing only decides who boosts whom.
+	return false
 
 static func is_dagger(index: int) -> bool:
 	return index >= 0 and index < DATA.size() and DATA[index].has("dagger")
@@ -115,17 +118,15 @@ static func pair_of(index: int) -> int:
 	return -1
 
 ## True for the half that is offered (it brings the other along).
-static func is_pair_head(index: int) -> bool:
-	return pair_of(index) >= 0 and not is_pair_member(index)
+static func is_pair_head(_index: int) -> bool:
+	return false
 
-## The tiles a dagger can attack (the rest of its reach is for moving). Forged, it can also strike the
-## tile behind it (the one it steps back to).
-static func attack_offsets(index: int, forged: bool = false) -> Array[Vector2i]:
+## The tiles a dagger can attack: its three tiles ahead and the one behind (all of its reach).
+static func attack_offsets(index: int, _forged: bool = false) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if is_dagger(index):
 		result.assign(DATA[index].attack)
-		if forged:
-			result.append(-Vector2i(DATA[index].dagger))
+		result.append(-Vector2i(DATA[index].dagger))
 	return result
 
 static func is_mid(index: int) -> bool:
