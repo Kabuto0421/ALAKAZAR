@@ -1283,6 +1283,11 @@ func _update_casino_overlay() -> void:
 	(casino_overlay.material as ShaderMaterial).set_shader_parameter("time", clock)
 	(casino_overlay.material as ShaderMaterial).set_shader_parameter("bulbs", float(model.board_size * 4 + 8))
 	(casino_overlay.material as ShaderMaterial).set_shader_parameter("energy", 1.0 if not reel_hold else 1.5)
+	var shown := 0
+	for enemy in model.enemies:
+		if enemy.type == "slot" and enemy.hp > 0 and not reel_hold:
+			shown = int(enemy.get("reel",0))
+	(casino_overlay.material as ShaderMaterial).set_shader_parameter("mode", shown if shown in [5, 7] else 0)
 
 func _process(delta: float) -> void:
 	clock += delta
@@ -1480,8 +1485,12 @@ func _draw_board() -> void:
 	# The 8x8 board sits flush between the panels, so its frame is thinner.
 	var rim := 4.0 if model.board_size >= 8 else 10.0
 	var frame := Rect2(BOARD-Vector2.ONE*rim,extent+Vector2.ONE*rim*2)
-	draw_rect(frame,Color("252820"))
-	_draw_field_frame(frame)
+	var casino: bool = model.enemies.any(func(e: Dictionary) -> bool: return e.type == "slot" and e.hp > 0)
+	if casino:
+		_draw_casino_frame(frame)
+	else:
+		draw_rect(frame,Color("252820"))
+		_draw_field_frame(frame)
 	var legal: Array = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and not inventory_ui.opened:
 		legal = model.targets().filter(func(cell: Vector2i) -> bool: return not model.blocked(cell) or not model.cannon_at(cell).is_empty()) if selected_item.is_empty() else model.item_targets(selected_item)
@@ -1538,15 +1547,18 @@ func _draw_board() -> void:
 			var mid := Vector2(32,32)
 			var base := Color("4a5a60") if model.storm_active() else Color("665b48")
 			var shade := 0.88+float((x*13+y*7)%5)*0.025
-			if model.level == Rules.FINAL_LEVEL:
+			if casino:
+				_draw_casino_tile(x,y)
+			elif model.level == Rules.FINAL_LEVEL:
 				# The prison's flagstones, and the throne dais under the king.
 				draw_texture_rect(BOSS_THRONE if throne_cells.has(cell) else BOSS_FLOOR,Rect2(pos,Vector2(64,64)),false,Color(shade,shade,shade))
 			else:
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),base*shade)
-			draw_line(pos+Vector2(3,59),pos+Vector2(59,59),Color("38362a"),2)
-			draw_line(pos+Vector2(3,3),pos+Vector2(59,3),Color("766b54"),1)
-			if (x*3+y)%4==0:
-				draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
+			if not casino:
+				draw_line(pos+Vector2(3,59),pos+Vector2(59,59),Color("38362a"),2)
+				draw_line(pos+Vector2(3,3),pos+Vector2(59,3),Color("766b54"),1)
+				if (x*3+y)%4==0:
+					draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
 			if bow_zone.has(cell):
 				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
 			if slash_zone.has(cell):
@@ -1621,10 +1633,7 @@ func _draw_board() -> void:
 					draw_line(edge_a,edge_b,Color("1a1610"),2)
 			var zone_index := _mini_zone_of(cell)
 			if zone_index >= 0:
-				# The three numbered blocks of Rotorick's low-HP slot; the drawn one burns.
-				var drawn := _mini_drawn() == zone_index + 1
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1.0,0.3,0.25,0.30) if drawn else Color(0.2,0.8,0.9,0.14))
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color("ff5b62") if drawn else Color("4fb7c4"),false,2)
+				_draw_mini_zone_tile(cell, zone_index)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -1753,12 +1762,23 @@ func _draw_board() -> void:
 	_draw_shove_preview()
 	# The big numbers written on Rotorick's three floor blocks (over the tiles, under the units).
 	for k in model.mini_zones.size():
-		var anchor: Vector2i = model.mini_zones[k][0]
+		var box := _mini_zone_rect(k)
 		var drawn_zone := _mini_drawn() == k + 1
-		var block_width: int = model.mini_zones[k].size() / 2
-		var glyph_at := BOARD + Vector2(anchor) * TILE + Vector2(TILE * (block_width / 2.0 - 0.48), TILE * 1.62)
-		_text(glyph_at + Vector2(2,2),str(k+1),104,Color(0,0,0,0.5))
-		_text(glyph_at,str(k+1),104,Color(1.0,0.4,0.35,0.95) if drawn_zone else Color(0.55,0.92,1.0,0.65))
+		var glyph_color := Color("ff5b62") if drawn_zone else Color("62e4ff")
+		var glyph_size := 112
+		var glyph_width := _text_width(str(k+1),glyph_size)
+		var glyph_at := box.get_center() + Vector2(-glyph_width / 2.0, glyph_size * 0.34)
+		# A neon glow: the number again, wider and fainter, under the sharp one.
+		for halo in [Vector2(-3,0), Vector2(3,0), Vector2(0,-3), Vector2(0,3)]:
+			_text(glyph_at + halo,str(k+1),glyph_size,Color(glyph_color,0.22))
+		_text(glyph_at + Vector2(3,3),str(k+1),glyph_size,Color(0,0,0,0.55))
+		_text(glyph_at,str(k+1),glyph_size,Color(glyph_color,0.95 if drawn_zone else 0.75))
+		if drawn_zone:
+			# A targeting reticle turning around the drawn number.
+			var reticle := minf(box.size.x,box.size.y) * 0.46
+			for q in range(4):
+				var start := clock * 1.6 + q * TAU / 4.0
+				draw_arc(box.get_center(), reticle, start, start + 0.9, 10, Color("ff5b62", 0.9), 3, true)
 	_draw_mini_slot_badge()
 	_draw_reel_badge()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
@@ -1800,6 +1820,59 @@ func _draw_clock_face(center: Vector2, radius: float, color: Color, turn: float)
 ## brighter corner brackets and a faint inner line, breathing very slowly. The 8x8
 ## and larger boards sit flush between the panels, so there it keeps inside its rim.
 const FIELD_BLUE := Color("7fe6ff")
+## Rotorick's floor: dark glass tiles in a violet checker, a neon grid, a faint inner glow.
+func _draw_casino_tile(x: int, y: int) -> void:
+	var even := (x + y) % 2 == 0
+	var floor_color := Color("1a1030") if even else Color("120a24")
+	draw_rect(Rect2(Vector2(2,2),Vector2(60,60)),floor_color)
+	# Glassy sheen across the top, a soft pulse that runs diagonally over the whole floor.
+	draw_rect(Rect2(Vector2(2,2),Vector2(60,22)),Color(1,1,1,0.035))
+	var wave := 0.5 + 0.5 * sin(clock * 1.4 - float(x + y) * 0.6)
+	draw_rect(Rect2(Vector2(2,2),Vector2(60,60)),Color(0.55,0.2,0.9,0.05 + 0.07 * wave))
+	var neon := Color("ff4fd8") if even else Color("46d9ff")
+	draw_rect(Rect2(Vector2(2.5,2.5),Vector2(59,59)),Color(neon,0.45),false,1)
+	# Little corner ticks, like a circuit board.
+	for corner in [Vector2(3,3), Vector2(61,3), Vector2(3,61), Vector2(61,61)]:
+		var sx := 1.0 if corner.x < 32.0 else -1.0
+		var sy := 1.0 if corner.y < 32.0 else -1.0
+		draw_line(corner, corner + Vector2(sx * 7.0, 0), Color(neon, 0.9), 2)
+		draw_line(corner, corner + Vector2(0, sy * 7.0), Color(neon, 0.9), 2)
+
+## Rotorick's board frame: a heavy dark bezel with a gold line and a neon line, rivets, and
+## ornate corner brackets.
+func _draw_casino_frame(frame: Rect2) -> void:
+	var outer := frame.grow(8.0)
+	draw_rect(outer.grow(3.0),Color(0,0,0,0.6))
+	draw_rect(outer,Color("0c0614"))
+	draw_rect(outer,Color("3a2a52"),false,2)
+	draw_rect(frame.grow(5.0),Color("1b1030"))
+	draw_rect(frame.grow(5.0),Color("ffd35b"),false,2)
+	draw_rect(frame.grow(1.0),Color("ff4fd8"),false,2)
+	draw_rect(frame.grow(-1.0),Color(0.6,0.9,1.0,0.5),false,1)
+	# Rivets between the bulbs.
+	var gap := 32.0
+	var x := frame.position.x + gap / 2.0
+	while x < frame.end.x:
+		for y in [outer.position.y + 3.0, outer.end.y - 3.0]:
+			draw_circle(Vector2(x,y),1.6,Color("a98fd0"))
+		x += gap
+	var y_at := frame.position.y + gap / 2.0
+	while y_at < frame.end.y:
+		for x_at in [outer.position.x + 3.0, outer.end.x - 3.0]:
+			draw_circle(Vector2(x_at,y_at),1.6,Color("a98fd0"))
+		y_at += gap
+	# Corner brackets: gold L plates with a magenta gem.
+	for corner: Vector2 in [outer.position, Vector2(outer.end.x, outer.position.y), outer.end, Vector2(outer.position.x, outer.end.y)]:
+		var sx := 1.0 if corner.x <= outer.get_center().x else -1.0
+		var sy := 1.0 if corner.y <= outer.get_center().y else -1.0
+		draw_line(corner + Vector2(-sx * 2.0, 0), corner + Vector2(sx * 34.0, 0), Color("ffd35b"), 6)
+		draw_line(corner + Vector2(0, -sy * 2.0), corner + Vector2(0, sy * 34.0), Color("ffd35b"), 6)
+		draw_line(corner + Vector2(sx * 3.0, sy * 3.0), corner + Vector2(sx * 28.0, sy * 3.0), Color("8a6a1c"), 2)
+		draw_line(corner + Vector2(sx * 3.0, sy * 3.0), corner + Vector2(sx * 3.0, sy * 28.0), Color("8a6a1c"), 2)
+		var gem: Vector2 = corner + Vector2(sx * 8.0, sy * 8.0)
+		draw_colored_polygon(PackedVector2Array([gem + Vector2(0,-6), gem + Vector2(6,0), gem + Vector2(0,6), gem + Vector2(-6,0)]), Color("ff4fd8"))
+		draw_polyline(PackedVector2Array([gem + Vector2(0,-6), gem + Vector2(6,0), gem + Vector2(0,6), gem + Vector2(-6,0), gem + Vector2(0,-6)]), Color.WHITE, 1)
+
 func _draw_field_frame(frame: Rect2) -> void:
 	var breath := 0.85 + 0.15 * sin(clock * 1.6)
 	var compact := model.board_size >= 8
@@ -2332,13 +2405,19 @@ func _draw_mini_slot_badge() -> void:
 	if model.mini_zones.is_empty():
 		return
 	var drawn := _mini_drawn()
-	var top_row: int = model.mini_zones[0][0].y
 	var side := 30.0
 	var gap := 8.0
 	var width := side * 3 + gap * 2
-	var centre_x := BOARD.x + TILE * model.board_size / 2.0
-	var above := top_row >= 1
-	var y := BOARD.y + top_row * TILE - side - 10.0 if above else BOARD.y + (top_row + 2) * TILE + 10.0
+	var band := _mini_zone_rect(0).merge(_mini_zone_rect(1)).merge(_mini_zone_rect(2))
+	var vertical := band.size.y > band.size.x
+	# On the far side of the board from the blocks (there is no room outside the 8x8 board).
+	var board_middle := BOARD + Vector2.ONE * TILE * model.board_size / 2.0
+	var centre_x := board_middle.x
+	var y := BOARD.y + (model.board_size - 1) * TILE + (TILE - side) / 2.0
+	if vertical:
+		centre_x = BOARD.x + TILE * (model.board_size - 2.0) if band.get_center().x < board_middle.x else BOARD.x + TILE * 2.0
+	elif band.get_center().y > board_middle.y:
+		y = BOARD.y + (TILE - side) / 2.0
 	var left := centre_x - width / 2.0
 	var frame := Rect2(left - 10, y - 6, width + 20, side + 12)
 	draw_rect(frame, Color(0.06, 0.03, 0.04, 0.92))
@@ -2351,9 +2430,49 @@ func _draw_mini_slot_badge() -> void:
 		draw_rect(window, Color("ffd35b") if lit else Color("46625e"), false, 3 if lit else 2)
 		_text(window.position + Vector2(8, 24), str(k + 1), 24, Color(1, 0.82, 0.3, pulse) if lit else Color(0.5, 0.6, 0.6))
 	if drawn > 0:
-		var tip := Vector2(left + (drawn - 1) * (side + gap) + side / 2.0, y - 2.0 if above else y + side + 2.0)
-		var step := -1.0 if above else 1.0
-		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, step * 8), tip + Vector2(-7, step * -1.0), tip + Vector2(7, step * -1.0)]), Color("ffd35b"))
+		var tip := Vector2(left + (drawn - 1) * (side + gap) + side / 2.0, y + side + 2.0)
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 8), tip + Vector2(-7, -1), tip + Vector2(7, -1)]), Color("ffd35b"))
+
+## The pixel rectangle covered by numbered block `k`.
+func _mini_zone_rect(k: int) -> Rect2:
+	var low := Vector2i(99, 99)
+	var high := Vector2i(-1, -1)
+	for cell in model.mini_zones[k]:
+		low = Vector2i(mini(low.x, cell.x), mini(low.y, cell.y))
+		high = Vector2i(maxi(high.x, cell.x), maxi(high.y, cell.y))
+	return Rect2(BOARD + Vector2(low) * TILE, Vector2(high - low + Vector2i.ONE) * TILE)
+
+## One tile of a numbered block: glass, a scanning light, hazard chevrons on the drawn one,
+## and a glowing outline around the whole block.
+func _draw_mini_zone_tile(cell: Vector2i, k: int) -> void:
+	var drawn := _mini_drawn() == k + 1
+	var box := _mini_zone_rect(k)
+	var horizontal := box.size.x >= box.size.y
+	var local := (BOARD + Vector2(cell) * TILE - box.position) / box.size
+	var tone := Color("ff3b4a") if drawn else Color("46d9ff")
+	var glow := (0.30 + 0.12 * sin(clock * 9.0)) if drawn else 0.12
+	draw_rect(Rect2(Vector2(2,2),Vector2(60,60)),Color(tone,glow))
+	if drawn:
+		# Hazard chevrons running along the block toward the charge.
+		var shift := fmod(clock * 46.0, 32.0)
+		for stripe in range(-2, 4):
+			var at := float(stripe) * 32.0 + shift
+			draw_line(Vector2(at, 64.0), Vector2(at + 32.0, 0.0), Color("ff9a3b", 0.38), 8)
+	else:
+		# A band of light sweeping along the block.
+		var progress := fmod(clock * 0.55 + float(k) * 0.3, 1.4) - 0.2
+		var along := local.x if horizontal else local.y
+		var span := (box.size.x if horizontal else box.size.y) / TILE
+		var d := absf(along - progress) * span
+		if d < 0.6:
+			draw_rect(Rect2(Vector2(2,2),Vector2(60,60)),Color(tone,0.30 * (1.0 - d / 0.6)))
+	# Glowing outline, only on the sides that face outside the block.
+	var edge_color := Color(tone, 0.95 if drawn else 0.6)
+	var neighbours := {Vector2i.UP:[Vector2(0,1),Vector2(64,1)], Vector2i.DOWN:[Vector2(0,63),Vector2(64,63)], Vector2i.LEFT:[Vector2(1,0),Vector2(1,64)], Vector2i.RIGHT:[Vector2(63,0),Vector2(63,64)]}
+	for side in neighbours:
+		if not model.mini_zones[k].has(cell + side):
+			draw_line(neighbours[side][0], neighbours[side][1], Color(tone, 0.25), 8)
+			draw_line(neighbours[side][0], neighbours[side][1], edge_color, 3)
 
 ## The drawn number, big, floating over Rotorick so the result can't be missed.
 func _draw_reel_badge() -> void:
@@ -2366,10 +2485,11 @@ func _draw_reel_badge() -> void:
 		var colour: Color = REEL_COLORS.get(reel_now, CasinoFx.GOLD)
 		var size := Vector2(150, 60)
 		var at := BOARD + Vector2(enemy.cell) * TILE + Vector2(TILE - size.x / 2.0, -size.y - 30.0)
-		# Keep clear of the mini slot badge above the numbered blocks.
-		if not model.mini_zones.is_empty() and enemy.cell.y == model.mini_zones[0][0].y:
-			at.y -= 54.0
 		var rect := Rect2(at, size)
+		# No room above the top row: hang below Rotorick instead.
+		if rect.position.y < BOARD.y - 8.0:
+			rect.position.y = BOARD.y + (enemy.cell.y + 2) * TILE + 6.0
+		rect.position.x = clampf(rect.position.x, BOARD.x, BOARD.x + model.board_size * TILE - size.x)
 		draw_rect(rect, Color(0.05, 0.02, 0.07, 0.94))
 		var pulse := 0.7 + 0.3 * sin(clock * 6.0)
 		draw_rect(rect, Color(colour, pulse), false, 4)

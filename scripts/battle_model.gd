@@ -3230,7 +3230,6 @@ func slot_turn(enemy: Dictionary) -> void:
 	if enemy.hp <= MINI_SLOT_HP and not enemy.get("knocked_home", false):
 		enemy.knocked_home = true
 		_knock_home(enemy)
-		_lay_mini_zones(enemy)
 		enemy.ap = 0
 		enemy.intent = "弾き戻し"
 		rook_brace(enemy)
@@ -3302,26 +3301,30 @@ func boss_covers(cell: Vector2i) -> bool:
 			return true
 	return false
 
-## Writes "1" "2" "3" on three blocks that fill Rotorick's own two-tall row (3 + 2 + 3 wide on the
-## 8x8 board), so it can charge down the whole line. They stay for the rest of the battle.
+## Writes "1" "2" "3" on three blocks that fill Rotorick's own two-wide lane: wide-and-two-tall
+## (x*2) when it is braced to charge sideways, two-wide-and-tall (2*x) when it charges up or down
+## (3 + 2 + 3 along the lane on the 8x8 board), so it can run down the whole line.
 func _lay_mini_zones(enemy: Dictionary) -> void:
 	mini_zones.clear()
-	var top: int = clampi(enemy.cell.y, 0, board_size - 2)
-	var widths: Array = [board_size * 3 / 8, board_size - 2 * (board_size * 3 / 8), board_size * 3 / 8]
-	var column := 0
-	for width in widths:
+	var sideways: bool = int(enemy.get("facing", 3)) in [1, 3]
+	var unit: int = board_size * 3 / 8
+	var lengths: Array = [unit, board_size - 2 * unit, unit]
+	var band: int = clampi(enemy.cell.y if sideways else enemy.cell.x, 0, board_size - 2)
+	var run := 0
+	for length in lengths:
 		var block: Array = []
-		for dy in range(2):
-			for dx in range(width):
-				block.append(Vector2i(column + dx, top + dy))
+		for across in range(2):
+			for along in range(length):
+				block.append(Vector2i(run + along, band + across) if sideways else Vector2i(band + across, run + along))
 		mini_zones.append(block)
-		column += width
+		run += length
 
 ## At HP 3 or less the mini slot (1-3) names the numbered block that burns at the start of the next enemy turn.
 func _spin_mini_slot(enemy: Dictionary) -> void:
 	enemy.mini = 0
-	if enemy.hp > MINI_SLOT_HP or mini_zones.is_empty():
+	if enemy.hp > MINI_SLOT_HP:
 		return
+	_lay_mini_zones(enemy)
 	var pick: int = absi(hash([slot_seed, slot_rolls, "mini"])) % mini_zones.size()
 	slot_rolls += 1
 	enemy.mini = pick + 1

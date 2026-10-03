@@ -15,9 +15,7 @@ const DATA = [
 	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
 	# Odd up-and-down jumpers: variants of the vertical jump and the knights.
 	{"id":"flick_down", "name":"跳下剣", "short":"跳下", "row":2, "color":"a0e6ff", "detail":"右下の1マスと上へ2マス", "offsets":[Vector2i(1,1),Vector2i(0,-2)]},
-	{"id":"fork", "name":"燕返剣", "short":"燕返", "row":2, "color":"ff8a8a", "detail":"右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,2)]},
 	{"id":"return_goose", "name":"帰雁剣", "short":"帰雁", "row":2, "color":"ffc9a0", "detail":"下の1マスと右上の桂馬", "offsets":[Vector2i(0,1),Vector2i(2,-1)]},
-	{"id":"crane", "name":"鶴翼剣", "short":"鶴翼", "row":2, "color":"e0c8ff", "detail":"右上へ斜め2・右下の桂馬に跳ぶ", "offsets":[Vector2i(2,-2),Vector2i(2,1)]},
 	# Mixed: one neighbouring tile plus one jump.
 	{"id":"goose", "name":"雁行剣", "short":"雁行", "row":2, "color":"ffd9a0", "detail":"上の1マスと右下の桂馬", "offsets":[Vector2i(0,-1),Vector2i(2,1)]},
 	{"id":"flick_up", "name":"跳上剣", "short":"跳上", "row":2, "color":"ffe6a0", "detail":"右上の1マスと下へ2マス", "offsets":[Vector2i(1,-1),Vector2i(0,2)]},
@@ -42,7 +40,7 @@ const DATA = [
 	{"id":"rook_spear", "name":"飛車槍", "short":"飛車", "row":2, "color":"ff7a7a", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i.UP,Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT], "detail":"縦横4方向へ、ふさがるまで進める", "offsets":[Vector2i(0,-1),Vector2i(0,-2),Vector2i(1,0),Vector2i(2,0),Vector2i(0,1),Vector2i(0,2),Vector2i(-1,0),Vector2i(-2,0)]},
 	{"id":"bishop_blade", "name":"角剣", "short":"角", "row":2, "color":"7aa8ff", "tier":"late", "damage":0, "no_forge":true, "slide":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,1),Vector2i(-1,1)], "detail":"斜め4方向へ、ふさがるまで進める", "offsets":[Vector2i(-1,-1),Vector2i(-2,-2),Vector2i(1,-1),Vector2i(2,-2),Vector2i(1,1),Vector2i(2,2),Vector2i(-1,1),Vector2i(-2,2)]},
 	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "effect":"この武器の攻撃は1ダメージを与え、敵を自分の隣まで引き寄せる。", "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
-	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"左右の桂馬へ跳ぶ。敵とは入れ替え（無傷）", "offsets":[Vector2i(2,-1),Vector2i(2,1),Vector2i(-2,-1),Vector2i(-2,1)]},
+	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"斜め4マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(-1,1),Vector2i(1,1)]},
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
 	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.

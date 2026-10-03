@@ -163,7 +163,13 @@ func _draw_lottery() -> void:
 		digit = reel
 		var settle := 1.0 - _fade(stop_at, stop_at + 0.2)
 		offset = sin(settle * 9.0) * settle * 14.0
-	_centered(window.get_center() + Vector2(0, offset), str(digit), 150, Color(reel_color if time >= stop_at else Color.WHITE, alpha))
+	var digit_at := window.get_center() + Vector2(0, offset)
+	if time >= stop_at and reel == 5:
+		# ERROR: the digit tears into cyan and magenta ghosts that jitter sideways.
+		var jolt := sin(time * 90.0) * 9.0 * (1.0 - _fade(stop_at, stop_at + 0.7))
+		_centered(digit_at + Vector2(jolt, 0), str(digit), 150, Color(0.0, 1.0, 1.0, 0.6 * alpha), Color(0, 0, 0, 0))
+		_centered(digit_at - Vector2(jolt, 0), str(digit), 150, Color(1.0, 0.1, 0.8, 0.6 * alpha), Color(0, 0, 0, 0))
+	_centered(digit_at, str(digit), 150, Color(reel_color if time >= stop_at else Color.WHITE, alpha))
 	# The result lands: flash, rings and the name of what it does.
 	if time >= stop_at:
 		var land := _fade(stop_at, stop_at + 0.55)
@@ -174,6 +180,18 @@ func _draw_lottery() -> void:
 		draw_rect(banner, Color(0.04, 0.02, 0.06, 0.92 * alpha))
 		draw_rect(banner, Color(reel_color, alpha), false, 4)
 		_centered(banner.get_center(), reel_label, 38, Color(reel_color, alpha))
+	if time >= stop_at and reel == 7:
+		# JACKPOT: the whole board strobes red and the word drops in over the window.
+		var strobe := 0.5 + 0.5 * sin(time * 26.0)
+		draw_rect(Rect2(centre - Vector2.ONE * half, Vector2.ONE * half * 2.0), Color(1.0, 0.0, 0.05, 0.28 * strobe * alpha))
+		_centered(centre + Vector2(0, -190), "JACKPOT", 64, Color(1.0, 0.85 - 0.3 * strobe, 0.2, alpha), Color(0.5, 0.0, 0.0, 0.95))
+	if time >= stop_at and reel == 5:
+		# A few torn bars across the window.
+		for k in 5:
+			var bar_y := window.position.y + fmod(float(k) * 53.0 + time * 300.0, window.size.y)
+			var shift := sin(time * 60.0 + k) * 14.0
+			draw_rect(Rect2(window.position.x + shift, bar_y, window.size.x, 5.0), Color(1.0, 0.95, 0.2, 0.5 * alpha))
+		_centered(centre + Vector2(0, -190), "ERROR", 60, Color(1.0, 0.9, 0.2, alpha * (0.6 + 0.4 * sin(time * 40.0))), Color(0.3, 0.0, 0.0, 0.95))
 	# The mini slot (low HP): a smaller window beside it, stopping a beat later.
 	if mini > 0:
 		var small := Rect2(centre + Vector2(110, -90), Vector2(84, 100))

@@ -463,10 +463,10 @@ func _threats_and_weapons() -> void:
 		if W.DATA[index].offsets.size() == 2:
 			jump_pairs += 1
 			verify(W.is_quirky(index),"Only weapons with a jump get two early tiles")
-	verify(jump_pairs == 9,"Nine odd two-tile weapons are in the early pool (mirror twins removed)")
+	verify(jump_pairs == 7,"Seven odd two-tile weapons are in the early pool (mirror twins removed)")
 	verify(W.single_pool().all(func(i): return not W.horizontal_only(i)),"Left/right-only weapons are never offered")
-	verify(W.opening_pool().size() == 9,"Nine up-and-down weapons make the opening pick varied")
-	verify(W.early_reward_pool().size() == 12 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
+	verify(W.opening_pool().size() == 7,"Seven up-and-down weapons make the opening pick varied")
+	verify(W.early_reward_pool().size() == 10 and W.early_reward_pool().all(func(i): return W.offsets(i).size() == 2 or W.knockback(i) > 0 or W.DATA[i].get("early", false)),"Early rewards are the two-tile jumpers, the shield, the swap staff and the mallet")
 
 func _enemy_turn(m: RefCounted) -> void:
 	var planner := Planner.new()
@@ -878,8 +878,9 @@ func _rotorick() -> void:
 	for zone in m.mini_zones:
 		covered += zone.size()
 	verify(covered == m.board_size * 2,"Together the blocks fill the whole two-tall row")
-	var band_y: int = m.mini_zones[0][0].y
-	verify(m.mini_zones.all(func(z: Array) -> bool: return z[0].y == band_y),"The blocks sit in one two-wide row, so Rotorick can charge down them")
+	var sideways: bool = int(boss.facing) in [1, 3]
+	var band_at: int = m.mini_zones[0][0].y if sideways else m.mini_zones[0][0].x
+	verify(m.mini_zones.all(func(z: Array) -> bool: return z.all(func(c: Vector2i) -> bool: return (c.y if sideways else c.x) in [band_at, band_at + 1])),"The blocks sit in Rotorick's own two-wide lane (x*2 sideways, 2*x up or down)")
 	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3,"The mini slot picks one block")
 	verify(m.mini_zones[int(boss.mini) - 1].all(func(c: Vector2i) -> bool: return m.floor_cells.has(c)),"The picked block is marked to burn")
 	# It burns at the start of the next enemy turn.
@@ -889,6 +890,11 @@ func _rotorick() -> void:
 	m.phase = Rules.Phase.ENEMY
 	m.slot_turn(boss)
 	verify(m.player.hp < hp_at_zone,"Standing on the picked block when the next enemy turn begins costs HP")
+	# Charging up or down, the blocks run the other way (2*x).
+	boss.facing = 0
+	boss.cell = Vector2i(2,3)
+	m._lay_mini_zones(boss)
+	verify(m.mini_zones.all(func(z: Array) -> bool: return z.all(func(c: Vector2i) -> bool: return c.x in [2,3])) and m.mini_zones[0].size() == 6,"Facing up or down the blocks stand in Rotorick's two columns")
 	# Above HP 3 there is no mini slot.
 	m = _slot_room()
 	boss = _slot_ready(m, 4)
@@ -1427,14 +1433,14 @@ func _mechanic_weapons() -> void:
 	m = _weapon_room("sickle",[Vector2i(3,2)])
 	verify(m.player_action(Vector2i(3,2)) and m.enemies[0].hp == 4 and m.enemies[0].cell == Vector2i(2,2),"The sickle hits and pulls the enemy next to the player")
 	# 入替の杖: trade places, no damage; not with a 2x2.
-	m = _weapon_room("swap_staff",[Vector2i(3,1)])
-	verify(m.player_action(Vector2i(3,1)) and m.player.cell == Vector2i(3,1) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The swap staff trades places without damage")
+	m = _weapon_room("swap_staff",[Vector2i(2,1)])
+	verify(m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(2,1) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The swap staff trades places without damage")
 	verify(m.player.ap == 1,"An unforged swap costs 1 AP")
 	# Forged: the first swap each turn is free, the next one costs AP again.
-	m = _weapon_room("swap_staff",[Vector2i(3,1)])
+	m = _weapon_room("swap_staff",[Vector2i(2,1)])
 	m.weapon_power[m.weapon] = 1
 	var ap_before: int = m.player.ap
-	verify(m.player_action(Vector2i(3,1)) and m.player.ap == ap_before,"A forged swap staff's first swap costs no AP")
+	verify(m.player_action(Vector2i(2,1)) and m.player.ap == ap_before,"A forged swap staff's first swap costs no AP")
 	verify(m.player_action(Vector2i(1,2)) and m.player.cell == Vector2i(1,2) and m.player.ap == ap_before - 1,"The second swap that turn costs 1 AP")
 	m.tick_walls()
 	verify(m.free_swap_ready(),"The free swap comes back next turn")
@@ -1458,7 +1464,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 44,"35 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 42,"33 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
