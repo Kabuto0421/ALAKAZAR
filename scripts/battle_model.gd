@@ -1998,7 +1998,7 @@ func _wolf_prey(wolf: Dictionary, from: Vector2i) -> Dictionary:
 	var best: Dictionary = {}
 	for direction in WOLF_MOVES:
 		var enemy := enemy_at(from + direction)
-		if enemy.is_empty():
+		if enemy.is_empty() or not ally_can_target(enemy):
 			continue
 		if best.is_empty() or enemy.hp < best.enemy.hp or (enemy.hp == best.enemy.hp and enemy.id < best.enemy.id):
 			best = {"enemy":enemy, "dir":direction}
@@ -2073,14 +2073,17 @@ func _basic_ally_action(ally: Dictionary) -> void:
 		return
 	var adjacent: Array[Dictionary] = []
 	for enemy in enemies:
-		if enemy.hp > 0 and distance(ally.cell,enemy.cell) == 1:
+		# A big enemy (the shark, the king) is next to the ally from any tile of its body.
+		if ally_can_target(enemy) and footprint(enemy).any(func(tile: Vector2i) -> bool: return distance(ally.cell, tile) == 1):
 			adjacent.append(enemy)
 	adjacent.sort_custom(func(a: Dictionary,b: Dictionary) -> bool:
 		return a.hp < b.hp if a.hp != b.hp else a.id < b.id)
 	if not adjacent.is_empty():
-		var gap_to: Vector2i = adjacent[0].cell - ally.cell
-		if absi(gap_to.x) + absi(gap_to.y) == 1:
-			ally.facing = CARDINALS.find(gap_to)
+		for tile in footprint(adjacent[0]):
+			var gap_to: Vector2i = tile - ally.cell
+			if absi(gap_to.x) + absi(gap_to.y) == 1:
+				ally.facing = CARDINALS.find(gap_to)
+				break
 		damage_enemy(adjacent[0],1)
 		ally.ap = 0
 		add_log("%sが攻撃" % ALLY_NAMES[ally.type])
@@ -2088,6 +2091,11 @@ func _basic_ally_action(ally: Dictionary) -> void:
 		return
 	_step_toward_enemy(ally)
 	ally.ap = 0
+
+## Whether the summoned allies may go for this enemy: not one underwater, and not the Prison King
+## while his barrier is up (nothing can hurt him then).
+func ally_can_target(enemy: Dictionary) -> bool:
+	return enemy.hp > 0 and not enemy.get("diving", false) and not (enemy.type == "king" and king_shielded(enemy))
 
 ## One step toward the nearest reachable enemy (breadth-first, never crossing
 ## allies or mines). False when no enemy can be reached or none is left.
@@ -2104,8 +2112,11 @@ func _step_toward_enemy(ally: Dictionary) -> bool:
 			var next: Vector2i = current + direction
 			if first.has(next) or not inside(next) or blocked(next) or next == player.cell or mines.has(next):
 				continue
+			var found := enemy_at(next)
+			if not found.is_empty() and not ally_can_target(found):
+				continue
 			first[next] = next if current == start else first[current]
-			if not enemy_at(next).is_empty():
+			if not found.is_empty():
 				destination = first[next]
 				break
 			queue.append(next)
@@ -2124,7 +2135,7 @@ func _holy_action(holy: Dictionary) -> void:
 	for direction in CARDINALS:
 		for tile in _front_cells(holy, direction):
 			var enemy := enemy_at(tile)
-			if not enemy.is_empty():
+			if not enemy.is_empty() and ally_can_target(enemy):
 				holy.facing = CARDINALS.find(direction)
 				damage_enemy(enemy, 1, direction)
 				add_log("%sが攻撃" % ALLY_NAMES[holy.type])
@@ -2152,7 +2163,7 @@ func _holy_action(holy: Dictionary) -> void:
 func _holy_distance(holy: Dictionary) -> int:
 	var best := 999
 	for enemy in enemies:
-		if enemy.hp > 0:
+		if ally_can_target(enemy):
 			for tile in footprint(enemy):
 				best = mini(best, footprint_distance(holy, tile))
 	return best

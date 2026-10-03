@@ -329,6 +329,7 @@ func _initialize() -> void:
 	_cross_daggers()
 	_storm_shark()
 	_second_boss_room()
+	_acorn_and_shark()
 	print("RUN: %d checks, %d failures; 60 seeded battles" % [checks,failures])
 	quit(1 if failures else 0)
 
@@ -2186,6 +2187,24 @@ func _prison_king() -> void:
 	m.fallen.clear()
 	m.king_turn(king)
 	verify(m.player.hp == 5 and king.cell == cell,"The king neither attacks nor moves")
+	# Summoned allies leave the shielded king alone, and go for him once the barrier is down.
+	var guarded := Rules.new()
+	guarded.reset(Rules.FINAL_LEVEL)
+	guarded.phase = Rules.Phase.PLAYER
+	var guarded_king: Dictionary = guarded.enemies.filter(func(e): return e.type == "king")[0]
+	guarded_king.hp = Rules.KING_RAGE_HP
+	guarded.check_outcome()
+	guarded.enemies = guarded.enemies.filter(func(e): return e.type in ["king", "fortress"])
+	guarded.allies.append({"id":-70, "type":"acorn", "cell":guarded_king.cell + Vector2i(-1, 1), "hp":3, "ap":1, "facing":2, "size":1})
+	guarded.player.cell = Vector2i(0, 0)
+	guarded.act_allies()
+	verify(guarded_king.hp == Rules.KING_RAGE_HP and guarded.king_shielded(guarded_king),"An acorn next to the shielded king does not attack him")
+	for fortress in guarded.enemies.filter(func(e): return e.type == "fortress"):
+		fortress.hp = 0
+	guarded.check_outcome()
+	guarded.allies[0].cell = guarded_king.cell + Vector2i(-1, 1)
+	guarded.act_allies()
+	verify(guarded_king.hp < Rules.KING_RAGE_HP,"...but once the barrier is down it bites him (from any tile of his body)")
 	# His fall is announced once, for the finale.
 	m.events.clear()
 	king.hp = 0
@@ -2876,6 +2895,22 @@ func _cross_daggers() -> void:
 	run.offers.assign([{"kind":"weapon","value":thunder}])
 	verify(run.choose(0) and run.state == Run.State.REPLACE,"With the slots full, the dagger asks which weapon to give up")
 	verify(run.replace(0) and run.state != Run.State.REPLACE and run.battle.owned_weapons[0] == thunder,"...and takes that slot")
+
+func _acorn_and_shark() -> void:
+	var m := _shark_room()
+	m.phase = Rules.Phase.PLAYER
+	var shark: Dictionary = m.storm_shark()
+	m.enemies = m.enemies.filter(func(e): return e.type == "storm_shark")
+	m.player.cell = Vector2i(0, 0)
+	# Beside the body's far corner (not its top-left tile): the acorn still reaches it.
+	m.allies.append({"id":-71, "type":"acorn", "cell":shark.cell + Vector2i(2, 1), "hp":3, "ap":1, "facing":2, "size":1})
+	var before: int = shark.hp
+	m.act_allies()
+	verify(shark.hp == before - 1,"An acorn beside any tile of the 2x2 shark attacks it")
+	# Walking up to it works too: the acorn steps toward the body, not only its top-left tile.
+	m.allies[0].cell = shark.cell + Vector2i(4, 1)
+	m.act_allies()
+	verify(m.distance(m.allies[0].cell, shark.cell + Vector2i(1, 1)) <= 3,"A faraway acorn walks toward the shark")
 
 func _shark_room() -> RefCounted:
 	var m := Rules.new()
