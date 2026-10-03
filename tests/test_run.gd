@@ -25,7 +25,7 @@ func fixture() -> RefCounted:
 
 func _initialize() -> void:
 	var run := Run.new()
-	run.start(43)
+	run.start(44)
 	run.boss2_choice = 0
 	run.boss_choice = 0
 	verify(run.state == Run.State.START_WEAPON and run.battle.owned_weapons == [0,1],"Run starts with forward/backward weapons and a separate draft")
@@ -1130,7 +1130,7 @@ func _expiring_and_rewards() -> void:
 				uncommon_cards += 1
 	verify(uncommon_cards > 600 * 0.75,"The reward before the boss is mostly uncommon weapons (%d/600)" % uncommon_cards)
 	var threes: Array = range(Run.Weapons.DATA.size()).filter(func(i): return Run.Weapons.is_boss_reward(i))
-	verify(threes.size() == 10,"Nine three-tile weapons and the lance feed the pre-boss reward")
+	verify(threes.size() == 16,"Fifteen three-tile weapons (nine plus the four corners and two forks) and the lance feed the pre-boss reward")
 
 ## Fixture with one upgraded fairy in hand and heavies (HP 3) placed as asked.
 func _plus_room(id: String, foes: Array) -> RefCounted:
@@ -1471,7 +1471,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 42,"33 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 48,"39 weapons plus the three generals, the king staff, the mallet, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")

@@ -56,7 +56,15 @@ const DATA = [
 	# クロス短剣: two weapons sold as one set. Each slides up to three tiles along one diagonal (and
 	# one tile back), attacks the first enemy up to three tiles ahead on that diagonal, and using one boosts the other.
 	{"id":"thunder_dagger", "name":"雷短剣", "short":"雷短", "row":2, "color":"5cc8ff", "tier":"mid", "rare":true, "pair":"flame_dagger", "dagger":Vector2i(1,-1), "attack":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3)], "effect":"右上へ最大3マス進める（左下は1マス）。攻撃は右上の3マス先まで（その場で、最初の敵に）。炎短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右上へ最大3マス・左下へ1マス。攻撃は右上3マス先まで", "offsets":[Vector2i(1,-1),Vector2i(2,-2),Vector2i(3,-3),Vector2i(-1,1)]},
-	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"pair", "rare":true, "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3)], "effect":"右下へ最大3マス進める（左上は1マス）。攻撃は右下の3マス先まで（その場で、最初の敵に）。雷短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃は右下3マス先まで", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]}
+	{"id":"flame_dagger", "name":"炎短剣", "short":"炎短", "row":2, "color":"ff7a4a", "tier":"pair", "rare":true, "pair":"thunder_dagger", "dagger":Vector2i(1,1), "attack":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3)], "effect":"右下へ最大3マス進める（左上は1マス）。攻撃は右下の3マス先まで（その場で、最初の敵に）。雷短剣を使った直後のターン中は、攻撃が当たった敵の斜め4マスにも同じダメージが響く。", "detail":"右下へ最大3マス・左上へ1マス。攻撃は右下3マス先まで", "offsets":[Vector2i(1,1),Vector2i(2,2),Vector2i(3,3),Vector2i(-1,-1)]},
+	# Six more odd three-tile weapons (pre-boss rewards, uncommon): the four corners of the player's
+	# 3x3 and the two forks that cut ahead on both diagonals.
+	{"id":"corner_ul", "name":"左上隅剣", "short":"左上隅", "row":2, "color":"9ad0ff", "detail":"左上・上・左の3マス", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(-1,0)]},
+	{"id":"corner_ur", "name":"右上隅剣", "short":"右上隅", "row":2, "color":"ffd08a", "detail":"右上・上・右の3マス", "offsets":[Vector2i(1,-1),Vector2i(0,-1),Vector2i(1,0)]},
+	{"id":"corner_dr", "name":"右下隅剣", "short":"右下隅", "row":2, "color":"ff9ab0", "detail":"右下・下・右の3マス", "offsets":[Vector2i(1,1),Vector2i(0,1),Vector2i(1,0)]},
+	{"id":"corner_dl", "name":"左下隅剣", "short":"左下隅", "row":2, "color":"b0ff9a", "detail":"左下・左・下の3マス", "offsets":[Vector2i(-1,1),Vector2i(-1,0),Vector2i(0,1)]},
+	{"id":"fork_up", "name":"上叉剣", "short":"上叉", "row":2, "color":"c8a0ff", "detail":"左上・右上・右の3マス", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,0)]},
+	{"id":"fork_down", "name":"下叉剣", "short":"下叉", "row":2, "color":"a0f0e0", "detail":"左下・右下・右の3マス", "offsets":[Vector2i(-1,1),Vector2i(1,1),Vector2i(1,0)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
