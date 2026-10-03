@@ -170,13 +170,15 @@ func _ready() -> void:
 			side = minf(side, (size.x-30)/2.0)
 		diagram.position = Vector2((size.x-side)/2,68) if not pair_head else Vector2(size.x/2.0-side-3,68)
 		diagram.size = Vector2(side,side)
-		var shown_extra := extra_tile
-		if shown_extra == NO_TILE and model != null and model.weapon_extra.has(int(offer.value)):
-			shown_extra = Vector2i(model.weapon_extra[int(offer.value)])
+		var shown_extra: Array[Vector2i] = []
+		if model != null:
+			for tile in model.weapon_extra.get(int(offer.value), []):
+				shown_extra.append(Vector2i(tile))
+		if extra_tile != NO_TILE:
+			shown_extra.append(extra_tile)
 		diagram.offsets = Weapons.offsets(int(offer.value))
-		if shown_extra != NO_TILE:
-			diagram.offsets.append(shown_extra)
-			diagram.extra = [shown_extra]
+		diagram.offsets.append_array(shown_extra)
+		diagram.extra = shown_extra
 		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.echo = Weapons.hammer_echo(int(offer.value), plus)
 		diagram.attack = Weapons.attack_offsets(int(offer.value), plus)

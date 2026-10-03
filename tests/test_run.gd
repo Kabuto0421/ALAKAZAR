@@ -201,7 +201,7 @@ func _initialize() -> void:
 	run.camp_forge()
 	var forged: int = run.battle.owned_weapons[0]
 	var base_offsets: Array[Vector2i] = Run.Weapons.offsets(forged)
-	verify(run.camp_forge_weapon(0) and run.battle.weapon_power[forged]==1 and run.battle.weapon_extra.get(forged) == drawn_tile,"Forging adds the drawn tile to the chosen weapon")
+	verify(run.camp_forge_weapon(0) and run.battle.weapon_power[forged]==1 and run.battle.weapon_extra.get(forged) == [drawn_tile],"Forging adds the drawn tile to the chosen weapon")
 	m = run.battle
 	m.equip(forged)
 	verify(m.weapon_offsets(forged).size() == base_offsets.size() + 1 and m.weapon_offsets(forged).has(drawn_tile) and not base_offsets.has(drawn_tile),"...a tile the weapon did not reach before")
@@ -1317,13 +1317,33 @@ func _class_ups() -> void:
 	run.choose(0)
 	run.stage = Run.LAST_NORMAL_STAGE
 	run.state = Run.State.CAMP
+	var hammer_index: int = Run.Weapons.DATA.map(func(d): return d.id).find("hammer")
+	run.battle.owned_weapons[0] = hammer_index
 	var first: int = run.battle.owned_weapons[0]
 	run.camp_forge()
 	run.camp_forge_weapon(0)
 	run.state = Run.State.CAMP
 	run.camp_forge()
-	verify(not run.camp_forge_weapon(0) and run.battle.weapon_power[first] == 1,"A weapon can be forged only once")
+	verify(not run.camp_forge_weapon(0) and run.battle.weapon_power[first] == 1,"A weapon that forges once (the hammer) can be forged only once")
 	run.camp_back()
+	# A weapon that forges into a new tile can be forged again and again, a new tile each time.
+	var again := Run.new()
+	again.start(5)
+	again.choose(0)
+	again.choose(0)
+	again.stage = Run.LAST_NORMAL_STAGE
+	var tile_weapon: int = again.battle.owned_weapons[0]
+	for round_index in 3:
+		again.state = Run.State.CAMP
+		again._roll_camp_tiles()
+		again.camp_forge()
+		verify(again.camp_forge_weapon(0),"Forging a tile weapon works again (forge %d)" % [round_index + 1])
+		again.stage = Run.LAST_NORMAL_STAGE
+	verify(again.battle.weapon_power[tile_weapon] == 3 and again.battle.weapon_extra[tile_weapon].size() == 3,"...adding a tile each time (3 forges, 3 tiles)")
+	var distinct := {}
+	for tile in again.battle.weapon_extra[tile_weapon]:
+		distinct[tile] = true
+	verify(distinct.size() == 3,"...each one a different tile")
 	var fairy: String = run.battle.fairy_loadout[0]
 	verify(run.camp_class_up() and run.state == Run.State.CAMP_FAIRY and run.camp_class_up_fairy(0) and run.state == Run.State.BATTLE,"The camp class-up upgrades a fairy and moves on")
 	verify(run.battle.is_plus(fairy) or run.battle.fairy_loadout[0] != fairy,"...and the fairy is upgraded")

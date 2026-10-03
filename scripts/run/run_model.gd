@@ -346,23 +346,33 @@ func camp_rest() -> bool:
 ## add (so the forge screen can show it, and it stays the same for this camp). 5% of the time it
 ## is a tile on the outer ring of the 7x7.
 var camp_tiles: Dictionary = {}
+var camp_tiles_rolled := false
 const OUTER_TILE_CHANCE := 0.05
 
 func _roll_camp_tiles() -> void:
 	camp_tiles.clear()
+	camp_tiles_rolled = true
 	for index in battle.owned_weapons:
-		if battle.weapon_power.has(index) or not Rarity.can_forge(index) or Weapons.forge_kind(index) != "tile":
+		if not Rarity.can_forge(index) or Weapons.forge_kind(index) != "tile":
 			continue
 		var outer: bool = rng.randf() < OUTER_TILE_CHANCE
-		var pool: Array[Vector2i] = Weapons.extra_candidates(index, outer)
+		var already: Array = battle.weapon_extra.get(index, [])
+		var pool: Array[Vector2i] = Weapons.extra_candidates(index, outer, already)
 		if pool.is_empty():
-			pool = Weapons.extra_candidates(index, not outer)
+			pool = Weapons.extra_candidates(index, not outer, already)
 		if not pool.is_empty():
 			camp_tiles[index] = pool[rng.randi_range(0, pool.size() - 1)]
 
-## Each weapon can be forged once.
+## Whether a weapon can be forged now: a tile weapon as often as a tile is left to draw, the others once.
+func can_forge_weapon(index: int) -> bool:
+	if not Rarity.can_forge(index):
+		return false
+	if Weapons.forge_kind(index) == "tile":
+		return state != State.CAMP_FORGE or camp_tiles.has(index) or not camp_tiles_rolled
+	return not battle.weapon_power.has(index)
+
 func can_forge() -> bool:
-	return battle.owned_weapons.any(func(index: int) -> bool: return not battle.weapon_power.has(index) and Rarity.can_forge(index))
+	return battle.owned_weapons.any(func(index: int) -> bool: return can_forge_weapon(index))
 
 func can_class_up() -> bool:
 	return battle.fairy_loadout.any(func(id: String) -> bool: return battle.can_class_up(id))
@@ -380,11 +390,13 @@ func camp_forge_weapon(slot: int) -> bool:
 	if state != State.CAMP_FORGE or slot < 0 or slot >= battle.owned_weapons.size():
 		return false
 	var index: int = battle.owned_weapons[slot]
-	if battle.weapon_power.has(index) or not Rarity.can_forge(index):
+	if not can_forge_weapon(index):
 		return false
-	battle.weapon_power[index] = 1
+	battle.weapon_power[index] = int(battle.weapon_power.get(index, 0)) + 1
 	if camp_tiles.has(index):
-		battle.weapon_extra[index] = camp_tiles[index]
+		var added: Array = battle.weapon_extra.get(index, [])
+		added.append(camp_tiles[index])
+		battle.weapon_extra[index] = added
 	_leave_camp()
 	return true
 
@@ -411,6 +423,7 @@ func camp_back() -> void:
 func _leave_camp() -> void:
 	offers.clear()
 	camp_tiles.clear()
+	camp_tiles_rolled = false
 	if stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
 		stage = Battle.LATE_LEVELS[2] if stage == Battle.LATE_LEVELS[1] else Battle.FINAL_LEVEL
 		start_battle()

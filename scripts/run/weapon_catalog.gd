@@ -94,8 +94,10 @@ static func forge_kind(index: int) -> String:
 
 ## The tiles a forge could add: inside the 5x5 round the player (not already reached), or on the
 ## outer ring of the 7x7 (the rare jackpot).
-static func extra_candidates(index: int, outer: bool) -> Array[Vector2i]:
+static func extra_candidates(index: int, outer: bool, already: Array = []) -> Array[Vector2i]:
 	var taken: Array[Vector2i] = offsets(index)
+	for tile in already:
+		taken.append(Vector2i(tile))
 	var result: Array[Vector2i] = []
 	for dy in range(-3, 4):
 		for dx in range(-3, 4):

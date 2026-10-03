@@ -174,7 +174,7 @@ var fairy_charges: Array[int] = []
 var start_hp := MAX_HP
 ## Camp forging: weapon index -> extra damage (each weapon can be forged once).
 var weapon_power: Dictionary = {}
-## A forge's new tile for a weapon (index -> offset from the player), where the weapon takes one.
+## The tiles a weapon's forges added (index -> offsets from the player); a tile weapon can be forged again and again.
 var weapon_extra: Dictionary = {}
 ## Weapon enchantments: weapon index -> "circle" (the magic circle).
 var enchants: Dictionary = {}
@@ -967,21 +967,20 @@ func targets() -> Array[Vector2i]:
 
 ## A forged sliding weapon or dagger also reaches its one new tile (a jump: free tile or an enemy).
 func _add_extra_tile(result: Array[Vector2i]) -> void:
-	if not weapon_extra.has(weapon):
-		return
-	var cell: Vector2i = player.cell + Vector2i(weapon_extra[weapon])
-	if not inside(cell) or result.has(cell):
-		return
-	if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty() or not blocked(cell):
-		result.append(cell)
+	for offset in weapon_extra.get(weapon, []):
+		var cell: Vector2i = player.cell + Vector2i(offset)
+		if not inside(cell) or result.has(cell):
+			continue
+		if not enemy_at(cell).is_empty() or not cannon_at(cell).is_empty() or not blocked(cell):
+			result.append(cell)
 
 func targets_for_facing(_direction_index: int) -> Array[Vector2i]:
 	return targets()
 
 func weapon_offsets(index: int, _direction_index: int = 1) -> Array[Vector2i]:
 	var result: Array[Vector2i] = Catalog.offsets(index)
-	if weapon_extra.has(index):
-		result.append(Vector2i(weapon_extra[index]))
+	for offset in weapon_extra.get(index, []):
+		result.append(Vector2i(offset))
 	return result
 
 func turn_to(_direction_index: int) -> bool:
@@ -1124,7 +1123,7 @@ func _player_action(cell: Vector2i) -> bool:
 				add_log("%sを撃破" % TYPES[target.type].name)
 			elif Catalog.knockback(weapon) > 0:
 				var away := Vector2i(signi(cell.x - player.cell.x), signi(cell.y - player.cell.y))
-				if weapon_extra.has(weapon) and cell - player.cell == Vector2i(weapon_extra[weapon]):
+				if weapon_extra.get(weapon, []).has(cell - player.cell) and not Catalog.offsets(weapon).has(cell - player.cell):
 					# A forged tile pushes along its main axis (sideways wins a tie).
 					var gap: Vector2i = cell - player.cell
 					away = Vector2i(signi(gap.x), 0) if absi(gap.x) >= absi(gap.y) else Vector2i(0, signi(gap.y))
