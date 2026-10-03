@@ -873,20 +873,24 @@ func _rotorick() -> void:
 	verify(m.player.hp == 5,"The knockback itself deals no damage")
 	verify(m.events.any(func(e: Dictionary) -> bool: return e.kind == "knock_home"),"The knockback has its own event")
 	verify(boss.get("knocked_home", false),"The knockback happens only once")
-	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3 and m.sealed_slot == int(boss.mini) - 1 or int(boss.reel) <= 3,"The mini slot seals a weapon slot")
-	if m.sealed_slot >= 0:
-		verify(m.locked_slot != m.sealed_slot and not m.equip(m.owned_weapons[m.sealed_slot]),"A sealed slot cannot be equipped")
-	# The mini slot never seals the slot a 1-3 reel allows; above HP 3 it is dark.
-	for k in 40:
-		m.slot_rolls += 1
-		boss.hp = 3
-		m.locked_slot = -1
-		m.slot_spin(boss)
-		if int(boss.reel) <= 3 and int(boss.reel) <= m.owned_weapons.size():
-			verify(m.sealed_slot == -1,"A seal reel leaves no weapon for the mini slot to seal")
+	verify(m.mini_zones.size() == 3 and m.mini_zones.all(func(z: Array) -> bool: return z.size() == 4),"Three numbered 2x2 blocks are written on the floor")
+	var band_y: int = m.mini_zones[0][0].y
+	verify(m.mini_zones.all(func(z: Array) -> bool: return z[0].y == band_y),"The blocks sit in one two-wide row, so Rotorick can charge down them")
+	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3,"The mini slot picks one block")
+	verify(m.mini_zones[int(boss.mini) - 1].all(func(c: Vector2i) -> bool: return m.floor_cells.has(c)),"The picked block is marked to burn")
+	# It burns at the start of the next enemy turn.
+	var picked: Array = m.mini_zones[int(boss.mini) - 1]
+	m.player.cell = picked[0]
+	var hp_at_zone: int = m.player.hp
+	m.phase = Rules.Phase.ENEMY
+	m.slot_turn(boss)
+	verify(m.player.hp < hp_at_zone,"Standing on the picked block when the next enemy turn begins costs HP")
+	# Above HP 3 there is no mini slot.
+	m = _slot_room()
+	boss = _slot_ready(m, 4)
 	boss.hp = 6
 	m.slot_spin(boss)
-	verify(m.sealed_slot == -1 and int(boss.mini) == 0,"Above HP 3 the mini slot stays dark")
+	verify(int(boss.get("mini", 0)) == 0 and m.mini_zones.is_empty(),"Above HP 3 the mini slot stays dark")
 	verify(float(Rules.REEL_WEIGHTS[5]) < float(Rules.REEL_WEIGHTS[1]) and Rules.REEL_WEIGHTS[7] == 1,"The jam (5) is rarer than the ordinary reels; 7 stays the rarest")
 	# Winning ignores leftover shadows.
 	m = _slot_room()

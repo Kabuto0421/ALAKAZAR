@@ -153,8 +153,8 @@ var slot_rolls := 0
 var locked_slot := -1
 ## Reel 4: tiles that burn at the start of the next enemy turn.
 var floor_cells: Array[Vector2i] = []
-## Rotorick at HP 3 or less also spins a mini slot (1-3): that weapon slot is sealed for the turn.
-var sealed_slot := -1
+## Rotorick at HP 3 or less: three numbered 2x2 floor blocks in a row, and a mini slot (1-3) picks the one that burns.
+var mini_zones: Array = []
 ## Where the player and Rotorick began the battle (the HP 3 interrupt sends both back).
 var player_home := Vector2i.ZERO
 ## Mid-game fights after the first boss, then a camp and the second boss.
@@ -333,7 +333,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	ruins.clear()
 	locked_slot = -1
 	floor_cells.clear()
-	sealed_slot = -1
+	mini_zones.clear()
 	circle_tiles.clear()
 	blade_charge = 0
 	blade_used = false
@@ -962,8 +962,6 @@ func equip(index: int) -> bool:
 		return false
 	if locked_slot >= 0 and locked_slot < owned_weapons.size() and owned_weapons[locked_slot] != index:
 		return false
-	if sealed_slot >= 0 and sealed_slot < owned_weapons.size() and owned_weapons[sealed_slot] == index:
-		return false
 	weapon = index
 	return true
 
@@ -1292,7 +1290,7 @@ func check_outcome() -> void:
 	if not enemies.any(func(e: Dictionary) -> bool: return e.type == "slot"):
 		locked_slot = -1
 		floor_cells.clear()
-		sealed_slot = -1
+		mini_zones.clear()
 	if player.hp <= 0:
 		phase = Phase.LOST
 	elif level == FINAL_LEVEL and not enemies.any(func(e: Dictionary) -> bool: return e.type == "king"):
@@ -3231,6 +3229,7 @@ func slot_turn(enemy: Dictionary) -> void:
 	if enemy.hp <= MINI_SLOT_HP and not enemy.get("knocked_home", false):
 		enemy.knocked_home = true
 		_knock_home(enemy)
+		_lay_mini_zones(enemy)
 		enemy.ap = 0
 		enemy.intent = "弾き戻し"
 		rook_brace(enemy)
@@ -3302,32 +3301,31 @@ func boss_covers(cell: Vector2i) -> bool:
 			return true
 	return false
 
-## At HP 3 or less a mini slot (1-3) seals one weapon slot for the player's turn.
-## It never seals the slot the main reel allows, nor an empty one; if none is left it stays dark.
+## Writes "1" "2" "3" on three 2x2 floor blocks along Rotorick's own two-wide row, so it can charge
+## down the whole line. They stay for the rest of the battle.
+func _lay_mini_zones(enemy: Dictionary) -> void:
+	mini_zones.clear()
+	var top: int = clampi(enemy.cell.y, 0, board_size - 2)
+	var columns: Array = [0, (board_size - 2) / 2, board_size - 2]
+	for column in columns:
+		var block: Array = []
+		for dy in range(2):
+			for dx in range(2):
+				block.append(Vector2i(column + dx, top + dy))
+		mini_zones.append(block)
+
+## At HP 3 or less the mini slot (1-3) names the numbered block that burns at the start of the next enemy turn.
 func _spin_mini_slot(enemy: Dictionary) -> void:
-	sealed_slot = -1
-	if enemy.hp > MINI_SLOT_HP:
-		enemy.mini = 0
+	enemy.mini = 0
+	if enemy.hp > MINI_SLOT_HP or mini_zones.is_empty():
 		return
-	var open: Array = []
-	for slot in range(owned_weapons.size()):
-		if locked_slot != slot:
-			open.append(slot)
-	if locked_slot >= 0:
-		open.clear()
-	if open.is_empty():
-		enemy.mini = 0
-		return
-	var pick: int = absi(hash([slot_seed, slot_rolls, "mini"])) % open.size()
+	var pick: int = absi(hash([slot_seed, slot_rolls, "mini"])) % mini_zones.size()
 	slot_rolls += 1
-	sealed_slot = open[pick]
-	enemy.mini = sealed_slot + 1
-	if owned_weapons[sealed_slot] == weapon:
-		for other in owned_weapons:
-			if other != weapon:
-				weapon = other
-				break
-	add_log("ミニスロット：%d（%d枠目を封印）" % [enemy.mini, enemy.mini])
+	enemy.mini = pick + 1
+	for cell in mini_zones[pick]:
+		if not floor_cells.has(cell):
+			floor_cells.append(cell)
+	add_log("ミニスロット：%d の床が焼ける" % enemy.mini)
 
 func _burn_floor(enemy: Dictionary) -> void:
 	if floor_cells.is_empty():

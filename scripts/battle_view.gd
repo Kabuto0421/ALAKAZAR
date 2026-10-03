@@ -1514,6 +1514,12 @@ func _draw_board() -> void:
 						edge_a += Vector2(0,6)
 						edge_b += Vector2(0,6)
 					draw_line(edge_a,edge_b,Color("1a1610"),2)
+			var zone_index := _mini_zone_of(cell)
+			if zone_index >= 0:
+				# The three numbered blocks of Rotorick's low-HP slot; the drawn one burns.
+				var drawn := _mini_drawn() == zone_index + 1
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1.0,0.3,0.25,0.30) if drawn else Color(0.2,0.8,0.9,0.14))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color("ff5b62") if drawn else Color("4fb7c4"),false,2)
 			if model.floor_cells.has(cell):
 				# Reel 4: a red-and-black checker marks the execution floor.
 				for q in range(4):
@@ -1640,6 +1646,13 @@ func _draw_board() -> void:
 	else:
 		gravity_hover = Vector2i(-9, -9)
 	_draw_shove_preview()
+	# The big numbers written on Rotorick's three floor blocks (over the tiles, under the units).
+	for k in model.mini_zones.size():
+		var anchor: Vector2i = model.mini_zones[k][0]
+		var drawn_zone := _mini_drawn() == k + 1
+		var glyph_at := BOARD + Vector2(anchor) * TILE + Vector2(TILE * 0.52, TILE * 1.62)
+		_text(glyph_at + Vector2(2,2),str(k+1),104,Color(0,0,0,0.5))
+		_text(glyph_at,str(k+1),104,Color(1.0,0.4,0.35,0.95) if drawn_zone else Color(0.55,0.92,1.0,0.65))
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
 	if model.time_stopped():
@@ -1903,10 +1916,7 @@ func _draw_weapons() -> void:
 			draw_circle(tip,2.5,accent)
 		if forged:
 			SpiritIcon.paint_plus(self,origin+Vector2(side+4,-3),18)
-		if model.sealed_slot >= 0 and slot == model.sealed_slot:
-			draw_rect(rect,Color(0,0,0,0.62))
-			_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
-		elif model.locked_slot >= 0:
+		if model.locked_slot >= 0:
 			if slot == model.locked_slot:
 				draw_rect(rect,Color("ffd35b"),false,4)
 				_text(pos+Vector2(118,32),"判決",18,Color("ffd35b"))
@@ -2208,6 +2218,18 @@ func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int)
 		y += size+6
 	return y
 
+func _mini_zone_of(cell: Vector2i) -> int:
+	for k in model.mini_zones.size():
+		if model.mini_zones[k].has(cell):
+			return k
+	return -1
+
+func _mini_drawn() -> int:
+	for enemy in model.enemies:
+		if enemy.type == "slot" and enemy.hp > 0:
+			return int(enemy.get("mini",0))
+	return 0
+
 func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	var reel: int = int(enemy.get("reel",0))
 	var lines: Array = REEL_LINES[reel]
@@ -2220,14 +2242,14 @@ func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	_draw_reel_diagram(reel, Rect2(852,y+4,256,92))
 	var y_end := _wrapped(Vector2(852,y+122),lines[1],18,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
 	if enemy.hp <= Rules.MINI_SLOT_HP:
-		# Below the HP line a small second slot (1-3) seals one weapon slot.
+		# Below the HP line a small second slot (1-3) names the numbered floor block that burns.
 		var mini: int = int(enemy.get("mini",0))
 		var box := Rect2(852,y_end+2,256,40)
 		draw_rect(box,Color("1a0f12"))
 		draw_rect(box,Color("ff5b62"),false,2)
 		_text(Vector2(862,y_end+30),"ミニスロット",16,Color("f1e9d8"))
 		_text(Vector2(982,y_end+32),str(mini) if mini > 0 else "－",26,Color("ffd35b"))
-		_text(Vector2(1016,y_end+30),"%d枠目を封印" % mini if mini > 0 else "封印なし",15,Color("ff5b62"))
+		_text(Vector2(1010,y_end+30),"%dの床が焼ける" % mini if mini > 0 else "停止中",13,Color("ff5b62"))
 
 ## How Rotorick moves: the 2x2 body and the four lanes it charges down like a rook.
 func _draw_rook_lane_diagram(at: Vector2) -> void:
