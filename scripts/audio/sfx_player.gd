@@ -9,7 +9,7 @@ const NAMES := ["step", "enemy_step", "king_revive", "fortress_spawn", "king_hit
 	"fortress_collapse", "king_collapse", "sword_swing", "hammer_slam", "cross_strike", "meteor"]
 ## Recorded attack sounds (made outside the generator): how far into each file its
 ## loudest moment is, so it can be started early enough to land on the blow.
-const PEAK := {"sword_swing": 0.020, "hammer_slam": 0.059, "cross_strike": 0.061, "meteor": 0.233}
+const PEAK := {"sword_swing": 0.025, "hammer_slam": 0.059, "cross_strike": 0.061, "meteor": 0.233}
 
 ## Play `name` so that its loudest moment falls `impact` seconds from now.
 func play_at_impact(name: String, impact: float, volume_db: float = 0.0) -> void:

@@ -13,6 +13,6 @@ CC0 asks for nothing, but the author is credited here all the same.
 | `meteor.ogg` | `sfx_wpn_cannon2.wav` | the meteor fairy's rock landing |
 | `cross_strike.ogg` | `sfx_weapon_shotgun3.wav` | the クロス短剣's boosted finisher |
 
-Changes made: converted to Ogg Vorbis and lowered in volume (the loudness of the other effects).
+Changes made: converted to Ogg Vorbis and lowered in volume (the loudness of the other effects); `sword_swing.ogg` is also pitched down by 4 semitones.
 
 The other sound effects are made by `tools/generate_sfx.py`, or are our own recordings (`hammer_slam.ogg`).
