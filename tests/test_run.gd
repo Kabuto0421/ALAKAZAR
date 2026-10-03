@@ -873,7 +873,11 @@ func _rotorick() -> void:
 	verify(m.player.hp == 5,"The knockback itself deals no damage")
 	verify(m.events.any(func(e: Dictionary) -> bool: return e.kind == "knock_home"),"The knockback has its own event")
 	verify(boss.get("knocked_home", false),"The knockback happens only once")
-	verify(m.mini_zones.size() == 3 and m.mini_zones.all(func(z: Array) -> bool: return z.size() == 4),"Three numbered 2x2 blocks are written on the floor")
+	verify(m.mini_zones.size() == 3 and m.mini_zones.all(func(z: Array) -> bool: return z.size() % 2 == 0 and z.size() >= 4),"Three numbered blocks, two tiles tall, are written on the floor")
+	var covered := 0
+	for zone in m.mini_zones:
+		covered += zone.size()
+	verify(covered == m.board_size * 2,"Together the blocks fill the whole two-tall row")
 	var band_y: int = m.mini_zones[0][0].y
 	verify(m.mini_zones.all(func(z: Array) -> bool: return z[0].y == band_y),"The blocks sit in one two-wide row, so Rotorick can charge down them")
 	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3,"The mini slot picks one block")

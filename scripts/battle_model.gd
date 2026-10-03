@@ -3301,18 +3301,20 @@ func boss_covers(cell: Vector2i) -> bool:
 			return true
 	return false
 
-## Writes "1" "2" "3" on three 2x2 floor blocks along Rotorick's own two-wide row, so it can charge
-## down the whole line. They stay for the rest of the battle.
+## Writes "1" "2" "3" on three blocks that fill Rotorick's own two-tall row (3 + 2 + 3 wide on the
+## 8x8 board), so it can charge down the whole line. They stay for the rest of the battle.
 func _lay_mini_zones(enemy: Dictionary) -> void:
 	mini_zones.clear()
 	var top: int = clampi(enemy.cell.y, 0, board_size - 2)
-	var columns: Array = [0, (board_size - 2) / 2, board_size - 2]
-	for column in columns:
+	var widths: Array = [board_size * 3 / 8, board_size - 2 * (board_size * 3 / 8), board_size * 3 / 8]
+	var column := 0
+	for width in widths:
 		var block: Array = []
 		for dy in range(2):
-			for dx in range(2):
+			for dx in range(width):
 				block.append(Vector2i(column + dx, top + dy))
 		mini_zones.append(block)
+		column += width
 
 ## At HP 3 or less the mini slot (1-3) names the numbered block that burns at the start of the next enemy turn.
 func _spin_mini_slot(enemy: Dictionary) -> void:

@@ -1650,7 +1650,8 @@ func _draw_board() -> void:
 	for k in model.mini_zones.size():
 		var anchor: Vector2i = model.mini_zones[k][0]
 		var drawn_zone := _mini_drawn() == k + 1
-		var glyph_at := BOARD + Vector2(anchor) * TILE + Vector2(TILE * 0.52, TILE * 1.62)
+		var block_width: int = model.mini_zones[k].size() / 2
+		var glyph_at := BOARD + Vector2(anchor) * TILE + Vector2(TILE * (block_width / 2.0 - 0.48), TILE * 1.62)
 		_text(glyph_at + Vector2(2,2),str(k+1),104,Color(0,0,0,0.5))
 		_text(glyph_at,str(k+1),104,Color(1.0,0.4,0.35,0.95) if drawn_zone else Color(0.55,0.92,1.0,0.65))
 	_draw_mini_slot_badge()
