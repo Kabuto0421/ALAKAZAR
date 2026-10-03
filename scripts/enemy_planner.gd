@@ -12,6 +12,7 @@ func begin(model: RefCounted) -> void:
 	model.phase = Rules.Phase.ENEMY
 	# Rotorick's weapon verdict only binds the player's turn that just ended.
 	model.locked_slot = -1
+	model.sealed_slot = -1
 	model.events.clear()
 	model.bless_heal()
 	model.round_number += 1

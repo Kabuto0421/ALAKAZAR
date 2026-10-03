@@ -856,9 +856,9 @@ func _rotorick() -> void:
 		if e.kind == "burn":
 			burned_next = true
 	verify(burned_next,"The marked floor burns at the start of the next enemy turn")
-	# At HP 3 Rotorick interrupts once: it marks paylines now and fires them next turn.
+	# At HP 3 Rotorick is blown back to the start once, then a mini slot seals one weapon slot.
 	m = _slot_room()
-	boss = _slot_ready(m, 1)
+	boss = _slot_ready(m, 4)
 	boss.hp = 3
 	var boss_home: Vector2i = boss.home
 	boss.cell = Vector2i(4,4)
@@ -866,20 +866,27 @@ func _rotorick() -> void:
 	m.player.hp = 5
 	m.phase = Rules.Phase.ENEMY
 	m.events.clear()
+	m.floor_cells.clear()
 	m.slot_turn(boss)
 	verify(boss.cell == boss_home,"The HP 3 interrupt blows Rotorick back to its starting place")
 	verify(m.player.cell == m.player_home,"...and the player back to theirs")
-	verify(int(boss.reel) == 8 and m.payline_lines.size() == 3,"HP 3 interrupts with three paylines")
-	verify(m.player.hp == 5,"The interrupt turn itself deals no damage")
-	verify(m.payline_lines[0].has(m.player.cell),"One payline runs through the player's row")
-	m.phase = Rules.Phase.ENEMY
-	m.slot_turn(boss)
-	verify(m.player.hp < 5 and m.payline_lines.is_empty(),"The paylines strike on the following turn")
-	m.phase = Rules.Phase.ENEMY
-	boss.reel = 1
-	boss.state = "brace"
-	m.slot_turn(boss)
-	verify(int(boss.reel) != 8,"The interrupt happens only once")
+	verify(m.player.hp == 5,"The knockback itself deals no damage")
+	verify(m.events.any(func(e: Dictionary) -> bool: return e.kind == "knock_home"),"The knockback has its own event")
+	verify(boss.get("knocked_home", false),"The knockback happens only once")
+	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3 and m.sealed_slot == int(boss.mini) - 1 or int(boss.reel) <= 3,"The mini slot seals a weapon slot")
+	if m.sealed_slot >= 0:
+		verify(m.locked_slot != m.sealed_slot and not m.equip(m.owned_weapons[m.sealed_slot]),"A sealed slot cannot be equipped")
+	# The mini slot never seals the slot a 1-3 reel allows; above HP 3 it is dark.
+	for k in 40:
+		m.slot_rolls += 1
+		boss.hp = 3
+		m.locked_slot = -1
+		m.slot_spin(boss)
+		if int(boss.reel) <= 3 and int(boss.reel) <= m.owned_weapons.size():
+			verify(m.sealed_slot == -1,"A seal reel leaves no weapon for the mini slot to seal")
+	boss.hp = 6
+	m.slot_spin(boss)
+	verify(m.sealed_slot == -1 and int(boss.mini) == 0,"Above HP 3 the mini slot stays dark")
 	verify(float(Rules.REEL_WEIGHTS[5]) < float(Rules.REEL_WEIGHTS[1]) and Rules.REEL_WEIGHTS[7] == 1,"The jam (5) is rarer than the ordinary reels; 7 stays the rarest")
 	# Winning ignores leftover shadows.
 	m = _slot_room()

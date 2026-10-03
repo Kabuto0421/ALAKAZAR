@@ -153,8 +153,8 @@ var slot_rolls := 0
 var locked_slot := -1
 ## Reel 4: tiles that burn at the start of the next enemy turn.
 var floor_cells: Array[Vector2i] = []
-## Rotorick's payline interrupt (HP 3): three lines marked for the next enemy turn.
-var payline_lines: Array = []
+## Rotorick at HP 3 or less also spins a mini slot (1-3): that weapon slot is sealed for the turn.
+var sealed_slot := -1
 ## Where the player and Rotorick began the battle (the HP 3 interrupt sends both back).
 var player_home := Vector2i.ZERO
 ## Mid-game fights after the first boss, then a camp and the second boss.
@@ -333,7 +333,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	ruins.clear()
 	locked_slot = -1
 	floor_cells.clear()
-	payline_lines.clear()
+	sealed_slot = -1
 	circle_tiles.clear()
 	blade_charge = 0
 	blade_used = false
@@ -962,6 +962,8 @@ func equip(index: int) -> bool:
 		return false
 	if locked_slot >= 0 and locked_slot < owned_weapons.size() and owned_weapons[locked_slot] != index:
 		return false
+	if sealed_slot >= 0 and sealed_slot < owned_weapons.size() and owned_weapons[sealed_slot] == index:
+		return false
 	weapon = index
 	return true
 
@@ -1290,7 +1292,7 @@ func check_outcome() -> void:
 	if not enemies.any(func(e: Dictionary) -> bool: return e.type == "slot"):
 		locked_slot = -1
 		floor_cells.clear()
-		payline_lines.clear()
+		sealed_slot = -1
 	if player.hp <= 0:
 		phase = Phase.LOST
 	elif level == FINAL_LEVEL and not enemies.any(func(e: Dictionary) -> bool: return e.type == "king"):
@@ -3207,6 +3209,7 @@ func slot_spin(enemy: Dictionary) -> void:
 			enemy.state = "stun"
 	enemy.intent = "出目 %d" % reel
 	add_log("ロトリックの出目：%d" % reel)
+	_spin_mini_slot(enemy)
 
 ## Marks the checkerboard (the tiles of the colour it stands on) to burn.
 func _mark_floor(enemy: Dictionary) -> void:
@@ -3224,16 +3227,14 @@ func slot_turn(enemy: Dictionary) -> void:
 	_burn_floor(enemy)
 	if terminal():
 		return
-	# At HP 3 it interrupts once: this turn it only marks three paylines, which strike next turn.
-	if int(enemy.reel) != 8 and enemy.hp <= PAYLINE_HP and not enemy.get("payline_done", false):
-		enemy.payline_done = true
+	# At HP 3 it is blown back to the start once; that turn it only recovers and spins again.
+	if enemy.hp <= MINI_SLOT_HP and not enemy.get("knocked_home", false):
+		enemy.knocked_home = true
 		_knock_home(enemy)
-		_mark_paylines(enemy)
-		enemy.reel = 8
-		enemy.last_reel = 8
 		enemy.ap = 0
-		enemy.intent = "ペイライン"
-		add_log("ロトリック：ペイライン、揃い")
+		enemy.intent = "弾き戻し"
+		rook_brace(enemy)
+		slot_spin(enemy)
 		return
 	match int(enemy.reel):
 		5:
@@ -3244,9 +3245,6 @@ func slot_turn(enemy: Dictionary) -> void:
 		6:
 			_leave_shadow(enemy)
 			rook_charge(enemy)
-		8:
-			enemy.ap = 0
-			_fire_paylines(enemy)
 		7:
 			enemy.ap = 2
 			_sure_charge(enemy)
@@ -3263,7 +3261,7 @@ func slot_turn(enemy: Dictionary) -> void:
 			rook_brace(enemy)
 		slot_spin(enemy)
 
-const PAYLINE_HP := 3
+const MINI_SLOT_HP := 3
 
 ## The interrupt blows both Rotorick and the player back to where the battle began.
 ## A start tile that is taken is replaced by the nearest free one.
@@ -3304,50 +3302,32 @@ func boss_covers(cell: Vector2i) -> bool:
 			return true
 	return false
 
-## Three lines across the board: the player's row, a column and a diagonal.
-func _mark_paylines(_enemy: Dictionary) -> void:
-	payline_lines.clear()
-	var pick: int = absi(hash([slot_seed, slot_rolls, "payline"]))
+## At HP 3 or less a mini slot (1-3) seals one weapon slot for the player's turn.
+## It never seals the slot the main reel allows, nor an empty one; if none is left it stays dark.
+func _spin_mini_slot(enemy: Dictionary) -> void:
+	sealed_slot = -1
+	if enemy.hp > MINI_SLOT_HP:
+		enemy.mini = 0
+		return
+	var open: Array = []
+	for slot in range(owned_weapons.size()):
+		if locked_slot != slot:
+			open.append(slot)
+	if locked_slot >= 0:
+		open.clear()
+	if open.is_empty():
+		enemy.mini = 0
+		return
+	var pick: int = absi(hash([slot_seed, slot_rolls, "mini"])) % open.size()
 	slot_rolls += 1
-	var row: Array = []
-	for x in range(board_size):
-		row.append(Vector2i(x, player.cell.y))
-	var col: Array = []
-	var column := pick % board_size
-	for y in range(board_size):
-		col.append(Vector2i(column, y))
-	var diag: Array = []
-	var down: bool = (pick / board_size) % 2 == 0
-	var offset: int = (pick / (board_size * 2)) % board_size - board_size / 2
-	for i in range(board_size):
-		var x := i
-		var y := i + offset if down else board_size - 1 - i + offset
-		if y >= 0 and y < board_size:
-			diag.append(Vector2i(x, y))
-	payline_lines = [row, col, diag]
-	events.append({"kind":"payline", "id":-2, "cell":player.cell})
-
-## The paylines strike: each line crossing a tile hits whoever stands there once.
-func _fire_paylines(enemy: Dictionary) -> void:
-	var tally := {}
-	for line in payline_lines:
-		for cell in line:
-			tally[cell] = int(tally.get(cell, 0)) + 1
-	for cell in tally:
-		events.append({"kind":"burn", "cell":cell, "id":-2})
-		for n in int(tally[cell]):
-			if player.cell == cell:
-				_hit_player(enemy)
-			var other := enemy_at(cell)
-			if not other.is_empty() and other.type not in ["slot", "shadow"]:
-				damage_enemy(other, 1)
-			var ally := ally_at(cell)
-			if not ally.is_empty():
-				ally.hp -= 1
-				events.append({"kind":"hit", "cell":cell, "id":ally.id})
-	add_log("ペイラインが走った")
-	payline_lines.clear()
-	check_outcome()
+	sealed_slot = open[pick]
+	enemy.mini = sealed_slot + 1
+	if owned_weapons[sealed_slot] == weapon:
+		for other in owned_weapons:
+			if other != weapon:
+				weapon = other
+				break
+	add_log("ミニスロット：%d（%d枠目を封印）" % [enemy.mini, enemy.mini])
 
 func _burn_floor(enemy: Dictionary) -> void:
 	if floor_cells.is_empty():

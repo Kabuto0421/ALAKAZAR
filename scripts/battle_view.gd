@@ -889,7 +889,6 @@ func _feedback(weapon_attack: bool = false) -> void:
 		if event.kind == "dive" and actors.has(int(event.id)):
 			actors[int(event.id)].play_pose("dive")
 		elif event.kind == "knock_home":
-			payline_hidden_until = clock + 0.7
 			chain_shake = 0.5
 			chain_shake_power = 14.0
 		elif event.kind == "cross_strike":
@@ -1521,11 +1520,6 @@ func _draw_board() -> void:
 					var sub := Rect2(pos+Vector2(4+(q%2)*28,4+(q/2)*28),Vector2(28,28))
 					draw_rect(sub,Color(0.85,0.1,0.1,0.55) if (q%2)==(q/2) else Color(0.05,0.02,0.02,0.6))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff3b3b"),false,2)
-			if _on_payline(cell):
-				# Rotorick's payline: gold lines that strike next enemy turn.
-				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color(1.0,0.82,0.2,0.32))
-				draw_rect(Rect2(pos+Vector2(3,3),Vector2(58,58)),Color("ffd35b"),false,2)
-				_text(pos+Vector2(22,42),"7",30,Color(1.0,0.82,0.2,0.75))
 			if danger.has(cell):
 				# Aimed archer: the lane its arrow will fly down next turn.
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.25,0.2,0.28))
@@ -1909,7 +1903,10 @@ func _draw_weapons() -> void:
 			draw_circle(tip,2.5,accent)
 		if forged:
 			SpiritIcon.paint_plus(self,origin+Vector2(side+4,-3),18)
-		if model.locked_slot >= 0:
+		if model.sealed_slot >= 0 and slot == model.sealed_slot:
+			draw_rect(rect,Color(0,0,0,0.62))
+			_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
+		elif model.locked_slot >= 0:
 			if slot == model.locked_slot:
 				draw_rect(rect,Color("ffd35b"),false,4)
 				_text(pos+Vector2(118,32),"判決",18,Color("ffd35b"))
@@ -2193,19 +2190,8 @@ const REEL_LINES = {
 	5: ["ERROR 05 ─ 停止中", "次の敵ターンは突進しない"],
 	6: ["判決、六。残像を置いていきます。", "残像の隣に入ると1ダメージ"],
 	7: ["刑を執行します。", "AP+1・2回突進・1回目は必中"],
-	8: ["ペイライン、揃い。", "金色の3本線に次の敵ターンで1ダメージ"],
 }
 
-## The paylines appear only once the knocked-back pair has landed.
-var payline_hidden_until := 0.0
-
-func _on_payline(cell: Vector2i) -> bool:
-	if clock < payline_hidden_until:
-		return false
-	for line in model.payline_lines:
-		if line.has(cell):
-			return true
-	return false
 
 ## Draws text wrapped every `per_line` characters; returns the y after the last line.
 func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int) -> float:
@@ -2231,7 +2217,16 @@ func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	if reel == 7:
 		y = _wrapped(Vector2(852,y+2),"逃げ場は無い。",28,Color("ff3b3b"),9)
 	_draw_reel_diagram(reel, Rect2(852,y+8,256,108))
-	_wrapped(Vector2(852,y+140),lines[1],19,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
+	var y_end := _wrapped(Vector2(852,y+140),lines[1],19,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
+	if enemy.hp <= Rules.MINI_SLOT_HP:
+		# Below the HP line a small second slot (1-3) seals one weapon slot.
+		var mini: int = int(enemy.get("mini",0))
+		var box := Rect2(852,y_end+6,256,44)
+		draw_rect(box,Color("1a0f12"))
+		draw_rect(box,Color("ff5b62"),false,2)
+		_text(Vector2(862,y_end+36),"ミニスロット",16,Color("f1e9d8"))
+		_text(Vector2(982,y_end+38),str(mini) if mini > 0 else "－",28,Color("ffd35b"))
+		_text(Vector2(1016,y_end+36),"%d枠目を封印" % mini if mini > 0 else "封印なし",15,Color("ff5b62"))
 
 ## Small picture of what the reel does, drawn from simple tiles.
 func _draw_reel_diagram(reel: int, box: Rect2) -> void:
@@ -2283,12 +2278,6 @@ func _draw_reel_diagram(reel: int, box: Rect2) -> void:
 			tile.call(victim,Color("2bdcc8"),false)
 			draw_circle(victim,6,Color("2bdcc8"))
 			draw_line(victim+Vector2(-12,-12),victim+Vector2(12,12),red,3)
-		8:
-			# Three gold lines: a row, a column and a diagonal.
-			for k in 3:
-				var y0 := box.position.y+24+k*30
-				draw_line(Vector2(box.position.x+20,y0),Vector2(box.end.x-20,y0),gold,5)
-			_text(c+Vector2(-34,-30),"揃い",20,red)
 		7:
 			# Two charges; the first always lands.
 			boss.call(c+Vector2(-70,0),Color("3a2a18"))
@@ -3101,7 +3090,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "payline":1.6, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -3295,17 +3284,6 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
-		"payline":
-			# The reels stop on 7-7-7: the banner appears after the pair has landed.
-			if t > 0.4:
-				var show := minf((t - 0.4) / 0.2, 1.0) * minf(fade / 0.3, 1.0)
-				var middle := BOARD + Vector2.ONE * model.board_size * TILE / 2.0
-				var bar := Rect2(middle + Vector2(-260, -250), Vector2(520, 96))
-				draw_rect(bar, Color(0.05, 0.03, 0.02, 0.8 * show))
-				draw_rect(bar, Color("ffd35b", show), false, 4)
-				for k in 3:
-					_text(middle + Vector2(-210 + k * 24, -196), "7", 44, Color("ff3b3b", show))
-				_text(middle + Vector2(-110, -188), "ペイライン", 54, Color("ffd35b", show))
 		"knock_home":
 			# Blown back: speed lines streak from where it stood to where it lands, then an impact star.
 			var half_span := Vector2.ONE * TILE / 2.0 * (1.0 if effect.get("big", false) else 0.0)
