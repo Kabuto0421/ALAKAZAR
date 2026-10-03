@@ -548,7 +548,8 @@ func _finish_player_action(animate: bool, weapon_action: Dictionary = {}) -> voi
 			impact_time = player_view.dagger_impact_time(boosted)
 			duration = player_view.dagger_duration(boosted)
 			if sfx != null:
-				sfx.play_at_impact("sword_swing", impact_time)
+				# The boosted finisher has its own sound: two slashes closing in, then the crossing.
+				sfx.play_at_impact("cross_strike" if boosted else "sword_swing", impact_time)
 		else:
 			player_view.play_sword_attack(model.facing)
 			impact_time = player_view.sword_impact_time()
