@@ -8,9 +8,7 @@ Copied resources retain the source filenames and included font license files. Th
 | --- | --- |
 | `assets/fonts/DotGothic16-Regular.ttf` | `3ad9af88726d42b40f7f365f0dcac785af73cf20ea6f1d5b44e57cc21150b8f1` |
 | `assets/fonts/OFL-DotGothic16.txt` | `b6630c61ea078cacd7fabe37d14ffe557a0b45b06683374a9aa9e24262993e33` |
-| `assets/fonts/OFL-PixelifySans.txt` | `b66ba46f511a851ab09998b5a5a9fdbb102545a3864cb993095e1745996873a7` |
 | `assets/fonts/OFL-VT323.txt` | `27d9af34210253e7ca1251fbace86c6f65b40031d6ce1a75493a1b2093631298` |
-| `assets/fonts/PixelifySans-wght.ttf` | `9ba86cd010a4de309d263ceff8e8044092c9db7efda869620cb9ff1c4389e8a5` |
 | `assets/fonts/VT323-Regular.ttf` | `cf4de751ada78ceac033dbe16a687742939995b77bc2a052ae17a4957958594d` |
 | `assets/sprites/adventurer_weapon_directions_64.png` | `404313f379532b509690c40037fdab889dcd6347035e52476dc493cdf005b1c8` |
 | `assets/sprites/editor_ui/backdrop.png` | `4dd0218dc4c808adac6afc7d3f0b099c1ad34de8089d3cccd063f012a61b0027` |
@@ -55,7 +53,6 @@ Copied resources retain the source filenames and included font license files. Th
 | `assets/sprites/effects/element_connection_atlas_manifest.json` | `0cf76f41cd388c0a969acecf6a238ad84708760ac45fd8902d6d8e8842e7d4a0` |
 | `assets/sprites/enemies/police_officer_directions_28.png` | `f8a4427973c857386554a9678e5230fd84536fae057b5ec37306832f9a010492` |
 | `assets/sprites/enemies/police_officer_directions_64.png` | `62d9b2911edec73ad821aa1c89822b7f41aecd945306e45aa90b9d0ea33f1f0b` |
-| `assets/sprites/gadget_editor_ui_parts_sheet_64_capacity5.png` | `d22de6c6f69b61cd5976df8bb57b325b3c979db45f6c96a89a950761ee861b89` |
 | `scripts/movement/shogi_gold_move.gd` | `2150406f173632892ebd2e31f765f2b83fd43e0343e613e6e6e59f87964ab69d` |
 | `scripts/movement/shogi_knight_move.gd` | `263548cd7a078457309572a4a4357600ef0bfb9a58921d1247fc6ec684a01705` |
 | `scripts/movement/shogi_move_pattern.gd` | `a258e97b23e8ceef7844b7f761ff443b000ed21283cbd13705422cec662d60dc` |
