@@ -62,6 +62,7 @@ func _ready() -> void:
 	var description := ""
 	var plus := false
 	var base_description := ""
+	var forged_line := ""
 	var circle := false
 	var fairy_id := ""
 	if offer.kind == "weapon":
@@ -77,7 +78,11 @@ func _ready() -> void:
 			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は斜め前3マス先まで。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
 		if plus and Weapons.is_dagger(int(offer.value)):
-			description += "\n鍛えた効果：後ろの1マスにも攻撃できる。"
+			# Forged: it can strike the tile it steps back to (shown in green below).
+			var back: Vector2i = -Vector2i(Weapons.DATA[int(offer.value)].dagger)
+			forged_line = "鍛えた効果：" + ("左下" if back.y > 0 else "左上") + "の1マスにも攻撃できる。"
+			base_description = description
+			description += "\n" + forged_line
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)
@@ -199,6 +204,8 @@ func _ready() -> void:
 			detail_top += int(circle_room)+2
 			detail.position.y = detail_top
 		_fit(detail,y-4-detail_top)
+		if forged_line != "":
+			_highlight(detail,base_description)
 		var damage: int = model.weapon_damage(int(offer.value)) if model != null else 1
 		var stats := ("入れ替え初回 0 AP" if plus else "1 AP / 入れ替え") if Weapons.DATA[int(offer.value)].get("swap", false) else "1 AP / ノックバック" if Weapons.knockback(int(offer.value)) > 0 and damage <= 0 else "1 AP / 攻撃 %d" % damage
 		if circle:
