@@ -2211,22 +2211,53 @@ func _wrapped(at: Vector2, text: String, size: int, color: Color, per_line: int)
 func _draw_rotorick_inspector(enemy: Dictionary) -> void:
 	var reel: int = int(enemy.get("reel",0))
 	var lines: Array = REEL_LINES[reel]
-	_text(Vector2(852,214),"移動：飛車（向きの先まで突進）",16,CYAN)
+	_draw_rook_lane_diagram(Vector2(852,206))
+	var top := 322.0
 	var line_color := Color("ffd35b") if reel == 5 else Color("f1e9d8")
-	var y := _wrapped(Vector2(852,250),lines[0] if reel == 5 else "「%s」" % lines[0],18,line_color,15)
+	var y := _wrapped(Vector2(852,top),lines[0] if reel == 5 else "「%s」" % lines[0],18,line_color,15)
 	if reel == 7:
-		y = _wrapped(Vector2(852,y+2),"逃げ場は無い。",28,Color("ff3b3b"),9)
-	_draw_reel_diagram(reel, Rect2(852,y+8,256,108))
-	var y_end := _wrapped(Vector2(852,y+140),lines[1],19,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
+		y = _wrapped(Vector2(852,y+2),"逃げ場は無い。",24,Color("ff3b3b"),10)
+	_draw_reel_diagram(reel, Rect2(852,y+4,256,92))
+	var y_end := _wrapped(Vector2(852,y+122),lines[1],18,Color("ff5b62") if reel == 7 else Color("ffd35b"),14)
 	if enemy.hp <= Rules.MINI_SLOT_HP:
 		# Below the HP line a small second slot (1-3) seals one weapon slot.
 		var mini: int = int(enemy.get("mini",0))
-		var box := Rect2(852,y_end+6,256,44)
+		var box := Rect2(852,y_end+2,256,40)
 		draw_rect(box,Color("1a0f12"))
 		draw_rect(box,Color("ff5b62"),false,2)
-		_text(Vector2(862,y_end+36),"ミニスロット",16,Color("f1e9d8"))
-		_text(Vector2(982,y_end+38),str(mini) if mini > 0 else "－",28,Color("ffd35b"))
-		_text(Vector2(1016,y_end+36),"%d枠目を封印" % mini if mini > 0 else "封印なし",15,Color("ff5b62"))
+		_text(Vector2(862,y_end+30),"ミニスロット",16,Color("f1e9d8"))
+		_text(Vector2(982,y_end+32),str(mini) if mini > 0 else "－",26,Color("ffd35b"))
+		_text(Vector2(1016,y_end+30),"%d枠目を封印" % mini if mini > 0 else "封印なし",15,Color("ff5b62"))
+
+## How Rotorick moves: the 2x2 body and the four lanes it charges down like a rook.
+func _draw_rook_lane_diagram(at: Vector2) -> void:
+	var cell := 12.0
+	var cols := 19
+	var rows := 7
+	var mid_col := cols / 2
+	var mid_row := rows / 2
+	_text(at + Vector2(0,-2),"移動・突進（飛車の動き）",15,CYAN)
+	var origin := at + Vector2(0,6)
+	var lane := Color(1,0.3,0.28,0.55)
+	for row in range(rows):
+		for col in range(cols):
+			var rect := Rect2(origin + Vector2(col,row) * cell, Vector2.ONE * (cell - 1))
+			# The body is 2x2 (columns mid-1..mid, rows mid-1..mid); lanes are as wide as the body.
+			var in_body: bool = col in [mid_col-1, mid_col] and row in [mid_row-1, mid_row]
+			var in_lane: bool = (col in [mid_col-1, mid_col]) != (row in [mid_row-1, mid_row])
+			if in_body:
+				draw_rect(rect, Color("f1e9d8"))
+			elif in_lane:
+				draw_rect(rect, lane)
+			else:
+				draw_rect(rect, Color("152221"))
+	# Arrow heads at the four ends of the lanes, kept inside the grid.
+	var centre := origin + Vector2(mid_col, mid_row) * cell
+	for direction in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+		var reach: float = cols * cell / 2.0 if direction.x != 0 else rows * cell / 2.0
+		var tip: Vector2 = centre + direction * reach
+		var side := Vector2(-direction.y, direction.x)
+		draw_colored_polygon(PackedVector2Array([tip, tip - direction * 9 + side * 6, tip - direction * 9 - side * 6]), Color("ff3b3b"))
 
 ## Small picture of what the reel does, drawn from simple tiles.
 func _draw_reel_diagram(reel: int, box: Rect2) -> void:
@@ -2257,11 +2288,11 @@ func _draw_reel_diagram(reel: int, box: Rect2) -> void:
 			# A checker of burning tiles.
 			for y in 4:
 				for x in 8:
-					var at := box.position+Vector2(22+x*30,15+y*26)
+					var at := box.position+Vector2(22+x*30,13+y*22)
 					if (x+y)%2 == 0:
-						draw_rect(Rect2(at-Vector2(13,11),Vector2(26,22)),Color(0.85,0.1,0.1,0.8))
+						draw_rect(Rect2(at-Vector2(13,9),Vector2(26,18)),Color(0.85,0.1,0.1,0.8))
 					else:
-						draw_rect(Rect2(at-Vector2(13,11),Vector2(26,22)),Color(0.1,0.05,0.05))
+						draw_rect(Rect2(at-Vector2(13,9),Vector2(26,18)),Color(0.1,0.05,0.05))
 		5:
 			boss.call(c,Color("2a3a44"))
 			draw_line(c-Vector2(14,14),c+Vector2(14,14),gold,5)
