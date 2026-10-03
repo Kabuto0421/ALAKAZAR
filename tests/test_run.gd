@@ -880,7 +880,9 @@ func _rotorick() -> void:
 	m.player.cell = Vector2i(0,0)
 	m.phase = Rules.Phase.ENEMY
 	m.events.clear()
+	var start_cell: Vector2i = boss.cell
 	m.slot_turn(boss)
+	verify(m.floor_cells.has(start_cell) and m.floor_cells.has(boss.cell + Vector2i(1,1)) and (int(boss.reel) == 4 or m.floor_cells.size() < m.board_size * m.board_size / 2),"The jackpot's burning floor is the path Rotorick ran (the next reel may add its own floor)")
 	var burned_now := false
 	for e in m.events:
 		if e.kind == "burn":

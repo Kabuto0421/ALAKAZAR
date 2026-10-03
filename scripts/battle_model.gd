@@ -3342,12 +3342,19 @@ func slot_turn(enemy: Dictionary) -> void:
 			rook_charge(enemy)
 		7:
 			enemy.ap = 2
+			var ran: Array[Vector2i] = []
+			var from: Vector2i = enemy.cell
 			rook_charge(enemy)
+			_add_swept(ran, from, enemy.cell, int(enemy.get("size", 1)))
 			if enemy.ap > 0 and not terminal() and enemy.hp > 0:
+				from = enemy.cell
 				rook_charge(enemy)
-			# The jackpot (AP+1, two charges) also leaves a checkerboard burning at the start of the next enemy turn.
+				_add_swept(ran, from, enemy.cell, int(enemy.get("size", 1)))
+			# The jackpot (AP+1, two charges) leaves the ground it ran over burning at the start of the next enemy turn.
 			if not terminal() and enemy.hp > 0:
-				_mark_floor(enemy)
+				for cell in ran:
+					if not floor_cells.has(cell):
+						floor_cells.append(cell)
 		_:
 			rook_charge(enemy)
 	shadow_strike()
@@ -3425,6 +3432,19 @@ func _spin_mini_slot(enemy: Dictionary) -> void:
 		if not floor_cells.has(cell):
 			floor_cells.append(cell)
 	add_log("ミニスロット：%d の床が焼ける" % enemy.mini)
+
+## Every tile a big unit's body covered going from `from` to `to` in a straight line (both ends included).
+func _add_swept(result: Array[Vector2i], from: Vector2i, to: Vector2i, size: int) -> void:
+	var gap: Vector2i = to - from
+	var step := Vector2i(signi(gap.x), signi(gap.y))
+	var count := maxi(absi(gap.x), absi(gap.y))
+	for k in range(count + 1):
+		var origin: Vector2i = from + step * k
+		for dy in range(size):
+			for dx in range(size):
+				var cell := origin + Vector2i(dx, dy)
+				if inside(cell) and not result.has(cell):
+					result.append(cell)
 
 func _burn_floor(enemy: Dictionary) -> void:
 	if floor_cells.is_empty():
