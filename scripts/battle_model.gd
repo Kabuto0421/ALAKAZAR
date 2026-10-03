@@ -187,7 +187,7 @@ var blade_used := false
 ## Forged swap weapons (入替の杖・王将の杖): the first swap each turn costs no AP.
 var free_swap_used := false
 const BLADE_MAX := 2
-## Forged, it stores one more (its hits then run 2 up to 5).
+## Forged, it stores one more (its hits then run 1 up to 4).
 const BLADE_MAX_FORGED := 3
 
 ## How much the 溜め大剣 can store right now (more once forged).
