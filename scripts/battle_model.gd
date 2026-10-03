@@ -3170,7 +3170,7 @@ func _storm_thunder() -> void:
 
 # --- Rotorick: the slot boss --------------------------------------------------
 
-const REEL_WEIGHTS = {1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2, 7: 1}
+const REEL_WEIGHTS = {1: 2, 2: 2, 3: 2, 4: 2, 5: 1, 6: 2, 7: 1}
 
 ## Draws the next reel (never the same number twice in a row; 7 is rarer).
 func slot_roll(enemy: Dictionary) -> int:
@@ -3194,22 +3194,31 @@ func slot_spin(enemy: Dictionary) -> void:
 				locked_slot = reel - 1
 				weapon = owned_weapons[locked_slot]
 		4:
-			floor_cells.clear()
-			var parity: int = (enemy.cell.x + enemy.cell.y) % 2
-			for y in range(board_size):
-				for x in range(board_size):
-					if (x + y) % 2 == parity:
-						floor_cells.append(Vector2i(x, y))
+			_mark_floor(enemy)
+		7:
+			# The jackpot also sets the floor to burn: after its two charges, a checkerboard burns.
+			_mark_floor(enemy)
 		5:
 			enemy.state = "stun"
 	enemy.intent = "出目 %d" % reel
 	add_log("ロトリックの出目：%d" % reel)
 
+## Marks the checkerboard (the tiles of the colour it stands on) to burn.
+func _mark_floor(enemy: Dictionary) -> void:
+	floor_cells.clear()
+	var parity: int = (enemy.cell.x + enemy.cell.y) % 2
+	for y in range(board_size):
+		for x in range(board_size):
+			if (x + y) % 2 == parity:
+				floor_cells.append(Vector2i(x, y))
+
 ## Enemy turn: resolve the shown reel, charge, then spin again.
 func slot_turn(enemy: Dictionary) -> void:
 	if phase != Phase.ENEMY or enemy.hp <= 0:
 		return
-	_burn_floor(enemy)
+	# A floor marked by an earlier reel burns first; the jackpot's burns after its charges.
+	if int(enemy.reel) != 7:
+		_burn_floor(enemy)
 	if terminal():
 		return
 	match int(enemy.reel):
@@ -3226,6 +3235,8 @@ func slot_turn(enemy: Dictionary) -> void:
 			_sure_charge(enemy)
 			if enemy.ap > 0 and not terminal() and enemy.hp > 0:
 				rook_charge(enemy)
+			if not terminal():
+				_burn_floor(enemy)
 		_:
 			rook_charge(enemy)
 	shadow_strike()
