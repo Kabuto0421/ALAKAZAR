@@ -890,8 +890,13 @@ func targets() -> Array[Vector2i]:
 				break
 			result.append(cell)
 		var back: Vector2i = player.cell - along
-		if inside(back) and enemy_at(back).is_empty() and cannon_at(back).is_empty() and not blocked(back):
-			result.append(back)
+		if inside(back):
+			if not enemy_at(back).is_empty() or not cannon_at(back).is_empty():
+				# Forged, the dagger can strike backwards too (one tile).
+				if weapon_power.has(weapon):
+					result.append(back)
+			elif not blocked(back):
+				result.append(back)
 		return result
 	if WEAPONS[weapon].get("ranged","") == "bishop":
 		for cell in bow_lines():

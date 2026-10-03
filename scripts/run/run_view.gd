@@ -193,6 +193,7 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgra
 		x += width+gap
 		card.size = Vector2(width,CARD_HEIGHT)
 		card.offer = offers[index]
+		card.show_pair = run.state in [Run.State.REWARD]
 		card.model = run.battle
 		card.action_text = "これと交換" if replacing else "鍛える" if forging else "強化する" if upgrading else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
 		if not upgrading:
@@ -265,6 +266,7 @@ func _replace_cards() -> void:
 	var incoming := Card.new()
 	incoming.size = Vector2(236,CARD_HEIGHT)
 	incoming.offer = run.pending
+	incoming.show_pair = true
 	incoming.model = run.battle
 	incoming.tag = "入手する"
 	incoming.action_text = ""
@@ -324,7 +326,7 @@ func _loadout() -> void:
 		diagram.offsets = Weapons.offsets(index)
 		diagram.slides = Weapons.slides(index)
 		diagram.echo = Weapons.hammer_echo(index)
-		diagram.attack = Weapons.attack_offsets(index)
+		diagram.attack = Weapons.attack_offsets(index, run.battle.weapon_power.has(index))
 		diagram.hammer = Weapons.is_hammer(index)
 		diagram.accent = accent
 		screen.add_child(diagram)

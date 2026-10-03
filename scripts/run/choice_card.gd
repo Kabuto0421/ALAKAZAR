@@ -51,6 +51,8 @@ var note := ""
 var note_color := Rarity.INFO
 ## Camp: show the item as it will be after forging / the class-up.
 var preview_plus := false
+## A reward offer of the クロス短剣 shows the whole set (both daggers); owned ones show alone.
+var show_pair := false
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
@@ -69,11 +71,13 @@ func _ready() -> void:
 		# The diagram already shows where it reaches: the text only explains what it
 		# cannot show (knockback, swaps, hammer echoes, the charge, pulls, the bow).
 		description = weapon.get("effect", "")
-		if Weapons.is_pair_head(int(offer.value)):
+		if show_pair and Weapons.is_pair_head(int(offer.value)):
 			# クロス短剣: the card sells both halves.
 			title = "クロス短剣"
 			description = "雷短剣＋炎短剣の2本セット（枠を2つ使う）。攻撃は斜め前3マス先まで。片方を使った直後は、もう片方の攻撃が斜め4マスにも響く。"
 		plus = preview_plus or (model != null and model.weapon_power.has(int(offer.value)))
+		if plus and Weapons.is_dagger(int(offer.value)):
+			description += "\n鍛えた効果：後ろの1マスにも攻撃できる。"
 		circle = offer.get("enchant", "") == "circle" or (model != null and model.is_circle(int(offer.value)))
 	else:
 		fairy_id = str(offer.value)
@@ -142,7 +146,7 @@ func _ready() -> void:
 		# The magic circle's example (a 5x3 board) takes room under the diagram.
 		var circle_room := clampf((size.x-24)*3.0/5.0,60.0,96.0) if circle else 0.0
 		var side := clampf(y-4-74-text_height-2-circle_room,56.0,minf(140,size.x-40))
-		var pair_head: bool = Weapons.is_pair_head(int(offer.value))
+		var pair_head: bool = show_pair and Weapons.is_pair_head(int(offer.value))
 		if pair_head:
 			# クロス短剣: one picture per half, side by side.
 			side = minf(side, (size.x-30)/2.0)
@@ -151,7 +155,7 @@ func _ready() -> void:
 		diagram.offsets = Weapons.offsets(int(offer.value))
 		diagram.slides = Weapons.slides(int(offer.value))
 		diagram.echo = Weapons.hammer_echo(int(offer.value))
-		diagram.attack = Weapons.attack_offsets(int(offer.value))
+		diagram.attack = Weapons.attack_offsets(int(offer.value), plus)
 		diagram.context = context
 		diagram.accent = accent
 		add_child(diagram)

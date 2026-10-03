@@ -113,11 +113,14 @@ static func pair_of(index: int) -> int:
 static func is_pair_head(index: int) -> bool:
 	return pair_of(index) >= 0 and not is_pair_member(index)
 
-## The tiles a dagger can attack (the rest of its reach is only for moving).
-static func attack_offsets(index: int) -> Array[Vector2i]:
+## The tiles a dagger can attack (the rest of its reach is for moving). Forged, it can also strike the
+## tile behind it (the one it steps back to).
+static func attack_offsets(index: int, forged: bool = false) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if is_dagger(index):
 		result.assign(DATA[index].attack)
+		if forged:
+			result.append(-Vector2i(DATA[index].dagger))
 	return result
 
 static func is_mid(index: int) -> bool:

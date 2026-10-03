@@ -2594,6 +2594,43 @@ func _cross_daggers() -> void:
 	var cs_side_hp: int = plain_side.hp
 	verify(cs.player_action(Vector2i(2,2)) and plain_target.hp == cs_hp - 1 and plain_side.hp == cs_side_hp,"Striking with the un-boosted dagger deals 1 and spreads nothing")
 	verify(cs.combo_boost == flame,"...and the other dagger stays boosted")
+	# --- Forged daggers: they can strike the tile behind them as well ---
+	var fb := fixture()
+	fb.enemies.clear()
+	fb.owned_weapons.assign([thunder, flame, 0])
+	fb.player.cell = Vector2i(3,3)
+	fb.weapon = thunder
+	fb.player.ap = 2
+	var behind: Dictionary = fb.make_enemy("heavy", Vector2i(2,4), 0)
+	behind.hp = 5
+	fb.enemies.append(behind)
+	fb.enemies.append(fb.make_enemy("heavy", Vector2i(5,5), 1))
+	verify(not fb.targets().has(Vector2i(2,4)),"An unforged dagger cannot strike behind it")
+	fb.weapon_power[thunder] = 1
+	verify(fb.targets().has(Vector2i(2,4)) and W.attack_offsets(thunder, true).has(Vector2i(-1,1)) and not W.attack_offsets(thunder).has(Vector2i(-1,1)),"A forged dagger can strike the tile behind it (and the diagram says so)")
+	var behind_hp: int = behind.hp
+	verify(fb.player_action(Vector2i(2,4)) and behind.hp == behind_hp - 2 and fb.player.cell == Vector2i(3,3) and fb.combo_boost == flame,"The backward strike does the forged damage, does not move the player, and boosts the other half")
+	var fc := fixture()
+	fc.enemies.clear()
+	fc.owned_weapons.assign([thunder, flame, 0])
+	fc.player.cell = Vector2i(3,3)
+	fc.weapon = flame
+	fc.weapon_power[flame] = 1
+	fc.player.ap = 2
+	fc.enemies.append(fc.make_enemy("heavy", Vector2i(2,2), 0))
+	fc.enemies.append(fc.make_enemy("heavy", Vector2i(5,5), 1))
+	verify(fc.targets().has(Vector2i(2,2)) and W.attack_offsets(flame, true).has(Vector2i(-1,-1)),"A forged flame dagger strikes up-left behind it")
+	# A free step back stays a move, forged or not; a blocked one is still not a target.
+	var fd := fixture()
+	fd.enemies.clear()
+	fd.owned_weapons.assign([thunder, flame, 0])
+	fd.player.cell = Vector2i(3,3)
+	fd.weapon = thunder
+	fd.weapon_power[thunder] = 1
+	fd.enemies.append(fd.make_enemy("heavy", Vector2i(5,5), 0))
+	verify(fd.targets().has(Vector2i(2,4)),"A free tile behind is still a move")
+	fd.obstacles.append(Vector2i(2,4))
+	verify(not fd.targets().has(Vector2i(2,4)),"A blocked tile behind is still not a target")
 	# A set takes two slots.
 	var run := Run.new()
 	run.start(7)

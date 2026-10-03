@@ -1838,7 +1838,7 @@ func _draw_weapons() -> void:
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var echo := Catalog.hammer_echo(index)
-		var strikes := Catalog.attack_offsets(index)
+		var strikes := Catalog.attack_offsets(index, model.weapon_power.has(index))
 		var count := RangeDiagram.span(offsets + echo)
 		# Inside the frame; sliding weapons leave room for their arrows past the tiles.
 		var inner := 94.0-SLOT_FRAME*2-4
@@ -1964,7 +1964,7 @@ func _draw_intel() -> void:
 		var weapon: Dictionary = Rules.WEAPONS[selected_weapon]
 		_text(Vector2(852,133),weapon.name,25,Color(weapon.color))
 		_text(Vector2(852,177),"装備中",21,MUTED)
-		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing,2,false,Catalog.attack_offsets(selected_weapon))
+		_draw_range(model.weapon_offsets(selected_weapon,model.facing),Color(weapon.color),{},selected_weapon,model.facing,2,false,Catalog.attack_offsets(selected_weapon, model.weapon_power.has(selected_weapon)))
 		_text(Vector2(852,495),"移動・攻撃範囲",23,INK)
 		_wrapped(Vector2(852,528),Rules.WEAPONS[selected_weapon].detail,18,MUTED,14)
 	else:
