@@ -155,6 +155,8 @@ var locked_slot := -1
 var floor_cells: Array[Vector2i] = []
 ## Rotorick's payline interrupt (HP 3): three lines marked for the next enemy turn.
 var payline_lines: Array = []
+## Where the player and Rotorick began the battle (the HP 3 interrupt sends both back).
+var player_home := Vector2i.ZERO
 ## Mid-game fights after the first boss, then a camp and the second boss.
 const MID_LEVELS = [4, 5, 6]
 ## Late-game fights after Rotorick; a camp follows and ends the run (no boss yet).
@@ -306,6 +308,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	weapon = owned_weapons[0]
 	facing = 1
 	kills = 0
+	player_home = layout.player_start
 	player = {"id": -1, "type": "player", "cell": layout.player_start, "hp": start_hp, "ap": 2}
 	enemies.clear()
 	mines.clear()
@@ -345,6 +348,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		var cell := FormationLayout.cell_at(placement.position,board_size)
 		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
+		enemies[-1].home = cell
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
 		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "groups": [], "shape": "bolts"}
@@ -3223,6 +3227,7 @@ func slot_turn(enemy: Dictionary) -> void:
 	# At HP 3 it interrupts once: this turn it only marks three paylines, which strike next turn.
 	if int(enemy.reel) != 8 and enemy.hp <= PAYLINE_HP and not enemy.get("payline_done", false):
 		enemy.payline_done = true
+		_knock_home(enemy)
 		_mark_paylines(enemy)
 		enemy.reel = 8
 		enemy.last_reel = 8
@@ -3259,6 +3264,46 @@ func slot_turn(enemy: Dictionary) -> void:
 		slot_spin(enemy)
 
 const PAYLINE_HP := 3
+
+## The interrupt blows both Rotorick and the player back to where the battle began.
+## A start tile that is taken is replaced by the nearest free one.
+func _knock_home(enemy: Dictionary) -> void:
+	var boss_from: Vector2i = enemy.cell
+	var player_from: Vector2i = player.cell
+	var big: int = int(enemy.get("size", 1))
+	# Rotorick first (it needs the 2x2), then the player on a tile it does not cover.
+	enemy.cell = Vector2i(-99, -99)
+	enemy.cell = _nearest_free(enemy.get("home", boss_from), big, true)
+	player.cell = Vector2i(-99, -99)
+	player.cell = _nearest_free(player_home, 1, false)
+	for pair in [[boss_from, enemy.cell], [player_from, player.cell]]:
+		events.append({"kind":"warp", "cell":pair[0], "id":-2})
+		events.append({"kind":"warp", "cell":pair[1], "id":-2})
+	add_log("ロトリックとあなたは開始位置まで弾き戻された")
+
+func _nearest_free(origin: Vector2i, size: int, is_boss: bool) -> Vector2i:
+	var best := origin
+	var best_distance := 9999
+	for y in range(board_size - size + 1):
+		for x in range(board_size - size + 1):
+			var anchor := Vector2i(x, y)
+			var ok := true
+			for dy in range(size):
+				for dx in range(size):
+					var cell := anchor + Vector2i(dx, dy)
+					if blocked(cell) or not enemy_at(cell).is_empty() or (is_boss and player.cell == cell) or (not is_boss and boss_covers(cell)):
+						ok = false
+			var d := absi(anchor.x - origin.x) + absi(anchor.y - origin.y)
+			if ok and d < best_distance:
+				best = anchor
+				best_distance = d
+	return best
+
+func boss_covers(cell: Vector2i) -> bool:
+	for enemy in enemies:
+		if enemy.type == "slot" and enemy.hp > 0 and footprint(enemy).has(cell):
+			return true
+	return false
 
 ## Three lines across the board: the player's row, a column and a diagonal.
 func _mark_paylines(_enemy: Dictionary) -> void:

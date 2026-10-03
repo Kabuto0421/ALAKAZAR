@@ -860,11 +860,15 @@ func _rotorick() -> void:
 	m = _slot_room()
 	boss = _slot_ready(m, 1)
 	boss.hp = 3
-	m.player.cell = Vector2i(0,0)
+	var boss_home: Vector2i = boss.home
+	boss.cell = Vector2i(4,4)
+	m.player.cell = Vector2i(3,6)
 	m.player.hp = 5
 	m.phase = Rules.Phase.ENEMY
 	m.events.clear()
 	m.slot_turn(boss)
+	verify(boss.cell == boss_home,"The HP 3 interrupt blows Rotorick back to its starting place")
+	verify(m.player.cell == m.player_home,"...and the player back to theirs")
 	verify(int(boss.reel) == 8 and m.payline_lines.size() == 3,"HP 3 interrupts with three paylines")
 	verify(m.player.hp == 5,"The interrupt turn itself deals no damage")
 	verify(m.payline_lines[0].has(m.player.cell),"One payline runs through the player's row")
