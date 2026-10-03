@@ -2224,7 +2224,7 @@ func _cat_fairy() -> void:
 	verify(m.fairy_ap_cost("cat_fairy") == 1 and m.fairy_uses("cat_fairy") == 1 and m.fairy_ap_cost("cat_fairy", 1) == 1 and m.fairy_uses("cat_fairy", 1) == 2,"The cat fairy: 1 AP, once a battle; the class-up makes it twice (the AP stays)")
 	verify(Run.Rarity.tier({"kind":"fairy","value":"cat_fairy"}) == Run.Rarity.RARE,"The cat fairy is rare")
 	var spot: Vector2i = m.item_targets("cat_fairy")[0]
-	verify(m.use_item("cat_fairy", spot) and not m.cats.is_empty() and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(2,2)) and not m.cat_zone_at(spot + Vector2i(3,0)),"It makes a 5x5 field round the tile")
+	verify(m.use_item("cat_fairy", spot) and not m.cats.is_empty() and m.cats[0].turns == 3 and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(2,2)) and not m.cat_zone_at(spot + Vector2i(3,0)),"It makes a 5x5 field round the tile")
 	# An enemy beside the field cannot step in.
 	var edge: Vector2i = spot + Vector2i(3,0)
 	var foe: Dictionary = m.make_enemy("heavy", edge, 0)
@@ -2305,13 +2305,13 @@ func _cat_fairy() -> void:
 	planner.beat(sealed, 0)
 	planner.beat(sealed, 1)
 	verify(not sealed.cat_zone_at(waiting.cell) and waiting.intent == "猫を避けて足止め" and waiting.ap == 0,"With no way round, the enemy waits at the edge, and says so")
-	# The field lasts five player turns; two fields run on their own clocks.
+	# The field lasts three player turns; two fields run on their own clocks.
 	var t := _cat_room()
-	t.cats.assign([{"cell":Vector2i(3,3), "turns":Rules.WALL_TURNS}])
-	for n in Rules.WALL_TURNS:
+	t.cats.assign([{"cell":Vector2i(3,3), "turns":Rules.CAT_TURNS}])
+	for n in Rules.CAT_TURNS:
 		verify(not t.cats.is_empty(),"The field stands on turn %d" % (n + 1))
 		t.tick_walls()
-	verify(t.cats.is_empty(),"...and is gone after five")
+	verify(t.cats.is_empty(),"...and is gone after three")
 	var two := _cat_room()
 	two.cats.assign([{"cell":Vector2i(1,1), "turns":1}, {"cell":Vector2i(5,5), "turns":3}])
 	two.tick_walls()
