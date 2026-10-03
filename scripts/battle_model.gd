@@ -3208,6 +3208,7 @@ func slot_spin(enemy: Dictionary) -> void:
 	enemy.intent = "出目 %d" % reel
 	add_log("ロトリックの出目：%d" % reel)
 	_spin_mini_slot(enemy)
+	events.append({"kind":"slot_spin", "id":enemy.id, "cell":enemy.cell, "reel":reel, "mini":int(enemy.get("mini", 0))})
 
 ## Marks the checkerboard (the tiles of the colour it stands on) to burn.
 func _mark_floor(enemy: Dictionary) -> void:

@@ -290,8 +290,8 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	elif model.level == Rules.BOSS2_LEVEL and model.boss2_variant == 1:
 		_shark_intro()
 	elif model.level == Rules.BOSS2_LEVEL:
-		# Rotorick: the reels spin up before his music starts.
-		bgm.hold(1.9)
+		# Rotorick: the casino entrance (see _boss_intro) holds his music until the reels stop.
+		bgm.hold(CasinoFx.LIFE["intro"])
 		_sting("rotorick_intro")
 
 ## The storm shark's entrance, on the song's own clock: seven seconds of it circling as a shadow
@@ -339,6 +339,74 @@ func _shark_intro() -> void:
 	_sync_units(false)
 	_update_controls()
 
+## Rotorick's entrance: the lights drop, three reels spin and stop on 7-7-7, his name lights up,
+## and only then does he drop in.
+func _rotorick_entrance(token: int) -> bool:
+	var boss: Dictionary = {}
+	for enemy in model.enemies:
+		if enemy.type == "slot":
+			boss = enemy
+	if not boss.is_empty() and actors.has(int(boss.id)):
+		actors[int(boss.id)].visible = false
+	reel_hold = true
+	_casino_show("intro")
+	await get_tree().create_timer(1.85).timeout
+	if token != generation:
+		return false
+	if not boss.is_empty() and actors.has(int(boss.id)):
+		actors[int(boss.id)].visible = true
+		actors[int(boss.id)].flash = 0.4
+	chain_shake = 0.5
+	chain_shake_power = 14.0
+	await get_tree().create_timer(CasinoFx.LIFE["intro"] - 1.85 + 0.1).timeout
+	return token == generation
+
+func _casino_show(mode: String, reel := 0, mini := 0) -> void:
+	var fx := CasinoFx.new()
+	fx.mode = mode
+	fx.reel = reel
+	fx.mini = mini
+	fx.centre = BOARD + Vector2.ONE * model.board_size * TILE / 2.0
+	fx.extent = model.board_size * TILE
+	fx.reel_color = REEL_COLORS.get(reel, CasinoFx.GOLD)
+	fx.reel_label = REEL_SHORT.get(reel, "")
+	var layer := CanvasLayer.new()
+	layer.layer = 10
+	layer.scale = Vector2.ONE * UI_SCALE
+	add_child(layer)
+	layer.add_child(fx)
+
+## After Rotorick spins (a "slot_spin" event): the draw plays out big, then the board shows the result.
+func _play_lottery(token: int) -> bool:
+	var spin := {}
+	for event in model.events:
+		if event.kind == "slot_spin":
+			spin = event
+	if spin.is_empty():
+		reel_hold = false
+		return true
+	model.events.assign(model.events.filter(func(e: Dictionary) -> bool: return e.kind != "slot_spin"))
+	reel_hold = true
+	_sync_units(false)
+	_casino_show("lottery", int(spin.reel), int(spin.mini))
+	await get_tree().create_timer(1.0).timeout
+	if token != generation:
+		return false
+	chain_shake = 0.2
+	chain_shake_power = 6.0
+	await get_tree().create_timer(CasinoFx.LIFE["lottery"] - 1.0).timeout
+	if token != generation:
+		return false
+	reel_hold = false
+	_sync_units(false)
+	queue_redraw()
+	return true
+
+## While the draw plays (or the entrance), the reel on Rotorick's chest keeps spinning.
+var reel_hold := false
+const REEL_COLORS = {1: Color("ffd35b"), 2: Color("ffd35b"), 3: Color("ffd35b"), 4: Color("ff4b3b"), 5: Color("c9c9c9"), 6: Color("c79bff"), 7: Color("ff3b4a")}
+const REEL_SHORT = {1: "1枠のみ", 2: "2枠のみ", 3: "3枠のみ", 4: "床焼き", 5: "故障・停止", 6: "残像", 7: "刑の執行"}
+
 ## The Prison King's entrance: black-out, the throne hall, his name, then the fight.
 func _final_intro() -> void:
 	busy = true
@@ -377,7 +445,12 @@ func _boss_intro() -> void:
 	busy = true
 	var token := generation
 	_update_controls()
-	await get_tree().create_timer(0.9).timeout
+	var rotorick: bool = model.enemies.any(func(e: Dictionary) -> bool: return e.type == "slot")
+	if rotorick:
+		if not await _rotorick_entrance(token):
+			return
+	else:
+		await get_tree().create_timer(0.9).timeout
 	if token != generation:
 		return
 	model.boss_intro()
@@ -387,7 +460,11 @@ func _boss_intro() -> void:
 		if actor.kind in Rules.CHARGERS:
 			actor.flash = 0.25
 	queue_redraw()
-	await get_tree().create_timer(0.5).timeout
+	if rotorick:
+		if not await _play_lottery(token):
+			return
+	else:
+		await get_tree().create_timer(0.5).timeout
 	if token != generation:
 		return
 	busy = false
@@ -472,6 +549,8 @@ func _enemy_turn() -> void:
 		queue_redraw()
 		await get_tree().create_timer(0.17).timeout
 		if token != generation:
+			return
+		if not model.terminal() and not await _play_lottery(token):
 			return
 		if model.terminal():
 			break
@@ -814,7 +893,7 @@ func _sync_units(animate: bool) -> void:
 		view.time_stopped = id >= 0 and model.time_stopped()
 		# The stopped world is drawn over the enemies but under you and your allies.
 		view.z_index = 0 if id >= 0 and model.time_stopped() else 2
-		view.reel = int(unit.get("reel",0))
+		view.reel = 0 if reel_hold and unit.type == "slot" else int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
 		var learned := int(unit.get("learned",-1))
 		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
@@ -1150,6 +1229,8 @@ func _shown_hp(id: int, hp: int) -> int:
 ## overlay above the enemies, below the player and the allies), with a negative flash
 ## as it stops and a quick bleed back when it runs again.
 const TimeStopShader = preload("res://scripts/fx/time_stop.gdshader")
+const CasinoShader = preload("res://scripts/fx/casino.gdshader")
+const CasinoFx = preload("res://scripts/fx/casino_fx.gd")
 var time_overlay: ColorRect
 var time_amount := 0.0
 var time_negative := 0.0
@@ -1180,8 +1261,32 @@ func _update_time_overlay(delta: float) -> void:
 	(time_overlay.material as ShaderMaterial).set_shader_parameter("amount", time_amount)
 	(time_overlay.material as ShaderMaterial).set_shader_parameter("negative", time_negative)
 
+var casino_overlay: ColorRect
+func _update_casino_overlay() -> void:
+	var present: bool = model != null and model.enemies.any(func(e: Dictionary) -> bool: return e.type == "slot" and e.hp > 0)
+	if not present:
+		if casino_overlay != null:
+			casino_overlay.visible = false
+		return
+	if casino_overlay == null:
+		casino_overlay = ColorRect.new()
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = CasinoShader
+		casino_overlay.material = shader_material
+		casino_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		casino_overlay.z_index = 1
+		add_child(casino_overlay)
+	casino_overlay.visible = true
+	var margin := 12.0
+	casino_overlay.position = BOARD - Vector2.ONE * margin
+	casino_overlay.size = Vector2.ONE * (model.board_size * TILE + margin * 2.0)
+	(casino_overlay.material as ShaderMaterial).set_shader_parameter("time", clock)
+	(casino_overlay.material as ShaderMaterial).set_shader_parameter("bulbs", float(model.board_size * 4 + 8))
+	(casino_overlay.material as ShaderMaterial).set_shader_parameter("energy", 1.0 if not reel_hold else 1.5)
+
 func _process(delta: float) -> void:
 	clock += delta
+	_update_casino_overlay()
 	if shark_intro:
 		# The song's own clock when it plays (so the drop lands on the beat); else our own.
 		var song: float = bgm.shark_clock()
@@ -1655,6 +1760,7 @@ func _draw_board() -> void:
 		_text(glyph_at + Vector2(2,2),str(k+1),104,Color(0,0,0,0.5))
 		_text(glyph_at,str(k+1),104,Color(1.0,0.4,0.35,0.95) if drawn_zone else Color(0.55,0.92,1.0,0.65))
 	_draw_mini_slot_badge()
+	_draw_reel_badge()
 	# Before a 2x2 fairy is placed, hovering a legal tile shows the block it would take.
 	# 2x2 fairies are drawn after the tiles so no later tile covers them.
 	if model.time_stopped():
@@ -2237,7 +2343,6 @@ func _draw_mini_slot_badge() -> void:
 	var frame := Rect2(left - 10, y - 6, width + 20, side + 12)
 	draw_rect(frame, Color(0.06, 0.03, 0.04, 0.92))
 	draw_rect(frame, Color("ff5b62"), false, 3)
-	_text(Vector2(frame.position.x, frame.position.y - 4), "ミニスロット", 14, Color("f1e9d8"))
 	for k in 3:
 		var window := Rect2(left + k * (side + gap), y, side, side)
 		var lit := drawn == k + 1
@@ -2249,6 +2354,29 @@ func _draw_mini_slot_badge() -> void:
 		var tip := Vector2(left + (drawn - 1) * (side + gap) + side / 2.0, y - 2.0 if above else y + side + 2.0)
 		var step := -1.0 if above else 1.0
 		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, step * 8), tip + Vector2(-7, step * -1.0), tip + Vector2(7, step * -1.0)]), Color("ffd35b"))
+
+## The drawn number, big, floating over Rotorick so the result can't be missed.
+func _draw_reel_badge() -> void:
+	if reel_hold:
+		return
+	for enemy in model.enemies:
+		if enemy.type != "slot" or enemy.hp <= 0 or int(enemy.get("reel",0)) <= 0:
+			continue
+		var reel_now: int = int(enemy.reel)
+		var colour: Color = REEL_COLORS.get(reel_now, CasinoFx.GOLD)
+		var size := Vector2(150, 60)
+		var at := BOARD + Vector2(enemy.cell) * TILE + Vector2(TILE - size.x / 2.0, -size.y - 30.0)
+		# Keep clear of the mini slot badge above the numbered blocks.
+		if not model.mini_zones.is_empty() and enemy.cell.y == model.mini_zones[0][0].y:
+			at.y -= 54.0
+		var rect := Rect2(at, size)
+		draw_rect(rect, Color(0.05, 0.02, 0.07, 0.94))
+		var pulse := 0.7 + 0.3 * sin(clock * 6.0)
+		draw_rect(rect, Color(colour, pulse), false, 4)
+		draw_rect(rect.grow(4), Color(colour, 0.25 * pulse), false, 2)
+		_text(rect.position + Vector2(14, 46), str(reel_now), 48, colour)
+		_text(rect.position + Vector2(50, 38), REEL_SHORT.get(reel_now, ""), 20, Color("f1e9d8"))
+		return
 
 func _mini_zone_of(cell: Vector2i) -> int:
 	for k in model.mini_zones.size():
