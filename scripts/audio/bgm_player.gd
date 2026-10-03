@@ -6,7 +6,7 @@ const BATTLE = preload("res://assets/audio/bgm/battle_loop.ogg")
 const BOSS = preload("res://assets/audio/bgm/boss_loop.ogg")
 ## The storm shark's song. The fight starts 46 s in: seven seconds of the shark lurking under the
 ## water, then the drop at 53 s is its entrance. The loop afterwards starts at that drop.
-const SHARK = preload("res://assets/audio/bgm/storm_shark.mp3")
+const SHARK = preload("res://assets/audio/bgm/storm_shark.ogg")
 const SHARK_START := 46.0
 const SHARK_DROP := 53.0
 ## Between fights: the draft (picks and rewards) and the camp.
@@ -51,7 +51,7 @@ var duck_tween: Tween
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
 	add_child(player)
-	var shark_song: AudioStreamMP3 = SHARK
+	var shark_song: AudioStreamOggVorbis = SHARK
 	shark_song.loop = true
 	shark_song.loop_offset = SHARK_DROP
 	rotorick.stream_count = LAYER_ORDER.size()
