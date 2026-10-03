@@ -3276,9 +3276,8 @@ func _knock_home(enemy: Dictionary) -> void:
 	enemy.cell = _nearest_free(enemy.get("home", boss_from), big, true)
 	player.cell = Vector2i(-99, -99)
 	player.cell = _nearest_free(player_home, 1, false)
-	for pair in [[boss_from, enemy.cell], [player_from, player.cell]]:
-		events.append({"kind":"warp", "cell":pair[0], "id":-2})
-		events.append({"kind":"warp", "cell":pair[1], "id":-2})
+	events.append({"kind":"knock_home", "cell":boss_from, "to":enemy.cell, "id":enemy.id, "big":true})
+	events.append({"kind":"knock_home", "cell":player_from, "to":player.cell, "id":-1, "big":false})
 	add_log("ロトリックとあなたは開始位置まで弾き戻された")
 
 func _nearest_free(origin: Vector2i, size: int, is_boss: bool) -> Vector2i:

@@ -767,6 +767,10 @@ func _sync_units(animate: bool) -> void:
 			last_circle = event
 			hold_dead_until = clock + MagicCircleFx.BURST
 			get_tree().create_timer(MagicCircleFx.BURST + 0.05).timeout.connect(func(): _sync_units(false))
+	var flung := {}
+	for event in model.events:
+		if event.kind == "knock_home":
+			flung[int(event.id)] = true
 	var living: Array[int] = [-1]
 	var units: Array = [model.player]+model.enemies+model.allies
 	if move_tween and move_tween.is_valid():
@@ -819,7 +823,11 @@ func _sync_units(animate: bool) -> void:
 		view.hop_height = 0.0
 		if animate:
 			var jumping := false
-			move_tween.tween_property(view,"position",target,0.18 if jumping else 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			if flung.has(id):
+				# Blown back to the starting place: a long, fast slide that eases to a stop.
+				move_tween.tween_property(view,"position",target,0.5).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+			else:
+				move_tween.tween_property(view,"position",target,0.18 if jumping else 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			if jumping:
 				move_tween.tween_method(func(t: float): view.hop_height = sin(t*PI)*18.0,0.0,1.0,0.18)
 		else:
@@ -880,6 +888,9 @@ func _feedback(weapon_attack: bool = false) -> void:
 			continue
 		if event.kind == "dive" and actors.has(int(event.id)):
 			actors[int(event.id)].play_pose("dive")
+		elif event.kind == "knock_home":
+			chain_shake = 0.5
+			chain_shake_power = 14.0
 		elif event.kind == "cross_strike":
 			chain_shake = 0.4
 			chain_shake_power = 10.0
@@ -3083,7 +3094,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -3277,6 +3288,25 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			draw_line(pos + Vector2(r, -r), pos + Vector2(-r, r), Color("c7a8ff", fade), 3)
 		"warp":
 			draw_arc(pos, 12 + t * 22, 0, TAU, 24, Color(CYAN, fade), 4, true)
+		"knock_home":
+			# Blown back: speed lines streak from where it stood to where it lands, then an impact star.
+			var half_span := Vector2.ONE * TILE / 2.0 * (1.0 if effect.get("big", false) else 0.0)
+			var from_at := pos + half_span
+			var to_at := _center(effect.to) + half_span
+			var along := (to_at - from_at)
+			var heading := along.normalized() if along.length() > 1.0 else Vector2.RIGHT
+			var side := Vector2(-heading.y, heading.x)
+			var head := from_at.lerp(to_at, ease(minf(t * 2.5, 1.0), 0.3))
+			for k in range(5):
+				var lane := side * (k - 2) * (16.0 if effect.get("big", false) else 10.0)
+				draw_line(head + lane - heading * 90.0, head + lane, Color(1, 1, 1, fade * 0.8), 3)
+				draw_line(from_at + lane, head + lane, Color(0.6, 0.85, 1.0, fade * 0.45), 2)
+			if t > 0.25:
+				var burst := (t - 0.25) / 0.75
+				for k in range(10):
+					var ray := Vector2.from_angle(k * TAU / 10 + 0.15) * (10 + burst * 34) * (1.0 if k % 2 == 0 else 0.6)
+					draw_line(to_at + ray * 0.4, to_at + ray, Color(1, 0.9, 0.5, fade), 4)
+				draw_arc(to_at, 12 + burst * 36, 0, TAU, 24, Color(1, 1, 1, fade * 0.8), 3, true)
 		"windup":
 			# A glutton gathering itself before it bites the player.
 			for k in range(2):
