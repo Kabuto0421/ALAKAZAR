@@ -439,6 +439,7 @@ func _new_fairies() -> void:
 	verify(m.slash_cells(Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,1)) and m.slash_cells(Vector2i(2,2),Vector2i.RIGHT).has(Vector2i(2,3)),"...and it keeps the plain slash's tiles above and below")
 	m.fairy_plus["slash_fairy"] = 1
 	verify(m.is_directional("slash_fairy") and m.item_definition("flying_slash") == null,"斬撃精霊+ asks for a direction; the flying slash is no longer a fairy of its own")
+	verify(m.fairy_uses("slash_fairy", 0) == m.fairy_uses("slash_fairy", 1),"Classing up the slash spirit adds no extra use (still one)")
 
 func _threats_and_weapons() -> void:
 	# "!" marks: only enemies that would really hit a player who stays put.
