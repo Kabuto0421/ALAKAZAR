@@ -873,14 +873,18 @@ func _rotorick() -> void:
 	verify(m.player.hp == 5,"The knockback itself deals no damage")
 	verify(m.events.any(func(e: Dictionary) -> bool: return e.kind == "knock_home"),"The knockback has its own event")
 	verify(boss.get("knocked_home", false),"The knockback happens only once")
-	verify(m.mini_zones.size() == 3 and m.mini_zones.all(func(z: Array) -> bool: return z.size() % 2 == 0 and z.size() >= 4),"Three numbered blocks, two tiles tall, are written on the floor")
-	var covered := 0
-	for zone in m.mini_zones:
-		covered += zone.size()
-	verify(covered == m.board_size * 2,"Together the blocks fill the whole two-tall row")
+	verify(m.mini_zones.size() == 3 and m.mini_zones.all(func(z: Array) -> bool: return z.size() == m.board_size * 2),"Three numbered strips, each two tiles by the full board, are written on the floor")
 	var sideways: bool = int(boss.facing) in [1, 3]
-	var band_at: int = m.mini_zones[0][0].y if sideways else m.mini_zones[0][0].x
-	verify(m.mini_zones.all(func(z: Array) -> bool: return z.all(func(c: Vector2i) -> bool: return (c.y if sideways else c.x) in [band_at, band_at + 1])),"The blocks sit in Rotorick's own two-wide lane (x*2 sideways, 2*x up or down)")
+	var across_ok := true
+	for zone in m.mini_zones:
+		var xs := {}
+		var ys := {}
+		for c in zone:
+			xs[c.x] = true
+			ys[c.y] = true
+		if (sideways and not (xs.size() == 2 and ys.size() == m.board_size)) or (not sideways and not (ys.size() == 2 and xs.size() == m.board_size)):
+			across_ok = false
+	verify(across_ok,"Charging sideways the strips stand upright (2 wide, 8 tall); charging up or down they lie flat (8 wide, 2 tall)")
 	verify(int(boss.mini) >= 1 and int(boss.mini) <= 3,"The mini slot picks one block")
 	verify(m.mini_zones[int(boss.mini) - 1].all(func(c: Vector2i) -> bool: return m.floor_cells.has(c)),"The picked block is marked to burn")
 	# It burns at the start of the next enemy turn.
@@ -894,7 +898,7 @@ func _rotorick() -> void:
 	boss.facing = 0
 	boss.cell = Vector2i(2,3)
 	m._lay_mini_zones(boss)
-	verify(m.mini_zones.all(func(z: Array) -> bool: return z.all(func(c: Vector2i) -> bool: return c.x in [2,3])) and m.mini_zones[0].size() == 6,"Facing up or down the blocks stand in Rotorick's two columns")
+	verify(m.mini_zones[0].all(func(c: Vector2i) -> bool: return c.y in [0,1]) and m.mini_zones[1].all(func(c: Vector2i) -> bool: return c.y in [3,4]) and m.mini_zones[2].all(func(c: Vector2i) -> bool: return c.y in [6,7]),"Facing up or down the strips lie flat at the top, middle and bottom")
 	# Above HP 3 there is no mini slot.
 	m = _slot_room()
 	boss = _slot_ready(m, 4)

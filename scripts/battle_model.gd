@@ -3301,23 +3301,20 @@ func boss_covers(cell: Vector2i) -> bool:
 			return true
 	return false
 
-## Writes "1" "2" "3" on three blocks that fill Rotorick's own two-wide lane: wide-and-two-tall
-## (x*2) when it is braced to charge sideways, two-wide-and-tall (2*x) when it charges up or down
-## (3 + 2 + 3 along the lane on the 8x8 board), so it can run down the whole line.
+## Writes "1" "2" "3" on three strips of floor across the lane Rotorick is braced to charge down:
+## when it charges sideways each strip is 2 wide and the full board tall (2 x 8), when it charges
+## up or down each is the full board wide and 2 tall (8 x 2). The strips stand on the left,
+## middle and right (or top, middle and bottom) of the board, with a safe gap between them.
 func _lay_mini_zones(enemy: Dictionary) -> void:
 	mini_zones.clear()
 	var sideways: bool = int(enemy.get("facing", 3)) in [1, 3]
-	var unit: int = board_size * 3 / 8
-	var lengths: Array = [unit, board_size - 2 * unit, unit]
-	var band: int = clampi(enemy.cell.y if sideways else enemy.cell.x, 0, board_size - 2)
-	var run := 0
-	for length in lengths:
+	var starts: Array = [0, (board_size - 2) / 2, board_size - 2]
+	for start in starts:
 		var block: Array = []
 		for across in range(2):
-			for along in range(length):
-				block.append(Vector2i(run + along, band + across) if sideways else Vector2i(band + across, run + along))
+			for along in range(board_size):
+				block.append(Vector2i(start + across, along) if sideways else Vector2i(along, start + across))
 		mini_zones.append(block)
-		run += length
 
 ## At HP 3 or less the mini slot (1-3) names the numbered block that burns at the start of the next enemy turn.
 func _spin_mini_slot(enemy: Dictionary) -> void:
