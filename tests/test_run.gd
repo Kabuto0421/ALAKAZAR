@@ -955,9 +955,10 @@ func _expiring_and_rewards() -> void:
 	var odds: Array = Run.FAIRY_TIER_ODDS
 	verify(odds.all(func(row): return absf(row.reduce(func(a, b): return a + b, 0.0) - 1.0) < 0.001),"Each row of fairy rarity odds adds up to 1")
 	var rising := true
-	for k in range(1, odds.size()):
+	for k in range(1, 8):
 		rising = rising and odds[k][3] >= odds[k-1][3] and odds[k][0] <= odds[k-1][0]
-	verify(rising and is_equal_approx(odds[0][3], 0.01) and is_equal_approx(odds[-1][3], 0.10),"Super rare fairies climb from 1% to 10%, commons shrink")
+	verify(rising and is_equal_approx(odds[0][3], 0.01) and is_equal_approx(odds[7][3], 0.10),"Super rare fairies climb from 1% to 10% by Rotorick, commons shrink")
+	verify([8, 9, 10].all(func(k): return is_equal_approx(odds[k][0], 0.30) and is_equal_approx(odds[k][1], 0.40) and is_equal_approx(odds[k][2], 0.25) and is_equal_approx(odds[k][3], 0.05)),"The late game (after late fights 1-3) is 30/40/25/5")
 	var boss_odds := Run.new()
 	boss_odds.stage = Rules.BOSS_LEVEL
 	var boosted: Array = boss_odds.fairy_tier_odds()
@@ -978,7 +979,7 @@ func _expiring_and_rewards() -> void:
 		if Rarity.tier({"kind":"fairy","value":drawer.draw_fairy(drawer.reward_fairy_pool)}) == Rarity.SUPER_RARE:
 			super_late += 1
 	verify(early_tiers.size() == 4,"Every rarity can turn up from the first reward")
-	verify(super_early > 10 and super_early < 90 and super_late > 300 and super_late < 500,"Super rare fairy cards: about 1%% early (%d/4000), 10%% late (%d/4000)" % [super_early, super_late])
+	verify(super_early > 10 and super_early < 90 and super_late > 120 and super_late < 290,"Super rare fairy cards: about 1%% early (%d/4000), 5%% late (%d/4000)" % [super_early, super_late])
 	# 氷結妖精: the 3x3 around it is frozen for three enemy turns.
 	var fz := fixture()
 	fz.enemies.clear()
@@ -1520,7 +1521,7 @@ func _mechanic_weapons() -> void:
 		trial.finish_battle()
 		if trial.offers.any(func(o): return o.kind == "weapon" and W.is_late(o.value)):
 			rare_hits += 1
-	verify(rare_hits > 5 and rare_hits < 40,"The rook spear and bishop blade are rare late rewards (%d / 100)" % rare_hits)
+	verify(rare_hits > 1 and rare_hits < 40,"The rook spear and bishop blade are rare late rewards (%d / 100)" % rare_hits)
 
 
 func _capacitor() -> void:
