@@ -62,6 +62,7 @@ const DATA = [
 	{"id":"corner_dl", "name":"左下隅剣", "short":"左下隅", "row":2, "color":"b0ff9a", "detail":"左下・左・下の3マス", "offsets":[Vector2i(-1,1),Vector2i(-1,0),Vector2i(0,1)]},
 	{"id":"fork_up", "name":"上叉剣", "short":"上叉", "row":2, "color":"c8a0ff", "detail":"左上・右上・右の3マス", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(1,0)]},
 	{"id":"fork_down", "name":"下叉剣", "short":"下叉", "row":2, "color":"a0f0e0", "detail":"左下・右下・右の3マス", "offsets":[Vector2i(-1,1),Vector2i(1,1),Vector2i(1,0)]},
+	{"id":"lower", "name":"下弦剣", "short":"下弦", "row":2, "color":"90ffcf", "detail":"左下・下・右下", "offsets":[Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
 ]
 ## Stages whose rewards (and the opening pick) only offer early weapons:
 ## one tile, or two tiles when every tile is a jump.
