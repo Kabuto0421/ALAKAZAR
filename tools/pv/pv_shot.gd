@@ -25,7 +25,9 @@ func _init() -> void:
 	quit()
 
 func _run(shot: String) -> void:
-	if has_method("shot_" + shot):
+	if shot.begins_with("art_p_"):
+		await portrait(shot.substr(6))
+	elif has_method("shot_" + shot):
 		await call("shot_" + shot)
 	else:
 		push_error("no such shot: " + shot)
@@ -100,6 +102,11 @@ func uncover() -> void:
 
 ## Replace the enemies: [[type, cell, hp?], ...] and the player's cell.
 func arrange(player_cell: Vector2i, foes: Array) -> void:
+	# The old enemies' pictures go too (they are keyed by id, and the new ones reuse the ids).
+	for id in bv.actors.keys():
+		if int(id) >= 0:
+			bv.actors[id].queue_free()
+			bv.actors.erase(id)
 	m.enemies.clear()
 	m.obstacles.clear()
 	var id := 0
@@ -548,3 +555,184 @@ func shot_title_fusion() -> void:
 		line3.modulate.a = smooth((t - 55.4) / 0.6)
 		fade.modulate.a = 0.0 if t < 57.2 else smooth((t - 57.2) / 1.2)
 		await process_frame
+
+# ---- portraits (one character, filling the screen, 1.3 s) --------------------------------
+
+const NAMES := {"fortress": "要塞監獄", "prison": "移動監獄", "king": "監獄の王", "rook": "突進くん", "rotorick": "ロトリック", "shark": "嵐鮫",
+	"jester": "道化兵", "dragon": "竜装兵", "cross": "バッテン兵", "shield": "盾兵", "exec": "執行兵", "archer": "弓兵",
+	"javelin": "投げ槍兵", "analyst": "解析兵", "police": "歩兵", "cavalry": "跳躍騎兵", "hero": "冒険者"}
+const TINTS := {"fortress": Color(0.55, 0.12, 0.14), "prison": Color(0.2, 0.25, 0.5), "king": Color(0.5, 0.05, 0.1), "rook": Color(0.5, 0.2, 0.1),
+	"rotorick": Color(0.5, 0.1, 0.4), "shark": Color(0.08, 0.35, 0.5), "jester": Color(0.5, 0.1, 0.35), "dragon": Color(0.08, 0.4, 0.5),
+	"cross": Color(0.5, 0.25, 0.08), "shield": Color(0.15, 0.4, 0.4), "exec": Color(0.45, 0.2, 0.1), "archer": Color(0.2, 0.45, 0.2),
+	"javelin": Color(0.5, 0.2, 0.25), "analyst": Color(0.15, 0.45, 0.35), "police": Color(0.3, 0.35, 0.4), "cavalry": Color(0.4, 0.3, 0.15), "hero": Color(0.1, 0.45, 0.3)}
+
+func portrait(id: String) -> void:
+	new_stage()
+	var bg := sprite(TITLE_DIR + "layer_00_background.png", Vector2.ZERO, 1.0, false)
+	var tint: Color = TINTS.get(id, Color(0.3, 0.3, 0.4))
+	bg.modulate = tint.lerp(Color(0.12, 0.12, 0.16), 0.55)
+	var path := "res://assets/title/units/%s_%s.png" % ["heroes" if id == "hero" else "enemies", id]
+	var unit := Sprite2D.new()
+	unit.texture = load(path)
+	unit.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	unit.centered = true
+	root.add_child(unit)
+	var rain := add_rain(0.9)
+	var size: Vector2 = unit.texture.get_size()
+	var fit: float = minf(780.0 / size.y, 1500.0 / size.x)
+	var name_label := label(NAMES.get(id, id), 84, Color.WHITE, Vector2(0, 880))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	for f in 40:
+		var grow := 1.0 + 0.28 * pow(1.0 - clampf(f / 6.0, 0.0, 1.0), 2.0) + 0.0012 * f
+		unit.scale = Vector2.ONE * fit * grow
+		unit.position = Vector2(864, 440) + Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1)) * maxf(0.0, 9.0 - f * 1.8)
+		cam(Vector2(1000, 600), 1.0)
+		bg.modulate = tint.lerp(Color(0.12, 0.12, 0.16), 0.55) * (1.0 + 0.6 * maxf(0.0, 1.0 - f / 5.0))
+		flash(maxf(0.0, 0.85 - f / 3.5))
+		rain.f = f
+		rain.queue_redraw()
+		await process_frame
+
+# ---- fighting the way a player does ---------------------------------------------------
+
+func enemy_distance(cell: Vector2i) -> int:
+	var best := 99
+	for e in m.enemies:
+		best = mini(best, m.footprint_distance(e, cell))
+	return best
+
+## One sensible action: strike the weakest enemy in reach (changing weapon if another one reaches),
+## otherwise step towards the nearest enemy. Returns false when nothing can be done.
+func auto_step() -> bool:
+	if m.player.ap <= 0 or m.terminal():
+		return false
+	var order: Array = m.owned_weapons.duplicate()
+	order.erase(m.weapon)
+	order.push_front(m.weapon)
+	var chosen := -1
+	var target := Vector2i(-1, -1)
+	for w in order:
+		if m.locked_slot >= 0:
+			continue
+		var saved: int = m.weapon
+		m.weapon = w
+		var hits: Array = m.targets().filter(func(c): return not m.enemy_at(c).is_empty() and not m.is_circle(w))
+		m.weapon = saved
+		if not hits.is_empty():
+			hits.sort_custom(func(a, b): return m.enemy_at(a).hp < m.enemy_at(b).hp)
+			chosen = w
+			target = hits[0]
+			break
+	if chosen < 0:
+		var best_d := 99
+		for w in order:
+			var saved: int = m.weapon
+			m.weapon = w
+			for c in m.targets():
+				if m.mines.has(c) or not m.enemy_at(c).is_empty():
+					continue
+				var d := enemy_distance(c)
+				if d < best_d:
+					best_d = d
+					chosen = w
+					target = c
+			m.weapon = saved
+	if chosen < 0:
+		return false
+	if chosen != m.weapon:
+		bv._equip(m.owned_weapons.find(chosen))
+		await frames(4)
+	await click(target)
+	await seconds(0.3)
+	return true
+
+func play_turn(actions: int = 2) -> void:
+	for i in actions:
+		if not await auto_step():
+			break
+	await seconds(0.3)
+	await end_turn()
+	await seconds(0.3)
+
+## The plainest weapons, moving and fighting on a small board.
+func shot_basic() -> void:
+	await boot(1, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy"])
+	arrange(Vector2i(0, 3), [["recruit", Vector2i(3, 1)], ["infantry", Vector2i(4, 2)], ["recruit", Vector2i(3, 5)], ["recruit", Vector2i(5, 4)]])
+	await seconds(0.8)
+	for turn in 6:
+		await play_turn()
+		if m.terminal() or m.enemies.is_empty():
+			break
+	await seconds(1.0)
+
+## A rook-spear magic circle: closing the ring deals 99 to everything inside.
+func shot_circle() -> void:
+	await boot(9, ["rook_spear", "forward", "hammer"], ["magic_bolt", "wall_fairy"])
+	m.enchants[m.owned_weapons[0]] = "circle"
+	m.weapon = m.owned_weapons[0]
+	var foes := [["heavy", Vector2i(2, 2), 3], ["executioner", Vector2i(4, 2), 3], ["gold", Vector2i(3, 3), 3], ["horse", Vector2i(2, 4), 3], ["silver", Vector2i(4, 4), 3], ["javelin", Vector2i(6, 6)], ["archer", Vector2i(6, 0)]]
+	arrange(Vector2i(2, 5), foes)
+	for x in range(1, 6):
+		m.circle_tiles.append(Vector2i(x, 1))
+	for y in range(2, 6):
+		m.circle_tiles.append(Vector2i(5, y))
+	for x in range(3, 5):
+		m.circle_tiles.append(Vector2i(x, 5))
+	bv._sync_units(false)
+	bv.queue_redraw()
+	await seconds(1.4)
+	await click(Vector2i(1, 5))
+	await seconds(0.9)
+	await click(Vector2i(1, 1))
+	await seconds(2.2)
+
+## Fairies, one after another on a pack of enemies.
+func shot_fairies() -> void:
+	await boot(9, ["forward", "front_diagonal", "vertical"], ["freeze_fairy", "gravity_fairy", "slash_fairy"])
+	var showcase := [["freeze_fairy", "gravity_fairy", "slash_fairy"], ["time_fairy", "firework_fairy", "axe_spirit"], ["abyss_spirit", "glutton_fairy", "lone_wolf"], ["cat_fairy", "warp_fairy", "acorn_fairy"]]
+	for group in showcase:
+		m.fairy_loadout.assign(group)
+		m.refill_fairies()
+		for id in group:
+			arrange(Vector2i(0, 3), [["heavy", Vector2i(3, 2), 3], ["executioner", Vector2i(3, 4), 3], ["gold", Vector2i(4, 3), 3], ["horse", Vector2i(5, 1), 3], ["silver", Vector2i(5, 5), 3], ["javelin", Vector2i(6, 3)]])
+			m.player.ap = 2
+			bv._update_controls()
+			await seconds(0.5)
+			await fairy_auto(id)
+			await seconds(1.3)
+
+func fairy_auto(id: String) -> void:
+	var cells: Array = m.item_targets(id)
+	if cells.is_empty():
+		print("PV no target for ", id)
+		return
+	var center := Vector2.ZERO
+	for e in m.enemies:
+		center += Vector2(e.cell)
+	center /= maxf(1.0, m.enemies.size())
+	cells.sort_custom(func(a, b): return Vector2(a).distance_to(center) < Vector2(b).distance_to(center))
+	var cell: Vector2i = cells[0]
+	var direction := Vector2i.ZERO
+	if m.is_directional(id):
+		var toward := center - Vector2(cell)
+		direction = Vector2i(signi(int(toward.x)), 0) if absf(toward.x) >= absf(toward.y) else Vector2i(0, signi(int(toward.y)))
+		if direction == Vector2i.ZERO:
+			direction = Vector2i.RIGHT
+	bv._select_item(id)
+	await frames(2)
+	bv._item_act(cell)
+	await frames(2)
+	if direction != Vector2i.ZERO:
+		bv._item_act(cell + direction)
+		await frames(2)
+	await idle()
+
+## The last late fight: the jester wakes, the dragon soldier fires, the fortress keeps sending.
+func shot_late4() -> void:
+	await boot(11, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy", "stealth_fairy"])
+	await seconds(1.0)
+	for turn in 5:
+		await play_turn()
+		if m.terminal():
+			break
