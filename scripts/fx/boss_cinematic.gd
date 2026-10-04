@@ -104,7 +104,7 @@ func _draw_rage() -> void:
 	if words > 0.0:
 		_text(Vector2(360, 330), "監獄の王が", 36, Color(1, 0.9, 0.9, words), Color(0, 0, 0, words))
 		_text(Vector2(360, 390), "怒り狂った", 60, Color(RED, words), Color(0, 0, 0, words))
-		_text(Vector2(360, 450), "要塞監獄が兵を2体ずつ送り出す", 20, Color(1, 0.8, 0.8, words), Color(0, 0, 0, words))
+		_text(Vector2(360, 450), "要塞監獄を壊すまで、王は無敵", 20, Color(1, 0.8, 0.8, words), Color(0, 0, 0, words))
 
 func _draw_fall() -> void:
 	# Bursts of light tearing out of the king, then a white-out.

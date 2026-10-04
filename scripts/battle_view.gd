@@ -2873,7 +2873,7 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	if enemy.type in ["prison", "shadow", "storm_shark"]:
 		_draw_big_range(enemy)
 		return
-	_text(Vector2(852,217),"移動・攻撃範囲",21,INK)
+	_text(Vector2(852,217),"兵を出す場所" if enemy.type in ["king", "fortress"] else "移動・攻撃範囲",21,INK)
 	_draw_range(model.enemy_offsets(enemy),CYAN,enemy,-1,0,2,false,model.enemy_attack_offsets(enemy))
 	if enemy.type == "shield":
 		# The shield sits on the left side of the soldier.
@@ -2887,16 +2887,16 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	elif enemy.type == "shield":
 		_text(Vector2(852,450),"真左からの攻撃は盾で防ぐ",18,Color("a9c4d2"))
 	elif enemy.type == "king":
-		if enemy.hp <= Rules.KING_RAGE_HP:
-			_text(Vector2(852,546),"怒り：要塞を壊すまで障壁で無敵",19,Color("ff6b6b"))
 		if model.king_shielded(enemy):
-			_text(Vector2(852,500),"要塞が残っているあいだは無敵（あと%d基）" % enemy.barrier_cells.size(),18,Color("ff9a9a"))
+			_wrapped(Vector2(852,508),"怒り：要塞を壊すまで無敵（あと%d基）" % enemy.barrier_cells.size(),18,Color("ff9a9a"),14)
 		elif enemy.get("barrier_broken", false):
-			_text(Vector2(852,500),"障壁崩壊：攻撃が通る",18,Color("9fe8ff"))
+			_wrapped(Vector2(852,508),"障壁崩壊：攻撃が通る",18,Color("9fe8ff"),14)
+		elif model.king_enraged():
+			_wrapped(Vector2(852,508),"怒り状態",18,Color("ff9a9a"),14)
 		var next := model.next_revival()
-		_text(Vector2(852,450),"次に蘇る：%s（死んだ順）" % Rules.TYPES[next].name if next != "" else "攻撃も移動もしない",18,Color("ff6b8a"))
+		_wrapped(Vector2(852,446),"次に蘇る：%s（2ターンに1体）" % Rules.TYPES[next].name if next != "" else "動かない。倒れた兵を蘇らせる",18,Color("ff6b8a"),14)
 	elif enemy.type == "fortress":
-		_text(Vector2(852,450),"毎ターン兵を1体出す。壊すと王の障壁が弱まる" if model.king_enraged() else "毎ターン兵を1体出す",18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"))
+		_wrapped(Vector2(852,450),"毎ターン兵を1体出す。全部壊すと障壁が消える" if model.king_enraged() else "毎ターン兵を1体出す",18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"),14)
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
@@ -2908,7 +2908,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_text(Vector2(852,546),"凍結中：あと%dターン動けない" % int(enemy.frozen),19,Color("9fe4ff"))
 	elif model.time_stopped():
 		_text(Vector2(852,546),"時間停止：次の敵ターンは動けない",19,TIME_GOLD)
-	_draw_threat(enemy,489)
+	if enemy.type not in ["king", "fortress"]:
+		_draw_threat(enemy,489)  # they never strike
 	# What it is up to right now, under the warning.
 	if enemy.type == "miner":
 		_text(Vector2(852,520),"飛行・地雷を踏まない",19,MUTED)
