@@ -329,6 +329,7 @@ func _initialize() -> void:
 	_cross_daggers()
 	_holy_detours()
 	_miner_spares_allies()
+	_walkers_get_round_walls()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2144,6 +2145,53 @@ func _holy_detours() -> void:
 		if guardian.cell.y > 4:
 			break
 	verify(guardian.cell.y > 4, "The guardian goes round a wall to reach the enemy behind it (got to %s)" % [guardian.cell])
+
+## Soldiers that walk toward the player get round a wall instead of pacing against it.
+func _walkers_get_round_walls() -> void:
+	for kind in ["recruit", "infantry", "heavy", "cavalry", "horse", "javelin", "executioner", "shield", "analyst", "silver", "gold", "prison"]:
+		var m := Rules.new()
+		m.reset(Rules.LATE_LEVELS[0])
+		m.phase = Rules.Phase.PLAYER
+		m.enemies.clear()
+		m.obstacles.clear()
+		m.player.hp = 99
+		var side := m.board_size
+		for x in side - 2:
+			m.obstacles.append(Vector2i(x, 4))
+		m.player.cell = Vector2i(0, side - 1)
+		var walker: Dictionary = m.make_enemy(kind, Vector2i(0, 1), 0)
+		m.enemies.append(walker)
+		var crossed := false
+		for turn in 40:
+			_enemy_turn(m)
+			if m.terminal() or walker.hp <= 0:
+				break
+			if walker.cell.y > 4:
+				crossed = true
+				break
+		verify(crossed or m.terminal(), "%s gets round a wall to reach the player (stopped at %s)" % [kind, walker.cell])
+	# A cup open at the top: nobody stays inside it.
+	for kind in ["infantry", "cavalry", "javelin", "prison"]:
+		var m := Rules.new()
+		m.reset(Rules.LATE_LEVELS[0])
+		m.phase = Rules.Phase.PLAYER
+		m.enemies.clear()
+		m.obstacles.clear()
+		m.player.hp = 99
+		for cell in [Vector2i(2,2), Vector2i(2,3), Vector2i(2,4), Vector2i(3,4), Vector2i(4,4), Vector2i(4,3), Vector2i(4,2)]:
+			m.obstacles.append(cell)
+		m.player.cell = Vector2i(3, 6)
+		var walker: Dictionary = m.make_enemy(kind, Vector2i(3, 2), 0)
+		m.enemies.append(walker)
+		var out := false
+		for turn in 30:
+			_enemy_turn(m)
+			if m.terminal() or walker.hp <= 0:
+				break
+			if walker.cell.y >= 5 or not walker.cell.x in [3]:
+				out = true
+				break
+		verify(out or m.terminal(), "%s climbs out of a dead-end pocket (stopped at %s)" % [kind, walker.cell])
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:

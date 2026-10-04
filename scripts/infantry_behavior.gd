@@ -4,6 +4,7 @@ const APPROACH = "approach"
 const ENCIRCLE = "encircle"
 const CHARGE = "charge"
 const DIRECTIONS = [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN]
+const HeavyBehavior = preload("res://scripts/heavy_behavior.gd")
 
 # Decisions are read-only. The planner applies state requests and the model
 # resolves movement, AP, damage and mines.
@@ -19,6 +20,18 @@ func decide(model: RefCounted, enemy: Dictionary, staging: Dictionary) -> Dictio
 		var cell: Vector2i = enemy.cell + direction
 		if model.inside(cell) and not model.enemy_blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty() and model.distance(cell, model.player.cell) < distance:
 			options.append(cell)
+	# A wall between them makes some "nearer" steps a dead end: keep only the steps that also shorten the
+	# real walk, and when none do, walk the shortest way round.
+	var way := HeavyBehavior.new()
+	var here: int = way.walk_length(model, enemy.cell, model.player.cell)
+	if here >= 0:
+		options = options.filter(func(cell: Vector2i) -> bool:
+			var after: int = way.walk_length(model, cell, model.player.cell)
+			return after >= 0 and after < here)
+		if options.is_empty():
+			var detour: Dictionary = way.decide(model, enemy)
+			if detour.kind == "step" and detour.cell != model.player.cell:
+				return detour
 	var target: Vector2i = staging.get(enemy.id, enemy.cell)
 	# Safe progress takes precedence over staging assignments and crowding.
 	# Announced charges may still enter weapon range to reach the player.

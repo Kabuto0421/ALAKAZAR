@@ -259,20 +259,26 @@ func _cavalry_action(model: RefCounted, enemy: Dictionary) -> void:
 	if model.enemy_offsets(enemy).has(model.player.cell-enemy.cell):
 		model.enemy_step(enemy,model.player.cell)
 		return
+	var moves: Array = model.enemy_offsets(enemy)
+	var goal := func(cell: Vector2i) -> bool: return moves.has(model.player.cell - cell)
 	var distance: int = model.distance(enemy.cell,model.player.cell)
 	var jumps := _cavalry_options(model,enemy,model.cavalry_jumps(enemy.facing))
 	jumps = jumps.filter(func(cell: Vector2i) -> bool: return model.distance(cell,model.player.cell) < distance)
 	jumps.sort_custom(func(a: Vector2i,b: Vector2i) -> bool: return model.distance(a,model.player.cell) < model.distance(b,model.player.cell))
-	if not jumps.is_empty():
+	if not jumps.is_empty() and _makes_progress(model, enemy, jumps[0], moves, goal):
 		model.enemy_step(enemy,jumps[0])
 		return
 	var options := _cavalry_options(model,enemy,DIRECTIONS)
 	options = options.filter(func(cell: Vector2i) -> bool: return model.distance(cell,model.player.cell) < distance)
 	options.sort_custom(func(a: Vector2i,b: Vector2i) -> bool: return model.distance(a,model.player.cell) < model.distance(b,model.player.cell))
-	if not options.is_empty():
+	if not options.is_empty() and _makes_progress(model, enemy, options[0], moves, goal):
 		model.enemy_step(enemy,options[0])
-	else:
-		enemy.ap = 0
+		return
+	# Nothing nearer as the crow flies helps (a wall in the way): take the shortest walk round it.
+	var route := _route(model, enemy, enemy.cell, moves, goal)
+	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
+		return
+	enemy.ap = 0
 
 ## 金将兵・銀将兵: strike when the player sits on one of its move tiles; otherwise take
 ## the first step of the shortest route (over its own moves) to a tile that threatens them.
@@ -311,6 +317,68 @@ func _general_action(model: RefCounted, enemy: Dictionary) -> void:
 		step = best
 	if step == start or not model.enemy_step(enemy, step):
 		enemy.ap = 0
+
+## Shortest walk (over `moves`) from `from_cell` to a tile satisfying `goal`: {"step": first tile to
+## step on, "len": number of moves}; len -1 when none is reachable. Greedy "nearer as the crow flies"
+## steps get stuck against a wall; this is what they are checked against.
+func _route(model: RefCounted, enemy: Dictionary, from_cell: Vector2i, moves: Array, goal: Callable) -> Dictionary:
+	if goal.call(from_cell):
+		return {"step": from_cell, "len": 0}
+	var first := {from_cell: from_cell}
+	var depth := {from_cell: 0}
+	var queue: Array[Vector2i] = [from_cell]
+	var head := 0
+	while head < queue.size():
+		var current: Vector2i = queue[head]
+		head += 1
+		for offset in moves:
+			var next: Vector2i = current + offset
+			if first.has(next) or not model.inside(next) or model.enemy_blocked(next) or next == model.player.cell or model.mines.has(next):
+				continue
+			var other: Dictionary = model.enemy_at(next)
+			if not other.is_empty() and other.id != enemy.id:
+				continue
+			first[next] = next if current == from_cell else first[current]
+			depth[next] = int(depth[current]) + 1
+			if goal.call(next):
+				return {"step": first[next], "len": depth[next]}
+			queue.append(next)
+	return {"step": from_cell, "len": -1}
+
+## Whether stepping to `cell` really shortens the walk to the goal (or the goal cannot be reached at all).
+func _makes_progress(model: RefCounted, enemy: Dictionary, cell: Vector2i, moves: Array, goal: Callable) -> bool:
+	var now := _route(model, enemy, enemy.cell, moves, goal)
+	if int(now.len) < 0:
+		return true
+	var after := _route(model, enemy, cell, moves, goal)
+	return int(after.len) >= 0 and int(after.len) < int(now.len)
+
+## The same for a big (2x2) body sliding a tile at a time: first direction and length of the shortest
+## slide to a spot where the player touches one of its sides.
+func _big_route(model: RefCounted, enemy: Dictionary, from_cell: Vector2i) -> Dictionary:
+	var probe: Dictionary = enemy.duplicate()
+	var first := {from_cell: Vector2i.ZERO}
+	var depth := {from_cell: 0}
+	var queue: Array[Vector2i] = [from_cell]
+	var head := 0
+	while head < queue.size():
+		var cell: Vector2i = queue[head]
+		head += 1
+		probe.cell = cell
+		for side in DIRECTIONS:
+			if model._front_cells(probe, side).has(model.player.cell):
+				return {"dir": first[cell], "len": int(depth[cell])}
+		for direction in DIRECTIONS:
+			probe.cell = cell
+			if not _big_free(model, probe, direction):
+				continue
+			var next: Vector2i = cell + direction
+			if first.has(next):
+				continue
+			first[next] = direction if cell == from_cell else first[cell]
+			depth[next] = int(depth[cell]) + 1
+			queue.append(next)
+	return {"dir": Vector2i.ZERO, "len": -1}
 
 func _move(model: RefCounted, enemy: Dictionary, cell: Vector2i) -> void:
 	model.enemy_step(enemy, cell)
@@ -351,10 +419,14 @@ func _javelin_action(model: RefCounted, enemy: Dictionary) -> void:
 		return best
 	var options := _options(model, enemy).filter(func(cell: Vector2i) -> bool: return not model.mines.has(cell))
 	options.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return score.call(a) < score.call(b))
-	if not options.is_empty() and score.call(options[0]) < score.call(enemy.cell):
+	var goal := func(cell: Vector2i) -> bool: return spots.has(cell)
+	if not options.is_empty() and score.call(options[0]) < score.call(enemy.cell) and _makes_progress(model, enemy, options[0], DIRECTIONS, goal):
 		model.enemy_step(enemy, options[0])
-	else:
-		enemy.ap = 0
+		return
+	var route := _route(model, enemy, enemy.cell, DIRECTIONS, goal)
+	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
+		return
+	enemy.ap = 0
 
 ## Aim (1 AP) when the player is on the lane, shoot with the next AP, otherwise line up vertically.
 func _archer_action(model: RefCounted, enemy: Dictionary) -> void:
@@ -386,6 +458,14 @@ func _prison_action(model: RefCounted, enemy: Dictionary) -> void:
 		if score < best_score and _big_free(model, enemy, direction):
 			best = direction
 			best_score = score
+	# A slide that does not shorten the real way round (a wall in the way) is no progress.
+	var here := _big_route(model, enemy, enemy.cell)
+	if best != Vector2i.ZERO and int(here.len) >= 0:
+		var after := _big_route(model, enemy, enemy.cell + best)
+		if int(after.len) < 0 or int(after.len) >= int(here.len):
+			best = here.dir if int(here.len) > 0 else Vector2i.ZERO
+	elif best == Vector2i.ZERO and int(here.len) > 0:
+		best = here.dir
 	if best == Vector2i.ZERO or not model.big_step(enemy, best):
 		enemy.ap = 0
 
