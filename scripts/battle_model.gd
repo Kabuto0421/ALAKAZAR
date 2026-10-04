@@ -3366,12 +3366,15 @@ func _mark_floor(enemy: Dictionary) -> void:
 func slot_turn(enemy: Dictionary) -> void:
 	if phase != Phase.ENEMY or enemy.hp <= 0:
 		return
-	# A floor marked last turn (reel 4, or the jackpot's) burns first.
-	_burn_floor(enemy)
-	if terminal():
-		return
+	# A floor marked last turn (reel 4, or the jackpot's) burns after this turn's charge; the ground
+	# the charge itself marks waits for the next turn.
+	var burning: Array[Vector2i] = floor_cells.duplicate()
+	floor_cells.clear()
 	# At HP 3 it is blown back to the start once; that turn it only recovers and spins again.
 	if enemy.hp <= MINI_SLOT_HP and not enemy.get("knocked_home", false):
+		_burn_floor(enemy, burning)
+		if terminal():
+			return
 		enemy.knocked_home = true
 		_knock_home(enemy)
 		enemy.ap = 0
@@ -3406,6 +3409,8 @@ func slot_turn(enemy: Dictionary) -> void:
 		_:
 			rook_charge(enemy)
 	shadow_strike()
+	if not terminal():
+		_burn_floor(enemy, burning, BURN_AFTER_CHARGE)
 	if not terminal() and enemy.hp > 0:
 		if enemy.state != "brace":
 			rook_brace(enemy)
@@ -3494,11 +3499,17 @@ func _add_swept(result: Array[Vector2i], from: Vector2i, to: Vector2i, size: int
 				if inside(cell) and not result.has(cell):
 					result.append(cell)
 
-func _burn_floor(enemy: Dictionary) -> void:
-	if floor_cells.is_empty():
+## How long the floor waits to flash after Rotorick's charge starts (it burns once the charge is over).
+const BURN_AFTER_CHARGE := 0.7
+
+func _burn_floor(enemy: Dictionary, cells: Array[Vector2i], delay: float = 0.0) -> void:
+	if cells.is_empty():
 		return
-	for cell in floor_cells:
-		events.append({"kind":"burn", "cell":cell, "id":-2})
+	for cell in cells:
+		var flash := {"kind":"burn", "cell":cell, "id":-2}
+		if delay > 0.0:
+			flash.delay = delay
+		events.append(flash)
 		if player.cell == cell:
 			_hit_player(enemy)
 		var other := enemy_at(cell)
@@ -3509,7 +3520,6 @@ func _burn_floor(enemy: Dictionary) -> void:
 			ally.hp -= 1
 			events.append({"kind":"hit", "cell":cell, "id":ally.id})
 	add_log("刑場の床が焼けた")
-	floor_cells.clear()
 	check_outcome()
 
 ## Reel 6: Rotorick leaves a purple hologram of itself where it stood.

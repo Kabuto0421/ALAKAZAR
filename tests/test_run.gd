@@ -830,6 +830,20 @@ func _rotorick() -> void:
 	_enemy_turn(m)
 	verify(m.player.hp <= 4 and m.allies.is_empty(),"Reel 4 burns everyone on the checker, player and allies")
 	verify(boss.hp == 7,"Rotorick is not hurt by its own floor")
+	# Order: the charge comes first, then last turn's marked floor burns.
+	m = _slot_room()
+	boss = _slot_ready(m, 1)
+	m.floor_cells.clear()
+	m.floor_cells.append(Vector2i(5, 0))
+	m.player.cell = Vector2i(0, 5)
+	var order := Planner.new()
+	order.begin(m)
+	var kinds: Array = []
+	for beat in range(2):
+		order.beat(m, beat)
+		for e in m.events:
+			kinds.append(e.kind)
+	verify(kinds.has("charge_end") and kinds.has("burn") and kinds.find("charge_end") < kinds.find("burn"),"Rotorick charges first and the marked floor burns after it (%s)" % [kinds])
 	# 5: jammed, no charge, no self damage.
 	m = _slot_room()
 	boss = _slot_ready(m, 5)
