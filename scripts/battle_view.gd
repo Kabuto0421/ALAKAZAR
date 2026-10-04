@@ -259,7 +259,11 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 	model.reset(level,keep_inventory)
 	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else ("shark" if model.boss2_variant == 1 else "rotorick") if model.level == Rules.BOSS2_LEVEL else "battle"
 	TILE = 64.0 if model.board_size <= 8 else floorf(512.0/model.board_size)
-	BOARD = Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
+	# The small opening boards (4x4, 5x5) are drawn bigger, so the first fights fill the
+	# space the larger boards use; they keep the 6x6 board's centre.
+	if model.board_size <= 5:
+		TILE = minf(96.0, floorf(400.0/model.board_size))
+	BOARD = Vector2(576,368)-Vector2.ONE*model.board_size*TILE/2.0 if model.board_size <= 6 else Vector2(384,176)+Vector2.ONE*(6-model.board_size)*TILE/2.0
 	# 8x8 (and the shrunk 10x10) fill the full height between the header and the weapon cards.
 	if model.board_size >= 8:
 		BOARD = Vector2(316,96)
@@ -3037,7 +3041,7 @@ func _draw_enemy_hit(effect: Dictionary, fade: float) -> void:
 		var to := center + Vector2.from_angle(angle) * size * (0.3 + 0.55 * burst)
 		draw_line(from, to, Color(1, 0.85, 0.45, fade) if k % 2 == 0 else Color(1, 1, 1, fade), 2.0 + span * 0.5)
 	if effect.kind != "weapon_hit":
-		var art := 64.0 * (0.8 + 0.4 * span)
+		var art := maxf(TILE, 64.0) * (0.8 + 0.4 * span)
 		draw_texture_rect_region(EFFECTS,Rect2(center-Vector2.ONE*art/2,Vector2.ONE*art),Rect2(16*24,0,24,24),Color(1,1,1,fade))
 	var amount := int(effect.get("damage", int(effect.get("hp_before", 1)) - int(effect.get("hp", 0)) if effect.has("hp_before") else 1))
 	if amount >= Rules.CIRCLE_DAMAGE:
