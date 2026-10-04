@@ -211,7 +211,7 @@ func _ready() -> void:
 			DirAccess.remove_absolute(SYNC_CONFIG)
 		waiting_for_click = true
 		click_prompt = Label.new()
-		click_prompt.text = "PRESS ANY KEY"
+		click_prompt.text = "ENTERキーを押してSTART"
 		click_prompt.add_theme_font_override("font", FONT)
 		click_prompt.add_theme_font_size_override("font_size", 56)
 		click_prompt.add_theme_color_override("font_color", CREAM)
@@ -388,7 +388,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not pressed:
 		return
 	if waiting_for_click:
-		# The first key or click only starts the song (and the intro with it).
+		if event is InputEventKey and event.keycode not in [KEY_ENTER, KEY_KP_ENTER]:
+			return
+		# Enter (or a click) only starts the song (and the intro with it).
 		waiting_for_click = false
 		click_prompt.queue_free()
 		music.play()
