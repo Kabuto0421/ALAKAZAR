@@ -125,8 +125,8 @@ func beat(model: RefCounted, index: int) -> void:
 		if not model.cats.is_empty() and enemy.type in CAT_AVOIDERS and _cat_avoid(model, enemy):
 			continue
 		var adjacent_ally := false
-		# The mine soldier backs away and plants: it never strikes (not the player, not an ally).
-		for offset in ([] if enemy.type == "miner" else model.enemy_offsets(enemy)):
+		# The mine soldier backs away and plants, and the dragon soldier shoots: neither strikes in melee.
+		for offset in ([] if enemy.type in ["miner", "dragon"] else model.enemy_offsets(enemy)):
 			var cell: Vector2i = enemy.cell + offset
 			if not model.ally_at(cell).is_empty():
 				model.enemy_step(enemy,cell)
@@ -144,6 +144,8 @@ func beat(model: RefCounted, index: int) -> void:
 			_miner_action(model, enemy, index)
 		elif enemy.type == "jester":
 			_jester_action(model, enemy)
+		elif enemy.type == "dragon":
+			_dragon_action(model, enemy)
 		elif enemy.type == "infantry":
 			var action: Dictionary = infantry_behavior.decide(model, enemy, staging)
 			if action.kind == "step":
@@ -154,7 +156,7 @@ func beat(model: RefCounted, index: int) -> void:
 			_cavalry_action(model, enemy)
 		elif enemy.type in Rules.GENERALS:
 			_general_action(model, enemy)
-		elif enemy.type in ["heavy", "executioner", "shield", "analyst", "dragon"]:
+		elif enemy.type in ["heavy", "executioner", "shield", "analyst"]:
 			var action: Dictionary = heavy_behavior.decide(model,enemy)
 			if action.kind == "step":
 				model.enemy_step(enemy,action.cell)
@@ -423,6 +425,21 @@ func _wake_jesters(model: RefCounted) -> void:
 			enemy.awake = true
 			model.events.append({"kind": "awaken", "cell": enemy.cell, "id": enemy.id})
 			model.add_log("道化兵が覚醒した！")
+
+## 竜装兵: fire the arm cannon when the player (or an ally) is in the three tiles to its left; otherwise
+## take the first step of the shortest walk to a tile from which the player would be in that line.
+func _dragon_action(model: RefCounted, enemy: Dictionary) -> void:
+	if model.dragon_fire(enemy):
+		return
+	var goal := func(cell: Vector2i) -> bool: return model.dragon_cells(cell).has(model.player.cell)
+	var route := _route(model, enemy, enemy.cell, DIRECTIONS, goal)
+	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
+		return
+	# No firing spot reachable: just close in on the player.
+	var action: Dictionary = heavy_behavior.decide(model, enemy)
+	if action.kind == "step" and action.cell != model.player.cell and model.enemy_step(enemy, action.cell):
+		return
+	enemy.ap = 0
 
 ## 道化兵: asleep it only steps left (and strikes what stands there); awake it goes straight for the
 ## player round whatever is in the way and hits with every AP it has.

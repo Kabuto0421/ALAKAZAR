@@ -2329,7 +2329,7 @@ func _jester() -> void:
 		planner.beat(m, beat)
 	verify(m.player.hp == hp,"Asleep it does not hit a player above it")
 
-## 竜装兵: HP3, AP2; for now it advances by the shortest road and strikes what is next to it (twice a turn).
+## 竜装兵: HP3, AP2; walks the four straight ways and fires at the three tiles to its left.
 func _dragon_soldier() -> void:
 	var m := Rules.new()
 	m.reset(Rules.LATE_LEVELS[0])
@@ -2337,30 +2337,76 @@ func _dragon_soldier() -> void:
 	m.enemies.clear()
 	m.obstacles.clear()
 	m.player.hp = 99
-	m.player.cell = Vector2i(2, 2)
-	var d: Dictionary = m.make_enemy("dragon", Vector2i(3, 2), 0)
+	m.player.cell = Vector2i(1, 2)
+	var d: Dictionary = m.make_enemy("dragon", Vector2i(4, 2), 0)
 	m.enemies.append(d)
 	verify(d.hp == 3 and d.ap == 2 and Rules.TYPES.dragon.name == "竜装兵","The dragon-armoured soldier has HP3 and AP2")
+	verify(m.enemy_attack_offsets(d) == [Vector2i(-1, 0), Vector2i(-2, 0), Vector2i(-3, 0)] and m.enemy_offsets(d).size() == 4,"It reaches the three tiles to its left and walks the four straight ways")
+	# Player three tiles to its left: it fires straight away (one blast ends its turn).
 	var planner = Planner.new()
 	planner.begin(m)
 	var hp: int = m.player.hp
 	for beat in planner.beat_count(m):
 		planner.beat(m, beat)
-	verify(m.player.hp == hp - 2,"Next to the player it strikes with both AP")
+	verify(m.player.hp == hp - 1 and d.cell == Vector2i(4, 2),"In range it fires once for 1 and does not move")
+	# Four tiles away: it steps into the line and fires with its second AP.
 	m = Rules.new()
 	m.reset(Rules.LATE_LEVELS[0])
 	m.phase = Rules.Phase.PLAYER
 	m.enemies.clear()
 	m.obstacles.clear()
-	m.player.cell = Vector2i(0, 0)
-	d = m.make_enemy("dragon", Vector2i(4, 4), 0)
+	m.player.hp = 99
+	m.player.cell = Vector2i(0, 2)
+	d = m.make_enemy("dragon", Vector2i(4, 2), 0)
 	m.enemies.append(d)
-	var before: int = m.distance(d.cell, m.player.cell)
 	planner = Planner.new()
 	planner.begin(m)
+	hp = m.player.hp
 	for beat in planner.beat_count(m):
 		planner.beat(m, beat)
-	verify(m.distance(d.cell, m.player.cell) == before - 2,"Otherwise it advances two tiles a turn")
+	verify(d.cell == Vector2i(3, 2) and m.player.hp == hp - 1,"Out of range it steps in and fires with its second AP")
+	# From another row it walks to a firing spot.
+	m = Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(0, 0)
+	d = m.make_enemy("dragon", Vector2i(3, 3), 0)
+	m.enemies.append(d)
+	var fired := false
+	for turn in 4:
+		planner = Planner.new()
+		planner.begin(m)
+		for beat in planner.beat_count(m):
+			planner.beat(m, beat)
+		planner.finish(m)
+		if m.player.hp < 99:
+			fired = true
+			break
+	verify(fired,"From another row it walks round into the player's row and fires")
+	# A wall blocks the shot; it never melees next to the player.
+	m = Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.ENEMY
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(1, 2)
+	m.obstacles.append(Vector2i(2, 2))
+	d = m.make_enemy("dragon", Vector2i(3, 2), 0)
+	m.enemies.append(d)
+	verify(not m.dragon_fire(d) and m.player.hp == 99,"An obstacle in the line stops the shot")
+	m.obstacles.clear()
+	m.player.cell = Vector2i(3, 1)
+	verify(not m.enemy_step(d, m.player.cell),"It never strikes in melee")
+	# An ally in the line is hit too.
+	m.player.cell = Vector2i(0, 0)
+	m.summon_wall(Vector2i(2, 2))
+	var wall_hp: int = int(m.allies[0].hp)
+	d.ap = 2
+	verify(m.dragon_fire(d) and (m.allies.is_empty() or int(m.allies[0].hp) < wall_hp),"An ally standing in the line takes the blast")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:

@@ -105,7 +105,7 @@ const HABITS := {
 	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
 	"cross": ["斜めに歩いて近づき、", "斜めの隣を攻撃"],
 	"jester": ["3ターンは左にしか進まず、", "覚醒すると四方へ・AP3"],
-	"dragon": ["頑丈な体で最短の道を", "進み、隣に来たら攻撃"],
+	"dragon": ["縦横に歩いて", "左3マスを砲撃"],
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
@@ -120,7 +120,7 @@ const BIG = ["rook", "prison", "slot", "shadow", "storm_shark"]
 ## Chargers that move like a rook (飛車) with a braced direction.
 const CHARGERS = ["rook", "slot"]
 ## Ranged soldiers never melee; they attack from their own tile.
-const RANGED = ["javelin", "archer"]
+const RANGED = ["javelin", "archer", "dragon"]
 ## Horses move and jump exactly like cavalry, with more HP.
 const JUMPERS = ["cavalry", "horse"]
 const MAX_HP := 5
@@ -427,6 +427,43 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return [Vector2i.LEFT]
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
+## 竜装兵 walks the four straight ways and fires its arm cannon at the three tiles to its left
+## (the line stops at walls, obstacles and other cannons).
+const DRAGON_REACH: Array[Vector2i] = [Vector2i(-1, 0), Vector2i(-2, 0), Vector2i(-3, 0)]
+
+## The tiles the cannon would cover standing on `from`.
+func dragon_cells(from: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for offset in DRAGON_REACH:
+		var cell: Vector2i = from + offset
+		if not inside(cell) or arrow_stopped(cell):
+			break
+		result.append(cell)
+	return result
+
+## One blast a turn (it ends the turn): the player and any ally in the line take 1.
+func dragon_fire(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
+		return false
+	var cells := dragon_cells(enemy.cell)
+	var struck := cells.filter(func(c: Vector2i) -> bool: return c == player.cell or not ally_at(c).is_empty())
+	if struck.is_empty():
+		return false
+	enemy.ap = 0
+	enemy.intent = "砲撃"
+	var end: Vector2i = struck[-1]
+	for cell in struck:
+		if cell == player.cell:
+			_hit_player(enemy)
+		else:
+			var ally := ally_at(cell)
+			ally.hp -= 1
+			events.append({"kind":"hit", "cell":cell, "id":ally.id})
+	_bury_allies()
+	events.append({"kind":"arrow", "cell":end, "from":enemy.cell, "id":-2, "dir":Vector2i.LEFT})
+	check_outcome()
+	return true
+
 ## 道化兵 only walks left for this many enemy turns, then awakens: four ways, AP 3 (up to three blows a turn).
 const JESTER_SLEEP_TURNS := 3
 const JESTER_AWAKE_AP := 3
@@ -444,6 +481,8 @@ func enemy_attack_offsets(enemy: Dictionary) -> Array:
 		return [forward, forward*2]
 	if enemy.type == "cross":
 		return CROSS_STRIKES
+	if enemy.type == "dragon":
+		return DRAGON_REACH
 	return []
 
 ## Javelin: the row of three tiles one square beyond the tile in front.
