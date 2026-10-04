@@ -1018,13 +1018,13 @@ func _expiring_and_rewards() -> void:
 	var wids: Array = Run.Weapons.DATA.map(func(w): return w.id)
 	verify(Rarity.tier({"kind":"weapon","value":wids.find("rook_spear"),"enchant":"circle"}) == Rarity.SUPER_RARE and Rarity.tier({"kind":"weapon","value":wids.find("hammer")}) == Rarity.RARE and wids.find("mallet") < 0,"Rook spear super rare; the hammer sits one tier up (rare); the mallet is gone")
 	verify(Rarity.tier({"kind":"fairy","value":"holy_spirit"}) == Rarity.SUPER_RARE,"The holy spirit is super rare")
-	# Fairy cards draw a rarity first: 激レア about 1% early, rising to 10% at the end.
+	# Fairy cards draw a rarity first: 激レア about 2% early, rising to 10% at the end.
 	var odds: Array = Run.FAIRY_TIER_ODDS
 	verify(odds.all(func(row): return absf(row.reduce(func(a, b): return a + b, 0.0) - 1.0) < 0.001),"Each row of fairy rarity odds adds up to 1")
 	var rising := true
 	for k in range(1, 8):
 		rising = rising and odds[k][3] >= odds[k-1][3] and odds[k][0] <= odds[k-1][0]
-	verify(rising and is_equal_approx(odds[0][3], 0.01) and is_equal_approx(odds[7][3], 0.10),"Super rare fairies climb from 1% to 10% by Rotorick, commons shrink")
+	verify(rising and is_equal_approx(odds[0][3], 0.02) and is_equal_approx(odds[7][3], 0.10),"Super rare fairies climb from 2% to 10% by Rotorick, commons shrink")
 	verify([8, 9, 10].all(func(k): return is_equal_approx(odds[k][0], 0.30) and is_equal_approx(odds[k][1], 0.40) and is_equal_approx(odds[k][2], 0.25) and is_equal_approx(odds[k][3], 0.05)),"The late game (after late fights 1-3) is 30/40/25/5")
 	var boss_odds := Run.new()
 	boss_odds.stage = Rules.BOSS_LEVEL
@@ -1046,7 +1046,7 @@ func _expiring_and_rewards() -> void:
 		if Rarity.tier({"kind":"fairy","value":drawer.draw_fairy(drawer.reward_fairy_pool)}) == Rarity.SUPER_RARE:
 			super_late += 1
 	verify(early_tiers.size() == 4,"Every rarity can turn up from the first reward")
-	verify(super_early > 10 and super_early < 90 and super_late > 120 and super_late < 290,"Super rare fairy cards: about 1%% early (%d/4000), 5%% late (%d/4000)" % [super_early, super_late])
+	verify(super_early > 40 and super_early < 140 and super_late > 120 and super_late < 290,"Super rare fairy cards: about 2%% early (%d/4000), 5%% late (%d/4000)" % [super_early, super_late])
 	# 氷結妖精: the 3x3 around it is frozen for three enemy turns.
 	var fz := fixture()
 	fz.enemies.clear()

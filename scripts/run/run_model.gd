@@ -40,12 +40,12 @@ const CIRCLE_CHANCE := 0.03
 ## are 25/30/35/10 (rare the likeliest), and in the late fights 30/40/25/5, the same as the fairies. Early on the rare row is
 ## tiny because magic circles (3% of rewards) already make about 1% of cards rare.
 const WEAPON_TIER_ODDS := [
-	[0.946, 0.05, 0.002, 0.002],
-	[0.946, 0.05, 0.002, 0.002],
-	[0.12, 0.85, 0.025, 0.005],
-	[0.40, 0.45, 0.13, 0.02],
-	[0.40, 0.45, 0.13, 0.02],
-	[0.40, 0.45, 0.13, 0.02],
+	[0.92, 0.06, 0.01, 0.01],
+	[0.92, 0.06, 0.01, 0.01],
+	[0.12, 0.84, 0.03, 0.01],
+	[0.36, 0.45, 0.16, 0.03],
+	[0.36, 0.45, 0.16, 0.03],
+	[0.36, 0.45, 0.16, 0.03],
 	[0.25, 0.30, 0.35, 0.10],
 	[0.25, 0.30, 0.35, 0.10],
 	[0.30, 0.40, 0.25, 0.05],
@@ -87,16 +87,16 @@ func back_to_weapon() -> void:
 ## Each fairy card first draws its rarity from this table (コモン, アンコモン, レア,
 ## 激レア), by the fight just won (0 = the first fight), then a fairy of that rarity.
 ## Every fairy can turn up from the first reward; the rarer tiers grow as the run
-## goes on (激レア from about 1% early to 10% by Rotorick; the rewards before and after
+## goes on (激レア from about 2% early to 10% by Rotorick; the rewards before and after
 ## Rotorick are 25/30/35/10 with rare the likeliest, and the late fights ease back to
 ## 30/40/25/5 so commons and uncommons turn up more).
 const FAIRY_TIER_ODDS := [
-	[0.80, 0.15, 0.04, 0.01],
-	[0.80, 0.15, 0.04, 0.01],
-	[0.80, 0.13, 0.06, 0.01],
-	[0.55, 0.28, 0.12, 0.05],
-	[0.52, 0.29, 0.13, 0.06],
-	[0.50, 0.30, 0.14, 0.06],
+	[0.76, 0.17, 0.05, 0.02],
+	[0.76, 0.17, 0.05, 0.02],
+	[0.74, 0.17, 0.07, 0.02],
+	[0.51, 0.28, 0.14, 0.07],
+	[0.48, 0.29, 0.15, 0.08],
+	[0.46, 0.30, 0.16, 0.08],
 	[0.25, 0.30, 0.35, 0.10],
 	[0.25, 0.30, 0.35, 0.10],
 	[0.30, 0.40, 0.25, 0.05],
