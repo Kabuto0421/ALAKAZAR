@@ -331,6 +331,7 @@ func _initialize() -> void:
 	_miner_spares_allies()
 	_walkers_get_round_walls()
 	_cross_soldier()
+	_jester()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2255,6 +2256,74 @@ func _cross_soldier() -> void:
 	x.ap = 2
 	Planner.new()._cross_action(m, x)
 	verify(m.allies.is_empty() or int(m.allies[0].hp) < wall_hp,"It strikes an ally on its diagonal")
+
+## 道化兵: HP2, AP1; marches left for three turns, then wakes: four ways and AP3 (three blows a turn).
+func _jester() -> void:
+	var m := Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(0, 0)
+	var j: Dictionary = m.make_enemy("jester", Vector2i(m.board_size - 1, 5), 0)
+	m.enemies.append(j)
+	verify(j.hp == 2 and Rules.TYPES.jester.ap == 1 and Rules.TYPES.jester.name == "道化兵","The jester has HP2 and AP1")
+	verify(m.enemy_offsets(j) == [Vector2i.LEFT],"Asleep it can only go left")
+	var planner = Planner.new()
+	for turn in 3:
+		var before: Vector2i = j.cell
+		planner.begin(m)
+		verify(not j.get("awake", false) and j.ap == 1 and planner.beat_count(m) == 2,"Turn %d: still asleep, AP1" % (turn + 1))
+		for beat in planner.beat_count(m):
+			planner.beat(m, beat)
+		planner.finish(m)
+		verify(j.cell == before + Vector2i.LEFT,"Turn %d: it takes one step left" % (turn + 1))
+	planner.begin(m)
+	verify(j.get("awake", false) and j.ap == 3 and planner.beat_count(m) == 3,"After three turns it awakens with AP3 (three beats)")
+	verify(m.events.any(func(e): return e.kind == "awaken") and m.enemy_offsets(j).size() == 4,"It announces the awakening and goes all four ways")
+	planner.finish(m)
+	# Awake, it walks up to three steps a turn toward the player.
+	var from: Vector2i = j.cell
+	m.phase = Rules.Phase.PLAYER
+	planner.begin(m)
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
+	verify(absi(j.cell.x - from.x) + absi(j.cell.y - from.y) == 3 and m.distance(j.cell, m.player.cell) < m.distance(from, m.player.cell),"Awake it covers three tiles a turn toward the player")
+	# Next to the player it strikes with every AP: three blows in one turn.
+	m = Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(2, 2)
+	j = m.make_enemy("jester", Vector2i(3, 2), 0)
+	j.awake = true
+	j.age = 9
+	m.enemies.append(j)
+	planner = Planner.new()
+	planner.begin(m)
+	var hp: int = m.player.hp
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
+	verify(m.player.hp == hp - 3,"An awake jester hits three times in one turn (hp %d -> %d)" % [hp, m.player.hp])
+	# Asleep it hits what stands on its left, and only that.
+	m = Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(2, 2)
+	j = m.make_enemy("jester", Vector2i(2, 3), 0)
+	m.enemies.append(j)
+	planner = Planner.new()
+	planner.begin(m)
+	hp = m.player.hp
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
+	verify(m.player.hp == hp,"Asleep it does not hit a player above it")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:

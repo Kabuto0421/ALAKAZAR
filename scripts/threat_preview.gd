@@ -18,7 +18,7 @@ static func attackers(model: RefCounted) -> Array[int]:
 		return result
 	var planner := Planner.new()
 	planner.begin(sim)
-	for beat in range(2):
+	for beat in range(planner.beat_count(sim)):
 		planner.beat(sim,beat)
 		for event in sim.events:
 			if event.kind == "hit" and event.id == -1 and event.has("by") and not result.has(int(event.by)):

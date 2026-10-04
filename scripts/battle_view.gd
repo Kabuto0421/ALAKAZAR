@@ -535,7 +535,7 @@ func _enemy_turn() -> void:
 	await get_tree().create_timer(0.12).timeout
 	if token != generation:
 		return
-	for beat in range(2):
+	for beat in range(planner.beat_count(model)):
 		var cells := {}
 		for enemy in model.enemies:
 			cells[enemy.id] = enemy.cell
@@ -896,14 +896,14 @@ func _sync_units(animate: bool) -> void:
 		if id == -1 and model.riding_wheel():
 			# Standing on the wheel's platform (the gold bar on top of the larger wheel).
 			target += Vector2(7.0, -25.0) * TILE / 64.0
-		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS else 3
+		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS or unit.type == "jester" else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
 		view.time_stopped = id >= 0 and model.time_stopped()
 		# The stopped world is drawn over the enemies but under you and your allies.
 		view.z_index = 0 if id >= 0 and model.time_stopped() else 2
 		view.reel = 0 if reel_hold and unit.type == "slot" else int(unit.get("reel",0))
-		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0
+		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0 or unit.get("awake", false)
 		var learned := int(unit.get("learned",-1))
 		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
 		view.learned_color = Color(Rules.WEAPONS[learned].color) if learned >= 0 else Color.WHITE
@@ -2300,6 +2300,8 @@ func _draw_enemy_portrait(enemy: Dictionary, center: Vector2, factor: float = 1.
 		actor._draw_drone(Color.WHITE,self)
 	elif enemy.type in Rules.JUMPERS:
 		actor._draw_cavalry(Color.WHITE,self)
+	elif enemy.type == "jester":
+		UnitView.draw_jester(self,int(enemy.get("facing",3)),enemy.get("awake",false),Color.WHITE,0.9)
 	elif UnitView.SOLDIER_SHEETS.has(enemy.type):
 		UnitView.draw_soldier(self,enemy.type,int(enemy.get("facing",3)),enemy.get("state","") == "aim" or int(enemy.get("learned",-1)) >= 0,Color.WHITE,0.9)
 	elif enemy.type in Rules.GENERALS:
@@ -2897,6 +2899,12 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_wrapped(Vector2(852,446),"次に蘇る：%s（2ターンに1体）" % Rules.TYPES[next].name if next != "" else "動かない。倒れた兵を蘇らせる",18,Color("ff6b8a"),14)
 	elif enemy.type == "fortress":
 		_wrapped(Vector2(852,450),"毎ターン兵を1体出す。全部壊すと障壁が消える" if model.king_enraged() else "毎ターン兵を1体出す",18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"),14)
+	elif enemy.type == "jester":
+		var left_turns: int = Rules.JESTER_SLEEP_TURNS - int(enemy.get("age", 0))
+		if enemy.get("awake", false):
+			_text(Vector2(852,450),"覚醒中：AP3・四方へ",18,Color("ff7ac8"))
+		else:
+			_text(Vector2(852,450),"次の敵ターンに覚醒" if left_turns <= 0 else "覚醒まであと%dターン" % left_turns,18,Color("9ab8c8"))
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
@@ -3519,7 +3527,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "barrier_block":0.8, "chain_cut":0.9, "barrier_break":1.7, "barrier_up":1.4, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "barrier_block":0.8, "chain_cut":0.9, "barrier_break":1.7, "barrier_up":1.4, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "awaken":0.9, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -3640,6 +3648,13 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			for k in range(6):
 				var ray := Vector2.from_angle(k * TAU / 6 + t * 2) * (10 + t * 18)
 				draw_line(pos + ray * 0.5, pos + ray, Color("ffe76a", fade), 2)
+		"awaken":
+			# A hot-pink shockwave and rising sparks.
+			draw_arc(pos, 14 + t * 60, 0, TAU, 32, Color(1, 0.4, 0.78, fade), 5, true)
+			draw_arc(pos, 8 + t * 36, 0, TAU, 32, Color(1, 0.85, 0.95, fade * 0.8), 3, true)
+			for k in range(6):
+				var ray := Vector2.from_angle(k * TAU / 6 + 0.4) * (16 + t * 40)
+				draw_line(pos + ray * 0.6, pos + ray, Color(1, 0.7, 0.9, fade), 2)
 		"burn":
 			draw_rect(Rect2(pos - Vector2.ONE * 28, Vector2.ONE * 56), Color(1, 0.25, 0.1, fade * 0.6))
 			draw_arc(pos, 8 + t * 20, 0, TAU, 16, Color("ffb35b", fade), 3, true)

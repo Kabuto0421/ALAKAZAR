@@ -36,8 +36,19 @@ func begin(model: RefCounted) -> void:
 			reserved.append(slots[0])
 	for enemy in model.enemies:
 		enemy.ap = Rules.TYPES[enemy.type].ap
+		if enemy.type == "jester":
+			# Three turns of marching left, then it wakes: four ways and AP 3.
+			enemy.age = int(enemy.get("age", 0)) + 1
+			if enemy.age > Rules.JESTER_SLEEP_TURNS:
+				if not enemy.get("awake", false):
+					enemy.awake = true
+					model.events.append({"kind": "awaken", "cell": enemy.cell, "id": enemy.id})
+					model.add_log("道化兵が覚醒した！")
+				enemy.ap = Rules.JESTER_AWAKE_AP
 		if enemy.type == "miner":
 			enemy.intent = "移動・設置"
+		elif enemy.type == "jester":
+			enemy.intent = "四方へ・連続攻撃" if enemy.get("awake", false) else "左へ進む"
 		elif enemy.type == "heavy":
 			enemy.intent = "前進"
 		elif enemy.type in Rules.JUMPERS:
@@ -138,6 +149,8 @@ func beat(model: RefCounted, index: int) -> void:
 				enemy.ap = 0
 		elif enemy.type == "miner":
 			_miner_action(model, enemy, index)
+		elif enemy.type == "jester":
+			_jester_action(model, enemy)
 		elif enemy.type == "infantry":
 			var action: Dictionary = infantry_behavior.decide(model, enemy, staging)
 			if action.kind == "step":
@@ -404,6 +417,26 @@ func _cross_action(model: RefCounted, enemy: Dictionary) -> void:
 	if int(near.len) > 0 and model.enemy_step(enemy, near.step):
 		return
 	enemy.ap = 0
+
+## 道化兵: asleep it only steps left (and strikes what stands there); awake it goes straight for the
+## player round whatever is in the way and hits with every AP it has.
+func _jester_action(model: RefCounted, enemy: Dictionary) -> void:
+	if enemy.get("awake", false):
+		var action: Dictionary = heavy_behavior.decide(model, enemy)
+		if action.kind == "step" and model.enemy_step(enemy, action.cell):
+			return
+		enemy.ap = 0
+		return
+	if not model.enemy_step(enemy, enemy.cell + Vector2i.LEFT):
+		enemy.ap = 0
+
+## How many beats the enemy turn has (call after `begin`, which hands out the AP): two, or more while
+## something has AP for more blows, like the awakened jester's three.
+func beat_count(model: RefCounted) -> int:
+	var count := 2
+	for enemy in model.enemies:
+		count = maxi(count, int(enemy.ap))
+	return count
 
 func _move(model: RefCounted, enemy: Dictionary, cell: Vector2i) -> void:
 	model.enemy_step(enemy, cell)

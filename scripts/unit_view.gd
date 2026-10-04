@@ -545,6 +545,8 @@ func _draw() -> void:
 		else:
 			var sheet: Array = FORTRESS_SHEETS["idle"]
 			draw_texture_rect_region(sheet[0],Rect2(-72,-84,144,144),_sheet_frame(sheet,clock,false),tint)
+	elif kind == "jester":
+		draw_jester(self, facing, alt_row, tint)
 	elif kind == "glutton":
 		# A slight chewing bob.
 		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0
@@ -674,6 +676,30 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-76,-82)*factor, Vector2.ONE*152*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
+
+## 道化兵's own sheet once it is drawn: assets/sprites/enemies/jester_directions.png, 128px cells,
+## four directions per row (up, right, down, left); row 1 is the awakened pose.
+## Until then: the foot soldier in a jester's cap, pale asleep and hot pink awake.
+const JESTER_SHEET_PATH := "res://assets/sprites/enemies/jester_directions.png"
+static var _jester_sheet: Texture2D
+static var _jester_sheet_looked := false
+
+static func draw_jester(canvas: CanvasItem, direction: int, awake: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
+	if not _jester_sheet_looked:
+		_jester_sheet_looked = true
+		_jester_sheet = load(JESTER_SHEET_PATH) if ResourceLoader.exists(JESTER_SHEET_PATH) else null
+	if _jester_sheet != null:
+		var row := 1 if awake and _jester_sheet.get_height() > 128 else 0
+		var side := 64.0 * factor
+		canvas.draw_texture_rect_region(_jester_sheet, Rect2(Vector2(-side / 2, 28 * factor - side), Vector2.ONE * side), Rect2(direction * 128, row * 128, 128, 128), tint)
+		return
+	var body := Color(1.0, 0.55, 0.85, tint.a) if awake else Color(0.95, 0.95, 0.8, tint.a)
+	canvas.draw_texture_rect_region(ENEMY_ATLAS, Rect2(Vector2(-28, -32) * factor, Vector2.ONE * 56 * factor), Rect2(direction * 28, 0, 28, 28), body * tint)
+	var cap := PackedVector2Array([Vector2(-14, -33), Vector2(-24, -52), Vector2(-6, -40), Vector2(0, -58), Vector2(6, -40), Vector2(24, -52), Vector2(14, -33)])
+	for k in range(cap.size()):
+		cap[k] *= factor
+	canvas.draw_colored_polygon(cap, Color(0.9, 0.2, 0.55, tint.a) if awake else Color(0.45, 0.6, 0.95, tint.a))
+	canvas.draw_polyline(cap, Color(0.08, 0.06, 0.12, tint.a), 2.0)
 
 static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, alt: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
 	var entry: Array = SOLDIER_SHEETS[soldier]

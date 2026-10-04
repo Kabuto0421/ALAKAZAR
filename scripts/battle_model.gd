@@ -84,6 +84,7 @@ const TYPES = {
 	"storm_shark": {"name": "嵐鮫", "hp": 8, "ap": 2, "size": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 	"cross": {"name": "バッテン兵", "hp": 1, "ap": 2},
+	"jester": {"name": "道化兵", "hp": 2, "ap": 1},
 }
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
 ## How each soldier tends to act, in two short lines for the inspector (taken from the
@@ -102,6 +103,7 @@ const HABITS := {
 	"gold": ["将棋の金の動きで", "近づいて攻撃"],
 	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
 	"cross": ["斜めに歩いて近づき、", "斜めの隣を攻撃"],
+	"jester": ["3ターンは左にしか進まず、", "覚醒すると四方へ・AP3"],
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
@@ -355,7 +357,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark","cross"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark","cross","jester"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 		enemies[-1].home = cell
 	layout.free()
@@ -419,7 +421,13 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return []
 	if enemy.type == "cross":
 		return CROSS_STRIKES
+	if enemy.type == "jester" and not enemy.get("awake", false):
+		return [Vector2i.LEFT]
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
+
+## 道化兵 only walks left for this many enemy turns, then awakens: four ways, AP 3 (up to three blows a turn).
+const JESTER_SLEEP_TURNS := 3
+const JESTER_AWAKE_AP := 3
 
 ## バッテン兵 moves and strikes along the four diagonals (the cross sword's reach).
 const CROSS_STRIKES: Array[Vector2i] = [Vector2i(-1,-1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,1)]
@@ -524,6 +532,8 @@ func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
 func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not enemy_offsets(enemy).has(cell-enemy.cell):
 		return false
+	if enemy.type == "jester" and CARDINALS.has(cell - enemy.cell):
+		enemy.facing = CARDINALS.find(cell - enemy.cell)
 	if cell == player.cell:
 		if enemy.type in RANGED:
 			return false
