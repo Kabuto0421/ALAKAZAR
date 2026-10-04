@@ -203,6 +203,12 @@ func _ready() -> void:
 	curtain.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(curtain)
 	music.stream = MUSIC
+	if OS.has_feature("web"):
+		# The Web build ignores the file's loop point and replays the fanfare: loop by hand.
+		var once: AudioStreamOggVorbis = MUSIC.duplicate()
+		once.loop = false
+		music.stream = once
+		music.finished.connect(func() -> void: music.play(sync.loop_start if sync != null else 12.0))
 	music.volume_db = MUSIC_DB
 	add_child(music)
 	if OS.has_feature("web") and override_time < 0.0:
