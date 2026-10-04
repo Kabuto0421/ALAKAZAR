@@ -35,16 +35,16 @@ CUTS = [
     (8.40, 9.60, "art_p_king", 0.0, 1),
     (9.60, 12.00, "art_logo", 0.0, 1),
     (12.00, 17.172, "art_fairies", 0.0, 1),
-    # war: the plainest weapons first, then the hammer, the cross daggers, the magic circle, the swarm
-    (17.172, 18.207, "basic", 1.30, 2),
-    (18.207, 19.241, "basic", 5.30, 2),
-    (19.241, 20.276, "basic", 6.30, 2),
-    (20.276, 21.310, "hammer2", 1.40, 1.5),
-    (21.310, 22.345, "daggers", 3.40, 1.5),
-    (22.345, 23.379, "circle", 1.00, 1.5),
-    (23.379, 24.414, "circle", 2.80, 1.5),
-    (24.414, 25.448, "circle", 3.90, 1.5),
-    (25.448, 26.483, "swarm", 2.00, 1.3),
+    # war: one thing per drum; the ones that need explaining are shown whole (zoom 1: weapon cards and captions)
+    (17.172, 18.207, "basic", 1.00, 1),
+    (18.207, 19.241, "basic", 5.30, 1),
+    (19.241, 20.276, "hammer2", 1.10, 1),
+    (20.276, 21.310, "daggers", 1.20, 1),
+    (21.310, 22.345, "daggers", 3.75, 1),
+    (22.345, 23.379, "circle", 0.70, 1),
+    (23.379, 24.414, "circle", 2.40, 1),
+    (24.414, 25.448, "circle", 4.15, 1),
+    (25.448, 26.483, "swarm", 2.60, 1),
     # cyber: every kick is a cut
     (26.483, 27.000, "rotorick", 1.80, 1),
     (27.000, 27.517, "rotorick", 2.40, 1),
@@ -63,22 +63,31 @@ CUTS = [
     (33.207, 33.724, "art_pn_dragon", 0.0, 1),
     (33.724, 34.241, "art_pn_cross", 0.0, 1),
     (34.241, 34.759, "art_pn_rook", 0.0, 1),
-    # climax: meteors and the circle's 99s
-    (34.759, 35.276, "meteor", 1.40, 1.5),
-    (35.276, 35.793, "meteor", 1.90, 1.5),
-    (35.793, 36.310, "chain", 2.10, 1.5),
-    (36.310, 36.828, "chain", 2.50, 1.5),
+    # climax: the fairies' big moments, each with its caption
+    (34.759, 35.276, "meteor", 1.10, 1),
+    (35.276, 35.793, "meteor", 1.70, 1),
+    (35.793, 36.310, "chain", 1.40, 1),
+    (36.310, 36.828, "chain", 2.10, 1),
     # finish
     (36.828, 37.345, "fairies", 1.00, 1.5),
     (37.345, 37.862, "fairies", 7.20, 1.5),
-    (37.862, 38.379, "glutton", 2.00, 1.5),
-    (38.379, 38.897, "fairies", 13.20, 1.5),
-    (38.897, 39.414, "glutton", 2.35, 1.5),
-    (39.414, 39.931, "chain", 3.00, 1.5),
-    (39.931, 40.448, "swarm", 3.60, 1.3),
-    (40.448, 40.966, "art_p_king", 0.0, 1),
+    (37.862, 38.379, "glutton", 1.00, 1),
+    (38.379, 38.897, "glutton", 2.10, 1),
+    (38.897, 39.414, "glutton", 2.40, 1),
+    (39.414, 39.931, "swarm", 3.80, 1),
+    (39.931, 40.448, "swarm", 4.30, 1),
+    (40.448, 40.966, "art_p_king", 0.25, 1),
     (40.966, 41.85, None, 0.0, 1),
-    (41.85, SONG_LENGTH, "title_fusion", 0.0, 1),
+    # fusion: the finished title screen, with the game's best moments cut in on the kicks
+    (41.850, 42.884, "title_fusion", 0.15, 1),
+    (42.884, 43.918, "chain", 2.10, 1),
+    (43.918, 44.952, "title_fusion", 2.10, 1.6, (1450, 800)),
+    (44.952, 45.986, "meteor", 1.80, 1),
+    (45.986, 47.020, "title_fusion", 4.20, 1.6, (330, 520)),
+    (47.020, 48.054, "daggers", 3.85, 1),
+    (48.054, 49.088, "title_fusion", 6.20, 1.6, (860, 200)),
+    (49.088, 50.130, "circle", 3.00, 1),
+    (50.130, SONG_LENGTH, "title_fusion", 8.28, 1),
 ]
 
 # Where the kicks fall (start, end, period) for the punch (a flash and a push-in) on every beat,
@@ -102,11 +111,14 @@ def record():
         print("recorded", shot)
 
 
-def crop_for(zoom):
+def crop_for(zoom, center=None):
     if zoom == 1:
         return ""
-    w, h = int(1728 / zoom), int(1080 / zoom)
-    return f"crop={w}:{h}:{(1728 - w) // 2}:{int(552 - h / 2)},"
+    w, h = int(1728 / zoom) // 2 * 2, int(1080 / zoom) // 2 * 2
+    cx, cy = center if center is not None else (864, 552)
+    x = int(min(max(cx - w / 2, 0), 1728 - w))
+    y = int(min(max(cy - h / 2, 0), 1080 - h))
+    return f"crop={w}:{h}:{x}:{y},"
 
 
 def punch_filter():
@@ -127,7 +139,9 @@ def punch_filter():
 
 def assemble(out="build/pv/ALAKAZAR_PV.mp4"):
     inputs, parts = [], []
-    for n, (t0, t1, clip, src, zoom) in enumerate(CUTS):
+    for n, cut in enumerate(CUTS):
+        t0, t1, clip, src, zoom = cut[:5]
+        center = cut[5] if len(cut) > 5 else None
         # whole frames on the song's own 30 fps grid, so rounding never adds up
         frames = max(1, round(t1 * FPS) - round(t0 * FPS))
         if clip is None:
@@ -135,7 +149,7 @@ def assemble(out="build/pv/ALAKAZAR_PV.mp4"):
             parts.append(f"[{n}:v]fps={FPS},trim=end_frame={frames},setpts=PTS-STARTPTS,setsar=1[v{n}]")
         else:
             inputs += ["-ss", f"{src:.3f}", "-t", f"{frames / FPS + 0.5:.3f}", "-i", f"{CLIPS}/{clip}.avi"]
-            parts.append(f"[{n}:v]fps={FPS},trim=end_frame={frames},setpts=PTS-STARTPTS,{crop_for(zoom)}scale=1728:1080:flags=neighbor,setsar=1[v{n}]")
+            parts.append(f"[{n}:v]fps={FPS},trim=end_frame={frames},setpts=PTS-STARTPTS,{crop_for(zoom, center)}scale=1728:1080:flags=neighbor,setsar=1[v{n}]")
     inputs += ["-i", SONG]
     audio = len(CUTS)
     concat = "".join(f"[v{n}]" for n in range(len(CUTS))) + f"concat=n={len(CUTS)}:v=1:a=0[cat]"

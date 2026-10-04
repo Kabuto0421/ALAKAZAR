@@ -145,6 +145,36 @@ func end_turn() -> void:
 	await frames(2)
 	await idle(10.0)
 
+
+# ---- captions: say what is being used and why it happens -------------------------------
+
+var caption_layer: CanvasLayer
+var caption_label: Label
+var caption_band: ColorRect
+
+func say(text: String, color: Color = Color("fff6e0")) -> void:
+	if caption_layer == null:
+		caption_layer = CanvasLayer.new()
+		caption_layer.layer = 60
+		root.add_child(caption_layer)
+		caption_band = ColorRect.new()
+		caption_band.color = Color(0.02, 0.03, 0.06, 0.8)
+		caption_band.position = Vector2(0, 0)
+		caption_band.size = Vector2(1728, 78)
+		caption_layer.add_child(caption_band)
+		caption_label = Label.new()
+		caption_label.add_theme_font_override("font", load("res://assets/fonts/DotGothic16-Regular.ttf"))
+		caption_label.add_theme_font_size_override("font_size", 50)
+		caption_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		caption_label.add_theme_constant_override("outline_size", 8)
+		caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		caption_label.position = Vector2(0, 6)
+		caption_label.size = Vector2(1728, 70)
+		caption_layer.add_child(caption_label)
+	caption_label.text = text
+	caption_label.add_theme_color_override("font_color", color)
+	caption_band.visible = text != ""
+
 # ---- shots ---------------------------------------------------------------------
 
 ## The guardian fairy lands and calls everything back; then the allies go to work.
@@ -172,8 +202,10 @@ func shot_meteor() -> void:
 		foes.append([kinds[k], spots[k], 2])
 	foes.append(["prison", Vector2i(5, 3), 2])
 	arrange(Vector2i(3, 3), foes)
+	say("隕石妖精（強化）", Color("ff9a5a"))
 	await seconds(1.2)
 	await fairy("meteor_fairy", m.player.cell)
+	say("強化するほど、落ちる隕石が増える！", Color("ffffff"))
 	await seconds(2.0)
 
 ## A web of cannons: one blow on the first sets off the rest (CHAIN x n).
@@ -189,8 +221,10 @@ func shot_chain() -> void:
 	m.weapon = 0
 	bv._sync_units(false)
 	bv.queue_redraw()
+	say("槍砲精霊を並べた", Color("fff6e0"))
 	await seconds(1.0)
 	await click(Vector2i(1, 3))
+	say("叩くと大砲が次々に誘爆！  CHAIN", Color("ffd35b"))
 	await seconds(1.5)
 
 ## The hammer comes down on a crowd.
@@ -558,7 +592,7 @@ func shot_title_fusion() -> void:
 		line2.modulate.a = smooth((t - 53.4) / 0.6)
 		line3.modulate.a = smooth((t - 55.4) / 0.6)
 		line4.modulate.a = smooth((t - 55.8) / 0.6)
-		fade.modulate.a = 0.0 if t < 57.2 else smooth((t - 57.2) / 1.2)
+		fade.modulate.a = 0.0
 		await process_frame
 
 # ---- portraits (one character, filling the screen, 1.3 s) --------------------------------
@@ -669,6 +703,7 @@ func shot_basic() -> void:
 	print("PV basic board ", side)
 	arrange(Vector2i(2, 3), [["recruit", Vector2i(3, 3)], ["recruit", Vector2i(2, 2)], ["recruit", Vector2i(4, 3)], ["recruit", Vector2i(3, 1)], ["recruit", Vector2i(4, 5)], ["recruit", Vector2i(5, 2)], ["recruit", Vector2i(2, 5)], ["infantry", Vector2i(5, 5)]])
 	m.player.hp = 5
+	say("基本の剣：動いて、斬る", Color("fff6e0"))
 	await seconds(0.8)
 	for turn in 5:
 		await play_turn()
@@ -694,27 +729,33 @@ func shot_swarm() -> void:
 	bv._update_controls()
 	bv.queue_redraw()
 	await seconds(1.5)
+	say("召喚した妖精たち", Color("fff6e0"))
 	m.summon_guardian(Vector2i(3, 0))
 	bv._sync_units(false)
 	bv._feedback()
 	bv.queue_redraw()
+	say("守護神の妖精：召喚した妖精を、もう一度呼び直す！", Color("ffd35b"))
 	await seconds(3.2)
 	await end_turn()
 	await seconds(1.5)
 
-## The cross daggers: thunder first, then the flame dagger's boosted cross strike.
+## The cross daggers: the flame dagger first, then the thunder dagger it powered up: the cross strike.
 func shot_daggers() -> void:
-	await boot(9, ["thunder_dagger", "flame_dagger", "forward"], ["magic_bolt", "wall_fairy"])
+	await boot(9, ["flame_dagger", "thunder_dagger", "forward"], ["magic_bolt", "wall_fairy"])
 	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 2), 2], ["executioner", Vector2i(3, 4), 1], ["gold", Vector2i(4, 3), 1], ["silver", Vector2i(2, 5), 1], ["horse", Vector2i(4, 5), 1], ["javelin", Vector2i(6, 3)], ["archer", Vector2i(6, 1)]])
 	m.weapon = m.owned_weapons[0]
 	bv._update_controls()
+	say("炎短剣", Color("ff9a5a"))
 	await seconds(1.2)
-	await click(Vector2i(3, 2))
-	await seconds(0.8)
-	bv._equip(m.owned_weapons[1])
-	await seconds(0.6)
 	await click(Vector2i(3, 4))
-	await seconds(2.0)
+	say("炎短剣を使った → 雷短剣が強化された！", Color("ffd35b"))
+	await seconds(0.9)
+	bv._equip(m.owned_weapons[1])
+	say("雷短剣（強化中）", Color("7fd8ff"))
+	await seconds(0.9)
+	await click(Vector2i(3, 2))
+	say("炎 ＋ 雷 ＝ クロス斬り！", Color("ffffff"))
+	await seconds(2.4)
 
 ## The cross hammer: one blow, the cross around it.
 func shot_hammer2() -> void:
@@ -722,8 +763,10 @@ func shot_hammer2() -> void:
 	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 3), 1], ["executioner", Vector2i(3, 2), 1], ["gold", Vector2i(3, 4), 1], ["silver", Vector2i(4, 3), 1], ["horse", Vector2i(5, 3), 3], ["javelin", Vector2i(6, 5)], ["archer", Vector2i(6, 1)]])
 	m.weapon = m.owned_weapons[0]
 	bv._update_controls()
+	say("十字槌", Color("9fd0ff"))
 	await seconds(1.2)
 	await click(Vector2i(3, 3))
+	say("叩いた十字にも衝撃が響く！", Color("ffffff"))
 	await seconds(2.2)
 
 ## The glutton fairy turns on its own master: the gulp that ends the run.
@@ -734,8 +777,10 @@ func shot_glutton() -> void:
 	bv._sync_units(false)
 	bv._update_controls()
 	bv.queue_redraw()
+	say("暴食妖精：1×1なら敵も味方も、あなたも食べる", Color("ff8aa0"))
 	await seconds(1.2)
 	await end_turn()
+	say("食べられた！ 99 ダメージ", Color("ffffff"))
 	await seconds(1.5)
 
 ## A rook-spear magic circle: closing the ring deals 99 to everything inside.
@@ -753,11 +798,14 @@ func shot_circle() -> void:
 		m.circle_tiles.append(Vector2i(x, 5))
 	bv._sync_units(false)
 	bv.queue_redraw()
-	await seconds(1.4)
+	say("魔法陣武器：飛車槍  ― 動いた道が白い線になる", Color("ffd35b"))
+	await seconds(2.0)
 	await click(Vector2i(1, 5))
+	say("線で囲んだ…", Color("fff6e0"))
 	await seconds(0.9)
 	await click(Vector2i(1, 1))
-	await seconds(2.2)
+	say("輪が閉じた！ 囲んだ敵に 99 ダメージ！", Color("ffffff"))
+	await seconds(2.4)
 
 ## Fairies, one after another on a pack of enemies.
 func shot_fairies() -> void:
