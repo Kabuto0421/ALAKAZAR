@@ -11,7 +11,7 @@ const DATA = [
 	{"id":"diagonal", "name":"交差剣", "short":"交差", "row":2, "color":"d9a0ff", "detail":"斜め4マス", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(-1,1),Vector2i(1,1)]},
 	{"id":"upper", "name":"上弦剣", "short":"上弦", "row":2, "color":"90cfff", "detail":"左上・上・右上", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1)]},
 	# Jump weapons skip over a square, so the early rule lets them take two tiles.
-	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1に跳ぶ", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
+	{"id":"knight", "name":"桂馬剣", "short":"桂馬", "row":2, "color":"2bdcc8", "detail":"右へ2・上下へ1", "offsets":[Vector2i(2,-1),Vector2i(2,1)]},
 	# Odd up-and-down jumpers: variants of the vertical jump and the knights.
 	{"id":"flick_down", "name":"跳下剣", "short":"跳下", "row":2, "color":"a0e6ff", "detail":"右下の1マスと上へ2マス", "offsets":[Vector2i(1,1),Vector2i(0,-2)]},
 	{"id":"return_goose", "name":"帰雁剣", "short":"帰雁", "row":2, "color":"ffc9a0", "detail":"下の1マスと右上の桂馬", "offsets":[Vector2i(0,1),Vector2i(2,-1)]},
@@ -21,11 +21,11 @@ const DATA = [
 	{"id":"snake", "name":"蛇行剣", "short":"蛇行", "row":2, "color":"d0ff9a", "detail":"左上の1マスと右下の桂馬", "offsets":[Vector2i(-1,-1),Vector2i(2,1)]},
 	{"id":"shoulder", "name":"背負剣", "short":"背負", "row":2, "color":"ff9ad0", "detail":"左下の1マスと右上の桂馬", "offsets":[Vector2i(-1,1),Vector2i(2,-1)]},
 	# Odd three-tile weapons: pre-boss rewards (and later), never as strong as a four-tile cross.
-	{"id":"fan", "name":"扇剣", "short":"扇", "row":2, "color":"ffc76b", "detail":"右上・右下の1マスと、右へ2マス跳ぶ", "offsets":[Vector2i(1,-1),Vector2i(2,0),Vector2i(1,1)]},
-	{"id":"scales", "name":"天秤剣", "short":"天秤", "row":2, "color":"e6d08a", "detail":"上・下の1マスと、右へ2マス跳ぶ", "offsets":[Vector2i(0,-1),Vector2i(0,1),Vector2i(2,0)]},
-	{"id":"swallow", "name":"飛燕剣", "short":"飛燕", "row":2, "color":"9fe0ff", "detail":"右の1マスと、右上・右下へ斜めに2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(2,-2),Vector2i(2,2)]},
+	{"id":"fan", "name":"扇剣", "short":"扇", "row":2, "color":"ffc76b", "detail":"右上・右下の1マスと、右へ2マス", "offsets":[Vector2i(1,-1),Vector2i(2,0),Vector2i(1,1)]},
+	{"id":"scales", "name":"天秤剣", "short":"天秤", "row":2, "color":"e6d08a", "detail":"上・下の1マスと、右へ2マス", "offsets":[Vector2i(0,-1),Vector2i(0,1),Vector2i(2,0)]},
+	{"id":"swallow", "name":"飛燕剣", "short":"飛燕", "row":2, "color":"9fe0ff", "detail":"右の1マスと、右上・右下へ斜めに2マス", "offsets":[Vector2i(1,0),Vector2i(2,-2),Vector2i(2,2)]},
 	{"id":"glance", "name":"見返剣", "short":"見返", "row":2, "color":"c9a0ff", "detail":"右の1マスと、左の桂馬2つ", "offsets":[Vector2i(1,0),Vector2i(-2,-1),Vector2i(-2,1)]},
-	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス跳ぶ", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
+	{"id":"tower", "name":"城楼剣", "short":"城楼", "row":2, "color":"a0ffc8", "detail":"右の1マスと、上・下へ2マス", "offsets":[Vector2i(1,0),Vector2i(0,-2),Vector2i(0,2)]},
 	{"id":"tee", "name":"丁字剣", "short":"丁字", "row":2, "color":"ffe0a0", "detail":"上・左・下の1マス", "offsets":[Vector2i(0,-1),Vector2i(-1,0),Vector2i(0,1)]},
 	# Knockback: a struck enemy is shoved one tile away; if it cannot move it takes 1 more.
 	{"id":"shield", "name":"盾打ち", "short":"盾", "row":2, "color":"b8d7c5", "knockback":1, "damage":0, "effect":"この武器の攻撃はダメージを与えないが、敵を右の一番奥までノックバックさせる。その先に敵がいれば、押し出した敵と押し出された敵は共に1ダメージを受ける。", "detail":"右の1マス。無傷で敵を右の奥までノックバック", "offsets":[Vector2i(1,0)]},
@@ -41,7 +41,7 @@ const DATA = [
 	{"id":"sickle", "name":"鎖鎌", "short":"鎖鎌", "row":2, "color":"b8c4d0", "pull":true, "effect":"この武器の攻撃は1ダメージを与え、敵を自分の隣まで引き寄せる。", "detail":"縦横2マス先へ。敵は攻撃して引き寄せる", "offsets":[Vector2i(0,-2),Vector2i(2,0),Vector2i(0,2),Vector2i(-2,0)]},
 	{"id":"swap_staff", "name":"入替の杖", "short":"入替", "row":2, "color":"c89bff", "swap":true, "early":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"斜め4マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(1,-1),Vector2i(-1,1),Vector2i(1,1)]},
 	# Wide reach: strong, but they leave few tiles for the loner fairies.
-	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべてに跳ぶ", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
+	{"id":"eight_knight", "name":"八方桂剣", "short":"八方", "row":2, "color":"3ff0c0", "tier":"mid", "detail":"桂馬の8方向すべて", "offsets":[Vector2i(1,-2),Vector2i(2,-1),Vector2i(2,1),Vector2i(1,2),Vector2i(-1,2),Vector2i(-2,1),Vector2i(-2,-1),Vector2i(-1,-2)]},
 	# Shogi generals (forward = right): gold has no back diagonals, silver no sides or straight back.
 	{"id":"king_staff", "name":"王将の杖", "short":"王杖", "row":2, "color":"e8c86a", "tier":"mid", "swap":true, "effect":"この武器の攻撃はダメージを与えないが、敵との位置を入れ替えることができる。", "detail":"周囲8マス。敵とは入れ替え（無傷）", "offsets":[Vector2i(-1,-1),Vector2i(0,-1),Vector2i(1,-1),Vector2i(-1,0),Vector2i(1,0),Vector2i(-1,1),Vector2i(0,1),Vector2i(1,1)]},
 	{"id":"charge_blade", "name":"溜め大剣", "short":"溜め", "row":2, "color":"ffcf5b", "charge":2, "effect":"この武器の攻撃は、使わなかったターンごとにダメージが1ずつ上がる（最大3、鍛えると最大4）。攻撃すると元に戻る。", "detail":"右1マス。使わないターンごとに攻撃+1（最大3、鍛えると4）", "offsets":[Vector2i(1,0)]},
