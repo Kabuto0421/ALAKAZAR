@@ -2065,7 +2065,12 @@ func _draw_weapons() -> void:
 	# The 7x7 boss board reaches down to this line, so the header gives way to it.
 	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
-		_text(Vector2(555,605),"タップ・J K L・ホイールで装備・0 AP",18,MUTED)
+		# Shrinks to fit left of the info panel (it used to run under it).
+		var swap_hint := "タップ・JKL・ホイールで装備 0AP"
+		var hint_size := 18
+		while hint_size > 13 and _text_width(swap_hint,hint_size) > 268:
+			hint_size -= 1
+		_text(Vector2(555,605),swap_hint,hint_size,MUTED)
 	for slot in range(model.owned_weapons.size()):
 		var index: int = model.owned_weapons[slot]
 		var weapon: Dictionary = Rules.WEAPONS[index]

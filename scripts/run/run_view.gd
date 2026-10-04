@@ -80,7 +80,7 @@ func _render() -> void:
 	match run.state:
 		Run.State.START_WEAPON:
 			_label(Vector2(44,48),"最初の武器を選ぶ",30,INK)
-			_label(Vector2(44,94),"1 / 2   前進剣 → と 後退剣 ← に3本目を追加。小さな盤面はその武器で動けるマス。",17,sub)
+			_label(Vector2(44,94),"1 / 2   目指すは監獄の王。まず3本目の武器を選ぶ（前進剣 → と 後退剣 ← は持っている）。盤面は、その武器で動けるマス。",17,sub)
 			_cards(run.offers)
 			_loadout()
 		Run.State.START_FAIRY:

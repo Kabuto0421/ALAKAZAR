@@ -16,7 +16,7 @@ const Rules = preload("res://scripts/battle_model.gd")
 ## Each page: a title, a short lead that states the rule, and up to three
 ## screenshot flipbooks (with a tag per frame) that show it happening.
 const PAGES := [
-	{"title": "基本", "lead": "あなたのターンにはAPが2つ。\n[color=#4fb4ff]「移動」「攻撃」「妖精を置く」[/color]の3つの行動のどれかを行える。", "items": [
+	{"title": "基本", "lead": "敵を全員倒せば勝ち。HPが0で負け。毎ターンAPが2つ。\n[color=#4fb4ff]「移動」「攻撃」「妖精を置く」[/color]のどれかを行える。", "items": [
 		{"shots": ["basic_move_a", "basic_move_b"], "tags": ["AP 2", "移動 −1 AP"], "caption": "移動"},
 		{"shots": ["basic_attack_a", "basic_attack_b"], "tags": ["AP 2", "攻撃 −1 AP"], "caption": "攻撃"},
 		{"shots": ["basic_fairy_a", "basic_fairy_b"], "tags": ["AP 2", "妖精 −1 AP"], "caption": "妖精を置く"},
