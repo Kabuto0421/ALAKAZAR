@@ -2364,9 +2364,10 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 	_text(Vector2(852,175),"HP",20)
 	var hearts: int = maxi(int(ally.hp), 1)
 	var many: bool = hearts > 3
+	var huge: bool = hearts > 7
 	for i in range(hearts):
-		_draw_heart(Vector2(909+i*(16 if many else 30),167),14 if many else 25,Color("ff5b62"),true)
-	var ap_x := 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
+		_draw_heart(Vector2(909+i*(12 if huge else 16 if many else 30),167),11 if huge else 14 if many else 25,Color("ff5b62"),true)
+	var ap_x := 1046.0 if hearts > 8 else 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
 	var ap: int = Rules.ally_ap(ally.type)
 	for i in range(ap):

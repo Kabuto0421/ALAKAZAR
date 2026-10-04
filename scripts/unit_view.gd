@@ -749,19 +749,27 @@ func _draw_status() -> void:
 	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 8 if kind == "storm_shark" else 3 if kind in ["rook", "dragon"] else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
 	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
 	max_hp = maxi(max_hp, hp)
-	var total := max_hp*11.0-1.0
 	var grow := 32.0*(span-1)
 	if kind == "slot":
 		_draw_rotorick_arrows()
 	var heart_y := -98.0 if kind == "slot" else -112.0 if kind == "king" else -52.0 if hearts_above else 29+grow
+	# A one-tile unit with more than six hearts (a class-up wall's 10) stacks them in two rows
+	# so they stay within its tile.
+	var two_rows: bool = span == 1 and max_hp > 6
+	var per_row: int = (max_hp + 1) / 2 if two_rows else max_hp
+	var heart_at := func(i: int) -> Vector2:
+		var row: int = i / per_row if two_rows else 0
+		var col: int = i % per_row if two_rows else i
+		var count: int = mini(per_row, max_hp - row * per_row) if two_rows else max_hp
+		return Vector2(-(count*11.0-1.0)/2+col*11+5, heart_y + row * (-10.0 if hearts_above else 10.0))
 	for i in range(max_hp):
 		var size := 11.0
 		if sparkle_elapsed >= 0.0 and i == hp - 1:
 			# The new heart pops in.
 			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
-		_draw_heart(Vector2(-total/2+i*11+5,heart_y),size,Color("ff5b62"),i < hp)
+		_draw_heart(heart_at.call(i),size,Color("ff5b62"),i < hp)
 	if sparkle_elapsed >= 0.0:
-		_draw_sparkles(Vector2(-total/2+(hp-1)*11+5,heart_y))
+		_draw_sparkles(heart_at.call(hp - 1))
 	if attack_target:
 		for corner in [Vector2(-28-grow,-27-grow),Vector2(28+grow,-27-grow),Vector2(-28-grow,24+grow),Vector2(28+grow,24+grow)]:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))
