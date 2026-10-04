@@ -83,13 +83,13 @@
 - 終盤1〜3戦は、現状は既存の敵で組んだ仮の編成です。
 - マーケティング面（SNS、配信者への配布）は未着手【要記入】。
 
-## 9. 素材・権利
+## 9. 素材・権利・生成AIの利用
 
-- コード：自作（GDScript）。
-- フォント：DotGothic16、VT323（OFL）。
-- 効果音：一部にCC0素材（Juhani Junkala氏）。作者のクレジットを `assets/audio/sfx/CREDITS.md` に記載。
-- BGM：スクリプト（`tools/generate_bgm.py`）で作成。
-- 絵：【要記入：制作方法（手描き／AI生成／素材）】
+- **コード**：GDScript。実装の大部分に、AIコーディング支援ツール（Claude Code）を使用。設計と仕様の決定、テスト、調整は作者が行っている。
+- **絵（キャラクター、背景、UI素材、タイトル画面、アイコン）**：画像生成AI「GPT-Image-2.5」で生成した素材を使用。生成後に、ゲーム用の加工（切り抜き、ドット絵向けの調整、合成）を行っている。
+- **BGM**：作者の指示でAIが書いた作曲・合成スクリプト（`tools/generate_bgm.py`）により、プログラムで合成。
+- **効果音**：大半は、スクリプト（`tools/generate_sfx.py`）で合成したもの。3点はCC0素材（Juhani Junkala氏）で、作者のクレジットを `assets/audio/sfx/CREDITS.md` に記載。一部は自作の録音。
+- **フォント**：DotGothic16、VT323（SIL OFL）。
 - 素材の由来一覧：`ASSET_PROVENANCE.md`
 
 ## 10. iGiに期待する支援【案】
