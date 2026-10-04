@@ -123,12 +123,12 @@ func _render() -> void:
 			_label(Vector2(44,48),"キャンプ — ひとつだけ選ぶ",30,INK)
 			_label(Vector2(44,94),"この先は最終ボス：監獄の王（10×10）" if run.stage == run.battle.LATE_LEVELS[3] else "この先は終盤の残り2戦（終盤3・4戦目）" if run.stage == run.battle.LATE_LEVELS[1] else ("この先はボス：嵐鮫（8×8・大嵐）" if run.battle.boss2_variant == 1 else "この先はボス：ロトリック（8×8）") if run.stage == run.battle.MID_LEVELS[-1] else "この先はボス：馬3体（7×7）" if run.battle.boss_variant == 0 else "この先はボス：突進くん＋移動監獄（6×6）",17,Color("ff987f"))
 			_camp_option(0,"休む","HP +%d\n（最大%d）" % [Run.CAMP_HEAL, run.battle.MAX_HP],Color("ff8b8f"),_rest,run.battle.start_hp < run.battle.MAX_HP)
-			_camp_option(1,"鍛える","武器を1本選び\n攻撃力 +1\n（1本につき1回）",Color("ffd35b"),_forge,run.can_forge())
+			_camp_option(1,"鍛える","武器を1本選び\n動いて攻撃できる\nマスを1つ増やす",Color("ffd35b"),_forge,run.can_forge())
 			_camp_option(2,"妖精のクラスアップ","妖精を1体選び\n効果を強化\n（1体につき1回）",Color("7fe0c8"),_class_up,run.can_class_up())
 			_loadout()
 		Run.State.CAMP_FORGE:
 			_label(Vector2(44,48),"鍛える武器を選ぶ",30,INK)
-			_label(Vector2(44,94),"選んだ武器の攻撃力が +1 される。鍛えられるのは1本につき1回。",17,sub)
+			_label(Vector2(44,94),"緑のマスのどれか1つが増える（普通の武器は何回でも）。激レアは鍛えられない。",17,sub)
 			var owned_weapons: Array[Dictionary] = []
 			for index in run.battle.owned_weapons:
 				owned_weapons.append({"kind":"weapon","value":index})
