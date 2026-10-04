@@ -172,6 +172,8 @@ var fairy_loadout: Array[String] = ["magic_bolt"]
 var fairy_charges: Array[int] = []
 ## HP the player starts this fight with; the run carries it between fights.
 var start_hp := MAX_HP
+## HP the run will restore for this win (shown on the result card; the run applies it).
+var win_heal := 0
 ## Camp forging: weapon index -> extra damage (each weapon can be forged once).
 var weapon_power: Dictionary = {}
 ## The tiles a weapon's forges added (index -> offsets from the player); a tile weapon can be forged again and again.

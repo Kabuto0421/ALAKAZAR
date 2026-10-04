@@ -3893,5 +3893,5 @@ func _draw_result() -> void:
 	_text(Vector2(414,278),"SECTOR CLEAR" if won else "EXPEDITION FAILED",36,CYAN if won else Color("ff8968"),LATIN)
 	_text(Vector2(421,326),"ボス撃破！" if won and Rules.BOSS_LEVELS.has(model.level) else "包囲網を突破した" if won else "探索者、倒れる",26)
 	_text(Vector2(423,365),"%dターン / 撃破 %d体" % [model.round_number,model.kills],18,MUTED)
-	_text(Vector2(423,396),"妖精の使用回数が回復" if won else "初期ビルドから再挑戦",16,MUTED)
+	_text(Vector2(423,396),("HP %d回復・妖精の使用回数が回復" % model.win_heal if model.win_heal > 0 and model.player.hp < Rules.MAX_HP else "妖精の使用回数が回復") if won else "初期ビルドから再挑戦",16,MUTED)
 

@@ -218,6 +218,7 @@ func choose(index: int) -> bool:
 
 func start_battle() -> void:
 	battle.reset(stage,true)
+	battle.win_heal = win_heal()
 	state = State.BATTLE
 
 func finish_battle() -> bool:
