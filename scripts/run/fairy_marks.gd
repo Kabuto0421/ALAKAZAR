@@ -20,9 +20,11 @@ func _draw() -> void:
 	var y := 0.0
 	if hp > 0:
 		draw_string(FONT, Vector2(0, 17), "HP", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color("e5dfc5"))
+		# Long HP rows (a class-up wall's 10) tighten so the AP still fits inside the card.
+		var step := clampf((size.x - 34.0 - 8.0 - 28.0 - ap * 22.0 - 4.0) / hp, 9.0, 21.0)
 		for i in hp:
-			_heart(Vector2(34 + i * 21, 11), 17.0)
-		var ap_x := 42.0 + hp * 21
+			_heart(Vector2(34 + i * step, 11), minf(17.0, step * 0.85 + 2.0))
+		var ap_x := 42.0 + hp * step
 		draw_string(FONT, Vector2(ap_x, 17), "AP", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, GOLD)
 		for i in ap:
 			draw_rect(Rect2(ap_x + 26 + i * 22, 3, 18, 16), GOLD)

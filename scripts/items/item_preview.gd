@@ -103,7 +103,7 @@ static func paint(canvas: CanvasItem, model: RefCounted, id: String, time: float
 		"stealth_fairy": _stealth(time, accent, art, upgraded)
 		"acorn_fairy": _acorn(time, art)
 		"warp_fairy": _warp(time, accent, art)
-		"wall_fairy": _wall(time, art)
+		"wall_fairy": _wall(time, art, upgraded)
 		"cannon_fairy": _cannon(time, accent, art, false)
 		"vane_cannon": _vane(time, accent, art, upgraded)
 		"firework_fairy": _firework(time, accent, art)
@@ -190,14 +190,14 @@ static func _warp(time: float, accent: Color, art: Texture2D) -> void:
 	else:
 		_player(end)
 
-## A wall ally (HP 5, AP 0): nothing gets through, it never acts, and the enemy that
+## A wall ally (HP 5, or 10 once upgraded; AP 0): nothing gets through, it never acts, and the enemy that
 ## reaches it breaks it a heart at a time.
-static func _wall(time: float, art: Texture2D) -> void:
+static func _wall(time: float, art: Texture2D, plus: bool = false) -> void:
 	var p := _cycle(time, 4.0)
 	var hits := (1 if p > 0.4 else 0) + (1 if p > 0.7 else 0)
 	_art(art, Vector2(2,1))
 	_enemy(Vector2(4,1).lerp(Vector2(3,1), _ph(p, 0.05, 0.3)) - Vector2(sin(_ph(p, 0.4, 0.5) * PI) * 0.18 + sin(_ph(p, 0.7, 0.8) * PI) * 0.18, 0))
-	_say(_center(Vector2(2,0)) + Vector2(0, 8), "HP %d  AP 0" % (5 - hits), 13, GOLD)
+	_say(_center(Vector2(2,0)) + Vector2(0, 8), "HP %d  AP 0" % ((10 if plus else 5) - hits), 13, GOLD)
 	_pop(Vector2(2,1), "−1", _ph(p, 0.4, 0.75), RED, 0, 20)
 	_pop(Vector2(2,1), "−1", _ph(p, 0.7, 1.0), RED, 0, 20)
 
