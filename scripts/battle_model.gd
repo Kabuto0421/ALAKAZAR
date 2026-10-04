@@ -441,7 +441,7 @@ func dragon_cells(from: Vector2i) -> Array[Vector2i]:
 		result.append(cell)
 	return result
 
-## One blast a turn (it ends the turn): the player and any ally in the line take 1.
+## One blast costs 1 AP (two a turn from the same spot, AP 2): the player and any ally in the line take 1.
 func dragon_fire(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
 		return false
@@ -449,7 +449,7 @@ func dragon_fire(enemy: Dictionary) -> bool:
 	var struck := cells.filter(func(c: Vector2i) -> bool: return c == player.cell or not ally_at(c).is_empty())
 	if struck.is_empty():
 		return false
-	enemy.ap = 0
+	enemy.ap -= 1
 	enemy.intent = "砲撃"
 	var end: Vector2i = struck[-1]
 	for cell in struck:

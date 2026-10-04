@@ -2342,13 +2342,13 @@ func _dragon_soldier() -> void:
 	m.enemies.append(d)
 	verify(d.hp == 3 and d.ap == 2 and Rules.TYPES.dragon.name == "竜装兵","The dragon-armoured soldier has HP3 and AP2")
 	verify(m.enemy_attack_offsets(d) == [Vector2i(-1, 0), Vector2i(-2, 0), Vector2i(-3, 0)] and m.enemy_offsets(d).size() == 4,"It reaches the three tiles to its left and walks the four straight ways")
-	# Player three tiles to its left: it fires straight away (one blast ends its turn).
+	# Player three tiles to its left: it fires straight away, twice from the same spot (1 AP a shot).
 	var planner = Planner.new()
 	planner.begin(m)
 	var hp: int = m.player.hp
 	for beat in planner.beat_count(m):
 		planner.beat(m, beat)
-	verify(m.player.hp == hp - 1 and d.cell == Vector2i(4, 2),"In range it fires once for 1 and does not move")
+	verify(m.player.hp == hp - 2 and d.cell == Vector2i(4, 2),"In range it fires twice from the same spot and does not move")
 	# Four tiles away: it steps into the line and fires with its second AP.
 	m = Rules.new()
 	m.reset(Rules.LATE_LEVELS[0])
