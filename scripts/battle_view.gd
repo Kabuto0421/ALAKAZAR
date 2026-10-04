@@ -1489,8 +1489,50 @@ func _center(cell: Vector2i) -> Vector2:
 func _unit_center(unit: Dictionary) -> Vector2:
 	return _center(unit.cell)+Vector2.ONE*TILE/2*(int(unit.get("size",1))-1)
 
+## Test hook: when set to an Array, every _text call is recorded as [position, text, size, width].
+var text_audit = null
+
 func _text(at: Vector2,text: String,size: int=20,color: Color=INK,font: Font=null) -> void:
+	if text_audit != null:
+		text_audit.append([at,text,size,_text_width(text,size)])
 	draw_string(ui_font if font == null else font,at,text,HORIZONTAL_ALIGNMENT_LEFT,-1,size,color)
+
+## `text` as lines no wider than `width`. A text that already fits keeps its own line breaks;
+## otherwise its lines are joined up to each sentence end and re-wrapped, so no scrap of a
+## word is left alone on a line.
+func _wrap_lines(text: String, size: int, width: float) -> PackedStringArray:
+	var own := text.split("\n")
+	var fits := true
+	for line in own:
+		fits = fits and _text_width(line, size) <= width
+	if fits:
+		return own
+	var sentences := PackedStringArray()
+	var open_line := ""
+	for line in own:
+		open_line += line
+		if line.ends_with("。") or line.ends_with("！") or line.ends_with("？"):
+			sentences.append(open_line)
+			open_line = ""
+	if not open_line.is_empty():
+		sentences.append(open_line)
+	var rows := PackedStringArray()
+	for sentence in sentences:
+		var row := ""
+		for index in sentence.length():
+			var character := sentence[index]
+			# A closing mark never starts a line: it hangs a little past the edge with its
+			# character, which is never left alone either.
+			var tail := character
+			if index + 1 < sentence.length() and sentence[index + 1] in "。、）」！？":
+				tail += sentence[index + 1]
+			var allowed := width + (16.0 if tail.length() > 1 or character in "。、）」！？" else 0.0)
+			if not row.is_empty() and _text_width(row + tail, size) > allowed and not character in "。、）」！？":
+				rows.append(row)
+				row = ""
+			row += character
+		rows.append(row)
+	return rows
 
 func _text_width(text: String, size: int) -> float:
 	return ui_font.get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,size).x
@@ -2097,13 +2139,10 @@ func _draw_weapons() -> void:
 			var tip := pos+Vector2(28,31)
 			draw_colored_polygon(PackedVector2Array([tip+Vector2(0,-8),tip+Vector2(12,0),tip+Vector2(0,8)]),accent)
 			label_x = 46.0
-		_text(pos+Vector2(label_x,38),label,22,accent)
 		var forged: bool = model.weapon_power.has(index)
-		if forged:
-			_text(pos+Vector2(label_x+2+_text_width(label,22),38),"+",22,GOLD)
 		var extras: Array[String] = []
 		# Swap weapons trade places instead of dealing damage.
-		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替・初回0AP" if forged and not model.free_swap_used else "無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
+		extras.assign(["魔法陣","攻撃不可"] if circle else ["入替・初回0AP" if forged and not model.free_swap_used else "無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
 		if weapon.get("knockback",0) > 0:
 			# Knockback weapons deal no damage of their own (until forged).
 			if model.weapon_damage(index) <= 0:
@@ -2117,8 +2156,6 @@ func _draw_weapons() -> void:
 		if model.combo_boost == index:
 			extras.append("強化中")
 			_draw_slot_aura(rect.grow(-SLOT_FRAME), accent)
-		if extras.size() == 1 and not weapon.has("slide") and not Catalog.is_dagger(index) and (Catalog.is_jump(index) or weapon.offsets.any(func(o: Vector2i) -> bool: return maxi(absi(o.x),absi(o.y)) >= 2)):
-			extras.append("跳ぶ")
 		# Same picture as the reward cards: outlined tiles with a dot on each reachable one.
 		var offsets := model.weapon_offsets(index)
 		var echo := Catalog.hammer_echo(index, model.weapon_power.has(index))
@@ -2130,10 +2167,18 @@ func _draw_weapons() -> void:
 		var side := inner*count/(count+arrow*2)
 		var cell_size := side/count
 		var origin := pos+Vector2(248-SLOT_FRAME-2-side-arrow*cell_size,SLOT_FRAME+2+arrow*cell_size)
+		# The name (and its +) steps down in size rather than run into the diagram.
+		var name_size := 22
+		var name_room := origin.x - arrow * cell_size - 6.0 - (pos.x + label_x)
+		while name_size > 14 and _text_width(label, name_size) + (name_size if forged else 0) > name_room:
+			name_size -= 1
+		_text(pos+Vector2(label_x,38),label,name_size,accent)
+		if forged:
+			_text(pos+Vector2(label_x+2+_text_width(label,name_size),38),"+",name_size,GOLD)
 		# The stats line stops short of the diagram (a forged knockback weapon's is long).
 		var stats := "・".join(extras)
 		var stats_size := 16
-		while stats_size > 13 and pos.x+14+_text_width(stats,stats_size) > origin.x-arrow*cell_size-4:
+		while stats_size > 11 and pos.x+14+_text_width(stats,stats_size) > origin.x-arrow*cell_size-4:
 			stats_size -= 1
 		var boosted_now: bool = model.combo_boost == index and Catalog.is_dagger(index)
 		if boosted_now:
@@ -2230,12 +2275,29 @@ func _draw_intel() -> void:
 		var choosing := item_origin != Vector2i(-1,-1)
 		if not choosing:
 			ItemPreview.paint(self,model,selected_item,clock)
-		var lines: PackedStringArray = model.fairy_description(selected_item).split("\n")
+		var description := model.fairy_description(selected_item)
+		# Lines wider than the panel wrap instead of running out of it; a long text steps down a size.
+		var font_size := 18
+		var step := 25
+		# A text that only just overflows goes down a size or two rather than wrapping.
+		for trial in [18, 17, 16]:
+			var all_fit := true
+			for line in description.split("\n"):
+				all_fit = all_fit and _text_width(line, trial) <= 262.0
+			if all_fit:
+				font_size = trial
+				step = 25 if trial == 18 else roundi(trial * 1.4)
+				break
+		var lines := _wrap_lines(description, font_size, 262.0)
+		if lines.size() > 8:
+			font_size = 16
+			step = 22
+			lines = _wrap_lines(description, font_size, 262.0)
 		# The text's baseline sits a line below the example so the first line clears it.
 		var text_top := 252.0 if choosing else 352.0
 		for i in range(lines.size()):
-			_text(Vector2(850,text_top+i*25),lines[i],18,INK)
-		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else maxf(490.0,text_top+lines.size()*25+14.0)),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if item.target == Rules.ItemDefinition.Target.SELF else "配置先を選択",23,item.color)
+			_text(Vector2(850,text_top+i*step),lines[i],font_size,INK)
+		_text(Vector2(852,text_top+(lines.size()-1)*step+42 if choosing else maxf(490.0,text_top+lines.size()*step+14.0)),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if item.target == Rules.ItemDefinition.Target.SELF else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	var ally := _preview_ally()
