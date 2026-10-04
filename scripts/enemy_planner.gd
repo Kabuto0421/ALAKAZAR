@@ -118,7 +118,8 @@ func beat(model: RefCounted, index: int) -> void:
 		if not model.cats.is_empty() and enemy.type in CAT_AVOIDERS and _cat_avoid(model, enemy):
 			continue
 		var adjacent_ally := false
-		for offset in model.enemy_offsets(enemy):
+		# The mine soldier backs away and plants: it never strikes (not the player, not an ally).
+		for offset in ([] if enemy.type == "miner" else model.enemy_offsets(enemy)):
 			var cell: Vector2i = enemy.cell + offset
 			if not model.ally_at(cell).is_empty():
 				model.enemy_step(enemy,cell)

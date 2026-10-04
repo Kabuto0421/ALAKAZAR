@@ -328,6 +328,7 @@ func _initialize() -> void:
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
+	_miner_spares_allies()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2129,6 +2130,23 @@ func _holy_detours() -> void:
 		if guardian.cell.y > 4:
 			break
 	verify(guardian.cell.y > 4, "The guardian goes round a wall to reach the enemy behind it (got to %s)" % [guardian.cell])
+
+## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
+func _miner_spares_allies() -> void:
+	var m := fixture()
+	m.player.cell = Vector2i(0, 0)
+	m.enemies.clear()
+	var miner: Dictionary = m.make_enemy("miner", Vector2i(3, 3), 0)
+	m.enemies.append(miner)
+	m.summon_acorn(Vector2i(3, 2))
+	var acorn: Dictionary = m.allies[0]
+	var hp := int(acorn.hp)
+	m.phase = Rules.Phase.ENEMY
+	var planner = Planner.new()
+	planner.begin(m)
+	planner.beat(m, 0)
+	planner.beat(m, 1)
+	verify(int(acorn.hp) == hp, "A mine soldier next to a summoned ally leaves it alone")
 
 func _prison_king() -> void:
 	var m := Rules.new()
