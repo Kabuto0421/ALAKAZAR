@@ -2215,7 +2215,8 @@ func _draw_intel() -> void:
 		var item: Resource = model.item_definition(selected_item)
 		_text(Vector2(852,133),item.title,26,item.color)
 		if model.is_plus(selected_item):
-			_text(Vector2(854+_text_width(item.title,26),133),"+",26,GOLD)
+			var plus_mark := "+" if model.plus_level(selected_item) <= 1 else "+%d" % model.plus_level(selected_item)
+			_text(Vector2(854+_text_width(item.title,26),133),plus_mark,26,GOLD)
 			SpiritIcon.paint_plus(self,Vector2(954,138),22)
 		SpiritIcon.paint(self,Vector2(912,180),item.icon,1.35)
 		if model.fairy_ap_cost(selected_item) == 0:
