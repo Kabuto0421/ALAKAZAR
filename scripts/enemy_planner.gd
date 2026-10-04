@@ -81,6 +81,9 @@ func beat(model: RefCounted, index: int) -> void:
 		if model.frozen(enemy) or model.time_stopped():
 			enemy.ap = 0
 			continue
+		# 猫の妖精: every enemy that stands in the cat's field spends its action running out of it.
+		if not model.cats.is_empty() and _cat_flee(model, enemy):
+			continue
 		if enemy.type == "slot":
 			if enemy.state == "idle":
 				model.rook_brace(enemy)
@@ -184,6 +187,58 @@ func finish(model: RefCounted) -> void:
 		model.storm_roll_wind()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
+## Anything that can move and stands in the cat's field (a 2x2 with any tile in it) runs out of
+## it instead of whatever it meant to do: to a tile outside the field if its own moves reach one,
+## else to the tile furthest from the cat. Returns true when it used its action.
+func _cat_flee(model: RefCounted, enemy: Dictionary) -> bool:
+	if enemy.type in ["king", "fortress", "shadow"] or enemy.get("diving", false) or not model.in_cat_zone(enemy):
+		return false
+	var size: int = enemy.get("size", 1)
+	var step := _flee_step(model, enemy)
+	if step == Vector2i.ZERO:
+		return false
+	enemy.intent = "猫から逃げる"
+	if size > 1:
+		return model.big_step(enemy, step)
+	return model.enemy_step(enemy, enemy.cell + step)
+
+## The first move of the shortest way (by the enemy's own moves) to somewhere that is clear of
+## the field, or ZERO when there is none.
+func _flee_step(model: RefCounted, enemy: Dictionary) -> Vector2i:
+	var size: int = enemy.get("size", 1)
+	var moves: Array = DIRECTIONS if size > 1 else model.enemy_offsets(enemy)
+	var first := {enemy.cell: Vector2i.ZERO}
+	var queue: Array[Vector2i] = [enemy.cell]
+	var head := 0
+	while head < queue.size() and head < 400:
+		var at: Vector2i = queue[head]
+		head += 1
+		for move in moves:
+			var anchor: Vector2i = at + move
+			if first.has(anchor) or not _flee_fits(model, enemy, anchor, size):
+				continue
+			first[anchor] = move if at == enemy.cell else first[at]
+			var clear := true
+			for y in range(size):
+				for x in range(size):
+					clear = clear and not model.cat_zone_at(anchor + Vector2i(x, y))
+			if clear:
+				return first[anchor]
+			queue.append(anchor)
+	return Vector2i.ZERO
+
+## Whether the enemy could stand with its top-left tile on `anchor` (the field itself is no wall).
+func _flee_fits(model: RefCounted, enemy: Dictionary, anchor: Vector2i, size: int) -> bool:
+	for y in range(size):
+		for x in range(size):
+			var cell: Vector2i = anchor + Vector2i(x, y)
+			if not model.inside(cell) or model._walled(cell) or cell == model.player.cell or model.mines.has(cell):
+				return false
+			var other: Dictionary = model.enemy_at(cell)
+			if not other.is_empty() and other.id != enemy.id:
+				return false
+	return true
+
 ## Who steers round the cat's field (bosses and the like are left to their own rules).
 const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer", "dragon"]
 
@@ -191,24 +246,6 @@ const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", 
 ## through the field goes round it (the shortest way over free tiles), or waits at its edge when
 ## there is no way. Returns true when it used its action.
 func _cat_avoid(model: RefCounted, enemy: Dictionary) -> bool:
-	# Inside the field: get out, to the free tile that is furthest from the cat.
-	if model.cat_zone_at(enemy.cell):
-		var exits: Array[Vector2i] = []
-		for direction in DIRECTIONS:
-			var cell: Vector2i = enemy.cell + direction
-			if model.inside(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell and not model.blocked(cell):
-				exits.append(cell)
-		exits.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-			var out_a := 0 if model.cat_zone_at(a) else 1
-			var out_b := 0 if model.cat_zone_at(b) else 1
-			if out_a != out_b:
-				return out_a > out_b
-			return model.cat_distance(a) > model.cat_distance(b))
-		if not exits.is_empty():
-			enemy.intent = "猫から逃げる"
-			model.enemy_step(enemy, exits[0])
-			return true
-		return false
 	var to_player: int = model.distance(enemy.cell, model.player.cell)
 	if to_player <= 1:
 		return false

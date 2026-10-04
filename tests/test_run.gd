@@ -2786,8 +2786,27 @@ func _cat_fairy() -> void:
 	verify(inside.enemy_step(trapped, Vector2i(6,3)) and trapped.cell == Vector2i(6,3),"An enemy inside the field can walk out of it")
 	trapped.cell = Vector2i(3,3)
 	trapped.ap = 1
-	verify(inside.enemy_step(trapped, Vector2i(4,3)) == false,"Inside the field, stepping to another field tile is refused")
-	verify(inside.enemy_step(trapped, Vector2i(3,4)) == false,"...and so is every tile of it")
+	verify(inside.enemy_step(trapped, Vector2i(4,3)) and trapped.cell == Vector2i(4,3),"Inside the field, an enemy may move about in it (to run out)")
+	trapped.ap = 2
+	trapped.cell = Vector2i(7,3)
+	verify(inside.enemy_step(trapped, Vector2i(6,3)) and not inside.enemy_step(trapped, Vector2i(5,3)),"...but once outside it cannot step back in")
+	# Every kind of enemy that stands in the field runs out of it.
+	var kinds: Array = Rules.SOLDIERS.duplicate()
+	kinds.append_array(["rook", "prison"])
+	for kind in kinds:
+		var run_room := _cat_room()
+		run_room.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
+		run_room.player.cell = Vector2i(7,0)
+		var runner: Dictionary = run_room.make_enemy(kind, Vector2i(3,3), 0)
+		run_room.enemies.append(runner)
+		var worst := 0
+		for turn in 4:
+			run_room.phase = Rules.Phase.ENEMY
+			runner.ap = Rules.TYPES[kind].ap
+			planner.beat(run_room, 0)
+			planner.beat(run_room, 1)
+		var out: bool = not run_room.footprint(runner).any(func(c): return run_room.cat_zone_at(c))
+		verify(out,"%s caught in the cat's field runs out of it" % Rules.TYPES[kind].name)
 	# --- Enemies steer clear of the field in plain sight ---
 	var det := _cat_room()
 	det.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
