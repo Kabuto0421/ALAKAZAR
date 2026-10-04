@@ -3187,12 +3187,41 @@ func shark_surface(shark: Dictionary) -> void:
 			events.append({"kind":"hit", "cell":ally.cell, "id":ally.id, "damage":DIVE_DAMAGE})
 	_bury_allies()
 	check_outcome()
-	# Anyone still standing on its tiles is squeezed out of the way.
+	# Anyone still standing on its tiles is squeezed out of the way: one step away if that is
+	# free, else to the nearest free tile (a player cornered against the edge used to stay
+	# buried in the shark).
 	for cell in block:
 		if cell == player.cell and not terminal():
 			var out := _knock_target(player.cell, anchor)
+			if out == Vector2i(-1, -1):
+				out = _nearest_free_cell(player.cell, block)
 			if out != Vector2i(-1, -1):
+				events.append({"kind":"knock", "cell":player.cell, "to":out, "id":-1})
 				player.cell = out
+	for ally in allies.duplicate():
+		if ally.hp > 0 and block.has(ally.cell):
+			var spot := _nearest_free_cell(ally.cell, block)
+			if spot != Vector2i(-1, -1):
+				ally.cell = spot
+			else:
+				ally.hp = 0
+	_bury_allies()
+
+## The free tile nearest to `from` that is outside `block` (nothing on it, not blocked), or
+## (-1,-1) when there is none.
+func _nearest_free_cell(from: Vector2i, block: Array[Vector2i]) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_gap := 9999
+	for y in range(board_size):
+		for x in range(board_size):
+			var cell := Vector2i(x, y)
+			if block.has(cell) or blocked(cell) or cell == player.cell or not enemy_at(cell).is_empty() or mines.has(cell):
+				continue
+			var gap: int = absi(cell.x - from.x) + absi(cell.y - from.y)
+			if gap < best_gap:
+				best = cell
+				best_gap = gap
+	return best
 
 ## The first beat of the shark's turn: surface if it is under, maybe dive, else nothing.
 ## Returns true when it used its turn.

@@ -3296,6 +3296,22 @@ func _storm_shark() -> void:
 	var hp: int = m.player.hp
 	m.shark_surface(shark)
 	verify(m.player.hp == hp - 2 and not shark.diving and shark.cell == anchor and not m.footprint(shark).has(m.player.cell),"It comes up: 2 damage, the player thrown out of its block")
+	# Wherever the player stands (the corners and edges included), it is never left inside the
+	# shark's block after it comes up.
+	var buried := 0
+	for y in 8:
+		for x in 8:
+			var edge := _shark_room()
+			var edge_shark: Dictionary = edge.storm_shark()
+			edge.player.hp = 9
+			edge.player.cell = Vector2i(x, y)
+			if edge.enemy_at(edge.player.cell).is_empty() and not edge.blocked(edge.player.cell):
+				edge.shark_dive(edge_shark)
+				if edge_shark.get("diving", false):
+					edge.shark_surface(edge_shark)
+					if edge.footprint(edge_shark).has(edge.player.cell):
+						buried += 1
+	verify(buried == 0,"The shark never comes up on top of the player, on any tile (%d buried)" % buried)
 	# Dodging: a player who left the shadow is untouched.
 	var d := _shark_room()
 	var ds: Dictionary = d.storm_shark()
