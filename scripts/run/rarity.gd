@@ -20,7 +20,7 @@ const RARE_FAIRIES: Array[String] = ["axe_spirit", "abyss_spirit", "warp_fairy",
 const SUPER_RARE_FAIRIES: Array[String] = ["glutton_fairy", "guardian_fairy", "holy_spirit", "time_fairy", "meteor_fairy"]
 ## Weapons rarer than their pool (by id); 飛車槍・角剣 are super rare as late weapons.
 const UNCOMMON_WEAPONS: Array[String] = ["vertical", "front_diagonal", "sickle"]
-const RARE_WEAPONS: Array[String] = ["cross", "diagonal", "fan", "tee", "assault", "scales"]
+const RARE_WEAPONS: Array[String] = ["diagonal", "fan", "tee", "assault", "scales"]
 const SUPER_RARE_WEAPONS: Array[String] = ["eight_knight"]
 
 static func tier(offer: Dictionary) -> int:

@@ -1535,7 +1535,7 @@ func _mechanic_weapons() -> void:
 	var W := Run.Weapons
 	var ids: Array = W.DATA.map(func(w): return w.id)
 	verify(W.is_boss_reward(ids.find("lance")) and W.late_pool().has(ids.find("rook_spear")) and W.late_pool().has(ids.find("bishop_blade")) and W.early_reward_pool().has(ids.find("swap_staff")),"New weapons sit in their reward pools")
-	verify(W.DATA.size() == 48,"39 weapons plus the eight-knight general, the king staff, the cross hammer, the thunder blade and the two cross daggers")
+	verify(W.DATA.size() == 47,"38 weapons plus the eight-knight general, the king staff, the cross hammer, the thunder blade and the two cross daggers")
 	var early_ids: Array = W.early_reward_pool().map(func(i): return W.DATA[i].id)
 	verify(early_ids.has("flick_down") and early_ids.has("return_goose") and not W.DATA.any(func(w): return w.id in ["tall_knight", "slant"]),"跳下剣 and 帰雁剣 replace 立桂剣 and 袈裟剣 in the early pool")
 	var thunder: int = W.DATA.map(func(w): return w.id).find("thunder")
