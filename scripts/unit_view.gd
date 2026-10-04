@@ -73,6 +73,7 @@ const SOLDIER_SHEETS = {
 	"shield": [preload("res://assets/sprites/enemies/shield_soldier_directions.png"), 64.0],
 	"archer": [preload("res://assets/sprites/enemies/archer_directions.png"), 66.0],
 	"analyst": [preload("res://assets/sprites/enemies/analyst_directions.png"), 62.0],
+	"cross": [preload("res://assets/sprites/enemies/cross_soldier_directions.png"), 64.0],
 }
 ## Second-row state for soldier sheets (archer aiming, analyst after learning).
 var alt_row := false
@@ -544,8 +545,6 @@ func _draw() -> void:
 		else:
 			var sheet: Array = FORTRESS_SHEETS["idle"]
 			draw_texture_rect_region(sheet[0],Rect2(-72,-84,144,144),_sheet_frame(sheet,clock,false),tint)
-	elif kind == "cross":
-		_draw_cross_soldier(tint)
 	elif kind == "glutton":
 		# A slight chewing bob.
 		var chew := absf(sin(Time.get_ticks_msec() / 1000.0 * 5.0)) * 2.0
@@ -675,26 +674,6 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 			canvas.draw_texture_rect_region(PRISON_ATLAS, Rect2(Vector2(-76,-82)*factor, Vector2.ONE*152*factor), Rect2(direction*224, 0, 224, 224), tint)
 		"executioner":
 			canvas.draw_texture_rect_region(EXECUTIONER_ATLAS, Rect2(Vector2(-32,-38)*factor, Vector2.ONE*64*factor), Rect2(direction*160, 0, 160, 160), tint)
-
-## バッテン兵's own four-direction sheet (128px cells, like the other soldiers) once it is drawn:
-## assets/sprites/enemies/cross_soldier_directions.png. Until then: the foot soldier with a violet X.
-const CROSS_SHEET_PATH := "res://assets/sprites/enemies/cross_soldier_directions.png"
-static var _cross_sheet: Texture2D
-static var _cross_sheet_looked := false
-
-func _draw_cross_soldier(tint: Color) -> void:
-	if not _cross_sheet_looked:
-		_cross_sheet_looked = true
-		_cross_sheet = load(CROSS_SHEET_PATH) if ResourceLoader.exists(CROSS_SHEET_PATH) else null
-	if _cross_sheet != null:
-		draw_texture_rect_region(_cross_sheet, Rect2(Vector2(-32, 28 - 64), Vector2.ONE * 64), Rect2(facing * 128, 0, 128, 128), tint)
-		return
-	draw_texture_rect_region(ENEMY_ATLAS, Rect2(-28, -32, 56, 56), Rect2(facing * 28, 0, 28, 28), Color(0.82, 0.68, 1.0, tint.a) * tint)
-	var ink := Color(0.85, 0.62, 1.0, tint.a)
-	draw_line(Vector2(-15, -41), Vector2(1, -25), Color(0.1, 0.05, 0.16, tint.a), 7)
-	draw_line(Vector2(1, -41), Vector2(-15, -25), Color(0.1, 0.05, 0.16, tint.a), 7)
-	draw_line(Vector2(-15, -41), Vector2(1, -25), ink, 4)
-	draw_line(Vector2(1, -41), Vector2(-15, -25), ink, 4)
 
 static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, alt: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
 	var entry: Array = SOLDIER_SHEETS[soldier]
