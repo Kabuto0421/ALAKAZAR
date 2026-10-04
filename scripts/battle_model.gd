@@ -2143,14 +2143,17 @@ func _holy_action(holy: Dictionary) -> void:
 				add_log("%sが攻撃" % ALLY_NAMES[holy.type])
 				check_outcome()
 				return
+	# Walk the shortest way round whatever is in the road (a 2x2 body gets stuck against the king's
+	# throne if it only ever steps to a tile that is nearer as the crow flies).
+	var route := _holy_route(holy)
+	if route != Vector2i.ZERO:
+		holy.cell += route
+		holy.facing = CARDINALS.find(route)
+		return
 	var best := Vector2i.ZERO
 	var best_score := _holy_distance(holy)
 	for direction in CARDINALS:
-		var free := true
-		for tile in _front_cells(holy, direction):
-			if not inside(tile) or blocked(tile) or tile == player.cell or mines.has(tile) or not enemy_at(tile).is_empty():
-				free = false
-		if not free:
+		if not _holy_can_step(holy, direction):
 			continue
 		var probe := holy.duplicate()
 		probe.cell = holy.cell + direction
@@ -2161,6 +2164,39 @@ func _holy_action(holy: Dictionary) -> void:
 	if best != Vector2i.ZERO:
 		holy.cell += best
 		holy.facing = CARDINALS.find(best)
+
+func _holy_can_step(holy: Dictionary, direction: Vector2i) -> bool:
+	for tile in _front_cells(holy, direction):
+		if not inside(tile) or blocked(tile) or tile == player.cell or mines.has(tile) or not enemy_at(tile).is_empty():
+			return false
+	return true
+
+## The first step of the shortest walk to a spot where the holy spirit/guardian touches an enemy it
+## may attack; ZERO when it already touches one or none can be reached.
+func _holy_route(holy: Dictionary) -> Vector2i:
+	var probe := holy.duplicate()
+	var start: Vector2i = holy.cell
+	var first := {start: Vector2i.ZERO}
+	var queue: Array[Vector2i] = [start]
+	var head := 0
+	while head < queue.size():
+		var cell: Vector2i = queue[head]
+		head += 1
+		probe.cell = cell
+		for direction in CARDINALS:
+			for tile in _front_cells(probe, direction):
+				var enemy := enemy_at(tile)
+				if not enemy.is_empty() and ally_can_target(enemy):
+					return first[cell]
+		for direction in CARDINALS:
+			if not _holy_can_step(probe, direction):
+				continue
+			var next: Vector2i = cell + direction
+			if first.has(next):
+				continue
+			first[next] = direction if cell == start else first[cell]
+			queue.append(next)
+	return Vector2i.ZERO
 
 func _holy_distance(holy: Dictionary) -> int:
 	var best := 999

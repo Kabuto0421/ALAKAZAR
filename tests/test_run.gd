@@ -327,6 +327,7 @@ func _initialize() -> void:
 	_cat_fairy()
 	_wheel_fairy()
 	_cross_daggers()
+	_holy_detours()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2106,6 +2107,28 @@ func _glutton() -> void:
 	m.summon_glutton(Vector2i(2,1))
 	verify(ThreatPreview.attackers(m).has(m.allies[0].id),"A glutton about to bite the player is flagged like an attacker")
 	verify(Run.new().reward_fairy_pool.has("glutton_fairy"),"The glutton is in the reward pool")
+
+## The 2x2 holy spirit / guardian walk round a barrier instead of sticking to it.
+func _holy_detours() -> void:
+	var m := Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.cell = Vector2i(0, 0)
+	var side := m.board_size
+	for x in side - 2:
+		m.obstacles.append(Vector2i(x, 4))
+	var foe := m.make_enemy("heavy", Vector2i(1, side - 2), 0)
+	foe.hp = 9
+	m.enemies.append(foe)
+	m.summon_guardian(Vector2i(2, 1))
+	var guardian: Dictionary = m.allies.filter(func(a): return a.type == "guardian")[0]
+	for turn in 25:
+		m.act_allies()
+		if guardian.cell.y > 4:
+			break
+	verify(guardian.cell.y > 4, "The guardian goes round a wall to reach the enemy behind it (got to %s)" % [guardian.cell])
 
 func _prison_king() -> void:
 	var m := Rules.new()
