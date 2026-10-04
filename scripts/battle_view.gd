@@ -919,6 +919,7 @@ func _sync_units(animate: bool) -> void:
 		view.z_index = 0 if id >= 0 and model.time_stopped() else 2
 		view.reel = 0 if reel_hold and unit.type == "slot" else int(unit.get("reel",0))
 		view.alt_row = unit.get("state","") == "aim" or int(unit.get("learned",-1)) >= 0 or unit.get("awake", false)
+		view.wake_turns = Rules.JESTER_SLEEP_TURNS - int(unit.get("age", 0)) if unit.type == "jester" and not unit.get("awake", false) else 0
 		var learned := int(unit.get("learned",-1))
 		view.learned_text = "解析:" + Rules.WEAPONS[learned].short if learned >= 0 else ""
 		view.learned_color = Color(Rules.WEAPONS[learned].color) if learned >= 0 else Color.WHITE

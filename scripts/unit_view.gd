@@ -77,6 +77,8 @@ const SOLDIER_SHEETS = {
 }
 ## Second-row state for soldier sheets (archer aiming, analyst after learning).
 var alt_row := false
+## 道化兵 asleep: enemy turns left before it wakes (a corner badge, like the placed fairies' countdown).
+var wake_turns := 0
 const PLAYER_ATLAS_CELL := 362.0
 const SWORD_ATTACK_CELL := 480.0
 var kind := "player"
@@ -764,6 +766,11 @@ func _draw_status() -> void:
 			var inward := Vector2(-signf(corner.x),-signf(corner.y))
 			status_layer.draw_line(corner,corner+Vector2(inward.x*10,0),Color("ff805a"),3)
 			status_layer.draw_line(corner,corner+Vector2(0,inward.y*10),Color("ff805a"),3)
+	if wake_turns > 0:
+		var corner := Rect2(Vector2(10, 8), Vector2(22, 22))
+		status_layer.draw_rect(corner, Color(0.03, 0.06, 0.07, 0.9))
+		status_layer.draw_rect(corner, Color(0.7, 0.55, 0.9, 0.9), false, 2)
+		status_layer.draw_string(BADGE_FONT, corner.position + Vector2(5, 18), str(wake_turns), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("f4f0df"))
 	if not learned_text.is_empty():
 		# Badge over the head naming the weapon it has analysed.
 		var width := 12.0 + learned_text.length() * 14.0
