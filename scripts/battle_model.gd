@@ -138,12 +138,13 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_late_01.tscn"),
 	preload("res://scenes/formations/run_late_02.tscn"),
 	preload("res://scenes/formations/run_late_03.tscn"),
+	preload("res://scenes/formations/run_late_04.tscn"),
 	preload("res://scenes/formations/run_final.tscn"),
 ]
 const BOSS_LEVEL := 3
 ## The second boss (Rotorick) after the mid-game camp.
 const BOSS2_LEVEL := 7
-const BOSS_LEVELS = [3, 7, 11]
+const BOSS_LEVELS = [3, 7, 12]
 ## The first boss is drawn from these rooms: three horses, or the rook and the moving prison.
 const BOSS_FORMATIONS = [
 	preload("res://scenes/formations/run_boss_01.tscn"),
@@ -169,11 +170,11 @@ var mini_zones: Array = []
 var player_home := Vector2i.ZERO
 ## Mid-game fights after the first boss, then a camp and the second boss.
 const MID_LEVELS = [4, 5, 6]
-## Late-game fights after Rotorick; a camp follows and ends the run (no boss yet).
-const LATE_LEVELS = [8, 9, 10]
+## Late-game fights after Rotorick (a camp after the second and after the fourth), then the Prison King.
+const LATE_LEVELS = [8, 9, 10, 11]
 ## The final boss, the Prison King, on a 10x10 board after the last camp.
-const FINAL_LEVEL := 11
-const LAST_LEVEL := 11
+const FINAL_LEVEL := 12
+const LAST_LEVEL := 12
 var board_size := 4
 var owned_weapons: Array[int] = [0,1,2]
 var fairy_loadout: Array[String] = ["magic_bolt"]

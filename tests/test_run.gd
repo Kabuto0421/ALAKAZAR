@@ -165,17 +165,21 @@ func _initialize() -> void:
 	m.check_outcome()
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating Rotorick opens a reward")
 	run.skip_reward()
-	for k in 3:
-		verify(run.state==Run.State.BATTLE and m.level==Rules.LATE_LEVELS[k] and m.enemies.size() >= 7,"Late fight %d follows" % (k+1))
+	for k in 4:
+		# The fourth late fight is small on purpose: a jester, a dragon soldier and a fortress that keeps sending more.
+		verify(run.state==Run.State.BATTLE and m.level==Rules.LATE_LEVELS[k] and (m.enemies.size() >= 7 or k == 3),"Late fight %d follows" % (k+1))
+		if k == 3:
+			var kinds: Array = m.enemies.map(func(e): return e.type)
+			verify(kinds.size() == 3 and kinds.has("jester") and kinds.has("dragon") and kinds.has("fortress"),"The fourth late fight is a jester, a dragon soldier and a fortress")
 		verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Late placements are valid")
 		m.enemies.clear()
 		m.check_outcome()
 		run.finish_battle()
-		if k < 2:
+		if k < 3:
 			verify(run.state==Run.State.REWARD,"Each late fight but the last gives a reward")
 			run.skip_reward()
 		if k == 1:
-			verify(run.state==Run.State.CAMP,"A late camp comes before the last late fight")
+			verify(run.state==Run.State.CAMP,"A late camp comes after the second late fight")
 			run.camp_rest()
 	verify(run.state==Run.State.REWARD,"The last late fight gives a reward")
 	run.skip_reward()

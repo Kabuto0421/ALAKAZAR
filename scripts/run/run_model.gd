@@ -324,10 +324,10 @@ func advance() -> void:
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)
 		state = State.CAMP
 		_roll_camp_tiles()
-	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
+	elif stage == Battle.MID_LEVELS[-1] or stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[3]:
 		if stage == Battle.MID_LEVELS[-1]:
 			battle.boss2_variant = boss2_choice if boss2_choice >= 0 else rng.randi_range(0, Battle.BOSS2_FORMATIONS.size() - 1)
-		# Camps: before Rotorick, before the last late fight, and before the Prison King.
+		# Camps: before Rotorick, after the second late fight, and before the Prison King.
 		state = State.CAMP
 		_roll_camp_tiles()
 	else:
@@ -425,7 +425,7 @@ func _leave_camp() -> void:
 	offers.clear()
 	camp_tiles.clear()
 	camp_tiles_rolled = false
-	if stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[2]:
+	if stage == Battle.LATE_LEVELS[1] or stage == Battle.LATE_LEVELS[3]:
 		stage = Battle.LATE_LEVELS[2] if stage == Battle.LATE_LEVELS[1] else Battle.FINAL_LEVEL
 		start_battle()
 		return

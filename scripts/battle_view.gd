@@ -1505,7 +1505,7 @@ func _draw() -> void:
 	for y in range(0,720,24):
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
-	var stage_title := "最終決戦" if model.level == Rules.FINAL_LEVEL else "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "終盤 %d / 3" % (Rules.LATE_LEVELS.find(model.level)+1) if Rules.LATE_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
+	var stage_title := "最終決戦" if model.level == Rules.FINAL_LEVEL else "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "終盤 %d / 4" % (Rules.LATE_LEVELS.find(model.level)+1) if Rules.LATE_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
 	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if Rules.BOSS_LEVELS.has(model.level) else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
