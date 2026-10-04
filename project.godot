@@ -24,6 +24,10 @@ window/stretch/mode="canvas_items"
 window/size/min_width=1296
 window/size/min_height=810
 
+[gui]
+
+theme/custom_font="res://assets/fonts/DotGothic16-Regular.ttf"
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
