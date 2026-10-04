@@ -210,7 +210,13 @@ func _ready() -> void:
 	if OS.has_feature("web") and override_time < 0.0:
 		var saved := ConfigFile.new()
 		if saved.load(SYNC_CONFIG) == OK:
-			web_offset = float(saved.get_value("sync", "offset", WEB_AUDIO_OFFSET))
+			if saved.has_section_key("sync", "offset_v2"):
+				web_offset = float(saved.get_value("sync", "offset_v2"))
+			elif saved.has_section_key("sync", "offset"):
+				# The old default of 0.0 must not override the new 1.2-second baseline.
+				var legacy_offset := float(saved.get_value("sync", "offset"))
+				if not is_zero_approx(legacy_offset):
+					web_offset = legacy_offset
 		waiting_for_click = true
 		click_prompt = Label.new()
 		click_prompt.text = "クリックしてスタート"
@@ -434,7 +440,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _nudge_sync(step: float) -> void:
 	web_offset = snappedf(web_offset + step, 0.01)
 	var saved := ConfigFile.new()
-	saved.set_value("sync", "offset", web_offset)
+	saved.set_value("sync", "offset_v2", web_offset)
 	saved.save(SYNC_CONFIG)
 	if offset_note == null:
 		offset_note = Label.new()
