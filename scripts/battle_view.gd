@@ -2873,9 +2873,11 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 	# Three hearts reach further right, so AP moves over for them.
 	var ap_x := 1030.0 if huge else 1030.0 if many else 1004.0 if hearts >= 3 else 984.0
 	_text(Vector2(ap_x,175),"AP",20,GOLD)
-	var ap_boxes: int = int(type.ap) + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
+	# An awakened jester's AP is 3 for good (its own, not a bonus).
+	var base_ap: int = Rules.JESTER_AWAKE_AP if enemy.type == "jester" and enemy.get("awake", false) else int(type.ap)
+	var ap_boxes: int = base_ap + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 	for i in range(ap_boxes):
-		draw_rect(Rect2(ap_x+45+i*26,153,22,23),Color("ff5b62") if i >= int(type.ap) else GOLD)
+		draw_rect(Rect2(ap_x+45+i*26,153,22,23),Color("ff5b62") if i >= base_ap else GOLD)
 	if enemy.type == "slot":
 		_draw_rotorick_inspector(enemy)
 		return
