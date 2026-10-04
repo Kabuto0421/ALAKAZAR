@@ -1309,6 +1309,7 @@ func _class_ups() -> void:
 	# Wall+: costs 0 AP and comes twice, like the acorn.
 	m = _plus_room("wall_fairy",[Vector2i(5,5)])
 	verify(m.fairy_ap_cost("wall_fairy") == 0 and m.fairy_charges == [2] and not m.is_directional("wall_fairy"),"Wall+ costs 0 AP and comes twice (no direction any more)")
+	verify(m.use_item("wall_fairy",m.item_targets("wall_fairy")[0]) and m.allies.any(func(a): return a.type == "wall" and a.hp == 10),"Wall+ summons a wall with 10 HP")
 	# Lance cannon+: one shot as before, but 0 AP to place and two per battle.
 	m = _plus_room("cannon_fairy",[Vector2i(2,0),Vector2i(2,5)])
 	verify(m.fairy_ap_cost("cannon_fairy") == 0 and m.fairy_charges == [2],"Lance cannon+ costs 0 AP and comes twice")
