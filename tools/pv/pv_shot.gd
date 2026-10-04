@@ -25,7 +25,9 @@ func _init() -> void:
 	quit()
 
 func _run(shot: String) -> void:
-	if shot.begins_with("art_pn_"):
+	if shot.begins_with("f_"):
+		await fairy_solo(shot.substr(2))
+	elif shot.begins_with("art_pn_"):
 		await portrait(shot.substr(7), true)
 	elif shot.begins_with("art_p_"):
 		await portrait(shot.substr(6), false)
@@ -152,28 +154,8 @@ var caption_layer: CanvasLayer
 var caption_label: Label
 var caption_band: ColorRect
 
-func say(text: String, color: Color = Color("fff6e0")) -> void:
-	if caption_layer == null:
-		caption_layer = CanvasLayer.new()
-		caption_layer.layer = 60
-		root.add_child(caption_layer)
-		caption_band = ColorRect.new()
-		caption_band.color = Color(0.02, 0.03, 0.06, 0.8)
-		caption_band.position = Vector2(0, 0)
-		caption_band.size = Vector2(1728, 78)
-		caption_layer.add_child(caption_band)
-		caption_label = Label.new()
-		caption_label.add_theme_font_override("font", load("res://assets/fonts/DotGothic16-Regular.ttf"))
-		caption_label.add_theme_font_size_override("font_size", 50)
-		caption_label.add_theme_color_override("font_outline_color", Color.BLACK)
-		caption_label.add_theme_constant_override("outline_size", 8)
-		caption_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		caption_label.position = Vector2(0, 6)
-		caption_label.size = Vector2(1728, 70)
-		caption_layer.add_child(caption_label)
-	caption_label.text = text
-	caption_label.add_theme_color_override("font_color", color)
-	caption_band.visible = text != ""
+func say(_text: String, _color: Color = Color.WHITE) -> void:
+	pass  # the PV carries no captions any more (kept so the shots read the same)
 
 # ---- shots ---------------------------------------------------------------------
 
@@ -194,7 +176,7 @@ func shot_guardian() -> void:
 
 ## Four meteors on a crowd standing where the knight sword reaches.
 func shot_meteor() -> void:
-	await boot(9, ["eight_knight", "lance", "hammer"], ["meteor_fairy", "magic_bolt", "wall_fairy"], {"meteor_fairy": 3})
+	await boot(9, ["eight_knight", "lance", "hammer"], ["meteor_fairy"], {"meteor_fairy": 3})
 	var spots := [Vector2i(1, 2), Vector2i(1, 4), Vector2i(2, 1), Vector2i(2, 5), Vector2i(4, 1), Vector2i(4, 5), Vector2i(5, 2), Vector2i(5, 4)]
 	var foes: Array = []
 	var kinds := ["heavy", "executioner", "horse", "gold", "javelin", "silver", "cavalry", "analyst"]
@@ -210,7 +192,7 @@ func shot_meteor() -> void:
 
 ## A web of cannons: one blow on the first sets off the rest (CHAIN x n).
 func shot_chain() -> void:
-	await boot(9, ["forward", "lance", "hammer"], ["cannon_fairy", "magic_bolt", "wall_fairy"])
+	await boot(9, ["forward", "lance", "hammer"], ["cannon_fairy"])
 	arrange(Vector2i(0, 3), [["heavy", Vector2i(4, 3), 3], ["horse", Vector2i(6, 3), 3], ["javelin", Vector2i(3, 0)], ["javelin", Vector2i(3, 2)], ["executioner", Vector2i(5, 6)], ["gold", Vector2i(4, 5)], ["silver", Vector2i(6, 1)], ["analyst", Vector2i(5, 2)]])
 	m.place_cannon(Vector2i(1, 3), Vector2i.RIGHT, "lance")
 	m.place_cannon(Vector2i(3, 3), Vector2i.UP, "lance")
@@ -229,7 +211,7 @@ func shot_chain() -> void:
 
 ## The hammer comes down on a crowd.
 func shot_hammer() -> void:
-	await boot(9, ["hammer", "forward", "lance"], ["magic_bolt", "wall_fairy", "stealth_fairy"])
+	await boot(9, ["hammer", "forward", "lance"], [])
 	arrange(Vector2i(1, 3), [["heavy", Vector2i(2, 3), 3], ["executioner", Vector2i(2, 2), 3], ["horse", Vector2i(2, 4), 3], ["gold", Vector2i(3, 3), 3], ["javelin", Vector2i(4, 3)], ["silver", Vector2i(3, 1)], ["cavalry", Vector2i(3, 5)]])
 	m.weapon = 0
 	await seconds(0.8)
@@ -238,7 +220,7 @@ func shot_hammer() -> void:
 
 ## Rotorick's casino.
 func shot_rotorick() -> void:
-	await boot(7, ["lance", "forward", "hammer"], ["magic_bolt", "wall_fairy", "stealth_fairy"])
+	await boot(7, ["lance", "forward", "hammer"], [])
 	await seconds(4.0)
 	await end_turn()
 	await seconds(1.0)
@@ -247,12 +229,12 @@ func shot_rotorick() -> void:
 
 ## The storm shark.
 func shot_shark() -> void:
-	await boot(7, ["lance", "forward", "hammer"], ["magic_bolt", "wall_fairy", "stealth_fairy"], {}, true, 1)
+	await boot(7, ["lance", "forward", "hammer"], [], {}, true, 1)
 	await seconds(9.0)
 
 ## The Prison King.
 func shot_king() -> void:
-	await boot(12, ["lance", "forward", "hammer"], ["magic_bolt", "wall_fairy", "stealth_fairy"])
+	await boot(12, ["lance", "forward", "hammer"], [])
 	await seconds(5.0)
 	for king in m.enemies:
 		if king.type == "king":
@@ -698,7 +680,7 @@ func play_turn(actions: int = 2) -> void:
 
 ## The plainest weapons, moving and fighting: a crowd of weak soldiers, every action a blow.
 func shot_basic() -> void:
-	await boot(4, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy"])
+	await boot(4, ["forward", "front_diagonal", "vertical"], [])
 	var side: int = m.board_size
 	print("PV basic board ", side)
 	arrange(Vector2i(2, 3), [["recruit", Vector2i(3, 3)], ["recruit", Vector2i(2, 2)], ["recruit", Vector2i(4, 3)], ["recruit", Vector2i(3, 1)], ["recruit", Vector2i(4, 5)], ["recruit", Vector2i(5, 2)], ["recruit", Vector2i(2, 5)], ["infantry", Vector2i(5, 5)]])
@@ -741,7 +723,7 @@ func shot_swarm() -> void:
 
 ## The cross daggers: the flame dagger first, then the thunder dagger it powered up: the cross strike.
 func shot_daggers() -> void:
-	await boot(9, ["flame_dagger", "thunder_dagger", "forward"], ["magic_bolt", "wall_fairy"])
+	await boot(9, ["flame_dagger", "thunder_dagger", "forward"], [])
 	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 2), 2], ["executioner", Vector2i(3, 4), 1], ["gold", Vector2i(4, 3), 1], ["silver", Vector2i(2, 5), 1], ["horse", Vector2i(4, 5), 1], ["javelin", Vector2i(6, 3)], ["archer", Vector2i(6, 1)]])
 	m.weapon = m.owned_weapons[0]
 	bv._update_controls()
@@ -759,7 +741,7 @@ func shot_daggers() -> void:
 
 ## The cross hammer: one blow, the cross around it.
 func shot_hammer2() -> void:
-	await boot(9, ["cross_hammer", "forward", "vertical"], ["magic_bolt", "wall_fairy"])
+	await boot(9, ["cross_hammer", "forward", "vertical"], [])
 	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 3), 1], ["executioner", Vector2i(3, 2), 1], ["gold", Vector2i(3, 4), 1], ["silver", Vector2i(4, 3), 1], ["horse", Vector2i(5, 3), 3], ["javelin", Vector2i(6, 5)], ["archer", Vector2i(6, 1)]])
 	m.weapon = m.owned_weapons[0]
 	bv._update_controls()
@@ -771,7 +753,7 @@ func shot_hammer2() -> void:
 
 ## The glutton fairy turns on its own master: the gulp that ends the run.
 func shot_glutton() -> void:
-	await boot(9, ["forward", "front_diagonal", "vertical"], ["glutton_fairy", "magic_bolt", "wall_fairy"])
+	await boot(9, ["forward", "front_diagonal", "vertical"], ["glutton_fairy"])
 	arrange(Vector2i(2, 3), [["heavy", Vector2i(6, 1), 3], ["gold", Vector2i(6, 5), 3], ["javelin", Vector2i(5, 6)]])
 	m.summon_glutton(Vector2i(3, 3))
 	bv._sync_units(false)
@@ -785,7 +767,7 @@ func shot_glutton() -> void:
 
 ## A rook-spear magic circle: closing the ring deals 99 to everything inside.
 func shot_circle() -> void:
-	await boot(9, ["rook_spear", "forward", "hammer"], ["magic_bolt", "wall_fairy"])
+	await boot(9, ["rook_spear", "forward", "hammer"], [])
 	m.enchants[m.owned_weapons[0]] = "circle"
 	m.weapon = m.owned_weapons[0]
 	var foes := [["heavy", Vector2i(2, 2), 3], ["executioner", Vector2i(4, 2), 3], ["gold", Vector2i(3, 3), 3], ["horse", Vector2i(2, 4), 3], ["silver", Vector2i(4, 4), 3], ["javelin", Vector2i(6, 6)], ["archer", Vector2i(6, 0)]]
@@ -850,9 +832,82 @@ func fairy_auto(id: String) -> void:
 
 ## The last late fight: the jester wakes, the dragon soldier fires, the fortress keeps sending.
 func shot_late4() -> void:
-	await boot(11, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy", "stealth_fairy"])
+	await boot(11, ["forward", "front_diagonal", "vertical"], [])
 	await seconds(1.0)
 	for turn in 5:
 		await play_turn()
 		if m.terminal():
 			break
+
+# ---- one fairy, one scene --------------------------------------------------------------
+
+## A single fairy at work on a crowd: only that fairy is in the panel.
+func fairy_solo(id: String) -> void:
+	await boot(9, ["vertical" if id == "blessing_fairy" else "eight_knight", "forward", "eight_knight"], [id], {id: 1} if id in ["axe_spirit"] else {})
+	arrange(Vector2i(0, 3), [["heavy", Vector2i(3, 2), 3], ["executioner", Vector2i(3, 4), 3], ["gold", Vector2i(4, 3), 3], ["horse", Vector2i(5, 1), 3], ["silver", Vector2i(5, 5), 3], ["javelin", Vector2i(6, 3)]])
+	m.player.ap = 2
+	bv._update_controls()
+	await seconds(0.9)
+	match id:
+		"shadow_stitch":
+			# a shadow where no weapon reaches, then trade places with it
+			var spots: Array = m.item_targets(id)
+			print("PV stitch spots ", spots.size())
+			spots.sort_custom(func(a, b): return Vector2(a).distance_to(Vector2(3, 3)) < Vector2(b).distance_to(Vector2(3, 3)))
+			await fairy_at(id, spots[0])
+			await seconds(0.8)
+			m.player.ap = 2
+			await click(spots[0])
+			await seconds(1.6)
+		"blessing_fairy":
+			arrange(Vector2i(0, 3), [["heavy", Vector2i(0, 2), 3], ["executioner", Vector2i(1, 2), 3], ["gold", Vector2i(0, 1), 3], ["horse", Vector2i(5, 3), 3], ["javelin", Vector2i(6, 1)], ["silver", Vector2i(4, 5), 3]])
+			m.player.ap = 2
+			bv._update_controls()
+			var spots: Array = m.item_targets(id)
+			print("PV blessing spots ", spots.size())
+			var best: Vector2i = spots[0]
+			for c in spots:
+				if Vector2(c).distance_to(Vector2(3, 3)) < Vector2(best).distance_to(Vector2(3, 3)):
+					best = c
+			await fairy_at(id, best)
+			await seconds(0.8)
+			m.player.ap = 2
+			var foes: Array = m.targets().filter(func(c): return not m.enemy_at(c).is_empty())
+			print("PV blessing foes ", foes.size())
+			if not foes.is_empty():
+				await click(foes[0])
+			await seconds(1.8)
+		_:
+			await fairy_auto(id)
+			await seconds(1.8)
+
+func fairy_at(id: String, cell: Vector2i) -> void:
+	bv._select_item(id)
+	await frames(2)
+	bv._item_act(cell)
+	await frames(2)
+	await idle()
+
+## The guardian on the last boss's board, the way it is really played: the holy spirit and the acorn
+## fairy are called first, then the guardian calls them all back.
+func shot_guardian_boss() -> void:
+	await boot(12, ["eight_knight", "forward", "vertical"], ["holy_spirit", "acorn_fairy", "guardian_fairy"], {"holy_spirit": 1, "acorn_fairy": 1, "guardian_fairy": 1})
+	await idle(14.0)
+	await seconds(0.5)
+	m.player.ap = 2
+	var spots: Array = m.item_targets("holy_spirit")
+	print("PV boss holy spots ", spots.size(), " player ", m.player.cell)
+	spots.sort_custom(func(a, b): return Vector2(a).distance_to(Vector2(m.player.cell)) < Vector2(b).distance_to(Vector2(m.player.cell)))
+	await fairy_at("holy_spirit", spots[0])
+	await seconds(0.7)
+	m.player.ap = 2
+	var acorn_spots: Array = m.item_targets("acorn_fairy")
+	acorn_spots.sort_custom(func(a, b): return Vector2(a).distance_to(Vector2(m.player.cell)) < Vector2(b).distance_to(Vector2(m.player.cell)))
+	await fairy_at("acorn_fairy", acorn_spots[0])
+	await seconds(0.7)
+	m.player.ap = 2
+	var g_spots: Array = m.item_targets("guardian_fairy")
+	print("PV guardian spots ", g_spots.size())
+	g_spots.sort_custom(func(a, b): return Vector2(a).distance_to(Vector2(m.player.cell)) < Vector2(b).distance_to(Vector2(m.player.cell)))
+	await fairy_at("guardian_fairy", g_spots[0])
+	await seconds(3.0)

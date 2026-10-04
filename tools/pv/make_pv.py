@@ -35,16 +35,15 @@ CUTS = [
     (8.40, 9.60, "art_p_king", 0.0, 1),
     (9.60, 12.00, "art_logo", 0.0, 1),
     (12.00, 17.172, "art_fairies", 0.0, 1),
-    # war: one thing per drum; the ones that need explaining are shown whole (zoom 1: weapon cards and captions)
-    (17.172, 18.207, "basic", 1.00, 1),
-    (18.207, 19.241, "basic", 5.30, 1),
-    (19.241, 20.276, "hammer2", 1.10, 1),
-    (20.276, 21.310, "daggers", 1.20, 1),
-    (21.310, 22.345, "daggers", 3.75, 1),
-    (22.345, 23.379, "circle", 0.70, 1),
-    (23.379, 24.414, "circle", 2.40, 1),
-    (24.414, 25.448, "circle", 4.15, 1),
-    (25.448, 26.483, "swarm", 2.60, 1),
+    # war: one thing per drum; no fairy is shown twice (the guardian scene is one long cut)
+    (17.172, 18.207, "basic", 5.30, 1.25, (864, 620)),
+    (18.207, 19.241, "hammer2", 1.10, 1.25, (864, 620)),
+    (19.241, 20.276, "daggers", 1.20, 1.25, (864, 620)),
+    (20.276, 21.310, "daggers", 3.75, 1.25, (864, 620)),
+    (21.310, 22.345, "circle", 0.70, 1.25, (864, 620)),
+    (22.345, 23.379, "circle", 2.40, 1.25, (864, 620)),
+    (23.379, 24.414, "circle", 4.15, 1.25, (864, 620)),
+    (24.414, 26.483, "guardian_boss", 6.10, 2.0, (640, 540)),
     # cyber: every kick is a cut
     (26.483, 27.000, "rotorick", 1.80, 1),
     (27.000, 27.517, "rotorick", 2.40, 1),
@@ -58,35 +57,29 @@ CUTS = [
     (31.138, 31.655, "king", 2.40, 1),
     (31.655, 32.172, "king", 5.40, 1),
     (32.172, 32.690, "king", 6.20, 1),
-    # build-up: the new faces, four to the bar
-    (32.690, 33.207, "art_pn_jester", 0.0, 1),
-    (33.207, 33.724, "art_pn_dragon", 0.0, 1),
-    (33.724, 34.241, "art_pn_cross", 0.0, 1),
-    (34.241, 34.759, "art_pn_rook", 0.0, 1),
-    # climax: the fairies' big moments, each with its caption
-    (34.759, 35.276, "meteor", 1.10, 1),
-    (35.276, 35.793, "meteor", 1.70, 1),
-    (35.793, 36.310, "chain", 1.40, 1),
-    (36.310, 36.828, "chain", 2.10, 1),
-    # finish
-    (36.828, 37.345, "fairies", 1.00, 1.5),
-    (37.345, 37.862, "fairies", 7.20, 1.5),
-    (37.862, 38.379, "glutton", 1.00, 1),
-    (38.379, 38.897, "glutton", 2.10, 1),
-    (38.897, 39.414, "glutton", 2.40, 1),
-    (39.414, 39.931, "swarm", 3.80, 1),
-    (39.931, 40.448, "swarm", 4.30, 1),
+    # build-up: the new faces, four to the bar (no names)
+    (32.690, 33.207, "art_p_jester", 0.0, 1),
+    (33.207, 33.724, "art_p_dragon", 0.0, 1),
+    (33.724, 34.241, "art_p_cross", 0.0, 1),
+    (34.241, 34.759, "art_p_rook", 0.0, 1),
+    # climax and finish: the fairies, each once
+    (34.759, 35.793, "meteor", 1.40, 1.5),
+    (35.793, 36.828, "chain", 1.50, 1.5),
+    (36.828, 37.862, "f_axe_spirit", 1.30, 1.5),
+    (37.862, 38.897, "f_shadow_stitch", 1.50, 1.5),
+    (38.897, 39.931, "f_blessing_fairy", 2.30, 1.5),
+    (39.931, 40.448, "glutton", 2.30, 1.5),
     (40.448, 40.966, "art_p_king", 0.25, 1),
     (40.966, 41.85, None, 0.0, 1),
-    # fusion: the finished title screen, with the game's best moments cut in on the kicks
+    # fusion: the finished title screen, with weapon fights cut in on the kicks
     (41.850, 42.884, "title_fusion", 0.15, 1),
-    (42.884, 43.918, "chain", 2.10, 1),
+    (42.884, 43.918, "hammer2", 1.40, 1.25, (864, 620)),
     (43.918, 44.952, "title_fusion", 2.10, 1.6, (1450, 800)),
-    (44.952, 45.986, "meteor", 1.80, 1),
+    (44.952, 45.986, "daggers", 3.75, 1.25, (864, 620)),
     (45.986, 47.020, "title_fusion", 4.20, 1.6, (330, 520)),
-    (47.020, 48.054, "daggers", 3.85, 1),
+    (47.020, 48.054, "circle", 4.15, 1.25, (864, 620)),
     (48.054, 49.088, "title_fusion", 6.20, 1.6, (860, 200)),
-    (49.088, 50.130, "circle", 3.00, 1),
+    (49.088, 50.130, "basic", 5.30, 1.25, (864, 620)),
     (50.130, SONG_LENGTH, "title_fusion", 8.28, 1),
 ]
 
@@ -95,9 +88,9 @@ CUTS = [
 BEATS = [(2.4, 9.6, 1.2), (17.172, 26.483, 1.0345), (26.483, 41.0, 0.5172), (41.85, 50.2, 0.5172)]
 HITS = [9.6, 17.172, 26.483, 34.759, 41.85]
 
-SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "swarm", "glutton", "fairies", "title_fusion"]
-         + ["art_p_" + n for n in ("fortress", "prison", "king", "rotorick", "shark", "hero")]
-         + ["art_pn_" + n for n in ("jester", "dragon", "cross", "rook")])
+SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "glutton", "guardian_boss", "f_axe_spirit", "f_shadow_stitch", "f_blessing_fairy", "title_fusion"]
+         + ["art_p_" + n for n in ("fortress", "rook", "king", "rotorick", "shark", "hero")]
+         + ["art_p_" + n for n in ("jester", "dragon", "cross", "rook")])
 
 
 def record():
