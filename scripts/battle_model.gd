@@ -216,7 +216,7 @@ const PLUS_TEXT := {
 	"acorn_fairy": ["HP{hp_plus}・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["{cost_plus} APでワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
-	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、何人たりとも\n傷つけることはできない。\n周囲5×5が3ターン、敵が入れない\nフィールドになる。敵はそこを避けて動く。"],
+	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、\n何人たりとも傷つけられない。\n周囲5×5が3ターン、\n敵が入れない場所になる。\n敵はそこを避けて動く。"],
 	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上（射程5マス）の\n敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの射程5マスの直線上に\n2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
@@ -663,7 +663,7 @@ func _upgraded(id: String, plus: int) -> bool:
 
 ## The meteor fairy's text for n meteors (the class-up only changes the count).
 static func meteor_text(n: int) -> String:
-	return fairy_text("meteor_fairy", "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に{meteor}ダメージ。\n自分と味方は無事。\n落ちた所の大砲は誘爆する。" % n)
+	return fairy_text("meteor_fairy", "自分のマスを押して呼ぶ。\n武器の範囲のランダムな%dマスに\n3×3の隕石が落ちる。\n敵に{meteor}ダメージ（味方は無事）。\n落ちた所の大砲は誘爆する。" % n)
 
 ## Fairy texts never write a number the rules own: they write {name} and this fills it
 ## from the constants above and the fairy's item data, so changing a value (a fairy's

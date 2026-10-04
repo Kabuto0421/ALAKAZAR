@@ -2219,7 +2219,7 @@ func _draw_intel() -> void:
 		var text_top := 252.0 if choosing else 352.0
 		for i in range(lines.size()):
 			_text(Vector2(850,text_top+i*25),lines[i],18,INK)
-		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else 490.0),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if item.target == Rules.ItemDefinition.Target.SELF else "配置先を選択",23,item.color)
+		_text(Vector2(852,text_top+(lines.size()-1)*25+42 if choosing else maxf(490.0,text_top+lines.size()*25+14.0)),"向きを選択" if item_origin != Vector2i(-1,-1) else "移動先を選択" if selected_item == "warp_fairy" else "自分のマスを押す" if item.target == Rules.ItemDefinition.Target.SELF else "配置先を選択",23,item.color)
 		return
 	var enemy := _preview_enemy()
 	var ally := _preview_ally()
