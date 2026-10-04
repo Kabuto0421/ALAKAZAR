@@ -383,5 +383,49 @@
   "w": 244,
   "h": 267,
   "z": 34
+ },
+ {
+  "id": "jester",
+  "name": "道化兵",
+  "side": "enemies",
+  "file": "units/enemies_jester.png",
+  "x": 1207,
+  "y": 898,
+  "w": 110,
+  "h": 112,
+  "z": 12
+ },
+ {
+  "id": "dragon",
+  "name": "竜装兵",
+  "side": "enemies",
+  "file": "units/enemies_dragon.png",
+  "x": 1399,
+  "y": 898,
+  "w": 103,
+  "h": 112,
+  "z": 13
+ },
+ {
+  "id": "cross",
+  "name": "バッテン兵",
+  "side": "enemies",
+  "file": "units/enemies_cross.png",
+  "x": 1571,
+  "y": 898,
+  "w": 83,
+  "h": 112,
+  "z": 14
+ },
+ {
+  "id": "shark",
+  "name": "嵐鮫",
+  "side": "enemies",
+  "file": "units/enemies_shark.png",
+  "x": 1708,
+  "y": 882,
+  "w": 134,
+  "h": 128,
+  "z": 15
  }
 ]
