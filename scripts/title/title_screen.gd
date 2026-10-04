@@ -102,8 +102,6 @@ var waiting_for_click := false
 var click_prompt: Label
 ## Web: the sync correction in use (the default or the player's saved value), and its on-screen note.
 var web_offset := WEB_AUDIO_OFFSET
-var offset_note: Label
-var offset_note_until := 0.0
 ## How far the reveal has got (jumps ahead when the player skips the intro).
 var reveal := 0.0
 var selected := 0
@@ -208,14 +206,9 @@ func _ready() -> void:
 	music.volume_db = MUSIC_DB
 	add_child(music)
 	if OS.has_feature("web") and override_time < 0.0:
-		var saved := ConfigFile.new()
-		if saved.load(SYNC_CONFIG) == OK:
-			if saved.has_section_key("sync", "offset_v2"):
-				web_offset = float(saved.get_value("sync", "offset_v2"))
-			# Corrections saved by the older build (any other key) are wiped.
-			if saved.has_section_key("sync", "offset"):
-				saved.erase_section_key("sync", "offset")
-				saved.save(SYNC_CONFIG)
+		# No saved corrections: whatever an older build stored in the browser is wiped.
+		if FileAccess.file_exists(SYNC_CONFIG):
+			DirAccess.remove_absolute(SYNC_CONFIG)
 		waiting_for_click = true
 		click_prompt = Label.new()
 		click_prompt.text = "クリックしてスタート"
@@ -408,10 +401,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not event is InputEventKey:
 		return
-	if OS.has_feature("web") and event.keycode in [KEY_BRACKETLEFT, KEY_BRACKETRIGHT]:
-		_nudge_sync(0.02 if event.keycode == KEY_BRACKETRIGHT else -0.02)
-		get_viewport().set_input_as_handled()
-		return
 	if is_instance_valid(catalog):
 		return
 	if event.keycode == KEY_C and not is_instance_valid(achievements_page):
@@ -432,34 +421,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_activate()
 	get_viewport().set_input_as_handled()
 
-## Web: ] moves the picture 0.02 s earlier against the song, [ later (saved in the browser).
-func _nudge_sync(step: float) -> void:
-	web_offset = snappedf(web_offset + step, 0.01)
-	var saved := ConfigFile.new()
-	saved.set_value("sync", "offset_v2", web_offset)
-	saved.save(SYNC_CONFIG)
-	if offset_note == null:
-		offset_note = Label.new()
-		offset_note.add_theme_font_override("font", FONT)
-		offset_note.add_theme_font_size_override("font_size", 30)
-		offset_note.add_theme_color_override("font_color", CREAM)
-		offset_note.add_theme_color_override("font_outline_color", Color.BLACK)
-		offset_note.add_theme_constant_override("outline_size", 6)
-		offset_note.position = Vector2(30, 24)
-		offset_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(offset_note)
-	offset_note.text = "音ズレ補正  %+.2f 秒   （] 絵を早く / [ 絵を遅く）" % web_offset
-	offset_note_until = Time.get_ticks_msec() / 1000.0 + 3.0
-
 func _process(delta: float) -> void:
 	if waiting_for_click:
 		click_prompt.modulate.a = 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 3.0)
 		return
 	clock += delta
 	reveal = maxf(reveal + delta, clock)
-	if offset_note != null and Time.get_ticks_msec() / 1000.0 > offset_note_until:
-		offset_note.queue_free()
-		offset_note = null
 	call_flash = maxf(0.0, call_flash - delta * 1.8)
 	var flash_color := Color(1, 1, 1, call_flash)
 	var jolt := 0.0
