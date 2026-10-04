@@ -83,6 +83,7 @@ const TYPES = {
 	"fortress": {"name": "要塞監獄", "hp": 3, "ap": 1, "size": 2},
 	"storm_shark": {"name": "嵐鮫", "hp": 8, "ap": 2, "size": 2},
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
+	"cross": {"name": "バッテン兵", "hp": 1, "ap": 2},
 }
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
 ## How each soldier tends to act, in two short lines for the inspector (taken from the
@@ -100,6 +101,7 @@ const HABITS := {
 	"analyst": ["殴られた武器を覚え、", "同じ武器を無効化"],
 	"gold": ["将棋の金の動きで", "近づいて攻撃"],
 	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
+	"cross": ["縦横に歩いて近づき、", "斜めの隣を攻撃"],
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
@@ -353,7 +355,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark","cross"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 		enemies[-1].home = cell
 	layout.free()
@@ -417,6 +419,9 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return []
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
+## バッテン兵 walks like an infantryman but strikes the four diagonal neighbours (the cross sword's reach).
+const CROSS_STRIKES: Array[Vector2i] = [Vector2i(-1,-1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,1)]
+
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
 func enemy_attack_offsets(enemy: Dictionary) -> Array:
 	var forward: Vector2i = CARDINALS[enemy.get("facing",3)]
@@ -425,6 +430,8 @@ func enemy_attack_offsets(enemy: Dictionary) -> Array:
 		return [forward*2-side, forward*2, forward*2+side]
 	if enemy.type == "archer":
 		return [forward, forward*2]
+	if enemy.type == "cross":
+		return CROSS_STRIKES
 	return []
 
 ## Javelin: the row of three tiles one square beyond the tile in front.
@@ -512,8 +519,15 @@ func _hit_player(enemy: Dictionary) -> void:
 func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
 	return false
 
+## Whether the enemy may step (or strike) onto `cell`: the バッテン兵 walks straight but strikes diagonally.
+func _step_allowed(enemy: Dictionary, cell: Vector2i) -> bool:
+	if enemy.type == "cross":
+		var hostile: bool = cell == player.cell or not ally_at(cell).is_empty()
+		return (CROSS_STRIKES if hostile else CARDINALS).has(cell - enemy.cell)
+	return enemy_offsets(enemy).has(cell - enemy.cell)
+
 func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
-	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not enemy_offsets(enemy).has(cell-enemy.cell):
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not _step_allowed(enemy, cell):
 		return false
 	if cell == player.cell:
 		if enemy.type in RANGED:

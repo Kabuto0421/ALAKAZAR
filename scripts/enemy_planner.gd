@@ -111,6 +111,9 @@ func beat(model: RefCounted, index: int) -> void:
 		if enemy.type == "javelin":
 			_javelin_action(model, enemy)
 			continue
+		if enemy.type == "cross":
+			_cross_action(model, enemy)
+			continue
 		if enemy.type == "archer":
 			_archer_action(model, enemy)
 			continue
@@ -173,7 +176,7 @@ func finish(model: RefCounted) -> void:
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 ## Who steers round the cat's field (bosses and the like are left to their own rules).
-const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer"]
+const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer", "cross"]
 
 ## An enemy in the cat's field walks out of it first; one whose straight way to the player runs
 ## through the field goes round it (the shortest way over free tiles), or waits at its edge when
@@ -379,6 +382,23 @@ func _big_route(model: RefCounted, enemy: Dictionary, from_cell: Vector2i) -> Di
 			depth[next] = int(depth[cell]) + 1
 			queue.append(next)
 	return {"dir": Vector2i.ZERO, "len": -1}
+
+## バッテン兵: strikes whoever stands on a diagonal neighbour (the player first, then an ally);
+## otherwise takes the first step of the shortest straight-line walk to a tile diagonal to the player.
+func _cross_action(model: RefCounted, enemy: Dictionary) -> void:
+	var strikes: Array[Vector2i] = model.CROSS_STRIKES
+	if strikes.has(model.player.cell - enemy.cell):
+		model.enemy_step(enemy, model.player.cell)
+		return
+	for offset in strikes:
+		if not model.ally_at(enemy.cell + offset).is_empty():
+			model.enemy_step(enemy, enemy.cell + offset)
+			return
+	var goal := func(cell: Vector2i) -> bool: return strikes.has(model.player.cell - cell)
+	var route := _route(model, enemy, enemy.cell, DIRECTIONS, goal)
+	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
+		return
+	enemy.ap = 0
 
 func _move(model: RefCounted, enemy: Dictionary, cell: Vector2i) -> void:
 	model.enemy_step(enemy, cell)

@@ -2897,6 +2897,8 @@ func _draw_enemy_inspector(enemy: Dictionary) -> void:
 		_wrapped(Vector2(852,446),"次に蘇る：%s（2ターンに1体）" % Rules.TYPES[next].name if next != "" else "動かない。倒れた兵を蘇らせる",18,Color("ff6b8a"),14)
 	elif enemy.type == "fortress":
 		_wrapped(Vector2(852,450),"毎ターン兵を1体出す。全部壊すと障壁が消える" if model.king_enraged() else "毎ターン兵を1体出す",18,Color("ff6b6b") if model.king_enraged() else Color("9ab8c8"),14)
+	elif enemy.type == "cross":
+		_wrapped(Vector2(852,450),"縦横に歩き、斜めの隣を攻撃する",18,Color("d9a0ff"),14)
 	elif enemy.type == "gold":
 		_text(Vector2(852,450),"左が前。右斜め後ろには動けない",18,Color("ffd35b"))
 	elif enemy.type == "silver":
