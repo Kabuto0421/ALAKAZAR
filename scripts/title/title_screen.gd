@@ -48,6 +48,13 @@ const CALL_TIME := BAR  # the pipes' first call: the logo lands
 const MENU_TIME := BAR + 0.9
 const CRASH_TIME := BAR * 4.0  # the great D chord
 const MUSIC_DB := -8.0
+## On the web the browser keeps the sound off until the first click, so the screen waits for that click
+## before it starts the song and the intro (otherwise the picture runs ahead of a song that has not begun).
+##
+## Web only: seconds added to the song position the picture follows. The browser reports no usable output
+## latency, so none is subtracted; raise this if the picture runs behind the sound, lower it (below 0)
+## if it runs ahead.
+const WEB_AUDIO_OFFSET := 0.0
 
 ## How the picture is graded in each part of the song (the sections of the cue sheet):
 ## gain on the forest side (l) and the city side (r), saturation, brightness, vignette,
@@ -89,6 +96,9 @@ const ITEM_FONT_SIZE := 56
 const CURSOR_DROP := 3.0
 
 var clock := 0.0
+## Web: nothing starts until the first click (see ON_WEB).
+var waiting_for_click := false
+var click_prompt: Label
 ## How far the reveal has got (jumps ahead when the player skips the intro).
 var reveal := 0.0
 var selected := 0
@@ -192,7 +202,22 @@ func _ready() -> void:
 	music.stream = MUSIC
 	music.volume_db = MUSIC_DB
 	add_child(music)
-	music.play()
+	if OS.has_feature("web") and override_time < 0.0:
+		waiting_for_click = true
+		click_prompt = Label.new()
+		click_prompt.text = "クリックしてスタート"
+		click_prompt.add_theme_font_override("font", FONT)
+		click_prompt.add_theme_font_size_override("font_size", 56)
+		click_prompt.add_theme_color_override("font_color", CREAM)
+		click_prompt.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		click_prompt.add_theme_constant_override("outline_size", 8)
+		click_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		click_prompt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		click_prompt.size = VIEW
+		click_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(click_prompt)
+	else:
+		music.play()
 	_select(0)
 	_update_reveal()
 
@@ -359,6 +384,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	var pressed: bool = (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
 	if not pressed:
 		return
+	if waiting_for_click:
+		# The first click or key only starts the song (and the intro with it).
+		waiting_for_click = false
+		click_prompt.queue_free()
+		music.play()
+		get_viewport().set_input_as_handled()
+		return
 	# The first press during the intro only skips it.
 	if reveal < MENU_TIME:
 		reveal = MENU_TIME
@@ -387,6 +419,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func _process(delta: float) -> void:
+	if waiting_for_click:
+		click_prompt.modulate.a = 0.55 + 0.45 * sin(Time.get_ticks_msec() / 1000.0 * 3.0)
+		return
 	clock += delta
 	reveal = maxf(reveal + delta, clock)
 	call_flash = maxf(0.0, call_flash - delta * 1.8)
@@ -420,7 +455,11 @@ func _song_time() -> float:
 	if override_time >= 0.0:
 		return sync.wrap(override_time)
 	if music.playing and not (clock > 1.0 and music.get_playback_position() <= 0.0):
-		var heard := music.get_playback_position() + AudioServer.get_time_since_last_mix() - AudioServer.get_output_latency()
+		var heard := music.get_playback_position() + AudioServer.get_time_since_last_mix()
+		if OS.has_feature("web"):
+			heard += WEB_AUDIO_OFFSET
+		else:
+			heard -= AudioServer.get_output_latency()
 		return sync.wrap(maxf(heard, 0.0))
 	return sync.wrap(clock)
 
