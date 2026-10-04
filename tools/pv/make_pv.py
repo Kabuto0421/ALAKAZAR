@@ -71,9 +71,9 @@ CUTS = [
     # finish
     (36.828, 37.345, "fairies", 1.00, 1.5),
     (37.345, 37.862, "fairies", 7.20, 1.5),
-    (37.862, 38.379, "fairies", 7.80, 1.5),
+    (37.862, 38.379, "glutton", 2.00, 1.5),
     (38.379, 38.897, "fairies", 13.20, 1.5),
-    (38.897, 39.414, "fairies", 13.70, 1.5),
+    (38.897, 39.414, "glutton", 2.35, 1.5),
     (39.414, 39.931, "chain", 3.00, 1.5),
     (39.931, 40.448, "swarm", 3.60, 1.3),
     (40.448, 40.966, "art_p_king", 0.0, 1),
@@ -86,7 +86,7 @@ CUTS = [
 BEATS = [(2.4, 9.6, 1.2), (17.172, 26.483, 1.0345), (26.483, 41.0, 0.5172), (41.85, 50.2, 0.5172)]
 HITS = [9.6, 17.172, 26.483, 34.759, 41.85]
 
-SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "swarm", "fairies", "title_fusion"]
+SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "swarm", "glutton", "fairies", "title_fusion"]
          + ["art_p_" + n for n in ("fortress", "prison", "king", "rotorick", "shark", "hero")]
          + ["art_pn_" + n for n in ("jester", "dragon", "cross", "rook")])
 

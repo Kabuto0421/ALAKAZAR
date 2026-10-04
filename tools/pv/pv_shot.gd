@@ -723,6 +723,18 @@ func shot_hammer2() -> void:
 	await click(Vector2i(3, 3))
 	await seconds(2.2)
 
+## The glutton fairy turns on its own master: the gulp that ends the run.
+func shot_glutton() -> void:
+	await boot(9, ["forward", "front_diagonal", "vertical"], ["glutton_fairy", "magic_bolt", "wall_fairy"])
+	arrange(Vector2i(2, 3), [["heavy", Vector2i(6, 1), 3], ["gold", Vector2i(6, 5), 3], ["javelin", Vector2i(5, 6)]])
+	m.summon_glutton(Vector2i(3, 3))
+	bv._sync_units(false)
+	bv._update_controls()
+	bv.queue_redraw()
+	await seconds(1.2)
+	await end_turn()
+	await seconds(1.5)
+
 ## A rook-spear magic circle: closing the ring deals 99 to everything inside.
 func shot_circle() -> void:
 	await boot(9, ["rook_spear", "forward", "hammer"], ["magic_bolt", "wall_fairy"])
