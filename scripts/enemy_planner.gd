@@ -36,15 +36,8 @@ func begin(model: RefCounted) -> void:
 			reserved.append(slots[0])
 	for enemy in model.enemies:
 		enemy.ap = Rules.TYPES[enemy.type].ap
-		if enemy.type == "jester":
-			# Three turns of marching left, then it wakes: four ways and AP 3.
-			enemy.age = int(enemy.get("age", 0)) + 1
-			if enemy.age > Rules.JESTER_SLEEP_TURNS:
-				if not enemy.get("awake", false):
-					enemy.awake = true
-					model.events.append({"kind": "awaken", "cell": enemy.cell, "id": enemy.id})
-					model.add_log("道化兵が覚醒した！")
-				enemy.ap = Rules.JESTER_AWAKE_AP
+		if enemy.type == "jester" and enemy.get("awake", false):
+			enemy.ap = Rules.JESTER_AWAKE_AP
 		if enemy.type == "miner":
 			enemy.intent = "移動・設置"
 		elif enemy.type == "jester":
@@ -182,6 +175,7 @@ func finish(model: RefCounted) -> void:
 				enemy[key] = request[key]
 		model.shadow_strike()
 		model.tick_walls()
+		_wake_jesters(model)
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = model.turn_start_ap()
 		model.combo_boost = -1
@@ -417,6 +411,18 @@ func _cross_action(model: RefCounted, enemy: Dictionary) -> void:
 	if int(near.len) > 0 and model.enemy_step(enemy, near.step):
 		return
 	enemy.ap = 0
+
+## The jesters that have now marched three enemy turns wake up at the end of that turn, so the player
+## sees them awake (and can read what they will do) on their own turn.
+func _wake_jesters(model: RefCounted) -> void:
+	for enemy in model.enemies:
+		if enemy.type != "jester" or enemy.hp <= 0 or enemy.get("awake", false):
+			continue
+		enemy.age = int(enemy.get("age", 0)) + 1
+		if enemy.age >= Rules.JESTER_SLEEP_TURNS:
+			enemy.awake = true
+			model.events.append({"kind": "awaken", "cell": enemy.cell, "id": enemy.id})
+			model.add_log("道化兵が覚醒した！")
 
 ## 道化兵: asleep it only steps left (and strikes what stands there); awake it goes straight for the
 ## player round whatever is in the way and hits with every AP it has.

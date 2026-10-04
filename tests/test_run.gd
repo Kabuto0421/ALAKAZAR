@@ -2279,9 +2279,12 @@ func _jester() -> void:
 			planner.beat(m, beat)
 		planner.finish(m)
 		verify(j.cell == before + Vector2i.LEFT,"Turn %d: it takes one step left" % (turn + 1))
-	planner.begin(m)
-	verify(j.get("awake", false) and j.ap == 3 and planner.beat_count(m) == 3,"After three turns it awakens with AP3 (three beats)")
+		verify(j.get("awake", false) == (turn == 2),"It is awake on the player's turn right after the third enemy turn, not before")
 	verify(m.events.any(func(e): return e.kind == "awaken") and m.enemy_offsets(j).size() == 4,"It announces the awakening and goes all four ways")
+	planner.begin(m)
+	verify(j.get("awake", false) and j.ap == 3 and planner.beat_count(m) == 3,"The next enemy turn it has AP3 (three beats)")
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
 	planner.finish(m)
 	# Awake, it walks up to three steps a turn toward the player.
 	var from: Vector2i = j.cell

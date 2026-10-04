@@ -556,6 +556,21 @@ func _enemy_turn() -> void:
 			break
 	planner.finish(model)
 	_sync_units(false)
+	# A jester that has marched its three turns wakes at the end of the enemy turn, in plain view.
+	var woke: Array = model.events.filter(func(e: Dictionary) -> bool: return e.kind == "awaken")
+	if not woke.is_empty():
+		for event in woke:
+			var flash: Dictionary = event.duplicate()
+			flash.life = FX_LIFE["awaken"]
+			flash.max_life = flash.life
+			flashes.append(flash)
+			if actors.has(int(event.id)):
+				actors[int(event.id)].flash = 0.3
+		_sound("king_revive", -4.0)
+		queue_redraw()
+		await get_tree().create_timer(0.7).timeout
+		if token != generation:
+			return
 	busy = false
 	_update_controls()
 	queue_redraw()

@@ -546,6 +546,7 @@ func _draw() -> void:
 			var sheet: Array = FORTRESS_SHEETS["idle"]
 			draw_texture_rect_region(sheet[0],Rect2(-72,-84,144,144),_sheet_frame(sheet,clock,false),tint)
 	elif kind == "jester":
+		_draw_jester_aura(alt_row)
 		draw_jester(self, facing, alt_row, tint)
 	elif kind == "glutton":
 		# A slight chewing bob.
@@ -683,6 +684,37 @@ static func draw_boss(canvas: CanvasItem, boss: String, direction: int, red: boo
 const JESTER_SHEET_PATH := "res://assets/sprites/enemies/jester_directions.png"
 static var _jester_sheet: Texture2D
 static var _jester_sheet_looked := false
+
+## The tile under a jester: asleep, a sullen murk with dark wisps drifting up; awake, a glaring neon
+## field of cyan and magenta with a scan line and flickering glitter.
+func _draw_jester_aura(awake: bool) -> void:
+	var tile := Rect2(-32, -32, 64, 64)
+	if not awake:
+		draw_rect(tile, Color(0.16, 0.13, 0.22, 0.38 + 0.08 * sin(clock * 1.6)))
+		for k in range(5):
+			var phase := clock * 0.55 + k * 1.3
+			var blob := Vector2(cos(phase) * 17.0 + (k - 2) * 4.0, sin(phase * 1.2) * 13.0 + 4.0)
+			draw_circle(blob, 13.0 + 4.0 * sin(phase * 2.0), Color(0.3, 0.22, 0.38, 0.42))
+		for k in range(4):
+			var rise := fmod(clock * 9.0 + k * 15.0, 58.0)
+			var wisp := Vector2(-21.0 + k * 14.0 + sin(clock * 1.3 + k * 2.0) * 4.0, 28.0 - rise)
+			draw_circle(wisp, 3.4 - rise / 30.0, Color(0.5, 0.44, 0.62, 0.55 * (1.0 - rise / 58.0)))
+		draw_rect(tile, Color(0.3, 0.26, 0.4, 0.55), false, 2)
+		return
+	var glare := tile.grow(3.0)
+	draw_rect(glare, Color(0.1, 0.92, 1.0, 0.26 + 0.16 * sin(clock * 9.0)))
+	draw_rect(glare, Color(1.0, 0.2, 0.8, 0.2 + 0.14 * sin(clock * 7.0 + 1.6)))
+	draw_rect(glare, Color(0.2, 1.0, 1.0, 0.65 + 0.3 * sin(clock * 11.0)), false, 3)
+	draw_rect(glare.grow(-5.0), Color(1.0, 0.3, 0.9, 0.5 + 0.3 * sin(clock * 8.0 + 2.0)), false, 1.5)
+	var scan := fmod(clock * 70.0, 70.0) - 35.0
+	draw_line(Vector2(-32, scan), Vector2(32, scan), Color(0.8, 1.0, 1.0, 0.55), 2)
+	var beat := floorf(clock * 9.0)
+	for k in range(7):
+		var seed := k * 78.233 + beat * 12.9898
+		var at := Vector2(fposmod(sin(seed) * 43758.5453, 1.0) * 56.0 - 28.0, fposmod(sin(seed + 3.1) * 24634.6345, 1.0) * 56.0 - 28.0)
+		var tone := Color(0.3, 1.0, 1.0, 0.9) if k % 3 == 0 else Color(1.0, 0.35, 0.9, 0.9) if k % 3 == 1 else Color(1.0, 1.0, 1.0, 0.9)
+		var r := 2.5 + fposmod(sin(seed * 1.7) * 9301.0, 1.0) * 3.0
+		draw_colored_polygon(PackedVector2Array([at + Vector2(0, -r), at + Vector2(r, 0), at + Vector2(0, r), at + Vector2(-r, 0)]), tone)
 
 static func draw_jester(canvas: CanvasItem, direction: int, awake: bool, tint: Color = Color.WHITE, factor: float = 1.0) -> void:
 	if not _jester_sheet_looked:
