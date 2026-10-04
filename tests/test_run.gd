@@ -332,6 +332,7 @@ func _initialize() -> void:
 	_walkers_get_round_walls()
 	_cross_soldier()
 	_jester()
+	_dragon_soldier()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2327,6 +2328,39 @@ func _jester() -> void:
 	for beat in planner.beat_count(m):
 		planner.beat(m, beat)
 	verify(m.player.hp == hp,"Asleep it does not hit a player above it")
+
+## 竜装兵: HP3, AP2; for now it advances by the shortest road and strikes what is next to it (twice a turn).
+func _dragon_soldier() -> void:
+	var m := Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.hp = 99
+	m.player.cell = Vector2i(2, 2)
+	var d: Dictionary = m.make_enemy("dragon", Vector2i(3, 2), 0)
+	m.enemies.append(d)
+	verify(d.hp == 3 and d.ap == 2 and Rules.TYPES.dragon.name == "竜装兵","The dragon-armoured soldier has HP3 and AP2")
+	var planner = Planner.new()
+	planner.begin(m)
+	var hp: int = m.player.hp
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
+	verify(m.player.hp == hp - 2,"Next to the player it strikes with both AP")
+	m = Rules.new()
+	m.reset(Rules.LATE_LEVELS[0])
+	m.phase = Rules.Phase.PLAYER
+	m.enemies.clear()
+	m.obstacles.clear()
+	m.player.cell = Vector2i(0, 0)
+	d = m.make_enemy("dragon", Vector2i(4, 4), 0)
+	m.enemies.append(d)
+	var before: int = m.distance(d.cell, m.player.cell)
+	planner = Planner.new()
+	planner.begin(m)
+	for beat in planner.beat_count(m):
+		planner.beat(m, beat)
+	verify(m.distance(d.cell, m.player.cell) == before - 2,"Otherwise it advances two tiles a turn")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:

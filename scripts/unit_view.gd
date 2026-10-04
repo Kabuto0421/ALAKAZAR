@@ -74,6 +74,7 @@ const SOLDIER_SHEETS = {
 	"archer": [preload("res://assets/sprites/enemies/archer_directions.png"), 66.0],
 	"analyst": [preload("res://assets/sprites/enemies/analyst_directions.png"), 62.0],
 	"cross": [preload("res://assets/sprites/enemies/cross_soldier_directions.png"), 64.0],
+	"dragon": [preload("res://assets/sprites/enemies/dragon_soldier_directions.png"), 68.0],
 }
 ## Second-row state for soldier sheets (archer aiming, analyst after learning).
 var alt_row := false
@@ -745,7 +746,7 @@ static func draw_soldier(canvas: CanvasItem, soldier: String, direction: int, al
 func _draw_status() -> void:
 	if kind == "storm_shark" and holo_build < 0.6:
 		return
-	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 8 if kind == "storm_shark" else 3 if kind == "rook" else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
+	var max_hp := 5 if kind in ["player", "wall"] else 10 if kind == "king" else 3 if kind == "fortress" else 7 if kind == "slot" else 8 if kind == "storm_shark" else 3 if kind in ["rook", "dragon"] else 2 if kind in ["heavy","horse","executioner","analyst","gold"] else 1
 	# A unit that grew past its usual HP (the glutton after a meal) shows every heart.
 	max_hp = maxi(max_hp, hp)
 	var total := max_hp*11.0-1.0

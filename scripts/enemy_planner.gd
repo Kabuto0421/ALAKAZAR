@@ -154,7 +154,7 @@ func beat(model: RefCounted, index: int) -> void:
 			_cavalry_action(model, enemy)
 		elif enemy.type in Rules.GENERALS:
 			_general_action(model, enemy)
-		elif enemy.type in ["heavy", "executioner", "shield", "analyst"]:
+		elif enemy.type in ["heavy", "executioner", "shield", "analyst", "dragon"]:
 			var action: Dictionary = heavy_behavior.decide(model,enemy)
 			if action.kind == "step":
 				model.enemy_step(enemy,action.cell)
@@ -183,7 +183,7 @@ func finish(model: RefCounted) -> void:
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 ## Who steers round the cat's field (bosses and the like are left to their own rules).
-const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer"]
+const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer", "dragon"]
 
 ## An enemy in the cat's field walks out of it first; one whose straight way to the player runs
 ## through the field goes round it (the shortest way over free tiles), or waits at its edge when

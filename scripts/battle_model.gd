@@ -85,6 +85,7 @@ const TYPES = {
 	"gold": {"name": "金将兵", "hp": 2, "ap": 1},
 	"cross": {"name": "バッテン兵", "hp": 1, "ap": 2},
 	"jester": {"name": "道化兵", "hp": 2, "ap": 1},
+	"dragon": {"name": "竜装兵", "hp": 3, "ap": 2},
 }
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
 ## How each soldier tends to act, in two short lines for the inspector (taken from the
@@ -104,6 +105,7 @@ const HABITS := {
 	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
 	"cross": ["斜めに歩いて近づき、", "斜めの隣を攻撃"],
 	"jester": ["3ターンは左にしか進まず、", "覚醒すると四方へ・AP3"],
+	"dragon": ["頑丈な体で最短の道を", "進み、隣に来たら攻撃"],
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
@@ -357,7 +359,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	events.clear()
 	for placement in layout.get_children():
 		var cell := FormationLayout.cell_at(placement.position,board_size)
-		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark","cross","jester"][placement.enemy_kind]
+		var kind: String = ["infantry","miner","heavy","cavalry","recruit","horse","javelin","archer","rook","prison","executioner","slot","shield","analyst","gold","silver","king","fortress","storm_shark","cross","jester","dragon"][placement.enemy_kind]
 		enemies.append(make_enemy(kind,cell,enemies.size()))
 		enemies[-1].home = cell
 	layout.free()
