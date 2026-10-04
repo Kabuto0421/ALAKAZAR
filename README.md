@@ -8,7 +8,11 @@
 
 ### PV（`tools/pv/`）
 
-タイトル曲（58.4秒）に合わせたPVを、ゲームの実機の画面から作るツールです。`python3 tools/pv/make_pv.py --record`（`GODOT=<godotのパス>`、`xvfb-run` と `pip install imageio-ffmpeg` が必要）で、`tools/pv/pv_shot.gd` が各場面を30fpsで録画し（Godotの `--write-movie`）、`make_pv.py` が曲の秒数に合わせて切り貼りして `build/pv/ALAKAZAR_PV.mp4`（1920×1080）にします。カット割は `make_pv.py` の `CUTS`（曲の部分と大きな一撃の秒数は `title_theme.cues.json`）。ファンファーレは1.2秒、戦闘の部分は1.034秒、サイバー以降は0.517秒（キックの間隔）ごとにカットを切り、キックのたびに画面が一瞬光って押し込まれる（`punch_filter`）。小さい盤面の場面は、`CUTS` の最後の数字（1.5 / 2）で寄る。`tools/pv/sheet.py` は録画した動画の各秒の様子を一覧にする確認用。録画に使う盤面（大砲の連鎖・隕石・守護神など）は `pv_shot.gd` の `shot_*` に書いてあるので、場面を変えたいときはそこを直します。`build/` は git に入りません。
+タイトル曲（58.4秒）に合わせたPVを、ゲームの実機の画面から作るツールです。`python3 tools/pv/make_pv.py --record`（`GODOT=<godotのパス>`、`xvfb-run` と `pip install imageio-ffmpeg` が必要）で、`tools/pv/pv_shot.gd` が各場面を30fpsで録画し（Godotの `--write-movie`）、`make_pv.py` が曲に合わせて切り貼りして `build/pv/ALAKAZAR_PV.mp4`（1920×1080）にします。
+
+- **カットは「1つの揺れに1つの場面」**：`build_cuts()` が曲のキューシート（`title_theme.cues.json`）から、ファンファーレはパイプの旋律の音ごと、戦闘は太鼓ごと（1.03秒ごと）、サイバー以降は8分音符ごと（0.26秒）、最後のタイトル画面はキックごとにカットを作る（約110カット）。各カットは、録画した映像の「急に変わる瞬間」（斬撃・閃光・連鎖の弾け）を `peaks_of()` で探して、その瞬間から始める（盤面の場面は、その場所へ寄る）。
+- カットは曲のフレーム位置（30fps）に揃えて切るので、ずれが積み重ならない。カットの頭ごとに画面が一瞬光って押し込まれる（`punch_filter`、曲の5つの大きな一撃は強め）。
+- 録画に使う盤面（大砲の連鎖・隕石・守護神の大量召喚・暴食妖精に食べられる場面など）は `pv_shot.gd` の `shot_*` に書いてある。確認用の `sheet.py`（動画の各秒を一覧にする）もある。`build/` は git に入らない。
 
 ### Web書き出し（unityroom向け）
 

@@ -539,7 +539,9 @@ func shot_title_fusion() -> void:
 	top.add_child(band)
 	var line1 := label("3つの武器と、3つの妖精で。", 64, Color("fff6e0"), Vector2(0, 575), 1728.0, top)
 	var line2 := label("監獄都市を踏破せよ。", 84, Color("f2c14e"), Vector2(0, 665), 1728.0, top)
-	var line3 := label("Steamで後日公開予定", 40, Color("fff6e0"), Vector2(0, 790), 1728.0, top)
+	var line3 := label("UnityRoomで体験版公開中", 44, Color("fff6e0"), Vector2(0, 780), 1728.0, top)
+	var line4 := label("（Steamで正式版後日公開予定）", 32, Color("d8d2c0"), Vector2(0, 840), 1728.0, top)
+	line4.modulate.a = 0.0
 	line1.modulate.a = 0.0
 	line2.modulate.a = 0.0
 	line3.modulate.a = 0.0
@@ -555,6 +557,7 @@ func shot_title_fusion() -> void:
 		line1.modulate.a = smooth((t - 52.0) / 0.6)
 		line2.modulate.a = smooth((t - 53.4) / 0.6)
 		line3.modulate.a = smooth((t - 55.4) / 0.6)
+		line4.modulate.a = smooth((t - 55.8) / 0.6)
 		fade.modulate.a = 0.0 if t < 57.2 else smooth((t - 57.2) / 1.2)
 		await process_frame
 
@@ -683,7 +686,7 @@ func shot_swarm() -> void:
 	m.summon_acorn(Vector2i(0, 5))
 	m.summon_wolf(Vector2i(2, 2))
 	m.summon_wolf(Vector2i(2, 4))
-	m.summon_glutton(Vector2i(1, 3))
+	m.summon_wall(Vector2i(1, 3))
 	m.summon_wall(Vector2i(3, 3))
 	m.summon_wall(Vector2i(3, 2))
 	m.summon_holy(Vector2i(2, 6))
