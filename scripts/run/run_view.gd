@@ -236,9 +236,20 @@ func _compare(card: Card, coverage: Array[Vector2i], forging: bool) -> void:
 	if offer.kind == "weapon":
 		var index := int(offer.value)
 		if forging:
-			var damage: int = run.battle.weapon_damage(index)
-			# Swaps deal no damage: forging makes the first swap each turn free instead.
-			card.note = "（毎ターン1回まで）" if Weapons.DATA[index].get("swap", false) else "攻撃 %d → %d" % [damage, damage+1]
+			# Forging never adds attack power: it adds a tile, widens a blow, or the like.
+			match Weapons.forge_kind(index):
+				"tile":
+					card.note = "動いて攻撃できるマス +1"
+				"area":
+					card.note = "叩く範囲が広がる"
+				"charge":
+					card.note = "溜められる量 +1"
+				"bow":
+					card.note = "射程が斜めの端まで"
+				"swap":
+					card.note = "毎ターン最初の入れ替えが0 AP"
+				_:
+					card.note = ""
 			card.note_color = Color("ffd35b")
 			return
 		var added := Weapons.offsets(index).filter(func(o: Vector2i) -> bool: return not coverage.has(o)).size()
