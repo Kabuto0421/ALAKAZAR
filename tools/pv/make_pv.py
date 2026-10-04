@@ -61,7 +61,7 @@ CUTS = [
     (32.690, 33.207, "art_p_jester", 0.0, 1),
     (33.207, 33.724, "art_p_dragon", 0.0, 1),
     (33.724, 34.241, "art_p_cross", 0.0, 1),
-    (34.241, 34.759, "art_p_rook", 0.0, 1),
+    (34.241, 34.759, "art_p_analyst", 0.0, 1),
     # climax and finish: the fairies, each once
     (34.759, 35.793, "meteor", 1.40, 1.5),
     (35.793, 36.828, "chain", 1.50, 1.5),
@@ -71,15 +71,15 @@ CUTS = [
     (39.931, 40.448, "glutton", 2.30, 1.5),
     (40.448, 40.966, "art_p_king", 0.25, 1),
     (40.966, 41.85, None, 0.0, 1),
-    # fusion: the finished title screen, with weapon fights cut in on the kicks
-    (41.850, 42.884, "title_fusion", 0.15, 1),
-    (42.884, 43.918, "hammer2", 1.40, 1.25, (864, 620)),
-    (43.918, 44.952, "title_fusion", 2.10, 1.6, (1450, 800)),
-    (44.952, 45.986, "daggers", 3.75, 1.25, (864, 620)),
-    (45.986, 47.020, "title_fusion", 4.20, 1.6, (330, 520)),
-    (47.020, 48.054, "circle", 4.15, 1.25, (864, 620)),
-    (48.054, 49.088, "title_fusion", 6.20, 1.6, (860, 200)),
-    (49.088, 50.130, "basic", 5.30, 1.25, (864, 620)),
+    # fusion: the real title screen changing colour with the song, one part of the song per two kicks
+    (41.850, 42.884, "title_cycle", 0 * 1.2, 1),
+    (42.884, 43.918, "title_cycle", 1 * 1.2, 1),
+    (43.918, 44.952, "title_cycle", 2 * 1.2, 1),
+    (44.952, 45.986, "title_cycle", 3 * 1.2, 1),
+    (45.986, 47.020, "title_cycle", 4 * 1.2, 1),
+    (47.020, 48.054, "title_cycle", 5 * 1.2, 1),
+    (48.054, 49.088, "title_cycle", 6 * 1.2, 1),
+    (49.088, 50.130, "title_cycle", 7 * 1.2, 1),
     (50.130, SONG_LENGTH, "title_fusion", 8.28, 1),
 ]
 
@@ -88,9 +88,9 @@ CUTS = [
 BEATS = [(2.4, 9.6, 1.2), (17.172, 26.483, 1.0345), (26.483, 41.0, 0.5172), (41.85, 50.2, 0.5172)]
 HITS = [9.6, 17.172, 26.483, 34.759, 41.85]
 
-SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "glutton", "guardian_boss", "f_axe_spirit", "f_shadow_stitch", "f_blessing_fairy", "title_fusion"]
+SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "glutton", "guardian_boss", "f_axe_spirit", "f_shadow_stitch", "f_blessing_fairy", "title_fusion", "title_cycle"]
          + ["art_p_" + n for n in ("fortress", "rook", "king", "rotorick", "shark", "hero")]
-         + ["art_p_" + n for n in ("jester", "dragon", "cross", "rook")])
+         + ["art_p_" + n for n in ("jester", "dragon", "cross", "analyst")])
 
 
 def record():

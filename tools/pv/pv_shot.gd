@@ -577,6 +577,31 @@ func shot_title_fusion() -> void:
 		fade.modulate.a = 0.0
 		await process_frame
 
+## The title screen changing colour with the song: each part of the song (the cue sheet's sections)
+## graded as the real title screen does it, one part per two kicks, all with the menu hidden.
+const GRADE_TIMES := [42.0, 12.2, 17.4, 26.6, 32.8, 34.9, 36.9, 41.2]
+const SEGMENT_FRAMES := 36
+
+func shot_title_cycle() -> void:
+	var Book = load("res://scripts/fairy_book.gd")
+	for item in load("res://scripts/battle_model.gd").ITEMS:
+		Book._used[item.id] = true
+		Book._seen[item.id] = true
+	Book._loaded = true
+	var title = load("res://title.tscn").instantiate()
+	root.add_child(title)
+	await process_frame
+	title.reveal = 100.0
+	title.menu.visible = false
+	title.window.visible = false
+	for start in GRADE_TIMES:
+		for f in SEGMENT_FRAMES:
+			title.override_time = start + f / 30.0
+			title.reveal = 100.0
+			title.menu.visible = false
+			title.window.visible = false
+			await process_frame
+
 # ---- portraits (one character, filling the screen, 1.3 s) --------------------------------
 
 const NAMES := {"fortress": "要塞監獄", "prison": "移動監獄", "king": "監獄の王", "rook": "突進くん", "rotorick": "ロトリック", "shark": "嵐鮫",
