@@ -6,6 +6,10 @@
 
 動作確認環境は **Godot 4.7.2（GDScript／GL Compatibility）** です。Godotで `project.godot` をインポートし、素材の読み込み後に **F5** で実行してください。**タイトル画面**（`title.tscn`）から始まり、「GAME START」で初期ビルド選択へ進みます（敵に倒されたときは、結果画面の「タイトルへ戻る」でこの画面に戻ります）。
 
+### PV（`tools/pv/`）
+
+タイトル曲（58.4秒）に合わせたPVを、ゲームの実機の画面から作るツールです。`python3 tools/pv/make_pv.py --record`（`GODOT=<godotのパス>`、`xvfb-run` と `pip install imageio-ffmpeg` が必要）で、`tools/pv/pv_shot.gd` が各場面を30fpsで録画し（Godotの `--write-movie`）、`make_pv.py` が曲の秒数に合わせて切り貼りして `build/pv/ALAKAZAR_PV.mp4`（1920×1080）にします。カット割は `make_pv.py` の `CUTS`（曲の部分と大きな一撃の秒数は `title_theme.cues.json`）。録画に使う盤面（大砲の連鎖・隕石・守護神など）は `pv_shot.gd` の `shot_*` に書いてあるので、場面を変えたいときはそこを直します。`build/` は git に入りません。
+
 ### Web書き出し（unityroom向け）
 
 `export_presets.cfg` に **Web** プリセット（`build/web/index.html`）を足してあります。Windows用と同じ除外設定（`tests/`・`tools/`・`art_source/` など）で、**スレッドサポートはオフ**（unityroomが未対応のため）、拡張（GDExtension）もオフ、レンダラーはもともと互換（GL Compatibility）です。エディタの「プロジェクト → エクスポート」で Web を選び、エディタと同じバージョン（4.7.2）のエクスポートテンプレートを入れてから書き出します（コマンドなら `godot --headless --path . --export-release "Web" build/web/index.html`）。この環境にはテンプレートがないので、実際の書き出しと動作確認はまだしていません。
