@@ -333,6 +333,7 @@ func _initialize() -> void:
 	_cross_soldier()
 	_jester()
 	_dragon_soldier()
+	_fortress_new_soldiers()
 	_storm_shark()
 	_second_boss_room()
 	_acorn_and_shark()
@@ -2407,6 +2408,21 @@ func _dragon_soldier() -> void:
 	var wall_hp: int = int(m.allies[0].hp)
 	d.ap = 2
 	verify(m.dragon_fire(d) and (m.allies.is_empty() or int(m.allies[0].hp) < wall_hp),"An ally standing in the line takes the blast")
+
+## The fortresses send out the new soldiers too, the dragon-armoured one only rarely.
+func _fortress_new_soldiers() -> void:
+	var m := Rules.new()
+	m.reset(Rules.FINAL_LEVEL)
+	var fortress: Dictionary = m.enemies.filter(func(e): return e.type == "fortress")[0]
+	var counts := {}
+	for k in 6000:
+		m.slot_seed = k * 7919
+		m.round_number = 1 + k % 50
+		var kind: String = m._soldier_kind(fortress, k % 3)
+		counts[kind] = int(counts.get(kind, 0)) + 1
+	verify(int(counts.get("cross", 0)) > 100 and int(counts.get("jester", 0)) > 100,"Fortresses send out the X soldier and the jester (%s)" % [counts])
+	verify(int(counts.get("dragon", 0)) >= 1 and int(counts.get("dragon", 0)) < int(counts.get("jester", 0)) / 5,"...and the dragon-armoured soldier only rarely")
+	verify(Rules.SOLDIERS.has("cross") and Rules.SOLDIERS.has("jester") and Rules.SOLDIERS.has("dragon"),"The new soldiers are in the soldier list (the king can raise them too)")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:

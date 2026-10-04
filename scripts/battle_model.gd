@@ -107,7 +107,9 @@ const HABITS := {
 	"jester": ["3ターンは左にしか進まず、", "覚醒すると四方へ・AP3"],
 	"dragon": ["縦横に歩いて", "左3マスを砲撃"],
 }
-const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
+const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner", "cross", "jester", "dragon"]
+## How likely a fortress is to send each soldier (1 unless listed): the dragon-armoured soldier is a rarity.
+const SOLDIER_WEIGHTS := {"dragon": 0.1}
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
 ## At this HP or below the Prison King is enraged: a barrier shields him until every fortress falls.
@@ -2860,7 +2862,15 @@ func _free_ring(unit: Dictionary) -> Array[Vector2i]:
 func _soldier_kind(unit: Dictionary, salt: int) -> String:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([slot_seed, round_number, int(unit.id), salt])
-	return SOLDIERS[rng.randi_range(0, SOLDIERS.size() - 1)]
+	var total := 0.0
+	for kind in SOLDIERS:
+		total += float(SOLDIER_WEIGHTS.get(kind, 1.0))
+	var roll := rng.randf() * total
+	for kind in SOLDIERS:
+		roll -= float(SOLDIER_WEIGHTS.get(kind, 1.0))
+		if roll < 0.0:
+			return kind
+	return SOLDIERS[-1]
 
 ## Put a soldier on the free tile around `unit` nearest the player; it acts next turn.
 func _spawn_soldier(unit: Dictionary, kind: String, revived: bool) -> bool:
