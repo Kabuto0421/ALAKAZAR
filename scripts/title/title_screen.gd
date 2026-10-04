@@ -93,8 +93,8 @@ const EDGE := Color("07080f")
 const ITEM_CENTERS := [Vector2(864, 939), Vector2(864, 1013)]
 const ITEM_SIZE := Vector2(402, 66)
 const ITEM_FONT_SIZE := 56
-## The ▶ glyph sits a little high in its line: nudged down to the text's middle.
-const CURSOR_DROP := 3.0
+## The pointer is drawn, not typed: the pixel font has no ▶ glyph, which showed as tofu on the Web.
+const CURSOR_DROP := 0.0
 
 var clock := 0.0
 ## Web: nothing starts until the first click (see ON_WEB).
@@ -141,7 +141,7 @@ var window: TextureRect
 var menu: Control
 var item_labels: Array[Label] = []
 var item_glows: Array[Label] = []
-var cursor: Label
+var cursor: Node2D
 var fx: TitleFx
 var flash: ColorRect
 var curtain: ColorRect
@@ -212,6 +212,10 @@ func _ready() -> void:
 		if saved.load(SYNC_CONFIG) == OK:
 			if saved.has_section_key("sync", "offset_v2"):
 				web_offset = float(saved.get_value("sync", "offset_v2"))
+			# Corrections saved by the older build (any other key) are wiped.
+			if saved.has_section_key("sync", "offset"):
+				saved.erase_section_key("sync", "offset")
+				saved.save(SYNC_CONFIG)
 		waiting_for_click = true
 		click_prompt = Label.new()
 		click_prompt.text = "クリックしてスタート"
@@ -330,14 +334,13 @@ func _build_menu() -> void:
 	catalog_button.add_theme_color_override("font_hover_color", GOLD)
 	catalog_button.pressed.connect(_open_catalog)
 	menu.add_child(catalog_button)
-	cursor = Label.new()
-	cursor.text = "▶"
-	cursor.add_theme_font_override("font", FONT)
-	cursor.add_theme_font_size_override("font_size", 44)
-	cursor.add_theme_color_override("font_color", GOLD)
-	cursor.add_theme_constant_override("outline_size", 8)
-	cursor.add_theme_color_override("font_outline_color", EDGE)
-	cursor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cursor = Node2D.new()
+	for part in [[6.0, EDGE], [0.0, GOLD]]:
+		var tri := Polygon2D.new()
+		var g: float = part[0]
+		tri.polygon = PackedVector2Array([Vector2(-g, -19 - g * 1.4), Vector2(30 + g * 1.5, 0), Vector2(-g, 19 + g * 1.4)])
+		tri.color = part[1]
+		cursor.add_child(tri)
 	menu.add_child(cursor)
 
 func _menu_label(text: String, rect: Rect2) -> Label:
@@ -359,9 +362,7 @@ func _select(index: int) -> void:
 		item_labels[i].add_theme_color_override("font_color", GOLD if i == selected else CREAM)
 	var label := item_labels[selected]
 	var width := FONT.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ITEM_FONT_SIZE).x
-	cursor.position = Vector2(ITEM_CENTERS[selected].x - width / 2 - 64, ITEM_CENTERS[selected].y - 33 + CURSOR_DROP)
-	cursor.size = Vector2(48, 66)
-	cursor.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cursor.position = Vector2(ITEM_CENTERS[selected].x - width / 2 - 52, ITEM_CENTERS[selected].y + CURSOR_DROP)
 
 ## The weapon and fairy catalog (C, or the button in the corner).
 var catalog: Control

@@ -2081,11 +2081,17 @@ func _draw_weapons() -> void:
 		if equipped:
 			draw_rect(rect.grow(-SLOT_FRAME-1),accent,false,2)
 		_text(pos+Vector2(13,30),str(slot+1),15,MUTED)
-		var label: String = ("▶ " if equipped else "")+weapon.name
-		_text(pos+Vector2(28,38),label,22,accent)
+		# The equipped marker is drawn: the pixel font has no ▶ glyph (tofu on the Web).
+		var label: String = weapon.name
+		var label_x := 28.0
+		if equipped:
+			var tip := pos+Vector2(28,31)
+			draw_colored_polygon(PackedVector2Array([tip+Vector2(0,-8),tip+Vector2(12,0),tip+Vector2(0,8)]),accent)
+			label_x = 46.0
+		_text(pos+Vector2(label_x,38),label,22,accent)
 		var forged: bool = model.weapon_power.has(index)
 		if forged:
-			_text(pos+Vector2(30+_text_width(label,22),38),"+",22,GOLD)
+			_text(pos+Vector2(label_x+2+_text_width(label,22),38),"+",22,GOLD)
 		var extras: Array[String] = []
 		# Swap weapons trade places instead of dealing damage.
 		extras.assign(["魔法陣","攻撃不可"] if circle else ["無傷で入替・初回0AP" if forged and not model.free_swap_used else "無傷で入替"] if weapon.get("swap",false) else ["攻撃%d" % model.weapon_damage(index)])
