@@ -32,4 +32,4 @@ Godot でタイトル画面を組むための素材です。メニューの文�
 
 ## 1体ずつの画像（units/ と units.json）
 
-主人公・妖精・敵を1体ずつ切り出した画像（全39体）と、その位置・重ね順（`units.json`）です。ゲームでは主人公側（23体）をこれで組み、**戦闘で使った妖精だけ色づく**ようにしています（`scripts/title/title_roster.gd`、`scripts/fairy_book.gd`）。敵側はまだ `layer_20_enemies.png`（と王を倒したあとの `layer_20_enemies_fallen.png`）を使っています。道化兵・竜装兵・バッテン兵・嵐鮫は、この2枚に `tools/add_title_enemies.py` で手前の列として貼り込んだものです。`layer_10_heroes.png` は今は使っていません（完成形の参考用）。
+主人公・妖精・敵を1体ずつ切り出した画像（全39体）と、その位置・重ね順（`units.json`）です。ゲームでは主人公側（23体）をこれで組み、**戦闘で使った妖精だけ色づく**ようにしています（`scripts/title/title_roster.gd`、`scripts/fairy_book.gd`）。敵側はまだ `layer_20_enemies.png`（と王を倒したあとの `layer_20_enemies_fallen.png`）を使っています。竜装兵・道化兵・バッテン兵・嵐鮫（水面から覗く）は、この2枚に `tools/add_title_enemies.py` で手前の列として貼り込んだものです（左から順に、隙間1pxで詰めて並べる。敵が増えたらスクリプトの `ORDER` に足して実行し直す。実行前に元のレイヤーを git から戻す）。`layer_10_heroes.png` は今は使っていません（完成形の参考用）。

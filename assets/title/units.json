@@ -385,24 +385,24 @@
   "z": 34
  },
  {
-  "id": "jester",
-  "name": "道化兵",
-  "side": "enemies",
-  "file": "units/enemies_jester.png",
-  "x": 1207,
-  "y": 898,
-  "w": 110,
-  "h": 112,
-  "z": 12
- },
- {
   "id": "dragon",
   "name": "竜装兵",
   "side": "enemies",
   "file": "units/enemies_dragon.png",
-  "x": 1399,
+  "x": 1214,
+  "y": 894,
+  "w": 104,
+  "h": 116,
+  "z": 12
+ },
+ {
+  "id": "jester",
+  "name": "道化兵",
+  "side": "enemies",
+  "file": "units/enemies_jester.png",
+  "x": 1319,
   "y": 898,
-  "w": 103,
+  "w": 110,
   "h": 112,
   "z": 13
  },
@@ -411,7 +411,7 @@
   "name": "バッテン兵",
   "side": "enemies",
   "file": "units/enemies_cross.png",
-  "x": 1571,
+  "x": 1430,
   "y": 898,
   "w": 83,
   "h": 112,
@@ -422,10 +422,10 @@
   "name": "嵐鮫",
   "side": "enemies",
   "file": "units/enemies_shark.png",
-  "x": 1708,
-  "y": 882,
-  "w": 134,
-  "h": 128,
+  "x": 1508,
+  "y": 831,
+  "w": 282,
+  "h": 219,
   "z": 15
  }
 ]
