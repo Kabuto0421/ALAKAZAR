@@ -25,8 +25,10 @@ func _init() -> void:
 	quit()
 
 func _run(shot: String) -> void:
-	if shot.begins_with("art_p_"):
-		await portrait(shot.substr(6))
+	if shot.begins_with("art_pn_"):
+		await portrait(shot.substr(7), true)
+	elif shot.begins_with("art_p_"):
+		await portrait(shot.substr(6), false)
 	elif has_method("shot_" + shot):
 		await call("shot_" + shot)
 	else:
@@ -566,7 +568,7 @@ const TINTS := {"fortress": Color(0.55, 0.12, 0.14), "prison": Color(0.2, 0.25, 
 	"cross": Color(0.5, 0.25, 0.08), "shield": Color(0.15, 0.4, 0.4), "exec": Color(0.45, 0.2, 0.1), "archer": Color(0.2, 0.45, 0.2),
 	"javelin": Color(0.5, 0.2, 0.25), "analyst": Color(0.15, 0.45, 0.35), "police": Color(0.3, 0.35, 0.4), "cavalry": Color(0.4, 0.3, 0.15), "hero": Color(0.1, 0.45, 0.3)}
 
-func portrait(id: String) -> void:
+func portrait(id: String, with_name: bool = false) -> void:
 	new_stage()
 	var bg := sprite(TITLE_DIR + "layer_00_background.png", Vector2.ZERO, 1.0, false)
 	var tint: Color = TINTS.get(id, Color(0.3, 0.3, 0.4))
@@ -580,7 +582,9 @@ func portrait(id: String) -> void:
 	var rain := add_rain(0.9)
 	var size: Vector2 = unit.texture.get_size()
 	var fit: float = minf(780.0 / size.y, 1500.0 / size.x)
-	var name_label := label(NAMES.get(id, id), 84, Color.WHITE, Vector2(0, 880))
+	var name_label: Label = null
+	if with_name:
+		name_label = label(NAMES.get(id, id), 84, Color.WHITE, Vector2(0, 880))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
 	for f in 40:
@@ -641,7 +645,7 @@ func auto_step() -> bool:
 	if chosen < 0:
 		return false
 	if chosen != m.weapon:
-		bv._equip(m.owned_weapons.find(chosen))
+		bv._equip(chosen)
 		await frames(4)
 	await click(target)
 	await seconds(0.3)
@@ -655,16 +659,69 @@ func play_turn(actions: int = 2) -> void:
 	await end_turn()
 	await seconds(0.3)
 
-## The plainest weapons, moving and fighting on a small board.
+## The plainest weapons, moving and fighting: a crowd of weak soldiers, every action a blow.
 func shot_basic() -> void:
-	await boot(1, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy"])
-	arrange(Vector2i(0, 3), [["recruit", Vector2i(3, 1)], ["infantry", Vector2i(4, 2)], ["recruit", Vector2i(3, 5)], ["recruit", Vector2i(5, 4)]])
+	await boot(4, ["forward", "front_diagonal", "vertical"], ["magic_bolt", "wall_fairy"])
+	var side: int = m.board_size
+	print("PV basic board ", side)
+	arrange(Vector2i(2, 3), [["recruit", Vector2i(3, 3)], ["recruit", Vector2i(2, 2)], ["recruit", Vector2i(4, 3)], ["recruit", Vector2i(3, 1)], ["recruit", Vector2i(4, 5)], ["recruit", Vector2i(5, 2)], ["recruit", Vector2i(2, 5)], ["infantry", Vector2i(5, 5)]])
+	m.player.hp = 5
 	await seconds(0.8)
-	for turn in 6:
+	for turn in 5:
 		await play_turn()
 		if m.terminal() or m.enemies.is_empty():
 			break
+		m.player.hp = maxi(m.player.hp, 3)
 	await seconds(1.0)
+
+## Everything the player has called this battle, and then the guardian calls it all again.
+func shot_swarm() -> void:
+	await boot(10, ["eight_knight", "lance", "hammer"], ["holy_spirit", "guardian_fairy", "lone_wolf"], {"holy_spirit": 1, "guardian_fairy": 1})
+	arrange(Vector2i(0, 3), [["heavy", Vector2i(6, 1), 3], ["executioner", Vector2i(6, 3), 3], ["gold", Vector2i(7, 2), 3], ["horse", Vector2i(6, 5), 3], ["silver", Vector2i(7, 4), 3], ["javelin", Vector2i(7, 6)], ["cavalry", Vector2i(5, 6), 3]])
+	m.summon_acorn(Vector2i(1, 1))
+	m.summon_acorn(Vector2i(1, 5))
+	m.summon_acorn(Vector2i(0, 5))
+	m.summon_wolf(Vector2i(2, 2))
+	m.summon_wolf(Vector2i(2, 4))
+	m.summon_glutton(Vector2i(1, 3))
+	m.summon_wall(Vector2i(3, 3))
+	m.summon_wall(Vector2i(3, 2))
+	m.summon_holy(Vector2i(2, 6))
+	bv._sync_units(false)
+	bv._update_controls()
+	bv.queue_redraw()
+	await seconds(1.5)
+	m.summon_guardian(Vector2i(3, 0))
+	bv._sync_units(false)
+	bv._feedback()
+	bv.queue_redraw()
+	await seconds(3.2)
+	await end_turn()
+	await seconds(1.5)
+
+## The cross daggers: thunder first, then the flame dagger's boosted cross strike.
+func shot_daggers() -> void:
+	await boot(9, ["thunder_dagger", "flame_dagger", "forward"], ["magic_bolt", "wall_fairy"])
+	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 2), 2], ["executioner", Vector2i(3, 4), 1], ["gold", Vector2i(4, 3), 1], ["silver", Vector2i(2, 5), 1], ["horse", Vector2i(4, 5), 1], ["javelin", Vector2i(6, 3)], ["archer", Vector2i(6, 1)]])
+	m.weapon = m.owned_weapons[0]
+	bv._update_controls()
+	await seconds(1.2)
+	await click(Vector2i(3, 2))
+	await seconds(0.8)
+	bv._equip(m.owned_weapons[1])
+	await seconds(0.6)
+	await click(Vector2i(3, 4))
+	await seconds(2.0)
+
+## The cross hammer: one blow, the cross around it.
+func shot_hammer2() -> void:
+	await boot(9, ["cross_hammer", "forward", "vertical"], ["magic_bolt", "wall_fairy"])
+	arrange(Vector2i(2, 3), [["heavy", Vector2i(3, 3), 1], ["executioner", Vector2i(3, 2), 1], ["gold", Vector2i(3, 4), 1], ["silver", Vector2i(4, 3), 1], ["horse", Vector2i(5, 3), 3], ["javelin", Vector2i(6, 5)], ["archer", Vector2i(6, 1)]])
+	m.weapon = m.owned_weapons[0]
+	bv._update_controls()
+	await seconds(1.2)
+	await click(Vector2i(3, 3))
+	await seconds(2.2)
 
 ## A rook-spear magic circle: closing the ring deals 99 to everything inside.
 func shot_circle() -> void:

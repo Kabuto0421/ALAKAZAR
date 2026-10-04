@@ -35,16 +35,16 @@ CUTS = [
     (8.40, 9.60, "art_p_hero", 0.0, 1),
     (9.60, 12.00, "art_logo", 0.0, 1),
     (12.00, 17.172, "art_fairies", 0.0, 1),
-    # war: the plainest weapons first, then the magic circle, the chain, the guardian
-    (17.172, 18.207, "basic", 5.00, 2),
-    (18.207, 19.241, "basic", 8.55, 2),
-    (19.241, 20.276, "basic", 11.55, 2),
-    (20.276, 21.310, "circle", 1.00, 1.5),
-    (21.310, 22.345, "circle", 2.80, 1.5),
-    (22.345, 23.379, "circle", 3.90, 1.5),
-    (23.379, 24.414, "chain", 1.30, 1.5),
-    (24.414, 25.448, "chain", 2.20, 1.5),
-    (25.448, 26.483, "guardian", 1.80, 1),
+    # war: the plainest weapons first, then the hammer, the cross daggers, the magic circle, the swarm
+    (17.172, 18.207, "basic", 1.30, 2),
+    (18.207, 19.241, "basic", 5.30, 2),
+    (19.241, 20.276, "basic", 6.30, 2),
+    (20.276, 21.310, "hammer2", 1.40, 1.5),
+    (21.310, 22.345, "daggers", 3.40, 1.5),
+    (22.345, 23.379, "circle", 1.00, 1.5),
+    (23.379, 24.414, "circle", 2.80, 1.5),
+    (24.414, 25.448, "circle", 3.90, 1.5),
+    (25.448, 26.483, "swarm", 2.00, 1.3),
     # cyber: every kick is a cut
     (26.483, 27.000, "rotorick", 1.80, 1),
     (27.000, 27.517, "rotorick", 2.40, 1),
@@ -59,15 +59,15 @@ CUTS = [
     (31.655, 32.172, "king", 5.40, 1),
     (32.172, 32.690, "king", 6.20, 1),
     # build-up: the new faces, four to the bar
-    (32.690, 33.207, "art_p_jester", 0.0, 1),
-    (33.207, 33.724, "art_p_dragon", 0.0, 1),
-    (33.724, 34.241, "art_p_cross", 0.0, 1),
-    (34.241, 34.759, "art_p_rook", 0.0, 1),
+    (32.690, 33.207, "art_pn_jester", 0.0, 1),
+    (33.207, 33.724, "art_pn_dragon", 0.0, 1),
+    (33.724, 34.241, "art_pn_cross", 0.0, 1),
+    (34.241, 34.759, "art_pn_rook", 0.0, 1),
     # climax: meteors and the circle's 99s
     (34.759, 35.276, "meteor", 1.40, 1.5),
     (35.276, 35.793, "meteor", 1.90, 1.5),
-    (35.793, 36.310, "circle", 4.00, 1.5),
-    (36.310, 36.828, "circle", 4.50, 1.5),
+    (35.793, 36.310, "chain", 2.10, 1.5),
+    (36.310, 36.828, "chain", 2.50, 1.5),
     # finish
     (36.828, 37.345, "fairies", 1.00, 1.5),
     (37.345, 37.862, "fairies", 7.20, 1.5),
@@ -75,7 +75,7 @@ CUTS = [
     (38.379, 38.897, "fairies", 13.20, 1.5),
     (38.897, 39.414, "fairies", 13.70, 1.5),
     (39.414, 39.931, "chain", 3.00, 1.5),
-    (39.931, 40.448, "guardian", 4.20, 1),
+    (39.931, 40.448, "swarm", 3.60, 1.3),
     (40.448, 40.966, "art_p_king", 0.0, 1),
     (40.966, 41.85, None, 0.0, 1),
     (41.85, SONG_LENGTH, "title_fusion", 0.0, 1),
@@ -86,8 +86,9 @@ CUTS = [
 BEATS = [(2.4, 9.6, 1.2), (17.172, 26.483, 1.0345), (26.483, 41.0, 0.5172), (41.85, 50.2, 0.5172)]
 HITS = [9.6, 17.172, 26.483, 34.759, 41.85]
 
-SHOTS = (["art_intro", "art_logo", "art_fairies", "guardian", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "fairies", "title_fusion"]
-         + ["art_p_" + n for n in ("fortress", "prison", "king", "rotorick", "shark", "hero", "jester", "dragon", "cross", "rook")])
+SHOTS = (["art_intro", "art_logo", "art_fairies", "chain", "rotorick", "shark", "king", "meteor", "basic", "circle", "daggers", "hammer2", "swarm", "fairies", "title_fusion"]
+         + ["art_p_" + n for n in ("fortress", "prison", "king", "rotorick", "shark", "hero")]
+         + ["art_pn_" + n for n in ("jester", "dragon", "cross", "rook")])
 
 
 def record():
