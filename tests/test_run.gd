@@ -166,11 +166,11 @@ func _initialize() -> void:
 	verify(run.finish_battle() and run.state==Run.State.REWARD,"Beating Rotorick opens a reward")
 	run.skip_reward()
 	for k in 4:
-		# The fourth late fight is small on purpose: a jester, a dragon soldier and a fortress that keeps sending more.
+		# The fourth late fight is small on purpose: a jester, a dragon soldier, a fortress that keeps sending more, and two prisons in front.
 		verify(run.state==Run.State.BATTLE and m.level==Rules.LATE_LEVELS[k] and (m.enemies.size() >= 7 or k == 3),"Late fight %d follows" % (k+1))
 		if k == 3:
 			var kinds: Array = m.enemies.map(func(e): return e.type)
-			verify(kinds.size() == 3 and kinds.has("jester") and kinds.has("dragon") and kinds.has("fortress"),"The fourth late fight is a jester, a dragon soldier and a fortress")
+			verify(kinds.size() == 5 and kinds.has("jester") and kinds.has("dragon") and kinds.has("fortress") and kinds.count("prison") == 2,"The fourth late fight is a jester, a dragon soldier, a fortress and two moving prisons in front of them")
 		verify(m.enemies.all(func(e): return m.footprint(e).all(func(c): return m.inside(c) and c != m.player.cell)),"Late placements are valid")
 		m.enemies.clear()
 		m.check_outcome()
