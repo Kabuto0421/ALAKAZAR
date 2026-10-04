@@ -54,7 +54,7 @@ const MUSIC_DB := -8.0
 ## Web only: seconds added to the song position the picture follows. The browser reports no usable output
 ## latency, so none is subtracted; raise this if the picture runs behind the sound, lower it (below 0)
 ## if it runs ahead.
-const WEB_AUDIO_OFFSET := 0.0
+const WEB_AUDIO_OFFSET := 1.2
 const SYNC_CONFIG := "user://title_sync.cfg"
 
 ## How the picture is graded in each part of the song (the sections of the cue sheet):
@@ -100,7 +100,7 @@ var clock := 0.0
 ## Web: nothing starts until the first click (see ON_WEB).
 var waiting_for_click := false
 var click_prompt: Label
-## Web: the sync correction in use (WEB_AUDIO_OFFSET plus what the player set with [ and ]), and its on-screen note.
+## Web: the sync correction in use (the default or the player's saved value), and its on-screen note.
 var web_offset := WEB_AUDIO_OFFSET
 var offset_note: Label
 var offset_note_until := 0.0
