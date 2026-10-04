@@ -176,7 +176,7 @@ func finish(model: RefCounted) -> void:
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 ## Who steers round the cat's field (bosses and the like are left to their own rules).
-const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer", "cross"]
+const CAT_AVOIDERS := ["infantry", "recruit", "heavy", "executioner", "shield", "analyst", "javelin", "archer"]
 
 ## An enemy in the cat's field walks out of it first; one whose straight way to the player runs
 ## through the field goes round it (the shortest way over free tiles), or waits at its edge when
@@ -383,8 +383,10 @@ func _big_route(model: RefCounted, enemy: Dictionary, from_cell: Vector2i) -> Di
 			queue.append(next)
 	return {"dir": Vector2i.ZERO, "len": -1}
 
-## バッテン兵: strikes whoever stands on a diagonal neighbour (the player first, then an ally);
-## otherwise takes the first step of the shortest straight-line walk to a tile diagonal to the player.
+## バッテン兵: walks and strikes along the diagonals. It hits whoever stands on a diagonal neighbour (the
+## player first, then an ally); otherwise it takes the first step of the shortest diagonal walk to a tile
+## diagonal to the player. A diagonal walker never leaves its colour of the board, so from the other
+## colour it just comes as close as it can and waits for the player to step into its reach.
 func _cross_action(model: RefCounted, enemy: Dictionary) -> void:
 	var strikes: Array[Vector2i] = model.CROSS_STRIKES
 	if strikes.has(model.player.cell - enemy.cell):
@@ -395,8 +397,11 @@ func _cross_action(model: RefCounted, enemy: Dictionary) -> void:
 			model.enemy_step(enemy, enemy.cell + offset)
 			return
 	var goal := func(cell: Vector2i) -> bool: return strikes.has(model.player.cell - cell)
-	var route := _route(model, enemy, enemy.cell, DIRECTIONS, goal)
+	var route := _route(model, enemy, enemy.cell, strikes, goal)
 	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
+		return
+	var near := _route(model, enemy, enemy.cell, strikes, func(cell: Vector2i) -> bool: return model.distance(cell, model.player.cell) == 1)
+	if int(near.len) > 0 and model.enemy_step(enemy, near.step):
 		return
 	enemy.ap = 0
 

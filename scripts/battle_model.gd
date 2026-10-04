@@ -101,7 +101,7 @@ const HABITS := {
 	"analyst": ["殴られた武器を覚え、", "同じ武器を無効化"],
 	"gold": ["将棋の金の動きで", "近づいて攻撃"],
 	"silver": ["将棋の銀の動きで", "近づいて攻撃"],
-	"cross": ["縦横に歩いて近づき、", "斜めの隣を攻撃"],
+	"cross": ["斜めに歩いて近づき、", "斜めの隣を攻撃"],
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner"]
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
@@ -417,9 +417,11 @@ func enemy_offsets(enemy: Dictionary) -> Array:
 		return [Vector2i(-1,-1), Vector2i(0,-1), Vector2i(1,-1), Vector2i(-1,0), Vector2i(1,0), Vector2i(-1,1), Vector2i(0,1), Vector2i(1,1)]
 	if enemy.type == "fortress":
 		return []
+	if enemy.type == "cross":
+		return CROSS_STRIKES
 	return CARDINALS + cavalry_jumps(enemy.get("facing",2)) if enemy.type in JUMPERS else CARDINALS
 
-## バッテン兵 walks like an infantryman but strikes the four diagonal neighbours (the cross sword's reach).
+## バッテン兵 moves and strikes along the four diagonals (the cross sword's reach).
 const CROSS_STRIKES: Array[Vector2i] = [Vector2i(-1,-1), Vector2i(1,-1), Vector2i(-1,1), Vector2i(1,1)]
 
 ## Offsets a ranged soldier attacks (relative to its tile) for the inspector.
@@ -519,15 +521,8 @@ func _hit_player(enemy: Dictionary) -> void:
 func turn_enemy(_enemy: Dictionary, _direction: int) -> bool:
 	return false
 
-## Whether the enemy may step (or strike) onto `cell`: the バッテン兵 walks straight but strikes diagonally.
-func _step_allowed(enemy: Dictionary, cell: Vector2i) -> bool:
-	if enemy.type == "cross":
-		var hostile: bool = cell == player.cell or not ally_at(cell).is_empty()
-		return (CROSS_STRIKES if hostile else CARDINALS).has(cell - enemy.cell)
-	return enemy_offsets(enemy).has(cell - enemy.cell)
-
 func enemy_step(enemy: Dictionary, cell: Vector2i) -> bool:
-	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not _step_allowed(enemy, cell):
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not inside(cell) or not enemy_offsets(enemy).has(cell-enemy.cell):
 		return false
 	if cell == player.cell:
 		if enemy.type in RANGED:

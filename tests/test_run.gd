@@ -2194,7 +2194,7 @@ func _walkers_get_round_walls() -> void:
 				break
 		verify(out or m.terminal(), "%s climbs out of a dead-end pocket (stopped at %s)" % [kind, walker.cell])
 
-## バッテン兵: HP1, AP2, walks straight and strikes the diagonal neighbours (the cross sword's reach).
+## バッテン兵: HP1, AP2, walks and strikes along the four diagonals (the cross sword's reach).
 func _cross_soldier() -> void:
 	var m := fixture()
 	m.enemies.clear()
@@ -2202,14 +2202,15 @@ func _cross_soldier() -> void:
 	var x: Dictionary = m.make_enemy("cross", Vector2i(3, 3), 0)
 	m.enemies.append(x)
 	verify(x.hp == 1 and x.ap == 2 and Rules.TYPES.cross.name == "バッテン兵","The cross soldier has HP1 and AP2")
-	verify(m.enemy_attack_offsets(x).size() == 4 and m.enemy_attack_offsets(x).all(func(o): return absi(o.x) == 1 and absi(o.y) == 1),"It strikes the four diagonals")
-	verify(m.enemy_offsets(x).size() == 4 and m.enemy_offsets(x).all(func(o): return o.x == 0 or o.y == 0),"It walks the four straight ways")
+	var diagonals := func(o): return absi(o.x) == 1 and absi(o.y) == 1
+	verify(m.enemy_attack_offsets(x).size() == 4 and m.enemy_attack_offsets(x).all(diagonals),"It strikes the four diagonals")
+	verify(m.enemy_offsets(x).size() == 4 and m.enemy_offsets(x).all(diagonals),"It walks the four diagonals too")
 	# Diagonal to the player: it strikes at once.
 	m.phase = Rules.Phase.ENEMY
 	var hp: int = m.player.hp
 	x.ap = 2
 	verify(m.enemy_step(x, m.player.cell) and m.player.hp == hp - 1,"It hits a player standing on its diagonal")
-	# Straight beside the player it cannot strike, so it walks round to a diagonal first.
+	# Straight beside the player it cannot strike or step onto them.
 	m = fixture()
 	m.enemies.clear()
 	m.player.cell = Vector2i(2, 2)
@@ -2218,17 +2219,30 @@ func _cross_soldier() -> void:
 	m.phase = Rules.Phase.ENEMY
 	x.ap = 2
 	verify(not m.enemy_step(x, m.player.cell) and m.player.hp == hp,"It cannot hit the tile straight beside it")
+	verify(not m.enemy_step(x, Vector2i(3, 3) + Vector2i(0, 1)) and not m.enemy_step(x, Vector2i(4, 2)),"It cannot step straight")
+	# On the player's colour it closes in along the diagonals and strikes.
 	m = fixture()
 	m.enemies.clear()
 	m.player.cell = Vector2i(1, 1)
-	x = m.make_enemy("cross", Vector2i(3, 1), 0)
+	x = m.make_enemy("cross", Vector2i(5, 5), 0)
 	m.enemies.append(x)
 	var planner = Planner.new()
 	planner.begin(m)
 	planner.beat(m, 0)
 	planner.beat(m, 1)
-	var diag: bool = absi(x.cell.x - m.player.cell.x) == 1 and absi(x.cell.y - m.player.cell.y) == 1
-	verify(diag or m.player.hp < hp,"With 2 AP it closes in and strikes, or ends on a diagonal tile (now %s, hp %d)" % [x.cell, m.player.hp])
+	verify(m.distance(x.cell, m.player.cell) < 8 and (x.cell.x + x.cell.y) % 2 == 0,"It advances along the diagonals and keeps its colour (now %s)" % [x.cell])
+	# On the other colour it can never reach a diagonal: it comes as close as it can and waits.
+	m = fixture()
+	m.enemies.clear()
+	m.player.cell = Vector2i(1, 1)
+	x = m.make_enemy("cross", Vector2i(4, 1), 0)
+	m.enemies.append(x)
+	for turn in 4:
+		planner = Planner.new()
+		planner.begin(m)
+		planner.beat(m, 0)
+		planner.beat(m, 1)
+	verify(m.distance(x.cell, m.player.cell) <= 2 and m.player.hp == hp,"From the other colour it closes in without being able to strike (now %s)" % [x.cell])
 	# It strikes an ally on its diagonal too.
 	m = fixture()
 	m.enemies.clear()
@@ -2240,7 +2254,7 @@ func _cross_soldier() -> void:
 	var wall_hp: int = int(m.allies[0].hp)
 	x.ap = 2
 	Planner.new()._cross_action(m, x)
-	verify(not m.allies.is_empty() and int(m.allies[0].hp) < wall_hp or m.allies.is_empty(),"It strikes an ally on its diagonal")
+	verify(m.allies.is_empty() or int(m.allies[0].hp) < wall_hp,"It strikes an ally on its diagonal")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
 func _miner_spares_allies() -> void:
