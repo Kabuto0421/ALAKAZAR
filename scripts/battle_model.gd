@@ -308,9 +308,10 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	combo_boost = -1
 	stats = _fresh_stats()
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
-	var scene: PackedScene = BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else BOSS2_FORMATIONS[boss2_variant] if level == BOSS2_LEVEL else FORMATIONS[level]
+	var scene: PackedScene = layout_override if layout_override != null else BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else BOSS2_FORMATIONS[boss2_variant] if level == BOSS2_LEVEL else FORMATIONS[level]
 	var layout: Node = scene.instantiate()
 	board_size = layout.board_size
+	holes.assign(layout.holes)
 	# The player always opens the fight.
 	phase = Phase.PLAYER
 	round_number = 1
@@ -795,7 +796,7 @@ func in_cat_zone(enemy: Dictionary) -> bool:
 	return footprint(enemy).any(func(c: Vector2i) -> bool: return cat_zone_at(c))
 
 func blocked(cell: Vector2i) -> bool:
-	return pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
+	return holes.has(cell) or pits.has(cell) or shadow.get("cell", Vector2i(-1, -1)) == cell or obstacles.has(cell) or walls.has(cell) or fairies.has(cell) or not cannon_at(cell).is_empty() or not ally_at(cell).is_empty()
 
 func item_targets(id: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -981,8 +982,13 @@ func trigger_fairies() -> void:
 				break
 	check_outcome()
 
+## Tiles cut out of the square board (see FormationLayout.holes): not part of the board at all.
+var holes: Array[Vector2i] = []
+## A formation scene to use for the next reset instead of the level's own (the debug screen, tests).
+var layout_override: PackedScene = null
+
 func inside(cell: Vector2i) -> bool:
-	return cell.x >= 0 and cell.x < board_size and cell.y >= 0 and cell.y < board_size
+	return cell.x >= 0 and cell.x < board_size and cell.y >= 0 and cell.y < board_size and not holes.has(cell)
 
 func distance(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
