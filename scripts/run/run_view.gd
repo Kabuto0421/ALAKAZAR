@@ -381,7 +381,10 @@ func _loadout() -> void:
 				swap.add_theme_stylebox_override(state,glow)
 			swap.pressed.connect(_sheath_open)
 			screen.add_child(swap)
-			_label(Vector2(sheath_left+80,top+30+117),"押して入替",13,Color("ffd35b"))
+			var hint := _label(Vector2(sheath_left+80,top+30+117),"押して入替",13,Color("ffd35b"))
+			var blink := hint.create_tween().set_loops()
+			blink.tween_property(hint,"modulate:a",0.2,0.55)
+			blink.tween_property(hint,"modulate:a",1.0,0.55)
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(fairy_left+slot*fairy_step,top+30)
 		if slot >= fairies.size():
@@ -421,9 +424,20 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 	box.position = at
 	box.size = Vector2(width,160)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
-	screen.add_child(box)
-	_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
+	if backdrop != null:
+		# The sheath box has no rarity frame: a raised, button-like box that reads as pressable.
+		var raised := _box(Color("14262b"),Color("ffd35b"))
+		raised.set_border_width_all(3)
+		raised.set_corner_radius_all(8)
+		raised.shadow_color = Color(0,0,0,0.5)
+		raised.shadow_size = 4
+		raised.shadow_offset = Vector2(0,3)
+		box.add_theme_stylebox_override("panel",raised)
+		screen.add_child(box)
+	else:
+		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
+		screen.add_child(box)
+		_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
 	if backdrop != null:
 		# A round dark plate under the fairy, so it sits on the frame's corner instead of floating.
 		var plate := Panel.new()
