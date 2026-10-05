@@ -333,6 +333,7 @@ func _initialize() -> void:
 	_wolf_on_weapon_lines()
 	_web_music_layers()
 	_holed_board()
+	_layer2_run()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3669,3 +3670,22 @@ func _holed_board() -> void:
 			if f.terminal():
 				break
 	verify(strays == 0,"Enemies never step onto a hole (%d strays in 40 short fights)" % strays)
+
+func _layer2_run() -> void:
+	var r := Run.new()
+	r.start_layer2({"weapons": [0, 1], "sheath": 8, "fairies": ["magic_bolt", "wall_fairy"], "plus": true, "hp": 4}, 5)
+	verify(r.layer == 2 and r.state == Run.State.BATTLE and r.battle.layer2_board,"Layer 2 opens straight into a holed board fight")
+	verify(r.battle.sheathed_weapon == 8 and r.battle.owned_weapons == [0, 1] and not r.battle.owned_weapons.has(8),"The sheathed weapon stays out of the fight")
+	verify(r.battle.player.hp == 4 and r.battle.is_plus("wall_fairy"),"The chosen HP and class-ups carry in")
+	var fights := 1
+	while fights <= 3 and r.state == Run.State.BATTLE:
+		verify(r.battle.holes.size() > 0,"Fight %d of layer 2 has holes" % fights)
+		r.battle.enemies.clear()
+		r.battle.phase = Rules.Phase.WON
+		verify(r.finish_battle(),"Fight %d can be finished" % fights)
+		if r.state == Run.State.REWARD:
+			r.skip_reward()
+		fights += 1
+	verify(r.state == Run.State.FINISHED and r.battle.sheathed_weapon == 8,"Clearing the last layer 2 fight ends the run with the sheath intact")
+	r.start()
+	verify(r.layer == 1 and r.battle.sheathed_weapon == -1 and r.battle.layout_override == null,"A new run is back in layer 1")

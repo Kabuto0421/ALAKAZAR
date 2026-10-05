@@ -1543,6 +1543,21 @@ func _panel(rect: Rect2) -> void:
 	for corner in [rect.position,rect.position+Vector2(rect.size.x-4,0),rect.end-Vector2(4,4),rect.position+Vector2(0,rect.size.y-4)]:
 		draw_rect(Rect2(corner,Vector2(4,4)),Color("829081"))
 
+const SHEATH_ART = preload("res://assets/sprites/spirits/sheath_fairy.png")
+const SHEATH_ART_SWORD = preload("res://assets/sprites/spirits/sheath_fairy_sword.png")
+const SHEATH_ART_HAMMER = preload("res://assets/sprites/spirits/sheath_fairy_hammer.png")
+
+## The sheath fairy (layer 2): a separate slot below the fairy list holding one weapon out of the fight.
+func _draw_sheath() -> void:
+	if model.sheathed_weapon < 0:
+		return
+	var weapon: Dictionary = Rules.WEAPONS[model.sheathed_weapon]
+	var art: Texture2D = SHEATH_ART_HAMMER if weapon.id == "hammer" else SHEATH_ART_SWORD
+	_panel(Rect2(24,646,280,64))
+	draw_texture_rect(art,Rect2(32,650,56,56),false)
+	_text(Vector2(98,672),"鞘の妖精",16,Color("9aa7a3"))
+	_text(Vector2(98,698),str(weapon.name),22,Color(weapon.color))
+
 func _draw() -> void:
 	draw_rect(Rect2(0,0,1152,720),Color("070b0d"))
 	for x in range(0,1152,24):
@@ -1551,9 +1566,12 @@ func _draw() -> void:
 		draw_line(Vector2(0,y),Vector2(1152,y),Color("0d1718"))
 	_panel(Rect2(24,24,1104,58))
 	var stage_title := "最終決戦" if model.level == Rules.FINAL_LEVEL else "ボス戦" if Rules.BOSS_LEVELS.has(model.level) else "中盤 %d / 3" % (Rules.MID_LEVELS.find(model.level)+1) if Rules.MID_LEVELS.has(model.level) else "終盤 %d / 4" % (Rules.LATE_LEVELS.find(model.level)+1) if Rules.LATE_LEVELS.has(model.level) else "戦闘 %d / 3" % (model.level+1)
+	if model.layer2_board:
+		stage_title = "2層目"
 	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if Rules.BOSS_LEVELS.has(model.level) else CYAN)
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
+	_draw_sheath()
 	_draw_board()
 	_draw_storm_frame()
 	_draw_player_panel()

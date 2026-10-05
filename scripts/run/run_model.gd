@@ -24,6 +24,9 @@ var offers: Array[Dictionary] = []
 var start_weapon_offers: Array[Dictionary] = []
 var start_fairy_offers: Array[Dictionary] = []
 var pending: Dictionary = {}
+## 1 = the demo's expedition; 2 = layer 2 (holed boards, the sheath fairy), entered after clearing layer 1.
+var layer := 1
+var layer2_stage := 0
 var rng := RandomNumberGenerator.new()
 ## Forces the first boss room (0: horses, 1: rook + moving prison); -1 draws it at random.
 var boss_choice := -1
@@ -60,6 +63,10 @@ func start(seed_value: int = -1) -> void:
 	else:
 		rng.seed = seed_value
 	stage = 0
+	layer = 1
+	layer2_stage = 0
+	battle.layout_override = null
+	battle.sheathed_weapon = -1
 	state = State.START_WEAPON
 	pending.clear()
 	battle.reset()
@@ -216,7 +223,27 @@ func choose(index: int) -> bool:
 			advance()
 	return true
 
+## Enter layer 2 straight away. `build`: {"weapons": basic weapons, "sheath": weapon index (-1 none),
+## "fairies": ids, "plus": class-up every fairy once, "hp"}. Used by the debug start and, later, by the layer 1 ending.
+func start_layer2(build: Dictionary, seed_value: int = -1) -> void:
+	start(seed_value)
+	layer = 2
+	layer2_stage = 0
+	stage = Battle.MID_LEVELS[0]
+	battle.owned_weapons.assign(build.get("weapons", [0, 1]))
+	battle.sheathed_weapon = int(build.get("sheath", -1))
+	battle.fairy_loadout.assign(build.get("fairies", []))
+	battle.fairy_plus.clear()
+	if build.get("plus", false):
+		for id in battle.fairy_loadout:
+			if battle.can_class_up(id):
+				battle.fairy_plus[id] = 1
+	battle.start_hp = int(build.get("hp", Battle.MAX_HP))
+	battle.refill_fairies()
+	start_battle()
+
 func start_battle() -> void:
+	battle.layout_override = Battle.LAYER2_FORMATIONS[layer2_stage] if layer == 2 else null
 	battle.reset(stage,true)
 	battle.win_heal = win_heal()
 	state = State.BATTLE
@@ -230,7 +257,10 @@ func finish_battle() -> bool:
 	# HP carries over to the next fight, plus a small heal for the win.
 	battle.start_hp = mini(Battle.MAX_HP, battle.player.hp + win_heal())
 	battle.refill_fairies()
-	if stage == Battle.LAST_LEVEL:
+	if layer == 2 and layer2_stage >= Battle.LAYER2_FORMATIONS.size() - 1:
+		state = State.FINISHED
+		return true
+	if layer == 1 and stage == Battle.LAST_LEVEL:
 		# The Prison King is down: the expedition is over.
 		state = State.FINISHED
 		return true
@@ -319,6 +349,10 @@ func skip_reward() -> void:
 
 func advance() -> void:
 	battle.refill_fairies()
+	if layer == 2:
+		layer2_stage += 1
+		start_battle()
+		return
 	if stage == LAST_NORMAL_STAGE:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.
 		battle.boss_variant = boss_choice if boss_choice >= 0 else rng.randi_range(0, Battle.BOSS_FORMATIONS.size() - 1)

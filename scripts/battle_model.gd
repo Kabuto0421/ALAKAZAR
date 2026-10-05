@@ -142,6 +142,16 @@ const FORMATIONS = [
 	preload("res://scenes/formations/run_late_04.tscn"),
 	preload("res://scenes/formations/run_final.tscn"),
 ]
+## Layer 2 (Steam build): holed boards fought in order after the first layer.
+const LAYER2_FORMATIONS = [
+	preload("res://scenes/formations/sample_cross.tscn"),
+	preload("res://scenes/formations/layer2_ring.tscn"),
+	preload("res://scenes/formations/layer2_walls.tscn"),
+]
+## The weapon kept in the sheath fairy: it stays out of the fights and carries across layers (-1 = none).
+var sheathed_weapon := -1
+## True while a layer 2 board (set by the run) is being fought.
+var layer2_board := false
 const BOSS_LEVEL := 3
 ## The second boss (Rotorick) after the mid-game camp.
 const BOSS2_LEVEL := 7
@@ -308,6 +318,7 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 	combo_boost = -1
 	stats = _fresh_stats()
 	level = clampi(next_level, 0, FORMATIONS.size()-1)
+	layer2_board = LAYER2_FORMATIONS.has(layout_override)
 	var scene: PackedScene = layout_override if layout_override != null else BOSS_FORMATIONS[boss_variant] if level == BOSS_LEVEL else BOSS2_FORMATIONS[boss2_variant] if level == BOSS2_LEVEL else FORMATIONS[level]
 	var layout: Node = scene.instantiate()
 	board_size = layout.board_size

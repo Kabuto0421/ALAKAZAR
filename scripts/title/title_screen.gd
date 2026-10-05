@@ -35,6 +35,9 @@ const LOGO = preload("res://assets/title/layer_30_logo.png")
 const WINDOW = preload("res://assets/title/layer_40_menu_window.png")
 const MUSIC = preload("res://assets/audio/bgm/title_theme.ogg")
 const GAME_SCENE := "res://main.tscn"
+const DebugStart = preload("res://scripts/debug/debug_start.gd")
+const DebugMenu = preload("res://scripts/debug/debug_menu.gd")
+var debug_menu: Control
 
 const VIEW := Vector2(1728, 1080)
 ## The art is 1920 wide: centred, 96px is cut from each side. The two armies are
@@ -410,6 +413,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
 	if is_instance_valid(catalog):
+		return
+	if is_instance_valid(debug_menu):
+		return
+	if event.keycode == KEY_F9 and DebugStart.enabled():
+		debug_menu = DebugMenu.new()
+		add_child(debug_menu)
+		get_viewport().set_input_as_handled()
 		return
 	if event.keycode == KEY_C and not is_instance_valid(achievements_page):
 		_open_catalog()

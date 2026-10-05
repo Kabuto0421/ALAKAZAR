@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/formation_layout.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/enemy_placement.gd" id="2"]
+
+[node name="Layer2Ring" type="Node2D"]
+script = ExtResource("1")
+board_size = 7
+player_start = Vector2i(3, 6)
+holes = Array[Vector2i]([Vector2i(2, 2), Vector2i(2, 3), Vector2i(2, 4), Vector2i(3, 2), Vector2i(3, 3), Vector2i(3, 4), Vector2i(4, 2), Vector2i(4, 3), Vector2i(4, 4)])
+
+[node name="Enemy1_shield" type="Node2D" parent="."]
+position = Vector2(224, 96)
+script = ExtResource("2")
+enemy_kind = 12
+
+[node name="Enemy2_infantry" type="Node2D" parent="."]
+position = Vector2(96, 160)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy3_infantry" type="Node2D" parent="."]
+position = Vector2(352, 160)
+script = ExtResource("2")
+enemy_kind = 0
+
+[node name="Enemy4_archer" type="Node2D" parent="."]
+position = Vector2(32, 288)
+script = ExtResource("2")
+enemy_kind = 7
+
+[node name="Enemy5_javelin" type="Node2D" parent="."]
+position = Vector2(416, 288)
+script = ExtResource("2")
+enemy_kind = 6

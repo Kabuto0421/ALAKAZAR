@@ -1,6 +1,7 @@
 extends Node
 
 const Run = preload("res://scripts/run/run_model.gd")
+const DebugStart = preload("res://scripts/debug/debug_start.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
@@ -32,7 +33,11 @@ func _ready() -> void:
 	bgm = BgmPlayer.new()
 	add_child(bgm)
 	add_child(toast)
-	run.start()
+	if DebugStart.pending:
+		DebugStart.pending = false
+		run.start_layer2(DebugStart.build)
+	else:
+		run.start()
 	_render()
 
 func _render() -> void:
