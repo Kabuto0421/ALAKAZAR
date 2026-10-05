@@ -85,7 +85,8 @@ func _render() -> void:
 	if run.layer == 2:
 		# Layer 2: no help button (H still opens it); the HP is hearts, and the button below is tall and narrow.
 		var hearts := HeartRow.new()
-		hearts.position = Vector2(1108 - 4 * 28.0 - 24.0, 14)
+		_label(Vector2(1108 - 4 * 28.0 - 24.0 - 62, 6),"HP：",24,Color("ff8b8f"))
+		hearts.position = Vector2(1108 - 4 * 28.0 - 24.0, 8)
 		hearts.size = Vector2(4 * 28.0 + 24.0, 30)
 		hearts.hp = run.battle.start_hp
 		hearts.max_hp = run.battle.MAX_HP
@@ -124,8 +125,10 @@ func _render() -> void:
 			_loadout()
 			_next_board()
 			# A plain light-blue border so it reads as a choice of its own.
-			var skip := _button(Vector2(988,52) if run.layer == 2 else Vector2(894,92),Vector2(120,76) if run.layer == 2 else Vector2(214,34),"出発" if run.layer == 2 else "今の構成で進む",_skip)
+			var skip := _button(Vector2(958,46) if run.layer == 2 else Vector2(894,92),Vector2(150,86) if run.layer == 2 else Vector2(214,34),"出発" if run.layer == 2 else "今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
+			if run.layer == 2:
+				skip.add_theme_font_size_override("font_size",52)
 			for state in ["normal","hover","pressed"]:
 				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
 				style.set_border_width_all(3 if state != "normal" else 2)
