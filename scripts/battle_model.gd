@@ -468,13 +468,14 @@ func dragon_fire(enemy: Dictionary) -> bool:
 	check_outcome()
 	return true
 
-## A dragon soldier with no firing spot at all (the player on the far right column: nothing can stand to
-## its right) lands a point-blank blow when it is next to the player, so that edge is no safe place.
+## A ranged soldier (dragon, javelin) with no firing spot at all (the player on the far right column(s):
+## nothing can stand to its right) lands a point-blank blow when it is next to the player, so that
+## edge is no safe place. Once a turn.
 func dragon_point_blank(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or distance(enemy.cell, player.cell) != 1:
 		return false
 	enemy.ap = 0
-	enemy.intent = "砲口を押し当てる"
+	enemy.intent = "砲口を押し当てる" if enemy.type == "dragon" else "槍を突きつける"
 	_hit_player(enemy)
 	return true
 

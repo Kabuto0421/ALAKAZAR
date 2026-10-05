@@ -531,6 +531,9 @@ func _javelin_action(model: RefCounted, enemy: Dictionary) -> void:
 		if model.inside(spot) and not model.enemy_blocked(spot) and spot != model.player.cell and (model.enemy_at(spot).is_empty() or model.enemy_at(spot).id == enemy.id):
 			spots.append(spot)
 	if spots.is_empty():
+		# Nowhere to throw from (the player is on the far right columns): next to it, jab instead.
+		if model.dragon_point_blank(enemy):
+			return
 		spots.append(model.player.cell)
 	var score := func(cell: Vector2i) -> int:
 		var best := 999

@@ -3514,6 +3514,37 @@ func _heavy_sidestep() -> void:
 	var edge_hp: int = dm.player.hp
 	planner.beat(dm, 0)
 	verify(dm.player.hp == edge_hp - 1 and dragon.ap == 0,"A dragon soldier beside a player on the right edge hits point-blank, once a turn")
+	# A javelin soldier has no throwing spot against the two rightmost columns: next to the player it jabs.
+	var jm := Rules.new()
+	jm.reset(2)
+	jm.enemies.clear()
+	jm.obstacles.clear()
+	jm.player.cell = Vector2i(jm.board_size - 2, 3)
+	var spear: Dictionary = jm.make_enemy("javelin", Vector2i(jm.board_size - 2, 2), 0)
+	jm.enemies.append(spear)
+	jm.phase = Rules.Phase.ENEMY
+	spear.ap = 2
+	var spear_hp: int = jm.player.hp
+	planner.beat(jm, 0)
+	verify(jm.player.hp == spear_hp - 1 and spear.ap == 0,"A javelin soldier beside a player it cannot throw at (right columns) jabs once a turn")
+	# The AP-1 walkers (analyst, shield) sidestep towards the player's row like the heavy soldier.
+	for kind in ["analyst", "shield"]:
+		var up := 0
+		for k in 200:
+			var wm := Rules.new()
+			wm.reset(2)
+			wm.enemies.clear()
+			wm.obstacles.clear()
+			wm.slot_seed = k * 29
+			wm.player.cell = Vector2i(0, 5)
+			var walker: Dictionary = wm.make_enemy(kind, Vector2i(5, 2), 0)
+			wm.enemies.append(walker)
+			wm.phase = Rules.Phase.ENEMY
+			walker.ap = 1
+			planner.beat(wm, 0)
+			if walker.cell == Vector2i(5, 3):
+				up += 1
+		verify(up > 60 and up < 140,"The %s sidesteps towards the player's row about half the time (%d/200)" % [Rules.TYPES[kind].name, up])
 	var open := Rules.new()
 	open.reset(2)
 	open.enemies.clear()

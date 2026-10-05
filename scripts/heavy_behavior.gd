@@ -6,8 +6,8 @@ const DIRECTIONS = [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN]
 ## (and a player who keeps stepping away is never caught). When it is off the player's row it
 ## sometimes steps up or down towards that row instead, chosen from the fight's own seed so
 ## look-ahead copies agree.
-## Per kind: the heavy soldier 50%, the executioner (same walk, AP 2) 30%.
-const SIDESTEP_CHANCES := {"heavy": 0.5, "executioner": 0.3}
+## Per kind: the AP-1 walkers (heavy, analyst, shield) 50%, the executioner (same walk, AP 2) 30%.
+const SIDESTEP_CHANCES := {"heavy": 0.5, "executioner": 0.3, "analyst": 0.5, "shield": 0.5}
 
 func decide(model: RefCounted, enemy: Dictionary) -> Dictionary:
 	var side := _sidestep(model, enemy)
