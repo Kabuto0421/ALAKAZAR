@@ -113,7 +113,7 @@ func _render() -> void:
 			_loadout()
 			_next_board()
 			# A plain light-blue border so it reads as a choice of its own.
-			var skip := _button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
+			var skip := _button(Vector2(894,92),Vector2(214,34),"出発" if run.layer == 2 else "今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
 			for state in ["normal","hover","pressed"]:
 				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
@@ -645,13 +645,12 @@ func _next_board() -> void:
 	open.position = thumb.position - Vector2(4,4)
 	open.size = thumb.size + Vector2(8,8)
 	open.focus_mode = Control.FOCUS_NONE
-	open.flat = true
-	var glow := StyleBoxFlat.new()
-	glow.bg_color = Color(1,1,1,0.06)
-	glow.border_color = Color("ffd35b")
-	glow.set_border_width_all(2)
-	open.add_theme_stylebox_override("hover",glow)
-	open.add_theme_stylebox_override("pressed",glow)
+	# The same plain light-blue border as the "skip" button: it reads as a button of its own.
+	for state in ["normal","hover","pressed"]:
+		var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
+		style.set_border_width_all(3 if state != "normal" else 2)
+		style.bg_color.a = 0.0 if state == "normal" else 0.35
+		open.add_theme_stylebox_override(state,style)
 	open.pressed.connect(func(): _show_board(scene))
 	screen.add_child(open)
 	_label(Vector2(668,76),"押して拡大",13,Color("ffd35b"))
