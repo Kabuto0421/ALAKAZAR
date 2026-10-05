@@ -416,7 +416,7 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		art.texture = backdrop
 		art.flip_h = true
-		art.position = at+Vector2(width-39,-29)
+		art.position = at+Vector2(width-38,-24)
 		art.size = Vector2(54,54)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(art)
