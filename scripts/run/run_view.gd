@@ -415,10 +415,10 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 		var plate := Panel.new()
 		var plate_style := _box(Color("0a1417"),Color(accent,0.9))
 		plate_style.set_border_width_all(2)
-		plate_style.set_corner_radius_all(26)
+		plate_style.set_corner_radius_all(21)
 		plate.add_theme_stylebox_override("panel",plate_style)
-		plate.position = at+Vector2(width-37,-23)
-		plate.size = Vector2(52,52)
+		plate.position = at+Vector2(width-31.8,-17.8)
+		plate.size = Vector2(41.6,41.6)
 		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(plate)
 		var art := TextureRect.new()
@@ -426,8 +426,8 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		art.texture = backdrop
 		art.flip_h = true
-		art.position = at+Vector2(width-36.65,-22.65)
-		art.size = Vector2(51.3,51.3)
+		art.position = at+Vector2(width-31.52,-17.52)
+		art.size = Vector2(41.04,41.04)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(art)
 	var diagram := Diagram.new()
