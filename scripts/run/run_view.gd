@@ -95,7 +95,7 @@ func _render() -> void:
 			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
-			var cleared := "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "終盤 %d クリア" % (run.battle.LATE_LEVELS.find(run.stage)+1) if run.battle.LATE_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
+			var cleared := "2層目 %d戦目クリア" % (run.layer2_stage + 1) if run.layer == 2 else "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "終盤 %d クリア" % (run.battle.LATE_LEVELS.find(run.stage)+1) if run.battle.LATE_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
 			_label(Vector2(44,48),"%s — 報酬を1つ選ぶ" % cleared,30,INK)
 			if run.is_before_boss():
 				_label(Vector2(44,94),"ボス前の特別報酬：アンコモン以上の武器が出やすい。",17,Color("ffd35b"))
@@ -109,12 +109,25 @@ func _render() -> void:
 			_cards(run.offers)
 			_loadout()
 			# A plain light-blue border so it reads as a choice of its own.
+			if run.can_sheath_swap():
+				_button(Vector2(664,92),Vector2(214,34),"鞘と入れ替える",_sheath_open)
 			var skip := _button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
 			for state in ["normal","hover","pressed"]:
 				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
 				style.set_border_width_all(3 if state != "normal" else 2)
 				skip.add_theme_stylebox_override(state,style)
+		Run.State.SHEATH:
+			var inside: Dictionary = Weapons.DATA[run.battle.sheathed_weapon]
+			_label(Vector2(44,48),"鞘の妖精 — 入れ替える武器を選ぶ",30,INK)
+			_label(Vector2(44,94),"鞘の中：%s（%s）。選んだ武器と入れ替わる。鞘の武器は戦闘に出ない。" % [inside.name, inside.detail],17,Color(inside.color))
+			var carried: Array[Dictionary] = []
+			for index in run.battle.owned_weapons:
+				carried.append({"kind":"weapon","value":index})
+			carried.append({"kind":"weapon","value":run.battle.sheathed_weapon,"sheathed":true})
+			_cards(carried,false,false,false,true)
+			_loadout()
+			_button(Vector2(894,92),Vector2(214,34),"← 戻る",_sheath_back)
 		Run.State.REPLACE:
 			var title: String = run.battle.WEAPONS[int(run.pending.value)].name if run.pending.kind=="weapon" else run.battle.item_definition(str(run.pending.value)).title
 			var need: int = run.pending.get("remaining", [1]).size()
@@ -176,7 +189,7 @@ func _coverage() -> Array[Vector2i]:
 				tiles.append(offset)
 	return tiles
 
-func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgrading: bool = false) -> void:
+func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgrading: bool = false, sheathing: bool = false) -> void:
 	var gap := 20.0 if offers.size() < 5 else 14.0
 	# Fairy cards lead with a wide animated example, weapon cards with a small square
 	# diagram: when both are offered, fairy cards get the extra width.
@@ -200,9 +213,14 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgra
 		card.offer = offers[index]
 		card.show_pair = run.state in [Run.State.REWARD]
 		card.model = run.battle
-		card.action_text = "これと交換" if replacing else "鍛える" if forging else "強化する" if upgrading else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
+		card.action_text = "鞘へ入れる" if sheathing else "これと交換" if replacing else "鍛える" if forging else "強化する" if upgrading else "選んで出発" if run.state == Run.State.START_FAIRY else "選ぶ"
 		if not upgrading:
 			_compare(card, coverage, forging)
+		if sheathing and offers[index].get("sheathed", false):
+			card.disabled = true
+			card.tag = "鞘の中"
+			card.note = "ここに入っている"
+			card.action_text = ""
 		if forging or upgrading:
 			# Camp: the card shows the result; items already improved cannot be picked again.
 			var done: bool = not run.can_forge_weapon(int(card.offer.value)) if forging else not run.battle.can_class_up(str(card.offer.value))
@@ -217,7 +235,11 @@ func _cards(offers: Array, replacing: bool = false, forging: bool = false, upgra
 				card.action_text = ""
 			elif upgrading:
 				card.tag = "進化" if run.battle.EVOLUTIONS.has(str(card.offer.value)) else "クラスアップ後"
-		if upgrading:
+		if sheathing:
+			card.pressed.connect(func():
+				if index < run.battle.owned_weapons.size() and run.sheath_swap(index):
+					_render())
+		elif upgrading:
 			card.pressed.connect(func():
 				if run.camp_class_up_fairy(index):
 					_render())
@@ -322,6 +344,8 @@ func _loadout() -> void:
 	var weapons: Array = run.battle.owned_weapons
 	var fairies: Array = run.battle.fairy_loadout
 	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Rarity.INFO)
+	if run.battle.sheathed_weapon >= 0:
+		_label(Vector2(200,top+6),"鞘の中：%s" % Weapons.DATA[run.battle.sheathed_weapon].name,15,Color(Weapons.DATA[run.battle.sheathed_weapon].color))
 	_label(Vector2(546,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Rarity.INFO)
 	for slot in run.battle.WEAPON_LIMIT:
 		var at := Vector2(56+slot*160,top+30)
@@ -529,6 +553,14 @@ func _forge() -> void:
 
 func _camp_back() -> void:
 	run.camp_back()
+	_render()
+
+func _sheath_open() -> void:
+	if run.sheath_open():
+		_render()
+
+func _sheath_back() -> void:
+	run.sheath_back()
 	_render()
 
 func _cancel() -> void:

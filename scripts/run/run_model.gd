@@ -3,7 +3,7 @@ extends RefCounted
 const Battle = preload("res://scripts/battle_model.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
-enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST }
+enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST, SHEATH }
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
@@ -342,6 +342,32 @@ func cancel_replace() -> void:
 			battle.enchants = pending.snapshot_enchants
 		pending.clear()
 		state = State.REWARD
+
+## Layer 2: between fights, the sheathed weapon can trade places with an equipped one.
+func can_sheath_swap() -> bool:
+	return layer == 2 and battle.sheathed_weapon >= 0 and state in [State.REWARD, State.CAMP]
+
+func sheath_open() -> bool:
+	if not can_sheath_swap():
+		return false
+	pending = {"return_state": state}
+	state = State.SHEATH
+	return true
+
+## The equipped weapon in `slot` goes into the sheath; what was in the sheath takes its place.
+func sheath_swap(slot: int) -> bool:
+	if state != State.SHEATH or slot < 0 or slot >= battle.owned_weapons.size():
+		return false
+	var drawn: int = battle.sheathed_weapon
+	battle.sheathed_weapon = battle.owned_weapons[slot]
+	battle.owned_weapons[slot] = drawn
+	sheath_back()
+	return true
+
+func sheath_back() -> void:
+	if state == State.SHEATH:
+		state = pending.get("return_state", State.REWARD)
+		pending.clear()
 
 func skip_reward() -> void:
 	if state == State.REWARD:
