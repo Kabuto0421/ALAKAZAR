@@ -133,6 +133,28 @@ func _render() -> void:
 				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
 				style.set_border_width_all(3 if state != "normal" else 2)
 				skip.add_theme_stylebox_override(state,style)
+		Run.State.PREP:
+			_label(Vector2(44,48),"2層目 %d戦目クリア — 出発の準備" % (run.layer2_stage + 1),30,INK)
+			_label(Vector2(44,94),"鞘の枠を押すと、鞘の武器と入れ替えられる。次の盤面を見て、準備ができたら出発。",17,sub)
+			var next_scene: PackedScene = Battle.LAYER2_FORMATIONS[run.layer2_stage + 1]
+			var board := BoardPreview.new()
+			board.large = true
+			board.position = Vector2(44,CARD_TOP)
+			board.size = Vector2(350,CARD_HEIGHT)
+			board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			screen.add_child(board)
+			board.load_scene(next_scene)
+			_label(Vector2(420,CARD_TOP+6),"次の盤面",24,INK)
+			_label(Vector2(420,CARD_TOP+46),"緑の四角があなたの開始位置。",17,sub)
+			_label(Vector2(420,CARD_TOP+74),"暗い四角は穴（通れず、攻撃も通らない）。",17,sub)
+			_loadout()
+			var go := _button(Vector2(958,46),Vector2(150,86),"出発",_depart)
+			go.add_theme_color_override("font_color",Color.WHITE)
+			go.add_theme_font_size_override("font_size",52)
+			for state in ["normal","hover","pressed"]:
+				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
+				style.set_border_width_all(3 if state != "normal" else 2)
+				go.add_theme_stylebox_override(state,style)
 		Run.State.SHEATH:
 			var inside: Dictionary = Weapons.DATA[run.battle.sheathed_weapon]
 			_label(Vector2(44,48),"鞘の妖精 — 入れ替える武器を選ぶ",30,INK)
@@ -692,6 +714,10 @@ func _show_board(scene: PackedScene) -> void:
 	note.add_theme_font_size_override("font_size",20)
 	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cover.add_child(note)
+
+func _depart() -> void:
+	run.depart()
+	_render()
 
 func _sheath_open() -> void:
 	if run.sheath_open():

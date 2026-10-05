@@ -3,7 +3,7 @@ extends RefCounted
 const Battle = preload("res://scripts/battle_model.gd")
 const Rarity = preload("res://scripts/run/rarity.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
-enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST, SHEATH }
+enum State { START_WEAPON, START_FAIRY, BATTLE, REWARD, REPLACE, CAMP, CAMP_FORGE, CAMP_FAIRY, FINISHED, LOST, SHEATH, PREP }
 ## Normal fights before the camp; the boss follows the camp.
 const LAST_NORMAL_STAGE := 2
 const CAMP_HEAL := 2
@@ -345,7 +345,7 @@ func cancel_replace() -> void:
 
 ## Layer 2: between fights, the sheathed weapon can trade places with an equipped one.
 func can_sheath_swap() -> bool:
-	return layer == 2 and battle.sheathed_weapon >= 0 and state in [State.REWARD, State.CAMP]
+	return layer == 2 and battle.sheathed_weapon >= 0 and state in [State.REWARD, State.CAMP, State.PREP]
 
 func sheath_open() -> bool:
 	if not can_sheath_swap():
@@ -371,13 +371,23 @@ func sheath_back() -> void:
 
 func skip_reward() -> void:
 	if state == State.REWARD:
-		advance()
+		if layer == 2:
+			depart()
+		else:
+			advance()
+
+## Layer 2: the reward is taken, and the fight waits until the player departs (so the sheath can still be swapped).
+func depart() -> void:
+	if state not in [State.REWARD, State.PREP]:
+		return
+	layer2_stage += 1
+	start_battle()
 
 func advance() -> void:
 	battle.refill_fairies()
 	if layer == 2:
-		layer2_stage += 1
-		start_battle()
+		state = State.PREP
+		offers.clear()
 		return
 	if stage == LAST_NORMAL_STAGE:
 		# The boss room is drawn on arriving at the camp, so the camp can name it.

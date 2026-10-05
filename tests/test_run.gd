@@ -3684,6 +3684,10 @@ func _layer2_run() -> void:
 	verify(r.sheath_open() and r.state == Run.State.SHEATH,"The sheath screen opens from the reward")
 	verify(r.sheath_swap(0) and r.state == Run.State.REWARD and r.battle.owned_weapons == [8, 1] and r.battle.sheathed_weapon == 0,"Swapping trades the sheathed weapon with the chosen one and returns to the reward")
 	r.advance()
+	verify(r.state == Run.State.PREP and r.can_sheath_swap(),"After taking a layer 2 reward the player waits in the prep screen")
+	verify(r.sheath_open() and r.sheath_swap(1) and r.state == Run.State.PREP and r.battle.sheathed_weapon == 1,"The sheath can still be swapped before departing")
+	r.depart()
+	verify(r.state == Run.State.BATTLE and r.layer2_stage == 1,"Departing starts the next fight")
 	var fights := 2
 	while fights <= 3 and r.state == Run.State.BATTLE:
 		verify(r.battle.holes.size() > 0,"Fight %d of layer 2 has holes" % fights)
@@ -3693,6 +3697,6 @@ func _layer2_run() -> void:
 		if r.state == Run.State.REWARD:
 			r.skip_reward()
 		fights += 1
-	verify(r.state == Run.State.FINISHED and r.battle.sheathed_weapon == 0,"Clearing the last layer 2 fight ends the run with the sheath intact")
+	verify(r.state == Run.State.FINISHED and r.battle.sheathed_weapon == 1,"Clearing the last layer 2 fight ends the run with the sheath intact")
 	r.start()
 	verify(r.layer == 1 and r.battle.sheathed_weapon == -1 and r.battle.layout_override == null,"A new run is back in layer 1")
