@@ -12,6 +12,7 @@ const Rarity = preload("res://scripts/run/rarity.gd")
 const LineBreak = preload("res://scripts/ui/line_break.gd")
 ## The loadout boxes wear the rarity frame of their card, thinner.
 const SLOT_FRAME := 7.0
+const SHEATH_EMPTY = preload("res://assets/sprites/spirits/sheath_fairy.png")
 const HelpPanel = preload("res://scripts/ui/help_panel.gd")
 var help: Control
 const FONT = preload("res://assets/fonts/DotGothic16-Regular.ttf")
@@ -332,67 +333,50 @@ func _replace_cards() -> void:
 				_render())
 		screen.add_child(card)
 
-## The owned weapons and fairies along the bottom.
+## The owned weapons and fairies along the bottom. In layer 2 the sheath fairy sits between them
+## holding its weapon, so the panel is a little wider and the slots a little narrower.
 func _loadout() -> void:
 	var top := 504.0
+	var sheathed: int = run.battle.sheathed_weapon
+	var wide := sheathed >= 0
+	var panel_left := 24.0 if wide else 44.0
+	var weapon_left := 36.0 if wide else 56.0
+	var weapon_step := 140.0 if wide else 160.0
+	var weapon_width := 132.0 if wide else 150.0
+	var sheath_left := weapon_left + weapon_step * 2.0 + weapon_width + 12.0
+	var sheath_width := 160.0
+	var fairy_left := sheath_left + sheath_width + 12.0 if wide else 544.0
+	var fairy_step := 160.0 if wide else 184.0
+	var fairy_width := 152.0 if wide else 174.0
 	var panel := Panel.new()
-	panel.position = Vector2(44,top)
-	panel.size = Vector2(1064,200)
+	panel.position = Vector2(panel_left,top)
+	panel.size = Vector2(1092 if wide else 1064,200)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel",_box(Color("0a1417"),Color("23403f")))
 	screen.add_child(panel)
 	var weapons: Array = run.battle.owned_weapons
 	var fairies: Array = run.battle.fairy_loadout
-	_label(Vector2(58,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Rarity.INFO)
-	if run.battle.sheathed_weapon >= 0:
-		_label(Vector2(200,top+6),"鞘の中：%s" % Weapons.DATA[run.battle.sheathed_weapon].name,15,Color(Weapons.DATA[run.battle.sheathed_weapon].color))
-	_label(Vector2(546,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Rarity.INFO)
+	_label(Vector2(weapon_left+2,top+6),"所持武器 %d/%d" % [weapons.size(), run.battle.WEAPON_LIMIT],15,Rarity.INFO)
+	if wide:
+		_label(Vector2(sheath_left+2,top+6),"鞘の妖精",15,Rarity.INFO)
+	_label(Vector2(fairy_left+2,top+6),"所持妖精 %d/%d" % [fairies.size(), run.battle.HAND_LIMIT],15,Rarity.INFO)
 	for slot in run.battle.WEAPON_LIMIT:
-		var at := Vector2(56+slot*160,top+30)
+		var at := Vector2(weapon_left+slot*weapon_step,top+30)
 		if slot >= weapons.size():
-			_empty_slot(at,Vector2(150,160))
+			_empty_slot(at,Vector2(weapon_width,160))
 			continue
-		var index: int = weapons[slot]
-		var data: Dictionary = Weapons.DATA[index]
-		var accent := Color(data.color)
-		var box := Panel.new()
-		box.position = at
-		box.size = Vector2(150,160)
-		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
-		screen.add_child(box)
-		_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
-		var diagram := Diagram.new()
-		diagram.position = at+Vector2(36,10)
-		diagram.size = Vector2(78,78)
-		diagram.offsets = run.battle.weapon_offsets(index)
-		var owned_extra: Array[Vector2i] = []
-		for tile in run.battle.weapon_extra.get(index, []):
-			owned_extra.append(Vector2i(tile))
-		diagram.extra = owned_extra
-		diagram.slides = Weapons.slides(index)
-		diagram.echo = Weapons.hammer_echo(index, run.battle.weapon_power.has(index))
-		diagram.attack = Weapons.attack_offsets(index, run.battle.weapon_power.has(index))
-		diagram.hammer = Weapons.is_hammer(index)
-		diagram.accent = accent
-		screen.add_child(diagram)
-		_title(at+Vector2(10,90),data.name,17,run.battle.weapon_power.has(index))
-		if run.battle.weapon_power.has(index):
-			_badge(diagram.position+Vector2(92,-2),20)
-		var damage: int = run.battle.weapon_damage(index)
-		if run.battle.is_circle(index):
-			_label(at+Vector2(10,116),"魔法陣・攻撃不可",14,Card.ENCHANT)
-		else:
-			_summary(_label(at+Vector2(10,116),("ノックバック" if damage <= 0 else "攻撃%d・ノックバック" % damage) if Weapons.knockback(index) > 0 else ("入れ替え・初回0 AP" if run.battle.weapon_power.has(index) else "入れ替え") if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Rarity.INFO),150-20)
+		_weapon_box(at,weapon_width,weapons[slot])
+	if wide:
+		_weapon_box(Vector2(sheath_left,top+30),sheath_width,sheathed,_sheath_art(sheathed))
 	for slot in run.battle.HAND_LIMIT:
-		var at := Vector2(544+slot*184,top+30)
+		var at := Vector2(fairy_left+slot*fairy_step,top+30)
 		if slot >= fairies.size():
-			_empty_slot(at,Vector2(174,160))
+			_empty_slot(at,Vector2(fairy_width,160))
 			continue
 		var item: Resource = run.battle.item_definition(str(fairies[slot]))
 		var box := Panel.new()
 		box.position = at
-		box.size = Vector2(174,160)
+		box.size = Vector2(fairy_width,160)
 		box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(item.color,0.6)))
 		screen.add_child(box)
@@ -401,7 +385,7 @@ func _loadout() -> void:
 		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		icon.texture = item.icon
-		icon.position = at+Vector2(49,10)
+		icon.position = at+Vector2((fairy_width-76)/2,10)
 		icon.size = Vector2(76,76)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(icon)
@@ -409,7 +393,55 @@ func _loadout() -> void:
 		if plus:
 			_badge(icon.position+Vector2(84,0),20)
 		_title(at+Vector2(10,90),item.title,17,plus)
-		_summary(_label(at+Vector2(10,116),run.battle.fairy_summary(str(fairies[slot])),14,Rarity.INFO),174-20)
+		_summary(_label(at+Vector2(10,116),run.battle.fairy_summary(str(fairies[slot])),14,Rarity.INFO),fairy_width-20)
+
+## The sheath fairy's picture; the weapon's diagram is drawn over its belly.
+func _sheath_art(_index: int) -> Texture2D:
+	return SHEATH_EMPTY
+
+## One weapon box of the loadout (the sheath fairy's too, with the fairy drawn behind the diagram).
+func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = null) -> void:
+	var data: Dictionary = Weapons.DATA[index]
+	var accent := Color(data.color)
+	var box := Panel.new()
+	box.position = at
+	box.size = Vector2(width,160)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_stylebox_override("panel",_box(Color("0c181b"),Color(accent,0.6)))
+	screen.add_child(box)
+	_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
+	if backdrop != null:
+		var art := TextureRect.new()
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.texture = backdrop
+		art.position = at+Vector2((width-96)/2,-2)
+		art.size = Vector2(96,96)
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		screen.add_child(art)
+	var diagram := Diagram.new()
+	var diagram_side := 78.0 if backdrop == null else 50.0
+	diagram.position = at+Vector2((width-diagram_side)/2,10 if backdrop == null else 22)
+	diagram.size = Vector2(diagram_side,diagram_side)
+	diagram.offsets = run.battle.weapon_offsets(index)
+	var owned_extra: Array[Vector2i] = []
+	for tile in run.battle.weapon_extra.get(index, []):
+		owned_extra.append(Vector2i(tile))
+	diagram.extra = owned_extra
+	diagram.slides = Weapons.slides(index)
+	diagram.echo = Weapons.hammer_echo(index, run.battle.weapon_power.has(index))
+	diagram.attack = Weapons.attack_offsets(index, run.battle.weapon_power.has(index))
+	diagram.hammer = Weapons.is_hammer(index)
+	diagram.accent = accent
+	screen.add_child(diagram)
+	_title(at+Vector2(10,90),data.name,17,run.battle.weapon_power.has(index))
+	if run.battle.weapon_power.has(index):
+		_badge(diagram.position+Vector2(92,-2),20)
+	var damage: int = run.battle.weapon_damage(index)
+	if run.battle.is_circle(index):
+		_label(at+Vector2(10,116),"魔法陣・攻撃不可",14,Card.ENCHANT)
+	else:
+		_summary(_label(at+Vector2(10,116),("ノックバック" if damage <= 0 else "攻撃%d・ノックバック" % damage) if Weapons.knockback(index) > 0 else ("入れ替え・初回0 AP" if run.battle.weapon_power.has(index) else "入れ替え") if Weapons.DATA[index].get("swap", false) else "攻撃 %d" % damage,14,Color("ffd35b") if damage > 1 else Rarity.INFO),width-20)
 
 ## A name with a yellow "+" after it when the item is upgraded.
 func _title(at: Vector2, text: String, font_size: int, plus: bool) -> void:
