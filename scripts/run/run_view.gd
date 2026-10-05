@@ -1,6 +1,8 @@
 extends Node
 
 const Run = preload("res://scripts/run/run_model.gd")
+const Battle = preload("res://scripts/battle_model.gd")
+const BoardPreview = preload("res://scripts/run/board_preview.gd")
 const DebugStart = preload("res://scripts/debug/debug_start.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
 const Card = preload("res://scripts/run/choice_card.gd")
@@ -109,6 +111,7 @@ func _render() -> void:
 					_label(Vector2(44+heading+20,60),"ボーナス：レア・激レアの妖精が出やすい",17,Color("ffd35b"))
 			_cards(run.offers)
 			_loadout()
+			_next_board()
 			# A plain light-blue border so it reads as a choice of its own.
 			var skip := _button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
@@ -625,6 +628,57 @@ func _forge() -> void:
 func _camp_back() -> void:
 	run.camp_back()
 	_render()
+
+## Layer 2: a thumbnail of the next fight's board beside the heading; pressing it opens a large one.
+func _next_board() -> void:
+	if run.layer != 2 or run.layer2_stage + 1 >= Battle.LAYER2_FORMATIONS.size():
+		return
+	var scene: PackedScene = Battle.LAYER2_FORMATIONS[run.layer2_stage + 1]
+	_label(Vector2(668,52),"次の盤面",15,Rarity.INFO)
+	var thumb := BoardPreview.new()
+	thumb.position = Vector2(752,34)
+	thumb.size = Vector2(92,92)
+	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	screen.add_child(thumb)
+	thumb.load_scene(scene)
+	var open := Button.new()
+	open.position = thumb.position - Vector2(4,4)
+	open.size = thumb.size + Vector2(8,8)
+	open.focus_mode = Control.FOCUS_NONE
+	open.flat = true
+	var glow := StyleBoxFlat.new()
+	glow.bg_color = Color(1,1,1,0.06)
+	glow.border_color = Color("ffd35b")
+	glow.set_border_width_all(2)
+	open.add_theme_stylebox_override("hover",glow)
+	open.add_theme_stylebox_override("pressed",glow)
+	open.pressed.connect(func(): _show_board(scene))
+	screen.add_child(open)
+	_label(Vector2(668,76),"押して拡大",13,Color("ffd35b"))
+
+func _show_board(scene: PackedScene) -> void:
+	var cover := Button.new()
+	cover.size = screen.size
+	cover.focus_mode = Control.FOCUS_NONE
+	var dim := StyleBoxFlat.new()
+	dim.bg_color = Color(0,0,0,0.88)
+	for state in ["normal","hover","pressed"]:
+		cover.add_theme_stylebox_override(state,dim)
+	cover.pressed.connect(cover.queue_free)
+	screen.add_child(cover)
+	var board := BoardPreview.new()
+	board.large = true
+	board.position = Vector2(256,70)
+	board.size = Vector2(640,580)
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cover.add_child(board)
+	board.load_scene(scene)
+	var note := Label.new()
+	note.text = "次の戦闘の盤面（緑＝あなたの開始位置）。押すと閉じる"
+	note.position = Vector2(256,36)
+	note.add_theme_font_size_override("font_size",20)
+	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cover.add_child(note)
 
 func _sheath_open() -> void:
 	if run.sheath_open():
