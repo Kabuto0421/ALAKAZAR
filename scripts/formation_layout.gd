@@ -11,12 +11,6 @@ const SIZE := 6
 	set(value):
 		player_start = value
 		queue_redraw()
-## Tiles that are not part of the board (a hole): nothing can stand on them, and they stop
-## movement and shots like a wall. Lets a square frame make a cross, an L, a ring.
-@export var holes: Array[Vector2i] = []:
-	set(value):
-		holes = value
-		queue_redraw()
 
 static func cell_at(point: Vector2, size: int = SIZE) -> Vector2i:
 	return Vector2i(clampi(floori(point.x/CELL),0,size-1),clampi(floori(point.y/CELL),0,size-1))
@@ -28,9 +22,6 @@ func _draw() -> void:
 	for y in range(board_size):
 		for x in range(board_size):
 			var rect := Rect2(Vector2(x,y)*CELL,Vector2.ONE*CELL)
-			if holes.has(Vector2i(x,y)):
-				draw_rect(rect,Color("0c0d0a"))
-				continue
 			draw_rect(rect,Color("252820"))
 			draw_rect(rect.grow(-3),Color("34352b"),false,2)
 	draw_rect(Rect2(Vector2(player_start)*CELL+Vector2(5,5),Vector2.ONE*(CELL-10)),Color("2bdcc8"),false,3)

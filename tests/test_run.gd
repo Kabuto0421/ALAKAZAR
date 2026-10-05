@@ -332,7 +332,6 @@ func _initialize() -> void:
 	_heavy_sidestep()
 	_wolf_on_weapon_lines()
 	_web_music_layers()
-	_holed_board()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3618,54 +3617,3 @@ func _web_music_layers() -> void:
 	verify(desktop.player.stream == desktop.rotorick,"Desktop: the layered music stays as it was")
 	web.queue_free()
 	desktop.queue_free()
-
-## A board with holes (a cross cut from a 7x7 square): the holes are walls to everything.
-func _holed_board() -> void:
-	var m := Rules.new()
-	m.layout_override = load("res://scenes/formations/sample_cross.tscn")
-	m.reset(2)
-	verify(m.board_size == 7 and m.holes.size() == 16,"The sample cross: a 7x7 frame with 16 hole tiles")
-	verify(not m.inside(Vector2i(0, 0)) and not m.inside(Vector2i(6, 6)) and m.inside(Vector2i(3, 0)) and m.blocked(Vector2i(1, 1)),"Holes are not part of the board and block like walls")
-	verify(not m.enemies.is_empty() and m.enemies.all(func(e): return not m.holes.has(e.cell)),"No enemy is placed on a hole")
-	# A weapon's line stops at a hole; a clone keeps the holes.
-	var c: RefCounted = m.clone()
-	verify(c.holes == m.holes and c.board_size == 7,"A look-ahead copy keeps the holes")
-	m.player.cell = Vector2i(3, 6)
-	m.enemies.clear()
-	var rook_spear := -1
-	for i in Rules.WEAPONS.size():
-		if Rules.WEAPONS[i].id == "rook_spear":
-			rook_spear = i
-	m.owned_weapons.assign([rook_spear])
-	m.weapon = rook_spear
-	m.player.cell = Vector2i(1, 3)
-	var reach: Array = m.targets()
-	verify(reach.has(Vector2i(1, 2)) and reach.has(Vector2i(1, 4)) and not reach.has(Vector2i(1, 1)) and not reach.has(Vector2i(1, 0)) and not reach.has(Vector2i(1, 5)) and not reach.has(Vector2i(1, 6)),"A spear's line stops at the holes at both ends of its column")
-	# Random enemy turns with every kind never put anyone on a hole.
-	var planner := Planner.new()
-	var strays := 0
-	for k in 40:
-		var f := Rules.new()
-		f.layout_override = load("res://scenes/formations/sample_cross.tscn")
-		f.reset(2)
-		f.slot_seed = k * 77
-		f.enemies.clear()
-		var kinds := ["infantry", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner", "cross", "jester", "dragon", "recruit"]
-		for j in 4:
-			var spot := Vector2i((k * 3 + j * 2) % 7, (k + j * 3) % 7)
-			if f.inside(spot) and f.enemy_at(spot).is_empty() and spot != f.player.cell:
-				f.enemies.append(f.make_enemy(kinds[(k + j * 5) % kinds.size()], spot, j))
-		for turn in 6:
-			f.phase = Rules.Phase.ENEMY
-			planner.begin(f)
-			for beat in planner.beat_count(f):
-				planner.beat(f, beat)
-			planner.finish(f)
-			for e in f.enemies:
-				if f.holes.has(e.cell):
-					strays += 1
-			if f.holes.has(f.player.cell):
-				strays += 1
-			if f.terminal():
-				break
-	verify(strays == 0,"Enemies never step onto a hole (%d strays in 40 short fights)" % strays)
