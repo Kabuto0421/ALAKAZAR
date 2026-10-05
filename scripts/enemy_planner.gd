@@ -472,7 +472,9 @@ func _dragon_action(model: RefCounted, enemy: Dictionary) -> void:
 	var route := _route(model, enemy, enemy.cell, DIRECTIONS, goal)
 	if int(route.len) > 0 and model.enemy_step(enemy, route.step):
 		return
-	# No firing spot reachable: just close in on the player.
+	# No firing spot reachable: next to the player it hits point-blank, else it closes in.
+	if model.dragon_point_blank(enemy):
+		return
 	var action: Dictionary = heavy_behavior.decide(model, enemy)
 	if action.kind == "step" and action.cell != model.player.cell and model.enemy_step(enemy, action.cell):
 		return

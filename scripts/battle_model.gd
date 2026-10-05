@@ -468,6 +468,16 @@ func dragon_fire(enemy: Dictionary) -> bool:
 	check_outcome()
 	return true
 
+## A dragon soldier with no firing spot at all (the player on the far right column: nothing can stand to
+## its right) lands a point-blank blow when it is next to the player, so that edge is no safe place.
+func dragon_point_blank(enemy: Dictionary) -> bool:
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or distance(enemy.cell, player.cell) != 1:
+		return false
+	enemy.ap = 0
+	enemy.intent = "砲口を押し当てる"
+	_hit_player(enemy)
+	return true
+
 ## 道化兵 only walks left for this many enemy turns, then awakens: four ways, AP 3 (up to three blows a turn).
 const JESTER_SLEEP_TURNS := 3
 const JESTER_AWAKE_AP := 3

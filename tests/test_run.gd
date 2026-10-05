@@ -3483,3 +3483,46 @@ func _heavy_sidestep() -> void:
 			level_moves += 1
 	verify(vertical > 60 and horizontal > 60 and wrong_way == 0,"A heavy soldier off the player's row sometimes sidesteps towards it (%d sidesteps, %d marches, %d odd)" % [vertical, horizontal, wrong_way])
 	verify(level_moves == 0,"Level with the player it only marches along the row")
+	# The executioner sidesteps too, but less often (30%).
+	var exec_up := 0
+	for k in 300:
+		var em := Rules.new()
+		em.reset(2)
+		em.enemies.clear()
+		em.obstacles.clear()
+		em.slot_seed = k * 17
+		em.player.cell = Vector2i(0, 5)
+		var exec: Dictionary = em.make_enemy("executioner", Vector2i(5, 2), 0)
+		em.enemies.append(exec)
+		em.phase = Rules.Phase.ENEMY
+		exec.ap = 1
+		planner.beat(em, 0)
+		if exec.cell == Vector2i(5, 3):
+			exec_up += 1
+	verify(exec_up > 60 and exec_up < 120,"The executioner sidesteps about 30%% of the time (%d/300)" % exec_up)
+	# A dragon soldier with the player on the far right column has no firing spot: next to it, it hits point-blank.
+	var dm := Rules.new()
+	dm.reset(2)
+	dm.enemies.clear()
+	dm.obstacles.clear()
+	var edge := dm.board_size - 1
+	dm.player.cell = Vector2i(edge, 3)
+	var dragon: Dictionary = dm.make_enemy("dragon", Vector2i(edge, 2), 0)
+	dm.enemies.append(dragon)
+	dm.phase = Rules.Phase.ENEMY
+	dragon.ap = 2
+	var edge_hp: int = dm.player.hp
+	planner.beat(dm, 0)
+	verify(dm.player.hp == edge_hp - 1 and dragon.ap == 0,"A dragon soldier beside a player on the right edge hits point-blank, once a turn")
+	var open := Rules.new()
+	open.reset(2)
+	open.enemies.clear()
+	open.obstacles.clear()
+	open.player.cell = Vector2i(1, 3)
+	var shooter: Dictionary = open.make_enemy("dragon", Vector2i(3, 3), 0)
+	open.enemies.append(shooter)
+	open.phase = Rules.Phase.ENEMY
+	shooter.ap = 2
+	var open_hp: int = open.player.hp
+	planner.beat(open, 0)
+	verify(open.player.hp == open_hp - 1 and shooter.intent == "砲撃","With a firing spot it shoots as before (no point-blank)")
