@@ -395,11 +395,11 @@ func _loadout() -> void:
 		_title(at+Vector2(10,90),item.title,17,plus)
 		_summary(_label(at+Vector2(10,116),run.battle.fairy_summary(str(fairies[slot])),14,Rarity.INFO),fairy_width-20)
 
-## The sheath fairy's picture; the weapon's diagram is drawn over its belly.
+## The sheath fairy's picture, flipped to perch on the box's upper right corner.
 func _sheath_art(_index: int) -> Texture2D:
 	return SHEATH_EMPTY
 
-## One weapon box of the loadout (the sheath fairy's too, with the fairy drawn behind the diagram).
+## One weapon box of the loadout (the sheath fairy's too, with the fairy perched in the corner).
 func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = null) -> void:
 	var data: Dictionary = Weapons.DATA[index]
 	var accent := Color(data.color)
@@ -415,13 +415,14 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		art.texture = backdrop
-		art.position = at+Vector2((width-96)/2,-2)
-		art.size = Vector2(96,96)
+		art.flip_h = true
+		art.position = at+Vector2(width-62,6)
+		art.size = Vector2(54,54)
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		screen.add_child(art)
 	var diagram := Diagram.new()
-	var diagram_side := 78.0 if backdrop == null else 50.0
-	diagram.position = at+Vector2((width-diagram_side)/2,10 if backdrop == null else 22)
+	var diagram_side := 78.0
+	diagram.position = at+Vector2((width-diagram_side)/2 - (0.0 if backdrop == null else 16.0),10)
 	diagram.size = Vector2(diagram_side,diagram_side)
 	diagram.offsets = run.battle.weapon_offsets(index)
 	var owned_extra: Array[Vector2i] = []
