@@ -411,6 +411,16 @@ func _weapon_box(at: Vector2, width: float, index: int, backdrop: Texture2D = nu
 	screen.add_child(box)
 	_frame(at,box.size,Rarity.tier({"kind":"weapon","value":index,"enchant":run.battle.enchants.get(index,"")}))
 	if backdrop != null:
+		# A round dark plate under the fairy, so it sits on the frame's corner instead of floating.
+		var plate := Panel.new()
+		var plate_style := _box(Color("0a1417"),Color(accent,0.9))
+		plate_style.set_border_width_all(2)
+		plate_style.set_corner_radius_all(26)
+		plate.add_theme_stylebox_override("panel",plate_style)
+		plate.position = at+Vector2(width-37,-23)
+		plate.size = Vector2(52,52)
+		plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		screen.add_child(plate)
 		var art := TextureRect.new()
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
