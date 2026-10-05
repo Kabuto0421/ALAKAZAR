@@ -109,8 +109,8 @@ const HABITS := {
 }
 const SOLDIERS = ["infantry", "recruit", "heavy", "cavalry", "horse", "javelin", "archer", "shield", "analyst", "gold", "silver", "executioner", "miner", "cross", "jester", "dragon"]
 ## How likely a fortress is to send each soldier (1 unless listed): the dragon-armoured soldier is a
-## rarity, and the 2-HP horse and gold general are never sent (the king can still raise them).
-const SOLDIER_WEIGHTS := {"dragon": 0.1, "horse": 0.0, "gold": 0.0}
+## rarity, and the 2-HP horse is never sent (the king can still raise it).
+const SOLDIER_WEIGHTS := {"dragon": 0.1, "horse": 0.0}
 ## Fixed in place: shoves, pulls, blasts and charges cannot move them.
 const IMMOVABLE = ["king", "fortress"]
 ## At this HP or below the Prison King is enraged: a barrier shields him until every fortress falls.

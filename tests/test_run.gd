@@ -2427,7 +2427,7 @@ func _fortress_new_soldiers() -> void:
 		counts[kind] = int(counts.get(kind, 0)) + 1
 	verify(int(counts.get("cross", 0)) > 100 and int(counts.get("jester", 0)) > 100,"Fortresses send out the X soldier and the jester (%s)" % [counts])
 	verify(int(counts.get("dragon", 0)) >= 1 and int(counts.get("dragon", 0)) < int(counts.get("jester", 0)) / 5,"...and the dragon-armoured soldier only rarely")
-	verify(int(counts.get("horse", 0)) == 0 and int(counts.get("gold", 0)) == 0 and int(counts.get("silver", 0)) > 100,"Fortresses never send the 2-HP horse or gold general (%s)" % [counts])
+	verify(int(counts.get("horse", 0)) == 0 and int(counts.get("gold", 0)) > 100 and int(counts.get("silver", 0)) > 100,"Fortresses never send the 2-HP horse (the gold and silver generals still come) (%s)" % [counts])
 	verify(Rules.SOLDIERS.has("cross") and Rules.SOLDIERS.has("jester") and Rules.SOLDIERS.has("dragon"),"The new soldiers are in the soldier list (the king can raise them too)")
 
 ## A mine soldier backs away and plants mines; it never bites the allies the fairies summon.
