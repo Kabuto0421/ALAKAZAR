@@ -2,6 +2,7 @@ extends Node
 
 const Run = preload("res://scripts/run/run_model.gd")
 const Battle = preload("res://scripts/battle_model.gd")
+const HeartRow = preload("res://scripts/run/heart_row.gd")
 const BoardPreview = preload("res://scripts/run/board_preview.gd")
 const DebugStart = preload("res://scripts/debug/debug_start.gd")
 const BattleView = preload("res://scripts/battle_view.gd")
@@ -81,9 +82,19 @@ func _render() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	screen.add_child(backdrop)
 	_label(Vector2(44,14),"ALAKAZAR",30,CYAN).add_theme_font_override("font",LATIN)
-	_button(Vector2(894,12),Vector2(214,32),"遊び方 [H]",_open_help)
-	if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
-		_label(Vector2(972,50),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
+	if run.layer == 2:
+		# Layer 2: no help button (H still opens it); the HP is hearts, and the button below is tall and narrow.
+		var hearts := HeartRow.new()
+		hearts.position = Vector2(1108 - 4 * 28.0 - 24.0, 14)
+		hearts.size = Vector2(4 * 28.0 + 24.0, 30)
+		hearts.hp = run.battle.start_hp
+		hearts.max_hp = run.battle.MAX_HP
+		hearts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		screen.add_child(hearts)
+	else:
+		_button(Vector2(894,12),Vector2(214,32),"遊び方 [H]",_open_help)
+		if run.state not in [Run.State.START_WEAPON, Run.State.START_FAIRY]:
+			_label(Vector2(972,50),"HP %d / %d" % [run.battle.start_hp, run.battle.MAX_HP],24,Color("ff8b8f"))
 	var sub := Rarity.INFO
 	match run.state:
 		Run.State.START_WEAPON:
@@ -113,7 +124,7 @@ func _render() -> void:
 			_loadout()
 			_next_board()
 			# A plain light-blue border so it reads as a choice of its own.
-			var skip := _button(Vector2(894,92),Vector2(214,34),"出発" if run.layer == 2 else "今の構成で進む",_skip)
+			var skip := _button(Vector2(988,52) if run.layer == 2 else Vector2(894,92),Vector2(120,76) if run.layer == 2 else Vector2(214,34),"出発" if run.layer == 2 else "今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
 			for state in ["normal","hover","pressed"]:
 				var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Rarity.INFO)
