@@ -331,6 +331,7 @@ func _initialize() -> void:
 	_cat_fairy()
 	_heavy_sidestep()
 	_wolf_on_weapon_lines()
+	_web_music_layers()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3590,3 +3591,29 @@ func _wolf_on_weapon_lines() -> void:
 			if not wolf.sulking or wolf.cell != cell:
 				misses.append("%s sulk@%s" % [Rules.WEAPONS[index].name, cell])
 	verify(misses.is_empty(),"A lone wolf anywhere in a weapon's reach (every weapon, every tile) sulks and stays put (%s)" % [misses.slice(0, 6)])
+
+## Web: the layered fights (Rotorick, the king) play one stream at a time instead of three/two at once.
+func _web_music_layers() -> void:
+	var Bgm = load("res://scripts/audio/bgm_player.gd")
+	var web = Bgm.new()
+	root.add_child(web)
+	web.on_web = true
+	web.muted = true
+	web.theme = "rotorick"
+	web.sync(false, false)
+	verify(web.player.stream == Bgm.ROTORICK_LAYERS.normal,"Web: Rotorick's fight starts on the single normal-version stream")
+	web.set_layer("jackpot")
+	verify(web.player.stream == Bgm.ROTORICK_LAYERS.jackpot and web.layer_volume("jackpot") == 0.0,"Web: a reel change swaps to that version")
+	web.theme = "king"
+	web.sync(false, false)
+	verify(web.player.stream == Bgm.KING_LAYERS[0],"Web: the king starts on his normal theme alone")
+	web.set_king_rage(true)
+	verify(web.player.stream == Bgm.KING_LAYERS[1],"Web: his rage swaps to the rage twin")
+	var desktop = Bgm.new()
+	root.add_child(desktop)
+	desktop.muted = true
+	desktop.theme = "rotorick"
+	desktop.sync(false, false)
+	verify(desktop.player.stream == desktop.rotorick,"Desktop: the layered music stays as it was")
+	web.queue_free()
+	desktop.queue_free()

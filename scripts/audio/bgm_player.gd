@@ -47,10 +47,18 @@ var king_tween: Tween
 var held := false
 var hold_token := 0
 var duck_tween: Tween
+## Web: the browser mixes audio on the same single thread as the game, so a fight's layered music
+## (three Ogg streams decoded at once for Rotorick, two for the king) made the sound crackle. There
+## only the audible version plays, and a switch cross-fades into a second player.
+var on_web := OS.has_feature("web")
+var twin := AudioStreamPlayer.new()
+var fade_tween: Tween
 
 func _ready() -> void:
 	player.volume_db = VOLUME_DB
 	add_child(player)
+	twin.volume_db = SILENT_DB
+	add_child(twin)
 	var shark_song: AudioStreamOggVorbis = SHARK
 	shark_song.loop = true
 	shark_song.loop_offset = SHARK_DROP
@@ -65,7 +73,7 @@ func _ready() -> void:
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:
-	var fight: AudioStream = king if theme == "king" else BOSS if theme == "boss" else rotorick if theme == "rotorick" else SHARK if theme == "shark" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
+	var fight: AudioStream = _king_stream() if theme == "king" else BOSS if theme == "boss" else _rotorick_stream() if theme == "rotorick" else SHARK if theme == "shark" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
 	var victory: AudioStream = KING_VICTORY if theme == "king" else VICTORY
 	var track: AudioStream = (victory if won else DEFEAT) if result_shown else fight
 	if player.stream == track:
@@ -89,7 +97,7 @@ func toggle_mute() -> void:
 	muted = not muted
 	SfxPlayer.muted = muted
 	if muted:
-		player.stop()
+		_stop_music()
 	elif not held:
 		_play()
 
@@ -98,7 +106,7 @@ func hold(seconds: float) -> void:
 	held = true
 	hold_token += 1
 	var token := hold_token
-	player.stop()
+	_stop_music()
 	await get_tree().create_timer(seconds).timeout
 	if token != hold_token or not is_inside_tree():
 		return
@@ -116,7 +124,51 @@ func duck(seconds: float, depth_db: float = -12.0) -> void:
 	duck_tween.tween_property(player, "volume_db", VOLUME_DB, 0.65)
 
 func _exit_tree() -> void:
+	_stop_music()
+
+func _stop_music() -> void:
+	_finish_fade()
 	player.stop()
+	twin.stop()
+
+## The layered fights' music: all versions in sync (desktop), or only the audible one (Web).
+func _rotorick_stream() -> AudioStream:
+	return ROTORICK_LAYERS[layer] if on_web else rotorick
+
+func _king_stream() -> AudioStream:
+	return KING_LAYERS[1 if king_raging else 0] if on_web else king
+
+## Web: cross-fade from the playing version to `next` on the same beat (the versions are
+## sample-aligned), using the second player. With nothing playing the stream is simply swapped.
+func _swap_stream(next: AudioStream) -> void:
+	if player.stream == next:
+		return
+	_finish_fade()
+	if not player.playing:
+		player.stream = next
+		return
+	var at := player.get_playback_position() + AudioServer.get_time_since_last_mix()
+	twin.stream = next
+	twin.volume_db = SILENT_DB
+	twin.play(at)
+	fade_tween = create_tween().set_parallel(true)
+	fade_tween.tween_method(func(g: float) -> void: player.volume_db = VOLUME_DB + linear_to_db(maxf(g, 0.001)), 1.0, 0.0, CROSSFADE)
+	fade_tween.tween_method(func(g: float) -> void: twin.volume_db = VOLUME_DB + linear_to_db(maxf(g, 0.001)), 0.0, 1.0, CROSSFADE)
+	fade_tween.chain().tween_callback(_finish_fade)
+
+## End a cross-fade at once: the second player becomes the main one.
+func _finish_fade() -> void:
+	if fade_tween and fade_tween.is_valid():
+		fade_tween.kill()
+	fade_tween = null
+	if not twin.playing:
+		return
+	var old := player
+	player = twin
+	twin = old
+	twin.stop()
+	twin.volume_db = SILENT_DB
+	player.volume_db = VOLUME_DB
 
 ## Rotorick: fade to the version matching the shown reel. The three stay in sync, so the
 ## switch lands on the same beat. Idempotent.
@@ -124,6 +176,10 @@ func set_layer(name: String) -> void:
 	if name == layer or not ROTORICK_LAYERS.has(name):
 		return
 	layer = name
+	if on_web:
+		if theme == "rotorick":
+			_swap_stream(ROTORICK_LAYERS[name])
+		return
 	if layer_tween and layer_tween.is_valid():
 		layer_tween.kill()
 	layer_tween = create_tween().set_parallel(true)
@@ -139,6 +195,10 @@ func set_king_rage(on: bool) -> void:
 	if on == king_raging:
 		return
 	king_raging = on
+	if on_web:
+		if theme == "king":
+			_swap_stream(KING_LAYERS[1 if on else 0])
+		return
 	if king_tween and king_tween.is_valid():
 		king_tween.kill()
 	king_tween = create_tween().set_parallel(true)
@@ -149,4 +209,6 @@ func set_king_rage(on: bool) -> void:
 			db_to_linear(from), db_to_linear(target), CROSSFADE)
 
 func layer_volume(name: String) -> float:
+	if on_web:
+		return 0.0 if layer == name else SILENT_DB
 	return rotorick.get_sync_stream_volume(LAYER_ORDER.find(name))
