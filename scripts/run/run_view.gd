@@ -110,8 +110,6 @@ func _render() -> void:
 			_cards(run.offers)
 			_loadout()
 			# A plain light-blue border so it reads as a choice of its own.
-			if run.can_sheath_swap():
-				_button(Vector2(664,92),Vector2(214,34),"鞘と入れ替える",_sheath_open)
 			var skip := _button(Vector2(894,92),Vector2(214,34),"今の構成で進む",_skip)
 			skip.add_theme_color_override("font_color",Color.WHITE)
 			for state in ["normal","hover","pressed"]:
@@ -368,6 +366,22 @@ func _loadout() -> void:
 		_weapon_box(at,weapon_width,weapons[slot])
 	if wide:
 		_weapon_box(Vector2(sheath_left,top+30),sheath_width,sheathed,_sheath_art(sheathed))
+		if run.can_sheath_swap():
+			# The whole sheath box is the swap button: it only lights up when pressed or hovered.
+			var swap := Button.new()
+			swap.position = Vector2(sheath_left,top+30)
+			swap.size = Vector2(sheath_width,160)
+			swap.focus_mode = Control.FOCUS_NONE
+			swap.flat = true
+			for state in ["hover","pressed"]:
+				var glow := StyleBoxFlat.new()
+				glow.bg_color = Color(1,1,1,0.07)
+				glow.border_color = Color("ffd35b")
+				glow.set_border_width_all(2)
+				swap.add_theme_stylebox_override(state,glow)
+			swap.pressed.connect(_sheath_open)
+			screen.add_child(swap)
+			_label(Vector2(sheath_left+80,top+30+117),"押して入替",13,Color("ffd35b"))
 	for slot in run.battle.HAND_LIMIT:
 		var at := Vector2(fairy_left+slot*fairy_step,top+30)
 		if slot >= fairies.size():
