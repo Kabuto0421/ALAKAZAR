@@ -520,7 +520,7 @@ func _ranged_soldiers() -> void:
 	verify(row == [Vector2i(1,0),Vector2i(1,1),Vector2i(1,2)],"Javelin row is one square beyond the front, three wide")
 	verify(ThreatPreview.attackers(m).has(0),"A javelin thrower in range gets the ! mark")
 	_enemy_turn(m)
-	verify(m.player.hp == 4 and m.enemies[0].cell == Vector2i(3,1),"Javelin throws from its tile, once per turn")
+	verify(m.player.hp == 3 and m.enemies[0].cell == Vector2i(3,1),"Javelin throws from its tile, twice a turn (1 AP each)")
 	m = fixture()
 	m.player.cell = Vector2i(1,2)
 	m.enemies.clear()
@@ -534,6 +534,14 @@ func _ranged_soldiers() -> void:
 	_enemy_turn(m)
 	verify(m.enemies[0].cell.x == 3 and m.player.hp == 4,"An adjacent javelin backs off and throws instead of stabbing")
 
+	# A summoned ally in the row is thrown at when the player is not.
+	m = fixture()
+	m.player.cell = Vector2i(5,5)
+	m.enemies.clear()
+	m.enemies.append(m.make_enemy("javelin",Vector2i(3,1),0))
+	m.allies.append({"id":77, "type":"wall", "cell":Vector2i(1,1), "hp":5, "ap":0, "facing":1, "plus":false})
+	_enemy_turn(m)
+	verify(m.allies[0].hp == 3 and m.player.hp == 5,"A javelin thrower spears an ally in its row (two throws, 5 -> 3) when the player is not")
 	# Archer: up/down only, aims with 1 AP when the player is on its lane, shoots next turn.
 	m = fixture()
 	m.player.cell = Vector2i(1,2)

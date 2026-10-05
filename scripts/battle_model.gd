@@ -97,7 +97,7 @@ const HABITS := {
 	"miner": ["近づくと離れる(距離3)", "2回目の行動で地雷設置"],
 	"cavalry": ["跳んで接近し、", "着地した所を攻撃"],
 	"horse": ["跳んで接近し、", "着地した所を攻撃"],
-	"javelin": ["同じ列に来ると投擲。", "届く所まで歩いてくる"],
+	"javelin": ["範囲に入ると1ターン2回投擲。", "味方の妖精も狙う"],
 	"archer": ["照準を合わせ、次の", "ターンに左へ一直線"],
 	"shield": ["盾を構えて前進。", "真左の攻撃は防ぐ"],
 	"analyst": ["殴られた武器を覚え、", "同じ武器を無効化"],
@@ -526,14 +526,28 @@ func archer_lane(enemy: Dictionary) -> Array[Vector2i]:
 	return result
 
 func javelin_throw(enemy: Dictionary) -> bool:
-	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0 or not javelin_cells(enemy).has(player.cell):
+	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
 		return false
-	# One javelin per turn.
-	enemy.ap = 0
-	enemy.intent = "投擲"
-	events.append({"kind":"javelin", "cell":player.cell, "from":enemy.cell, "id":-2})
-	_hit_player(enemy)
-	return true
+	var cells := javelin_cells(enemy)
+	# The player first; otherwise a summoned ally standing in the row. Each throw costs 1 AP (two a turn).
+	if cells.has(player.cell):
+		enemy.ap -= 1
+		enemy.intent = "投擲"
+		events.append({"kind":"javelin", "cell":player.cell, "from":enemy.cell, "id":-2})
+		_hit_player(enemy)
+		return true
+	for cell in cells:
+		var ally := ally_at(cell)
+		if not ally.is_empty() and ally.hp > 0:
+			enemy.ap -= 1
+			enemy.intent = "投擲"
+			events.append({"kind":"javelin", "cell":cell, "from":enemy.cell, "id":-2})
+			ally.hp -= 1
+			events.append({"kind":"hit", "cell":cell, "id":ally.id})
+			_bury_allies()
+			check_outcome()
+			return true
+	return false
 
 func archer_aim(enemy: Dictionary) -> bool:
 	if phase != Phase.ENEMY or enemy.hp <= 0 or enemy.ap <= 0:
