@@ -846,6 +846,18 @@ func all_reach() -> Array[Vector2i]:
 				result.append(cell)
 	return result
 
+## Is `cell` in some weapon's reach, even with an ally standing on it? (A ray stops at the first thing in
+## its way, so an ally on the line would otherwise hide itself: the lone wolf walked off lines it was on.)
+func reach_covers(cell: Vector2i) -> bool:
+	var ally := ally_at(cell)
+	if ally.is_empty():
+		return all_reach().has(cell)
+	var home: Vector2i = ally.cell
+	ally.cell = Vector2i(-99, -99)
+	var covered := all_reach().has(cell)
+	ally.cell = home
+	return covered
+
 func ray_cells(origin: Vector2i, direction: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	if not CARDINALS.has(direction):
@@ -2074,7 +2086,7 @@ func summon_wolf(cell: Vector2i) -> void:
 ## time: a bite on an enemy it reaches (1 damage), or a silver step
 ## toward one. (The class-up only makes it free to summon.)
 func _wolf_action(wolf: Dictionary) -> void:
-	wolf.sulking = all_reach().has(wolf.cell)
+	wolf.sulking = reach_covers(wolf.cell)
 	if wolf.sulking:
 		add_log("一匹狼の妖精はそっぽを向いた")
 		wolf.ap = 0

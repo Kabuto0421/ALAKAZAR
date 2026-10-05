@@ -1408,10 +1408,9 @@ func _process(delta: float) -> void:
 		actor.attack_target = id >= 0 and cells.any(func(c: Vector2i) -> bool: return attack_cells.has(c))
 	# A lone wolf inside any weapon's reach will sulk on its turn: it shows "…".
 	if model.allies.any(func(a: Dictionary) -> bool: return a.type == "wolf"):
-		var reach: Array[Vector2i] = model.all_reach()
 		for wolf in model.allies:
 			if wolf.type == "wolf" and actors.has(wolf.id):
-				actors[wolf.id].sulking = wolf.hp > 0 and reach.has(wolf.cell)
+				actors[wolf.id].sulking = wolf.hp > 0 and model.reach_covers(wolf.cell)
 				actors[wolf.id].sulk_flip = model.player.cell.x > wolf.cell.x
 	queue_redraw()
 
@@ -2464,7 +2463,7 @@ func _draw_ally_inspector(ally: Dictionary) -> void:
 			moves = Rules.WOLF_MOVES
 			strikes = Rules.WOLF_MOVES
 			lines = ["銀の動き・右向き固定", "AP%d：1歩か1噛みでAP1" % Rules.ally_ap("wolf"), "噛むと%dダメージ" % Rules.WOLF_BITE, "武器が届く所ではすねて動かず、", "届かない所で移動・攻撃"]
-			var sulking: bool = model.all_reach().has(ally.cell)
+			var sulking: bool = model.reach_covers(ally.cell)
 			intent = "すねている…（動かない）" if sulking else "群れずに噛みつく"
 		"glutton":
 			moves = Rules.GLUTTON_MOVES

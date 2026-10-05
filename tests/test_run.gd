@@ -330,6 +330,7 @@ func _initialize() -> void:
 	_guardian_wall()
 	_cat_fairy()
 	_heavy_sidestep()
+	_wolf_on_weapon_lines()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3565,3 +3566,27 @@ func _heavy_sidestep() -> void:
 	var open_hp: int = open.player.hp
 	planner.beat(open, 0)
 	verify(open.player.hp == open_hp - 1 and shooter.intent == "砲撃","With a firing spot it shoots as before (no point-blank)")
+
+## 一匹狼 sulks anywhere a carried weapon reaches, also on the long lines (spear, bishop, daggers, bow) where
+## the ally's own body used to cut the line short.
+func _wolf_on_weapon_lines() -> void:
+	var misses := []
+	for index in Rules.WEAPONS.size():
+		var m := Rules.new()
+		m.reset(2)
+		m.phase = Rules.Phase.PLAYER
+		m.enemies.clear()
+		m.obstacles.clear()
+		m.player.cell = Vector2i(2, 2)
+		m.owned_weapons.assign([index])
+		m.weapon = index
+		var free: Array = m.weapon_reach(index)
+		for cell in free:
+			var wolf := {"id": 5, "type": "wolf", "cell": cell, "hp": 3, "ap": 2, "facing": 1, "plus": false}
+			m.allies.assign([wolf])
+			if not m.reach_covers(cell):
+				misses.append("%s@%s" % [Rules.WEAPONS[index].name, cell])
+			m._wolf_action(wolf)
+			if not wolf.sulking or wolf.cell != cell:
+				misses.append("%s sulk@%s" % [Rules.WEAPONS[index].name, cell])
+	verify(misses.is_empty(),"A lone wolf anywhere in a weapon's reach (every weapon, every tile) sulks and stays put (%s)" % [misses.slice(0, 6)])
