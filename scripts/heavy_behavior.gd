@@ -2,7 +2,16 @@ extends RefCounted
 
 const DIRECTIONS = [Vector2i.UP, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.DOWN]
 
+## A heavy soldier that is level with a player it cannot reach yet would trudge along the row forever
+## (and a player who keeps stepping away is never caught). When it is off the player's row it
+## sometimes steps up or down towards that row instead, chosen from the fight's own seed so
+## look-ahead copies agree.
+const SIDESTEP_CHANCE := 0.5
+
 func decide(model: RefCounted, enemy: Dictionary) -> Dictionary:
+	var side := _sidestep(model, enemy)
+	if side != enemy.cell:
+		return {"kind": "step", "cell": side}
 	var start: Vector2i = enemy.cell
 	var target: Vector2i = model.player.cell
 	var queue: Array[Vector2i] = [start]
@@ -50,3 +59,19 @@ func walk_length(model: RefCounted, from_cell: Vector2i, target: Vector2i) -> in
 			depth[next] = int(depth[current]) + 1
 			queue.append(next)
 	return -1
+
+## The tile a heavy soldier sidesteps to this beat (towards the player's row), or its own tile for none.
+func _sidestep(model: RefCounted, enemy: Dictionary) -> Vector2i:
+	if enemy.type != "heavy":
+		return enemy.cell
+	var rows: int = model.player.cell.y - enemy.cell.y
+	if rows == 0:
+		return enemy.cell
+	var roll := RandomNumberGenerator.new()
+	roll.seed = hash([model.slot_seed, model.round_number, int(enemy.id), "sidestep"])
+	if roll.randf() >= SIDESTEP_CHANCE:
+		return enemy.cell
+	var cell: Vector2i = enemy.cell + Vector2i(0, signi(rows))
+	if model.inside(cell) and not model.enemy_blocked(cell) and model.enemy_at(cell).is_empty() and cell != model.player.cell:
+		return cell
+	return enemy.cell

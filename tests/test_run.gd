@@ -329,6 +329,7 @@ func _initialize() -> void:
 	_big_placement()
 	_guardian_wall()
 	_cat_fairy()
+	_heavy_sidestep()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3439,3 +3440,46 @@ func _second_boss_room() -> void:
 	forced.stage = Rules.MID_LEVELS[-1]
 	forced._leave_camp()
 	verify(forced.battle.level == Rules.BOSS2_LEVEL and forced.battle.storm_shark().hp == 8,"Choosing the shark's room puts it in the boss fight")
+
+## 重装兵: off the player's row it sometimes steps up or down towards that row; level with it, never.
+func _heavy_sidestep() -> void:
+	var planner := Planner.new()
+	var vertical := 0
+	var horizontal := 0
+	var wrong_way := 0
+	var level_moves := 0
+	for k in 200:
+		var m := Rules.new()
+		m.reset(2)
+		m.phase = Rules.Phase.PLAYER
+		m.enemies.clear()
+		m.obstacles.clear()
+		m.slot_seed = k * 131
+		m.player.cell = Vector2i(0, 5)
+		var heavy: Dictionary = m.make_enemy("heavy", Vector2i(5, 2), 0)
+		m.enemies.append(heavy)
+		m.phase = Rules.Phase.ENEMY
+		heavy.ap = 1
+		planner.beat(m, 0)
+		if heavy.cell == Vector2i(5, 3):
+			vertical += 1
+		elif heavy.cell == Vector2i(4, 2):
+			horizontal += 1
+		else:
+			wrong_way += 1
+		# Level with the player it only walks along the row.
+		var flat := Rules.new()
+		flat.reset(2)
+		flat.enemies.clear()
+		flat.obstacles.clear()
+		flat.slot_seed = k * 131
+		flat.player.cell = Vector2i(0, 2)
+		var walker: Dictionary = flat.make_enemy("heavy", Vector2i(5, 2), 0)
+		flat.enemies.append(walker)
+		flat.phase = Rules.Phase.ENEMY
+		walker.ap = 1
+		planner.beat(flat, 0)
+		if walker.cell != Vector2i(4, 2):
+			level_moves += 1
+	verify(vertical > 60 and horizontal > 60 and wrong_way == 0,"A heavy soldier off the player's row sometimes sidesteps towards it (%d sidesteps, %d marches, %d odd)" % [vertical, horizontal, wrong_way])
+	verify(level_moves == 0,"Level with the player it only marches along the row")
