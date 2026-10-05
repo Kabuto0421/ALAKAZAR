@@ -1640,6 +1640,8 @@ func _draw_board() -> void:
 	for y in range(model.board_size):
 		for x in range(model.board_size):
 			var cell := Vector2i(x,y)
+			if model.holes.has(cell):
+				continue
 			# Each tile is drawn in its own 64-unit space, scaled down on big boards.
 			draw_set_transform(BOARD+Vector2(cell)*TILE,0,Vector2.ONE*TILE/64.0)
 			var pos := Vector2.ZERO
