@@ -3,6 +3,8 @@ extends Control
 ## (rarity frame, range diagram or fairy demo). Opened from the title screen; Esc closes it.
 
 signal closed
+## Pick mode (debug): set `pick_kind` to "weapon" or "fairy" before adding it; pressing a card emits `picked` and closes.
+signal picked(offer: Dictionary)
 
 const Card = preload("res://scripts/run/choice_card.gd")
 const Weapons = preload("res://scripts/run/weapon_catalog.gd")
@@ -20,6 +22,7 @@ const GOLD := Color("ffd35b")
 const CREAM := Color("f1e9d8")
 
 var tab := "weapon"
+var pick_kind := ""
 var model: RefCounted = Rules.new()
 var holder: Control
 var scroll: ScrollContainer
@@ -43,6 +46,9 @@ func _ready() -> void:
 		var button := _button(entry[1], entry[2], Vector2(104, 44))
 		button.pressed.connect(func() -> void: _show(entry[0]))
 		tab_buttons[entry[0]] = button
+	if pick_kind != "":
+		for key in tab_buttons:
+			tab_buttons[key].visible = false
 	var back := _button("戻る [Esc]", Vector2(960, 18), Vector2(150, 44))
 	back.pressed.connect(close)
 	scroll = ScrollContainer.new()
@@ -50,7 +56,7 @@ func _ready() -> void:
 	scroll.size = Vector2(1024, 620)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	holder.add_child(scroll)
-	_show("weapon")
+	_show(pick_kind if pick_kind != "" else "weapon")
 
 func close() -> void:
 	closed.emit()
@@ -60,7 +66,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode in [KEY_ESCAPE, KEY_BACKSPACE]:
 			close()
-		elif event.keycode in [KEY_LEFT, KEY_A, KEY_RIGHT, KEY_D, KEY_TAB]:
+		elif pick_kind == "" and event.keycode in [KEY_LEFT, KEY_A, KEY_RIGHT, KEY_D, KEY_TAB]:
 			_show("fairy" if tab == "weapon" else "weapon")
 		get_viewport().set_input_as_handled()
 
@@ -86,7 +92,7 @@ func entries(kind: String) -> Array:
 func _show(kind: String) -> void:
 	tab = kind
 	var list := entries(kind)
-	heading.text = "カタログ　%s %d" % ["武器" if kind == "weapon" else "妖精", list.size()]
+	heading.text = ("選ぶ　" if pick_kind != "" else "カタログ　") + "%s %d" % ["武器" if kind == "weapon" else "妖精", list.size()]
 	for key in tab_buttons:
 		tab_buttons[key].modulate = Color.WHITE if key == kind else Color(1, 1, 1, 0.55)
 	if grid != null:
@@ -106,7 +112,11 @@ func _show(kind: String) -> void:
 		card.offer = offer
 		card.model = model
 		card.show_pair = true
-		card.action_text = ""
+		card.action_text = "選ぶ" if pick_kind != "" else ""
+		if pick_kind != "":
+			card.pressed.connect(func() -> void:
+				picked.emit(offer)
+				close())
 		slot.add_child(card)
 
 func _label(at: Vector2, text: String, font_size: int, color: Color) -> Label:
