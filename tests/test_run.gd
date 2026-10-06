@@ -3674,9 +3674,11 @@ func _holed_board() -> void:
 func _layer2_run() -> void:
 	var r := Run.new()
 	r.start_layer2({"weapons": [0, 1], "sheath": 8, "fairies": ["magic_bolt", "wall_fairy"], "plus": true, "hp": 4}, 5)
-	verify(r.layer == 2 and r.state == Run.State.BATTLE and r.battle.layer2_board,"Layer 2 opens straight into a holed board fight")
+	verify(r.layer == 2 and r.state == Run.State.REWARD and not r.offers.is_empty(),"Layer 2 opens on the reward for clearing layer 1")
 	verify(r.battle.sheathed_weapon == 8 and r.battle.owned_weapons == [0, 1] and not r.battle.owned_weapons.has(8),"The sheathed weapon stays out of the fight")
-	verify(r.battle.player.hp == 4 and r.battle.is_plus("wall_fairy"),"The chosen HP and class-ups carry in")
+	verify(r.battle.start_hp == 4 and r.battle.is_plus("wall_fairy"),"The chosen HP and class-ups carry in")
+	r.skip_reward()
+	verify(r.state == Run.State.BATTLE and r.battle.layer2_board and r.layer2_stage == 0,"Leaving the first reward starts the first holed board fight")
 	r.battle.enemies.clear()
 	r.battle.phase = Rules.Phase.WON
 	r.finish_battle()

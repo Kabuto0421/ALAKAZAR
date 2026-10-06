@@ -240,7 +240,9 @@ func start_layer2(build: Dictionary, seed_value: int = -1) -> void:
 				battle.fairy_plus[id] = 1
 	battle.start_hp = int(build.get("hp", Battle.MAX_HP))
 	battle.refill_fairies()
-	start_battle()
+	# Layer 2 opens on the reward for clearing layer 1, then the prep screen, then the first fight.
+	layer2_stage = -1
+	_roll_rewards()
 
 func start_battle() -> void:
 	battle.layout_override = Battle.LAYER2_FORMATIONS[layer2_stage] if layer == 2 else null
@@ -264,6 +266,11 @@ func finish_battle() -> bool:
 		# The Prison King is down: the expedition is over.
 		state = State.FINISHED
 		return true
+	_roll_rewards()
+	return true
+
+## The reward cards for the fight just won: weapons and fairies drawn by rarity for this point in the run.
+func _roll_rewards() -> void:
 	state = State.REWARD
 	offers.clear()
 	# Weapons: each card draws a rarity for this point in the run, then a weapon of it.
@@ -293,7 +300,6 @@ func finish_battle() -> bool:
 		var id := draw_fairy(fairy_candidates)
 		fairy_candidates.erase(id)
 		offers.append({"kind":"fairy","value":id})
-	return true
 
 func _enchant(index: int, offer: Dictionary) -> void:
 	if offer.get("enchant", "") != "":

@@ -110,7 +110,7 @@ func _render() -> void:
 			_loadout()
 			_button(Vector2(894,92),Vector2(214,34),"← 武器選択",_back_to_weapon)
 		Run.State.REWARD:
-			var cleared := "2層目 %d戦目クリア" % (run.layer2_stage + 1) if run.layer == 2 else "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "終盤 %d クリア" % (run.battle.LATE_LEVELS.find(run.stage)+1) if run.battle.LATE_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
+			var cleared := ("1層目クリア" if run.layer2_stage < 0 else "2層目 %d戦目クリア" % (run.layer2_stage + 1)) if run.layer == 2 else "ボス撃破" if run.battle.BOSS_LEVELS.has(run.stage) else "中盤 %d クリア" % (run.battle.MID_LEVELS.find(run.stage)+1) if run.battle.MID_LEVELS.has(run.stage) else "終盤 %d クリア" % (run.battle.LATE_LEVELS.find(run.stage)+1) if run.battle.LATE_LEVELS.has(run.stage) else "戦闘 %d クリア" % (run.stage+1)
 			_label(Vector2(44,48),"%s — 報酬を1つ選ぶ" % cleared,30,INK)
 			if run.is_before_boss():
 				_label(Vector2(44,94),"ボス前の特別報酬：アンコモン以上の武器が出やすい。",17,Color("ffd35b"))
@@ -134,7 +134,7 @@ func _render() -> void:
 				style.set_border_width_all(3 if state != "normal" else 2)
 				skip.add_theme_stylebox_override(state,style)
 		Run.State.PREP:
-			_label(Vector2(44,48),"2層目 %d戦目クリア — 出発の準備" % (run.layer2_stage + 1),30,INK)
+			_label(Vector2(44,48),("1層目クリア — 出発の準備" if run.layer2_stage < 0 else "2層目 %d戦目クリア — 出発の準備" % (run.layer2_stage + 1)),30,INK)
 			_label(Vector2(44,94),"鞘の枠を押すと、鞘の武器と入れ替えられる。次の盤面を見て、準備ができたら出発。",17,sub)
 			var next_scene: PackedScene = Battle.LAYER2_FORMATIONS[run.layer2_stage + 1]
 			var board := BoardPreview.new()
