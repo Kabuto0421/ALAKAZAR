@@ -182,6 +182,16 @@ func _render() -> void:
 			_camp_option(1,"鍛える","武器を1本選び\n動いて攻撃できる\nマスを1つ増やす",Color("ffd35b"),_forge,run.can_forge())
 			_camp_option(2,"妖精のクラスアップ","妖精を1体選び\n効果を強化\n（1体につき1回）",Color("7fe0c8"),_class_up,run.can_class_up())
 			_loadout()
+			if run.camp_stuck():
+				# Nothing can be done here: say so and put the way on in plain sight.
+				_label(Vector2(440,58),"できることはもうありません",17,Color("ffd35b"))
+				var go := _button(Vector2(820,50),Vector2(288,78),"次へ進む",_camp_continue)
+				go.add_theme_color_override("font_color",Color.WHITE)
+				go.add_theme_font_size_override("font_size",40)
+				for state in ["normal","hover","pressed"]:
+					var style := _box(Color("172b2b") if state != "normal" else Color("0c181b"),Color("ffd35b"))
+					style.set_border_width_all(4 if state != "normal" else 3)
+					go.add_theme_stylebox_override(state,style)
 		Run.State.CAMP_FORGE:
 			_label(Vector2(44,48),"鍛える武器を選ぶ",30,INK)
 			_label(Vector2(44,94),"緑のマスのどれか1つが増える（普通の武器は何回でも）。激レアは鍛えられない。",17,sub)
@@ -659,6 +669,10 @@ func _class_up() -> void:
 
 func _forge() -> void:
 	if run.camp_forge():
+		_render()
+
+func _camp_continue() -> void:
+	if run.camp_continue():
 		_render()
 
 func _camp_back() -> void:

@@ -332,6 +332,7 @@ func _initialize() -> void:
 	_heavy_sidestep()
 	_wolf_on_weapon_lines()
 	_web_music_layers()
+	_camp_stuck()
 	_holed_board()
 	_layer2_run()
 	_wheel_fairy()
@@ -3710,3 +3711,27 @@ func _layer2_run() -> void:
 	verify(r.state == Run.State.FINISHED and r.battle.sheathed_weapon == 1,"Clearing the last layer 2 fight ends the run with the sheath intact")
 	r.start()
 	verify(r.layer == 1 and r.battle.sheathed_weapon == -1 and r.battle.layout_override == null,"A new run is back in layer 1")
+
+func _camp_stuck() -> void:
+	var r := Run.new()
+	r.start(3)
+	r.state = Run.State.CAMP
+	r.stage = Run.LAST_NORMAL_STAGE
+	var no_forge := -1
+	for i in Run.Weapons.DATA.size():
+		if not Run.Rarity.can_forge(i):
+			no_forge = i
+			break
+	r.battle.owned_weapons.assign([no_forge])
+	r.battle.fairy_loadout.clear()
+	r.battle.start_hp = Rules.MAX_HP
+	verify(not r.can_forge() and not r.can_class_up() and r.camp_stuck(),"A camp with nothing to do (full HP, nothing to forge or class up) is flagged as stuck")
+	verify(r.camp_continue() and r.state == Run.State.BATTLE and r.stage == Rules.BOSS_LEVEL,"Going on from such a camp leads to the boss fight")
+	var h := Run.new()
+	h.start(4)
+	h.state = Run.State.CAMP
+	h.stage = Run.LAST_NORMAL_STAGE
+	h.battle.owned_weapons.assign([no_forge])
+	h.battle.fairy_loadout.clear()
+	h.battle.start_hp = Rules.MAX_HP - 1
+	verify(not h.camp_stuck() and not h.camp_continue(),"A camp where resting still works is not stuck")
