@@ -2976,7 +2976,7 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_text(Vector2(852,464),"ときどき潜り、影の下に浮上",18,CYAN)
 		_text(Vector2(852,488),"2ダメージ＋ノックバック",18,CYAN)
 		_text(Vector2(852,514),"嵐：S字の雷4本",15,MUTED)
-		_text(Vector2(852,534),"津波：あなた・味方・敵を運ぶ",15,MUTED)
+		_text(Vector2(852,534),"津波：あなた・召喚妖精を運ぶ",15,MUTED)
 		_text(Vector2(852,552),"（嵐鮫と設置物は動かない）",15,MUTED)
 		_draw_threat(enemy,576)
 	else:
@@ -3543,7 +3543,7 @@ func _draw_tsunami_alert() -> void:
 	var text_color := Color(0.6, 1.0, 0.95).lerp(Color.WHITE, flash * fade * 0.6)
 	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(text_color, text_alpha))
 	if move <= 0.0:
-		var note := "あなた・味方・敵が流される"
+		var note := "あなた・召喚妖精が流される"
 		var note_width := ui_font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 		canvas.draw_string(ui_font, Vector2(middle.x - note_width / 2.0, middle.y + 66.0), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.5, (0.6 + 0.4 * flash) * blink))
 		var note2 := "（嵐鮫と設置物は動かない）"
