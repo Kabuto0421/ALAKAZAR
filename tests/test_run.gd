@@ -1264,7 +1264,7 @@ func _class_ups() -> void:
 	tf.fairy_loadout.assign(["time_fairy"])
 	tf.refill_fairies()
 	tf.player.ap = 1
-	verify(tf.fairy_ap_cost("time_fairy") == 1 and tf.fairy_ap_cost("time_fairy", 1) == 0 and tf.use_item("time_fairy", tf.player.cell) and tf.time_stopped() and tf.player.ap == 0,"The time fairy stops time for 1 AP (0 AP once classed up)")
+	verify(tf.fairy_ap_cost("time_fairy") == 0 and tf.fairy_ap_cost("time_fairy", 1) == 0 and tf.use_item("time_fairy", tf.player.cell) and tf.time_stopped() and tf.player.ap == 1,"The time fairy stops time for 0 AP (and stays free once classed up)")
 	var tplanner := Planner.new()
 	var far_cell: Vector2i = far_foe.cell
 	tplanner.begin(tf)
@@ -1292,7 +1292,7 @@ func _class_ups() -> void:
 	var wolf_from: Vector2i = ta.allies[0].cell
 	ta.act_allies()
 	verify(ta.time_stopped() and (ta.allies[0].cell != wolf_from or prey.hp < 9) and prey.hp < 9,"While time stands still the wolf and the acorn still act")
-	verify(tf.fairy_uses("time_fairy", 1) == 1 and tf.fairy_ap_cost("time_fairy", 1) == 0,"Time fairy+: still once per battle, still 0 AP")
+	verify(tf.fairy_uses("time_fairy", 0) == 1 and tf.fairy_uses("time_fairy", 1) == 2 and tf.fairy_ap_cost("time_fairy", 1) == 0,"Time fairy+: twice per battle, 0 AP either way")
 	verify(Run.Rarity.tier({"kind":"fairy","value":"time_fairy"}) == Run.Rarity.SUPER_RARE and Run.new().reward_fairy_pool.has("time_fairy"),"The time fairy is a super rare reward")
 	# Fairy texts read their numbers from the rules: nothing is left unfilled, and the
 	# numbers match the data (so changing a value changes every text that quotes it).
