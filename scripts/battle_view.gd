@@ -1759,6 +1759,12 @@ func _draw_board() -> void:
 				# Each bolt a slightly different yellow, so touching ones still read apart.
 				var tints := [Color(1.0,0.93,0.35), Color(1.0,0.75,0.3), Color(0.95,1.0,0.5), Color(1.0,0.85,0.55)]
 				draw_rect(Rect2(pos,Vector2(64,64)),Color(tints[bolt_index % 4],flick))
+				# Every tile is its own danger: a thin square border and a bolt sign that pulses, offset tile by tile.
+				var beat := 0.5 + 0.5 * sin(clock * 9.0 + x * 1.3 + y * 2.1)
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(1.0,0.9,0.3,0.55+0.3*beat),false,2)
+				var sign_points := PackedVector2Array([pos+Vector2(37,11),pos+Vector2(21,36),pos+Vector2(31,36),pos+Vector2(26,54),pos+Vector2(44,27),pos+Vector2(34,27)])
+				draw_colored_polygon(sign_points,Color(1.0,0.97,0.45,0.5+0.4*beat))
+				draw_polyline(sign_points+PackedVector2Array([sign_points[0]]),Color(0.35,0.2,0.0,0.85),1.5)
 				var edge := Color(1.0,0.97,0.6,0.98)
 				for side in [[Vector2i.UP,pos+Vector2(0,1),pos+Vector2(64,1)],[Vector2i.DOWN,pos+Vector2(0,63),pos+Vector2(64,63)],[Vector2i.LEFT,pos+Vector2(1,0),pos+Vector2(1,64)],[Vector2i.RIGHT,pos+Vector2(63,0),pos+Vector2(63,64)]]:
 					if not bolt.has(cell + side[0]):
