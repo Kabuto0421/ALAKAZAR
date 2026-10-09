@@ -1657,11 +1657,16 @@ func _draw_board() -> void:
 	if model.phase == Rules.Phase.PLAYER and not busy and selected_item.is_empty():
 		if Catalog.is_hammer(model.weapon) and model.targets().has(hover_cell) and not model.enemy_at(hover_cell).is_empty():
 			hammer_zone = model.hammer_area(hover_cell)
+		elif Catalog.is_dagger(model.weapon) and model.combo_boost == model.weapon and model.targets().has(hover_cell) and not model.enemy_at(hover_cell).is_empty():
+			# クロス短剣, boosted by its pair: the blow also lands on the four diagonal tiles round the target.
+			for side in Rules.DIAGONALS:
+				if model.inside(hover_cell + side):
+					hammer_zone.append(hover_cell + side)
 		elif Rules.WEAPONS[model.weapon].id == "bow":
 			bow_zone = model.bow_lines()
 	# Hovering an enemy shows where it could step with one AP.
 	var step_zone: Array[Vector2i] = []
-	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and selected_item.is_empty() and not inventory_ui.opened:
+	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and selected_item.is_empty() and not inventory_ui.opened and hammer_zone.is_empty():
 		step_zone = _enemy_step_cells(model.enemy_at(hover_cell))
 	# Slash spirit: hovering a legal tile shows the two tiles it will cut.
 	var slash_zone: Array[Vector2i] = []
