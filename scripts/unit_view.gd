@@ -771,13 +771,16 @@ func _draw_status() -> void:
 			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
 		_draw_heart(heart_at.call(i),size,Color("ff5b62"),i < hp)
 	if ap_boxes > 0 and kind != "player":
-		# AP under the hearts: small gold boxes, centred like the hearts above them.
+		# AP under the hearts: small gold boxes, centred like the hearts above them (twice the size on the 2x2 bodies).
 		var rows_used := 2 if two_rows else 1
-		var box_y: float = heart_y + (-10.0 * rows_used - 2.0 if hearts_above else 10.0 * (rows_used - 1) + 9.0)
+		var box_scale := 2.0 if span > 1 else 1.0
+		var box_size := Vector2(8, 5) * box_scale
+		var box_step := 9.0 * box_scale
+		var box_y: float = heart_y + (-10.0 * rows_used - 2.0 - box_size.y if hearts_above else 10.0 * (rows_used - 1) + 9.0)
 		for i in range(ap_boxes):
-			var at := Vector2(-(ap_boxes * 9.0 - 1.0) / 2 + i * 9.0, box_y)
-			status_layer.draw_rect(Rect2(at, Vector2(8, 5)), Color("f4d56f"))
-			status_layer.draw_rect(Rect2(at, Vector2(8, 5)), Color("3a2f10"), false, 0.8)
+			var at := Vector2(-(ap_boxes * box_step - 1.0) / 2 + i * box_step, box_y)
+			status_layer.draw_rect(Rect2(at, box_size), Color("f4d56f"))
+			status_layer.draw_rect(Rect2(at, box_size), Color("3a2f10"), false, 0.8 * box_scale)
 	if sparkle_elapsed >= 0.0:
 		_draw_sparkles(heart_at.call(hp - 1))
 	if attack_target:
