@@ -1576,6 +1576,17 @@ func _panel(rect: Rect2) -> void:
 	for corner in [rect.position,rect.position+Vector2(rect.size.x-4,0),rect.end-Vector2(4,4),rect.position+Vector2(0,rect.size.y-4)]:
 		draw_rect(Rect2(corner,Vector2(4,4)),Color("829081"))
 
+## An outline round the tiles each 2x2 enemy covers, so its whole body reads as one unit (not while it is
+## under water).
+func _draw_big_outlines() -> void:
+	for enemy in model.enemies:
+		if int(enemy.get("size",1)) < 2 or enemy.hp <= 0 or enemy.get("diving",false):
+			continue
+		var side: float = TILE * int(enemy.size)
+		var rect := Rect2(BOARD + Vector2(enemy.cell) * TILE, Vector2.ONE * side)
+		draw_rect(rect.grow(-2.0), Color(1.0, 0.5, 0.35, 0.10))
+		draw_rect(rect.grow(-2.0), Color(1.0, 0.5, 0.35, 0.9), false, 3.0)
+
 func _draw() -> void:
 	draw_rect(Rect2(0,0,1152,720),Color("070b0d"))
 	for x in range(0,1152,24):
@@ -1588,6 +1599,7 @@ func _draw() -> void:
 	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
 	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_board()
+	_draw_big_outlines()
 	_draw_storm_frame()
 	_draw_player_panel()
 	_draw_weapons()
