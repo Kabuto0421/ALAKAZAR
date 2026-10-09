@@ -333,6 +333,7 @@ func _initialize() -> void:
 	_wolf_on_weapon_lines()
 	_web_music_layers()
 	_camp_stuck()
+	_wheel_rider_attacked()
 	_wheel_fairy()
 	_cross_daggers()
 	_holy_detours()
@@ -3650,3 +3651,30 @@ func _camp_stuck() -> void:
 	h.battle.fairy_loadout.clear()
 	h.battle.start_hp = Rules.MAX_HP - 1
 	verify(not h.camp_stuck() and not h.camp_continue(),"A camp where resting still works is not stuck")
+
+## Riding the wheel must not shield the player: enemies still attack, and the "!" still shows.
+func _wheel_rider_attacked() -> void:
+	for kind in ["infantry", "heavy", "executioner", "shield", "analyst", "gold", "silver"]:
+		var damage := {}
+		var marks := {}
+		for ride in [false, true]:
+			var m := Rules.new()
+			m.reset(2)
+			m.enemies.clear()
+			m.obstacles.clear()
+			m.mines.clear()
+			m.player.cell = Vector2i(2, 2)
+			m.enemies.append(m.make_enemy(kind, Vector2i(3, 2), 0))
+			m.phase = Rules.Phase.PLAYER
+			if ride:
+				m.place_wheel(Vector2i(2, 2))
+				m.wheel_cell()
+			marks[ride] = ThreatPreview.attackers(m).size()
+			var planner := Planner.new()
+			var before: int = m.player.hp
+			planner.begin(m)
+			for beat in planner.beat_count(m):
+				planner.beat(m, beat)
+			planner.finish(m)
+			damage[ride] = before - m.player.hp
+		verify(marks[true] == marks[false] and damage[true] == damage[false] and damage[true] > 0,"Riding the wheel changes neither the %s's attack nor its \"!\" mark" % kind)
