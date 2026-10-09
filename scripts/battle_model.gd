@@ -794,7 +794,8 @@ func enemy_blocked(cell: Vector2i) -> bool:
 	return _walled(cell) or cat_zone_at(cell)
 
 func _walled(cell: Vector2i) -> bool:
-	return blocked(cell) or wheel_cell() == cell or dive_reserved(cell)
+	# The wheel under the player is no wall to an attacker: only an empty wheel keeps enemies off.
+	return blocked(cell) or (wheel_cell() == cell and cell != player.cell) or dive_reserved(cell)
 
 ## Whether `enemy` may step onto `cell`: the cat's field is shut to it, except that one already
 ## standing in the field moves freely in it (so it can run all the way out).
