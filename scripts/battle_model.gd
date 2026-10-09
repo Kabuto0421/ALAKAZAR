@@ -1104,24 +1104,24 @@ func turn_to(_direction_index: int) -> bool:
 	return false
 
 ## Why a weapon cannot be used right now: "" when it can, else "移動できない" (no tile it can move to
-## or strike) or "攻撃できない" (the bow, which only strikes, has nobody in its lines). Judged by trying
-## each tile on a copy, so it follows the real rules. With no AP left nothing is judged (the turn is over).
+## or strike). Judged by trying each tile on a copy, so it follows the real rules. With no AP left
+## nothing is judged (the turn is over). The bow is never judged: it can be taken up with nobody in
+## its lines, to aim a fairy along them.
 func weapon_stuck_reason(index: int) -> String:
 	if phase != Phase.PLAYER or player.ap <= 0 or not owned_weapons.has(index):
 		return ""
-	var bow: bool = WEAPONS[index].get("ranged","") == "bishop"
+	if WEAPONS[index].get("ranged","") == "bishop":
+		return ""
 	var probe: RefCounted = clone()
 	probe.weapon = index
 	for cell in probe.targets():
 		# A free tile is always a legal move; a tile with someone on it needs the real attempt.
 		if probe.enemy_at(cell).is_empty() and probe.cannon_at(cell).is_empty() and not probe.blocked(cell):
-			if not bow:
-				return ""
-			continue
+			return ""
 		var trial: RefCounted = probe.clone()
 		if trial.player_action(cell):
 			return ""
-	return "攻撃できない" if bow else "移動できない"
+	return "移動できない"
 
 func equip(index: int) -> bool:
 	if phase != Phase.PLAYER or not owned_weapons.has(index):

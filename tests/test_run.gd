@@ -73,6 +73,7 @@ func _initialize() -> void:
 	m.walls[Vector2i(0,1)]=1
 	verify(m.weapon_stuck_reason(1)=="移動できない","Backward weapon with a wall behind cannot move")
 	m.walls.erase(Vector2i(0,1))
+	verify(m.weapon_stuck_reason(25)=="","The bow is never judged stuck (it can still aim a fairy along its lines)")
 	m.player.ap=0
 	verify(m.weapon_stuck_reason(1)=="","Nothing is judged once the AP is gone")
 	m.player.ap=2
