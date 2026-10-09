@@ -3510,7 +3510,7 @@ func _draw_tsunami_alert() -> void:
 	if model == null or model.storm.get("wind", Vector2i.ZERO) == Vector2i.ZERO or model.storm.get("wave", []).is_empty():
 		return
 	var age := clock - tsunami_alert_start
-	if age >= TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE:
+	if age >= TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE or tsunami_alert_round != model.round_number:
 		return
 	var canvas := tsunami_layer
 	var label_at: Vector2 = BOARD + Vector2(0, -16)
@@ -3589,6 +3589,10 @@ func _draw_tsunami() -> void:
 	# Each new turn the direction is announced as an alert in the middle of the board (the way Rotorick's
 	# reel is), and then the words slide up to the corner where they stay. The alert is drawn on a layer
 	# above the units, so the shark cannot hide it.
+	# Not while the shark makes its entrance (its title card is on the board then): the alert waits for the end.
+	if shark_intro or shark_title_t >= 0.0:
+		tsunami_alert_round = -1
+		return
 	if tsunami_alert_round != model.round_number:
 		tsunami_alert_round = model.round_number
 		tsunami_alert_start = clock
