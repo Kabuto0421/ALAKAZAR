@@ -992,8 +992,17 @@ static func _region(texture: Texture2D, source: Rect2, cell: Vector2, alpha: flo
 		return
 	cv.draw_texture_rect_region(texture, Rect2(cell * C + Vector2.ONE * 2, Vector2.ONE * (C - 4)), source, Color(1,1,1,alpha))
 
+## The wolf's drawn frames, shrunk once with a proper filter: the sheet is 5x larger than a tile, and
+## the screen's own shrinking turned its legs and wings to mush.
+static var wolf_frames := {}
+
 static func _wolf_art(cell: Vector2, facing: int) -> void:
-	_region(Units.WOLF_SHEET, Rect2(facing * 256 + 32, 36, 192, 192), cell)
+	if not wolf_frames.has(facing):
+		var picture: Image = Units.WOLF_SHEET.get_image().get_region(Rect2i(facing * 256 + 32, 36, 192, 192))
+		picture.resize(96, 96, Image.INTERPOLATE_LANCZOS)
+		wolf_frames[facing] = ImageTexture.create_from_image(picture)
+	var frame: Texture2D = wolf_frames[facing]
+	cv.draw_texture_rect(frame, Rect2(cell * C + Vector2.ONE * 2, Vector2.ONE * (C - 4)), false)
 
 ## A soldier, facing left towards the player's side.
 static func _enemy(cell: Vector2, alpha: float = 1.0, scale: float = 1.0) -> void:
