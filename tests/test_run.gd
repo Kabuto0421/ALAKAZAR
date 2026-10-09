@@ -586,6 +586,14 @@ func _mid_weapons() -> void:
 	var W := Run.Weapons
 	var hammer: int = W.DATA.map(func(d): return d.id).find("hammer")
 	var bow: int = W.DATA.map(func(d): return d.id).find("bow")
+	var plain_hammer := -1
+	var big_hammer := -1
+	for i in W.DATA.size():
+		if W.DATA[i].id == "hammer":
+			plain_hammer = i
+		if W.DATA[i].id == "cross_hammer":
+			big_hammer = i
+	verify(plain_hammer >= 0 and not W.horizontal_only(plain_hammer) and not W.horizontal_only(big_hammer),"Both hammers can be offered as rewards (they are not left/right-only weapons)")
 	verify(W.is_mid(hammer) and W.is_mid(bow) and not W.single_pool().has(hammer) and not W.single_pool().has(bow),"Hammer and bow never drop early")
 	# Hammer: pawn move, 1 damage, a cross-shaped blow; forged it hits for 2 and shakes the wide area.
 	var m := fixture()
