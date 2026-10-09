@@ -64,6 +64,18 @@ func _initialize() -> void:
 	verify(m.equip(0) and m.player.ap==0,"Switching remains free with no AP")
 	verify(not m.equip(11),"Unowned weapons cannot be equipped")
 	m.player.ap=2
+	# A weapon with nowhere to move or strike is reported (backward weapon at the left edge; blocked by a wall / an ally)
+	m.equip(0)
+	m.player.cell=Vector2i(0,1)
+	verify(m.weapon_stuck_reason(1)=="移動できない" and m.weapon_stuck_reason(0)=="","Backward weapon at the left edge cannot move; the forward one can")
+	m.player.cell=Vector2i(1,1)
+	verify(m.weapon_stuck_reason(1)=="","Backward weapon with room behind is usable")
+	m.walls[Vector2i(0,1)]=1
+	verify(m.weapon_stuck_reason(1)=="移動できない","Backward weapon with a wall behind cannot move")
+	m.walls.erase(Vector2i(0,1))
+	m.player.ap=0
+	verify(m.weapon_stuck_reason(1)=="","Nothing is judged once the AP is gone")
+	m.player.ap=2
 	m.inventory.acorn_fairy=0
 	m.fairy_charges[0]=0
 	m.enemies.clear()
