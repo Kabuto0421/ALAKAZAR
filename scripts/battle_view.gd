@@ -485,7 +485,11 @@ func _equip(index: int) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
 	if model.equip(index):
-		_cancel_item()
+		# A fairy picked before the weapon stays picked: only its reach (the new weapon's range) changes.
+		if selected_item.is_empty():
+			_cancel_item()
+		else:
+			_update_controls()
 		selected_weapon = index
 		selected_enemy_id = -2
 		show_history = false

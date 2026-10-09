@@ -141,6 +141,10 @@ func run() -> void:
 	view._update_controls()
 	click(view.inventory_ui.quick_buttons[0])
 	verify(view.selected_item=="acorn_fairy" and view.model.player.ap==2,"Fairy selection does not consume AP")
+	click(view.weapon_buttons[1])
+	verify(view.selected_item=="acorn_fairy" and view.model.weapon==1,"Switching weapon keeps the selected fairy (only its reach follows the new weapon)")
+	click(view.weapon_buttons[0])
+	verify(view.selected_item=="acorn_fairy" and view.model.weapon==0,"... and back again")
 	view._act(Vector2i(1,2))
 	await create_timer(0.25).timeout
 	verify(view.model.allies.size()==1 and view.model.fairy_charges==[0] and view.model.player.ap==1,"Acorn placement commits once for 1AP")
