@@ -224,7 +224,7 @@ static func is_boss_reward(index: int) -> bool:
 ## Only moves left/right: the starting forward/backward pair already covers that
 ## (knockback weapons earn their place by the shove).
 static func horizontal_only(index: int) -> bool:
-	var special: bool = int(DATA[index].get("knockback", 0)) > 0 or DATA[index].has("slide") or DATA[index].has("charge") or DATA[index].has("hammer")
+	var special: bool = int(DATA[index].get("knockback", 0)) > 0 or DATA[index].has("slide") or DATA[index].has("charge") or is_hammer(index)
 	return DATA[index].offsets.all(func(o: Vector2i) -> bool: return o.y == 0) and not special
 
 ## Early weapons other than the starting forward/backward pair.
