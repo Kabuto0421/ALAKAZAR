@@ -1738,15 +1738,19 @@ func _draw_board() -> void:
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,lit))
 				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1,0.86,0.45,0.5),false,1)
 			if dive_cells.has(cell):
-				# The shark's shadow: a pulsing holographic grid.
-				var pulse := 0.28 + 0.12 * sin(clock * 6.0)
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.3,1.0,0.95,pulse))
-				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(0.6,1.0,1.0,0.8),false,2)
-				for k in range(1,4):
-					draw_line(pos+Vector2(2,k*16),pos+Vector2(62,k*16),Color(0.6,1.0,1.0,0.25),1)
-					draw_line(pos+Vector2(k*16,2),pos+Vector2(k*16,62),Color(0.6,1.0,1.0,0.25),1)
-				if dive_core.has(cell):
-					draw_rect(Rect2(pos+Vector2(6,6),Vector2(52,52)),Color(1.0,0.45,0.5,0.35+0.2*sin(clock*9.0)))
+				# Where the shark will come up: every tile is a red warning, the tiles its body lands on the worst.
+				var core: bool = dive_core.has(cell)
+				var throb := 0.5 + 0.5 * sin(clock * (11.0 if core else 7.0) + (0.0 if core else x * 0.9 + y * 0.9))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1.0,0.1,0.15,(0.45 if core else 0.3)+0.25*throb))
+				draw_rect(Rect2(pos+Vector2(2,2),Vector2(60,60)),Color(1.0,0.3,0.3,0.7+0.3*throb),false,5 if core else 3)
+				# A red "!" on each tile (the bar and the dot), bolder on the landing tiles.
+				var mark_color := Color(1.0,0.2,0.22,0.8+0.2*throb) if core else Color(1.0,0.4,0.4,0.55+0.4*throb)
+				var bar_w := 9.0 if core else 6.0
+				draw_rect(Rect2(pos+Vector2(32.0-bar_w/2.0,14),Vector2(bar_w,24)),mark_color)
+				draw_rect(Rect2(pos+Vector2(32.0-bar_w/2.0,43),Vector2(bar_w,bar_w)),mark_color)
+				if core:
+					draw_rect(Rect2(pos+Vector2(32.0-bar_w/2.0,14),Vector2(bar_w,24)),Color(0.3,0.0,0.03,0.9),false,1.5)
+					draw_rect(Rect2(pos+Vector2(32.0-bar_w/2.0,43),Vector2(bar_w,bar_w)),Color(0.3,0.0,0.03,0.9),false,1.5)
 			if storm_marks.has(cell):
 				# Lightning is coming: the tiles of the bolt glow, and only the bolt's outline is drawn.
 				var flick := 0.34 + 0.14 * sin(clock * 12.0 + x * 1.7 + y)
@@ -2980,6 +2984,15 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat_at_zone(cell).turns), "state": "", "lines": ["敵は入れず、避けて動く", "（中の敵は出て行く）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
+	# Hazard tiles of the bosses: the shark's coming surface, the marked lightning, the marked burning floor.
+	for enemy in model.enemies:
+		if enemy.get("diving", false) and enemy.hp > 0 and enemy.dive_area.has(cell):
+			var landing: bool = model.footprint({"cell":enemy.dive_anchor, "size":2}).has(cell)
+			return {"title": "浮上の危険マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "嵐鮫の体が出てくるマス" if landing else "浮上の衝撃が届くマス", "lines": ["潜った嵐鮫が次の敵ターンに", "ここから浮上する", "いると%dダメージ＋ノックバック" % Rules.DIVE_DAMAGE, "体が出るマスは特に危険"], "color": Color("ff5b62")}
+	if model.storm.get("marks", []).has(cell):
+		return {"title": "落雷の予告マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに雷が落ちる", "立っていると1ダメージ", "雷は4本、それぞれS字の4マス"], "color": Color("ffe45a")}
+	if model.floor_cells.has(cell):
+		return {"title": "燃える床の予告", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに床が燃える", "立っていると1ダメージ", "敵や味方も巻き込まれる"], "color": Color("ff8b3a")}
 	if model.circle_tiles.has(cell):
 		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
 	return {}
@@ -2993,7 +3006,7 @@ func _draw_placed_inspector(info: Dictionary) -> void:
 		SpiritIcon.paint(self,Vector2(880,128),item.icon,0.8)
 		x = 912.0
 	_text(Vector2(x,140),title,26,color)
-	_text(Vector2(852,187),"設置物",18,MUTED)
+	_text(Vector2(852,187),info.get("kind","設置物"),18,MUTED)
 	if int(info.turns) > 0:
 		_text(Vector2(930,187),"あと%dターン" % int(info.turns),20,GOLD)
 	var y := 240.0
