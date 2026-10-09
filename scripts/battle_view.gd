@@ -3207,7 +3207,9 @@ func _draw_flashes() -> void:
 				draw_string_outline(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, 6, Color(0.05, 0.03, 0.02, 1.0 - rise))
 				draw_string(ui_font, pos + Vector2(-4, -20 - rise * 18), "−1", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(BUMP, 1.0 - rise))
 			continue
-		var on_enemy: bool = effect.kind in ["hit", "weapon_hit"] and int(effect.get("id", -2)) >= 0
+		# Every blow that lands on someone (an enemy, you or an ally) is drawn the way a sword hit on an
+		# enemy is: the white flash, the burst, and the big number.
+		var on_enemy: bool = (effect.kind in ["hit", "weapon_hit"] or effect.kind == "mine") and int(effect.get("id", -2)) != -2
 		if on_enemy:
 			_draw_enemy_hit(effect, fade)
 			continue
@@ -3239,9 +3241,10 @@ func _draw_enemy_hit(effect: Dictionary, fade: float) -> void:
 		var from := center + Vector2.from_angle(angle) * size * (0.18 + 0.3 * burst)
 		var to := center + Vector2.from_angle(angle) * size * (0.3 + 0.55 * burst)
 		draw_line(from, to, Color(1, 0.85, 0.45, fade) if k % 2 == 0 else Color(1, 1, 1, fade), 2.0 + span * 0.5)
-	if effect.kind != "weapon_hit":
+	# Only a mine keeps its own burst picture: every other blow looks like a sword hit.
+	if effect.kind == "mine":
 		var art := maxf(TILE, 64.0) * (0.8 + 0.4 * span)
-		draw_texture_rect_region(EFFECTS,Rect2(center-Vector2.ONE*art/2,Vector2.ONE*art),Rect2(16*24,0,24,24),Color(1,1,1,fade))
+		draw_texture_rect_region(EFFECTS,Rect2(center-Vector2.ONE*art/2,Vector2.ONE*art),Rect2(16*24,(1 if effect.kind == "mine" else 0)*24,24,24),Color(1,1,1,fade))
 	var amount := int(effect.get("damage", int(effect.get("hp_before", 1)) - int(effect.get("hp", 0)) if effect.has("hp_before") else 1))
 	if amount >= Rules.CIRCLE_DAMAGE:
 		_draw_big_damage(center, fade, amount)
