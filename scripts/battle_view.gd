@@ -902,6 +902,7 @@ func _sync_units(animate: bool) -> void:
 			actors[id] = actor
 		var view: Node2D = actors[id]
 		view.hp = _shown_hp(id, unit.hp)
+		view.ap_boxes = _ap_boxes(unit) if id >= 0 else 0
 		view.holo_goal = 0.0 if unit.get("diving", false) else 1.0
 		# "!" on enemies about to hit the player, and on a glutton about to bite them.
 		view.charge_warning = id != -1 and threats.has(id)
@@ -1259,6 +1260,27 @@ func _preview_enemy() -> Dictionary:
 	# Rotorick's shadow can be walked through, but hovering still explains it.
 	return enemy if not enemy.is_empty() else model.shadow_at(hover_cell)
 
+## The AP an enemy has each turn, as the boxes under its hearts and in its info (an awakened jester's
+## AP is 3 for good; Rotorick gains one on reel 7).
+func _ap_boxes(enemy: Dictionary) -> int:
+	if not Rules.TYPES.has(enemy.type):
+		return 0
+	var type: Dictionary = Rules.TYPES[enemy.type]
+	var base_ap: int = Rules.JESTER_AWAKE_AP if enemy.type == "jester" and enemy.get("awake", false) else int(type.ap)
+	return base_ap + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
+
+## Where a hovered enemy could step with one AP (its plain move tiles; the bosses with their own
+## ways of moving show none).
+func _enemy_step_cells(enemy: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if enemy.is_empty() or enemy.type in ["rook","prison","shadow","storm_shark","slot","king","fortress"] or int(enemy.get("size",1)) > 1:
+		return result
+	for offset in model.enemy_offsets(enemy):
+		var cell: Vector2i = enemy.cell + offset
+		if model.inside(cell) and not model.enemy_blocked(cell) and cell != model.player.cell and model.enemy_at(cell).is_empty() and not model.mines.has(cell):
+			result.append(cell)
+	return result
+
 func _enemy_moves(enemy: Dictionary) -> Array[Vector2i]:
 	if enemy.is_empty():
 		return []
@@ -1608,6 +1630,10 @@ func _draw_board() -> void:
 			hammer_zone = model.hammer_area(hover_cell)
 		elif Rules.WEAPONS[model.weapon].id == "bow":
 			bow_zone = model.bow_lines()
+	# Hovering an enemy shows where it could step with one AP.
+	var step_zone: Array[Vector2i] = []
+	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and selected_item.is_empty() and not inventory_ui.opened:
+		step_zone = _enemy_step_cells(model.enemy_at(hover_cell))
 	# Slash spirit: hovering a legal tile shows the two tiles it will cut.
 	var slash_zone: Array[Vector2i] = []
 	if selected_item == "slash_fairy" and model.item_targets("slash_fairy").has(hover_cell):
@@ -1660,6 +1686,9 @@ func _draw_board() -> void:
 					draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
 			if bow_zone.has(cell):
 				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
+			if step_zone.has(cell):
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CYAN,0.22))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CYAN,0.85),false,2)
 			if slash_zone.has(cell):
 				var zone_color: Color = model.item_definition(selected_item if selected_item != "" else "slash_fairy").color
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(zone_color,0.3))
