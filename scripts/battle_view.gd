@@ -1269,11 +1269,22 @@ func _ap_boxes(enemy: Dictionary) -> int:
 	var base_ap: int = Rules.JESTER_AWAKE_AP if enemy.type == "jester" and enemy.get("awake", false) else int(type.ap)
 	return base_ap + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 
-## Where a hovered enemy could step with one AP (its plain move tiles; the bosses with their own
-## ways of moving show none).
+## Where a hovered enemy could step with one AP (its plain move tiles; the big prison and shark show the
+## tiles their body would newly cover; the other bosses show none).
 func _enemy_step_cells(enemy: Dictionary) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	if enemy.is_empty() or enemy.type in ["rook","prison","shadow","storm_shark","slot","king","fortress"] or int(enemy.get("size",1)) > 1:
+	if enemy.is_empty() or enemy.get("diving", false):
+		return result
+	if enemy.type in ["prison", "storm_shark"]:
+		# The 2x2 bodies step one tile in a straight line: the tiles the body would newly cover.
+		for direction in Rules.CARDINALS:
+			var front: Array = model._front_cells(enemy, direction)
+			var free: bool = front.all(func(c: Vector2i) -> bool: return model.inside(c) and not model.enemy_blocked(c) and not model.mines.has(c) and model.enemy_at(c).is_empty() and c != model.player.cell)
+			if free:
+				for c in front:
+					result.append(c)
+		return result
+	if enemy.type in ["rook","shadow","slot","king","fortress"] or int(enemy.get("size",1)) > 1:
 		return result
 	for offset in model.enemy_offsets(enemy):
 		var cell: Vector2i = enemy.cell + offset
