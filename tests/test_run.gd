@@ -3691,7 +3691,7 @@ func _layer2_run() -> void:
 	r.depart()
 	verify(r.state == Run.State.BATTLE and r.layer2_stage == 1,"Departing starts the next fight")
 	var fights := 2
-	while fights <= 3 and r.state == Run.State.BATTLE:
+	while fights <= Rules.LAYER2_FORMATIONS.size() and r.state == Run.State.BATTLE:
 		verify(r.battle.holes.size() > 0,"Fight %d of layer 2 has holes" % fights)
 		r.battle.enemies.clear()
 		r.battle.phase = Rules.Phase.WON
