@@ -2027,6 +2027,14 @@ func _draw_board() -> void:
 			_draw_big_ghost(item_origin,aim)
 		elif model.item_targets(selected_item).has(hover_cell):
 			_draw_big_ghost(hover_cell,Vector2i.RIGHT)
+	elif _shows_fairy_ghost():
+		# A fairy about to be put down: its silhouette on the tile under the cursor (the way the 2x2
+		# fairies show theirs), so it reads that a fairy is picked.
+		var item: Resource = model.item_definition(selected_item)
+		var middle := _center(hover_cell)
+		var side := TILE * 0.95
+		_dashed_rect(Rect2(middle - Vector2.ONE * (TILE / 2.0 - 4.0), Vector2.ONE * (TILE - 8.0)), item.color, 3)
+		draw_texture_rect(item.icon, Rect2(middle - Vector2.ONE * side / 2.0, Vector2.ONE * side), false, Color(1, 1, 1, 0.72))
 	if item_origin != Vector2i(-1,-1):
 		if selected_item == "vane_cannon":
 			_draw_turn_hint(_center(item_origin),aim)
@@ -2244,7 +2252,7 @@ func _draw_weapons() -> void:
 	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
 		# Shrinks to fit left of the info panel (it used to run under it).
-		var swap_hint := "別の武器＝届く範囲が変わる／今の武器＝妖精をやめる" if not selected_item.is_empty() else "タップ・JKL・ホイールで装備 0AP"
+		var swap_hint := "別の武器＝範囲変更／同じ武器＝妖精をやめる" if not selected_item.is_empty() else "タップ・JKL・ホイールで装備 0AP"
 		var hint_size := 18
 		while hint_size > 13 and _text_width(swap_hint,hint_size) > 268:
 			hint_size -= 1
@@ -2355,6 +2363,15 @@ func _draw_weapons() -> void:
 			else:
 				draw_rect(rect,Color(0,0,0,0.62))
 				_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
+
+## True while a fairy that is set down on a tile is picked and the cursor is over a tile it can go on.
+func _shows_fairy_ghost() -> bool:
+	if selected_item.is_empty() or busy or item_origin != Vector2i(-1,-1) or Rules.BIG_FAIRIES.has(selected_item):
+		return false
+	var item: Resource = model.item_definition(selected_item)
+	if item == null or item.icon == null or item.target == Rules.ItemDefinition.Target.SELF:
+		return false
+	return model.inside(hover_cell) and model.item_targets(selected_item).has(hover_cell)
 
 ## A 2x2 fairy about to be placed: its sprite over the block it would take.
 func _draw_big_ghost(cell: Vector2i, direction: Vector2i) -> void:
