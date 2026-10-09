@@ -2976,8 +2976,9 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_text(Vector2(852,464),"ときどき潜り、影の下に浮上",18,CYAN)
 		_text(Vector2(852,488),"2ダメージ＋ノックバック",18,CYAN)
 		_text(Vector2(852,514),"嵐：S字の雷4本",15,MUTED)
-		_text(Vector2(852,534),"津波：盤面の全員を運ぶ",15,MUTED)
-		_draw_threat(enemy,560)
+		_text(Vector2(852,534),"津波：あなた・味方・敵を運ぶ",15,MUTED)
+		_text(Vector2(852,552),"（嵐鮫と設置物は動かない）",15,MUTED)
+		_draw_threat(enemy,576)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,476),"壊すと執行兵が2体出る",19,CYAN)
@@ -3520,23 +3521,34 @@ func _draw_tsunami_alert() -> void:
 	move = move * move * (3.0 - 2.0 * move)
 	var flash := 0.5 + 0.5 * sin(clock * 14.0)
 	var fade := 1.0 - move
+	# For the first moments the whole alert strobes (a few quick blinks), then it holds steady.
+	var blink := 1.0
+	if age < 0.9:
+		blink = 1.0 if sin(age * 44.0) > -0.2 else 0.3
 	# The alert band: dark water with flashing cyan stripes above and below.
 	var band := Rect2(BOARD.x, middle.y - 110.0, extent.x, 220.0)
-	canvas.draw_rect(band, Color(0.01, 0.06, 0.1, 0.86 * fade))
-	var stripe := Color(0.4, 1.0, 1.0, (0.5 + 0.5 * flash) * fade)
+	canvas.draw_rect(band, Color(0.01, 0.06, 0.1, 0.86 * fade * blink))
+	var stripe := Color(0.4, 1.0, 1.0, (0.5 + 0.5 * flash) * fade * blink)
 	canvas.draw_rect(Rect2(band.position, Vector2(band.size.x, 6.0)), stripe)
 	canvas.draw_rect(Rect2(band.position + Vector2(0, band.size.y - 6.0), Vector2(band.size.x, 6.0)), stripe)
+	if age < 0.9 and blink >= 1.0:
+		canvas.draw_rect(Rect2(BOARD, extent), Color(0.5, 1.0, 1.0, 0.12 * fade))
 	var big_size := 120
 	var big_width := ui_font.get_string_size(tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, big_size).x
 	var start_at := Vector2(middle.x - big_width / 2.0, middle.y + 20.0)
 	var at := start_at.lerp(label_at, move)
 	var size := int(lerpf(float(big_size), 56.0, move))
-	canvas.draw_string_outline(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(0.02, 0.1, 0.12, 0.95))
-	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.6, 1.0, 0.95).lerp(Color.WHITE, flash * fade * 0.6))
+	var text_alpha := 1.0 if move > 0.0 else blink
+	canvas.draw_string_outline(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(0.02, 0.1, 0.12, 0.95 * text_alpha))
+	var text_color := Color(0.6, 1.0, 0.95).lerp(Color.WHITE, flash * fade * 0.6)
+	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(text_color, text_alpha))
 	if move <= 0.0:
-		var note := "盤面の全員が流される"
+		var note := "あなた・味方・敵が流される"
 		var note_width := ui_font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-		canvas.draw_string(ui_font, Vector2(middle.x - note_width / 2.0, middle.y + 78.0), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.5, 0.6 + 0.4 * flash))
+		canvas.draw_string(ui_font, Vector2(middle.x - note_width / 2.0, middle.y + 66.0), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.5, (0.6 + 0.4 * flash) * blink))
+		var note2 := "（嵐鮫と設置物は動かない）"
+		var note2_width := ui_font.get_string_size(note2, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+		canvas.draw_string(ui_font, Vector2(middle.x - note2_width / 2.0, middle.y + 96.0), note2, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.8, 0.9, 0.9, 0.85 * blink))
 
 const TSUNAMI_ALERT_HOLD := 1.4
 const TSUNAMI_ALERT_MOVE := 0.6
