@@ -128,6 +128,12 @@ func run() -> void:
 	verify(view.actors[-1].facing==1 and view.model.enemies.all(func(e): return view.actors[e.id].facing==3),"Player faces right and enemy sprites face left")
 	verify(not view.model.turn_to(0),"Rotation and paid equip buttons were removed")
 	verify(view.inventory_ui.quick_buttons[0].position.x==24 and view.weapon_buttons[0].position.y>=620,"Fairies are on the left; weapons moved below board")
+	# At the left edge the backward weapon has nowhere to go: it is greyed out and cannot be taken up.
+	click(view.weapon_buttons[1])
+	verify(view.model.weapon==0 and view.stuck_reasons.get(1,"")=="移動できない","A backward weapon at the left edge cannot be equipped, and says why")
+	view.model.player.cell=Vector2i(1,1)
+	view._update_controls()
+	verify(not view.stuck_reasons.has(1),"...and is usable once there is room behind")
 	click(view.weapon_buttons[1])
 	verify(view.model.weapon==1 and view.model.player.ap==2,"One click equips backward weapon without AP")
 	click(view.weapon_buttons[0])
@@ -148,7 +154,7 @@ func run() -> void:
 	click(view.weapon_buttons[0])
 	verify(view.selected_item=="" and view.model.weapon==0,"Pressing the weapon already in hand drops the fairy (back to the weapon)")
 	click(view.inventory_ui.quick_buttons[0])
-	view._act(Vector2i(1,2))
+	view._act(Vector2i(2,1))
 	await create_timer(0.25).timeout
 	verify(view.model.allies.size()==1 and view.model.fairy_charges==[0] and view.model.player.ap==1,"Acorn placement commits once for 1AP")
 	verify(view.inventory_ui.quick_buttons[0].disabled,"Used skill stays visible but cannot be used twice")
@@ -249,6 +255,9 @@ func run() -> void:
 	verify(["king_intro", "king_rage", "king_fall", "rotorick_intro"].all(func(n): return battle.sfx.has(n)),"The boss stings are loaded")
 	# Weapons: J, K, L and the mouse wheel; fairies: 1, 2, 3.
 	var weapon_count: int = battle.model.owned_weapons.size()
+	# (With room on every side, so no weapon is greyed out for having nowhere to go.)
+	battle.model.player.cell=Vector2i(1,2)
+	battle._update_controls()
 	if weapon_count >= 2:
 		var press := func(code: Key) -> void:
 			var key := InputEventKey.new()

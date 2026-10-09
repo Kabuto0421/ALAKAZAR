@@ -486,6 +486,9 @@ func _equip(index: int) -> void:
 		return
 	# Pressing the weapon already in hand while a fairy is picked means "no fairy, the weapon then".
 	var same_weapon: bool = index == model.weapon
+	# A weapon with nowhere to move or strike cannot be taken up.
+	if not same_weapon and model.weapon_stuck_reason(index) != "":
+		return
 	if model.equip(index):
 		# A fairy picked before another weapon stays picked: only its reach (the new weapon's range) changes.
 		if selected_item.is_empty() or same_weapon:
@@ -1219,7 +1222,16 @@ func _cast_circle_fx(event: Dictionary) -> void:
 func _check_achievements() -> void:
 	toast.show_new(Achievements.check(model))
 
+## Weapon index -> why it cannot be used now (see BattleModel.weapon_stuck_reason). Looked up once per
+## change, not once per drawn frame: judging a weapon tries its tiles on copies of the battle.
+var stuck_reasons := {}
+
 func _update_controls() -> void:
+	stuck_reasons.clear()
+	for index in model.owned_weapons:
+		var reason: String = model.weapon_stuck_reason(index)
+		if reason != "":
+			stuck_reasons[index] = reason
 	weapon_effects.visible = not show_rules and not inventory_ui.opened and (not model.terminal() or busy)
 	end_button.disabled = busy or model.phase != Rules.Phase.PLAYER or show_rules or inventory_ui.opened
 	for button in grid_buttons:
@@ -1490,7 +1502,12 @@ func _wheel_weapon(direction: int) -> void:
 	if count < 2 or busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
 	var at: int = model.owned_weapons.find(model.weapon)
-	_equip(model.owned_weapons[posmod(at + direction, count)])
+	# Weapons with nowhere to go are stepped over.
+	for step in range(1, count):
+		var next: int = model.owned_weapons[posmod(at + direction * step, count)]
+		if model.weapon_stuck_reason(next) == "":
+			_equip(next)
+			return
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
@@ -2368,6 +2385,11 @@ func _draw_weapons() -> void:
 			draw_circle(tip,2.5,accent)
 		if forged:
 			SpiritIcon.paint_plus(self,origin+Vector2(side+4,-3),18)
+		var stuck: String = "" if busy else stuck_reasons.get(index,"")
+		if stuck != "" and model.locked_slot < 0:
+			draw_rect(rect,Color(0,0,0,0.62))
+			var stuck_size := 20
+			_text(pos+Vector2((248-_text_width(stuck,stuck_size))/2.0,58),stuck,stuck_size,Color("ff8f8f"))
 		if model.locked_slot >= 0:
 			if slot == model.locked_slot:
 				draw_rect(rect,Color("ffd35b"),false,4)
