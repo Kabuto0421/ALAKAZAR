@@ -3429,6 +3429,45 @@ func _draw_shark_title() -> void:
 
 ## The tsunami's warning: the tiles it will cover washed in cyan, and where each thing it
 ## carries will land (the wave itself rushes over the board when the enemy turn begins: _draw_fx).
+## The alert and its slide to the corner, drawn on the layer above the units.
+func _draw_tsunami_alert() -> void:
+	if model == null or model.storm.get("wind", Vector2i.ZERO) == Vector2i.ZERO or model.storm.get("wave", []).is_empty():
+		return
+	var age := clock - tsunami_alert_start
+	if age >= TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE:
+		return
+	var canvas := tsunami_layer
+	var label_at: Vector2 = BOARD + Vector2(0, -16)
+	var extent := Vector2.ONE * model.board_size * TILE
+	var middle := BOARD + extent / 2.0
+	var move := clampf((age - TSUNAMI_ALERT_HOLD) / TSUNAMI_ALERT_MOVE, 0.0, 1.0)
+	move = move * move * (3.0 - 2.0 * move)
+	var flash := 0.5 + 0.5 * sin(clock * 14.0)
+	var fade := 1.0 - move
+	# The alert band: dark water with flashing cyan stripes above and below.
+	var band := Rect2(BOARD.x, middle.y - 110.0, extent.x, 220.0)
+	canvas.draw_rect(band, Color(0.01, 0.06, 0.1, 0.86 * fade))
+	var stripe := Color(0.4, 1.0, 1.0, (0.5 + 0.5 * flash) * fade)
+	canvas.draw_rect(Rect2(band.position, Vector2(band.size.x, 6.0)), stripe)
+	canvas.draw_rect(Rect2(band.position + Vector2(0, band.size.y - 6.0), Vector2(band.size.x, 6.0)), stripe)
+	var big_size := 120
+	var big_width := ui_font.get_string_size(tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, big_size).x
+	var start_at := Vector2(middle.x - big_width / 2.0, middle.y + 20.0)
+	var at := start_at.lerp(label_at, move)
+	var size := int(lerpf(float(big_size), 56.0, move))
+	canvas.draw_string_outline(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(0.02, 0.1, 0.12, 0.95))
+	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0.6, 1.0, 0.95).lerp(Color.WHITE, flash * fade * 0.6))
+	if move <= 0.0:
+		var note := "盤面の全員が流される"
+		var note_width := ui_font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+		canvas.draw_string(ui_font, Vector2(middle.x - note_width / 2.0, middle.y + 78.0), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.5, 0.6 + 0.4 * flash))
+
+const TSUNAMI_ALERT_HOLD := 1.4
+const TSUNAMI_ALERT_MOVE := 0.6
+var tsunami_alert_round := -1
+var tsunami_layer: Node2D
+var tsunami_label := ""
+var tsunami_alert_start := -100.0
 func _draw_tsunami() -> void:
 	var wave: Array = model.storm.get("wave", [])
 	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
@@ -3471,6 +3510,21 @@ func _draw_tsunami() -> void:
 		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
 	var wave_label: String = "津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, "")
 	var label_at: Vector2 = BOARD + Vector2(0, -16)
+	# Each new turn the direction is announced as an alert in the middle of the board (the way Rotorick's
+	# reel is), and then the words slide up to the corner where they stay. The alert is drawn on a layer
+	# above the units, so the shark cannot hide it.
+	if tsunami_alert_round != model.round_number:
+		tsunami_alert_round = model.round_number
+		tsunami_alert_start = clock
+	if tsunami_layer == null:
+		tsunami_layer = Node2D.new()
+		tsunami_layer.z_index = 6
+		add_child(tsunami_layer)
+		tsunami_layer.draw.connect(_draw_tsunami_alert)
+	tsunami_label = wave_label
+	tsunami_layer.queue_redraw()
+	if clock - tsunami_alert_start < TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE:
+		return
 	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
 	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
 
