@@ -1668,6 +1668,12 @@ func _draw_board() -> void:
 	var step_zone: Array[Vector2i] = []
 	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and selected_item.is_empty() and not inventory_ui.opened and hammer_zone.is_empty():
 		step_zone = _enemy_step_cells(model.enemy_at(hover_cell))
+	# A hovered javelin thrower shows where its spears land (in red).
+	var javelin_zone: Array[Vector2i] = []
+	if model.phase == Rules.Phase.PLAYER and not busy and not show_rules and selected_item.is_empty() and not inventory_ui.opened:
+		var thrower: Dictionary = model.enemy_at(hover_cell)
+		if not thrower.is_empty() and thrower.type == "javelin":
+			javelin_zone = model.javelin_cells(thrower)
 	# Slash spirit: hovering a legal tile shows the two tiles it will cut.
 	var slash_zone: Array[Vector2i] = []
 	if selected_item == "slash_fairy" and model.item_targets("slash_fairy").has(hover_cell):
@@ -1722,6 +1728,11 @@ func _draw_board() -> void:
 					draw_line(pos+Vector2(39,4),pos+Vector2(34,13),Color("494535"),2)
 			if bow_zone.has(cell):
 				draw_circle(pos+Vector2(32,32),5,Color("b7e07a",0.55))
+			if javelin_zone.has(cell):
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff805a",0.25))
+				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color("ff805a",0.9),false,3)
+				draw_line(pos+Vector2(22,22),pos+Vector2(42,42),Color("ff805a"),3)
+				draw_line(pos+Vector2(22,42),pos+Vector2(42,22),Color("ff805a"),3)
 			if step_zone.has(cell):
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CYAN,0.22))
 				draw_rect(Rect2(pos+Vector2(4,4),Vector2(56,56)),Color(CYAN,0.85),false,2)
