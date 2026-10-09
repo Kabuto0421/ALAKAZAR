@@ -110,6 +110,8 @@ var time_stopped := false
 ## A sulking wolf turns its back on the player: true when the player is to its right.
 var sulk_flip := false
 var hp := 5
+## Yellow AP boxes drawn under the hearts (enemies only; 0 draws none).
+var ap_boxes := 0
 var weapon_row := 0
 var facing := 0
 var flash := 0.0
@@ -768,6 +770,14 @@ func _draw_status() -> void:
 			# The new heart pops in.
 			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
 		_draw_heart(heart_at.call(i),size,Color("ff5b62"),i < hp)
+	if ap_boxes > 0 and kind != "player":
+		# AP under the hearts: small gold boxes, centred like the hearts above them.
+		var rows_used := 2 if two_rows else 1
+		var box_y: float = heart_y + (-10.0 * rows_used - 2.0 if hearts_above else 10.0 * (rows_used - 1) + 9.0)
+		for i in range(ap_boxes):
+			var at := Vector2(-(ap_boxes * 9.0 - 1.0) / 2 + i * 9.0, box_y)
+			status_layer.draw_rect(Rect2(at, Vector2(8, 5)), Color("f4d56f"))
+			status_layer.draw_rect(Rect2(at, Vector2(8, 5)), Color("3a2f10"), false, 0.8)
 	if sparkle_elapsed >= 0.0:
 		_draw_sparkles(heart_at.call(hp - 1))
 	if attack_target:
