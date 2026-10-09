@@ -217,7 +217,7 @@ const PLUS_TEXT := {
 	"acorn_fairy": ["HP{hp_plus}・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP{ally_ap}、縦横1マス。\nターン終了後、敵より先に行動。\n隣の大砲は叩いて撃たせる。"],
 	"warp_fairy": ["{cost_plus} APでワープできる", "敵や障害物のないマスへ\nプレイヤーが瞬間移動。\n距離の制限なし。\n着地先の地雷は踏む。"],
 	"wall_fairy": ["{cost_plus} APで・毎戦闘{uses_plus}回・HP{hp_plus}", "攻撃範囲の空きマスに召喚。\nHP{hp_plus}・AP0で動かない壁。\n敵も自分も通れないが、\n敵に殴られると壊れる。"],
-	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、\n何人たりとも傷つけられない。\n周囲5×5が3ターン、\n敵が入れない場所になる。\n中にいる敵は、攻撃より先に\n外へ逃げ出す。"],
+	"cat_fairy": ["毎戦闘{uses_plus}回置ける", "猫は神聖な生き物なので、\n何人たりとも傷つけられない。\n周囲3×3が3ターン、\n敵が入れない場所になる。\n中にいる敵は、攻撃より先に\n外へ逃げ出す。"],
 	"wheel_fairy": ["{cost_plus} APで置ける", "攻撃範囲の空きマスに設置。\n車輪に乗る（その場所へ移動）と、\n乗った次のターンから、消えるまで\nAPが+1される（降りない）。"],
 	"cannon_fairy": ["{cost_plus} APで置ける・毎戦闘{uses_plus}回", "攻撃範囲の空きマスに設置し、\n縦横の向きを決める。\nこのマスを攻撃すると、その\n向きの直線上（射程5マス）の\n敵すべてに1。"],
 	"vane_cannon": ["叩くと2連射になる", "設置してこのマスを攻撃すると\n向きの射程5マスの直線上に\n2連射（各1）。\n撃つたびに向きが時計回りに\n90度回る。他の大砲も誘爆。"],
@@ -755,8 +755,8 @@ static func ally_ap(type: String) -> int:
 func is_directional(id: String) -> bool:
 	return item_definition(id).directional or (id == "slash_fairy" and is_plus(id))
 
-## 猫の妖精's field: the 5x5 around a cat.
-const CAT_RADIUS := 2
+## 猫の妖精's field: the 3x3 around a cat.
+const CAT_RADIUS := 1
 const CAT_TURNS := 3
 func cat_zone_at(cell: Vector2i) -> bool:
 	return not cat_at_zone(cell).is_empty()
@@ -1871,7 +1871,7 @@ func wheel_cell() -> Vector2i:
 func turn_start_ap() -> int:
 	return 2 + (WHEEL_BONUS_AP if riding_wheel() else 0)
 
-## 猫の妖精: for CAT_TURNS turns enemies cannot enter the 5x5 around the cat (those already
+## 猫の妖精: for CAT_TURNS turns enemies cannot enter the 3x3 around the cat (those already
 ## inside spend their moves running out, before anything else). It stops no attack, only movement.
 func place_cat(cell: Vector2i) -> void:
 	cats.append({"cell":cell, "turns":CAT_TURNS})

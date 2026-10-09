@@ -2772,15 +2772,15 @@ func _cat_fairy() -> void:
 	verify(m.fairy_ap_cost("cat_fairy") == 1 and m.fairy_uses("cat_fairy") == 1 and m.fairy_ap_cost("cat_fairy", 1) == 1 and m.fairy_uses("cat_fairy", 1) == 2,"The cat fairy: 1 AP, once a battle; the class-up makes it twice (the AP stays)")
 	verify(Run.Rarity.tier({"kind":"fairy","value":"cat_fairy"}) == Run.Rarity.RARE,"The cat fairy is rare")
 	var spot: Vector2i = m.item_targets("cat_fairy")[0]
-	verify(m.use_item("cat_fairy", spot) and not m.cats.is_empty() and m.cats[0].turns == 3 and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(2,2)) and not m.cat_zone_at(spot + Vector2i(3,0)),"It makes a 5x5 field round the tile")
+	verify(m.use_item("cat_fairy", spot) and not m.cats.is_empty() and m.cats[0].turns == 3 and m.cat_zone_at(spot) and m.cat_zone_at(spot + Vector2i(1,1)) and not m.cat_zone_at(spot + Vector2i(2,0)),"It makes a 3x3 field round the tile")
 	# An enemy beside the field cannot step in.
-	var edge: Vector2i = spot + Vector2i(3,0)
+	var edge: Vector2i = spot + Vector2i(2,0)
 	var foe: Dictionary = m.make_enemy("heavy", edge, 0)
 	m.enemies.append(foe)
 	m.enemies.append(m.make_enemy("heavy", Vector2i(7,7), 1))
 	m.phase = Rules.Phase.ENEMY
 	foe.ap = 1
-	verify(not m.enemy_step(foe, spot + Vector2i(2,0)) and foe.cell == edge,"An enemy cannot step into the field")
+	verify(not m.enemy_step(foe, spot + Vector2i(1,0)) and foe.cell == edge,"An enemy cannot step into the field")
 	m.phase = Rules.Phase.PLAYER
 	# Over a few enemy turns no enemy ends a turn inside it.
 	for turn in 4:
@@ -2800,19 +2800,19 @@ func _cat_fairy() -> void:
 	verify(not twin.use_item("cat_fairy", twin.item_targets("cat_fairy")[0]) if not twin.item_targets("cat_fairy").is_empty() else true,"...but not a third time")
 	# One that stands inside when it appears may leave.
 	var inside := _cat_room()
-	var trapped: Dictionary = inside.make_enemy("heavy", Vector2i(5,3), 0)
+	var trapped: Dictionary = inside.make_enemy("heavy", Vector2i(4,3), 0)
 	inside.enemies.append(trapped)
 	inside.enemies.append(inside.make_enemy("heavy", Vector2i(7,7), 1))
 	inside.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
 	inside.phase = Rules.Phase.ENEMY
 	trapped.ap = 1
-	verify(inside.enemy_step(trapped, Vector2i(6,3)) and trapped.cell == Vector2i(6,3),"An enemy inside the field can walk out of it")
+	verify(inside.enemy_step(trapped, Vector2i(5,3)) and trapped.cell == Vector2i(5,3),"An enemy inside the field can walk out of it")
 	trapped.cell = Vector2i(3,3)
 	trapped.ap = 1
 	verify(inside.enemy_step(trapped, Vector2i(4,3)) and trapped.cell == Vector2i(4,3),"Inside the field, an enemy may move about in it (to run out)")
 	trapped.ap = 2
-	trapped.cell = Vector2i(7,3)
-	verify(inside.enemy_step(trapped, Vector2i(6,3)) and not inside.enemy_step(trapped, Vector2i(5,3)),"...but once outside it cannot step back in")
+	trapped.cell = Vector2i(6,3)
+	verify(inside.enemy_step(trapped, Vector2i(5,3)) and not inside.enemy_step(trapped, Vector2i(4,3)),"...but once outside it cannot step back in")
 	# Every kind of enemy that stands in the field runs out of it.
 	var kinds: Array = Rules.SOLDIERS.duplicate()
 	kinds.append_array(["rook", "prison"])
@@ -2853,7 +2853,7 @@ func _cat_fairy() -> void:
 	var inn := _cat_room()
 	inn.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
 	inn.player.cell = Vector2i(0,0)
-	var inner: Dictionary = inn.make_enemy("infantry", Vector2i(5,3), 0)
+	var inner: Dictionary = inn.make_enemy("infantry", Vector2i(4,3), 0)
 	inn.enemies.append(inner)
 	inn.enemies.append(inn.make_enemy("heavy", Vector2i(7,7), 1))
 	inn.phase = Rules.Phase.ENEMY
@@ -2864,7 +2864,7 @@ func _cat_fairy() -> void:
 	var sealed := _cat_room()
 	sealed.cats.assign([{"cell":Vector2i(3,3), "turns":5}])
 	sealed.player.cell = Vector2i(3,3)
-	var waiting: Dictionary = sealed.make_enemy("infantry", Vector2i(7,3), 0)
+	var waiting: Dictionary = sealed.make_enemy("infantry", Vector2i(6,3), 0)
 	sealed.enemies.append(waiting)
 	sealed.enemies.append(sealed.make_enemy("heavy", Vector2i(7,7), 1))
 	sealed.phase = Rules.Phase.ENEMY
