@@ -997,6 +997,14 @@ func _hit_stop(seconds: float = 0.05) -> void:
 	Engine.time_scale = 0.05
 	get_tree().create_timer(seconds, true, false, true).timeout.connect(func(): Engine.time_scale = 1.0)
 
+## Whether this event is a blow landing on someone right now (damage on anyone, or a mine going off).
+func _blow_lands(event: Dictionary) -> bool:
+	if float(event.get("delay", 0.0)) > 0.0 or int(event.get("id", -2)) == -2:
+		return false
+	if event.kind == "mine":
+		return true
+	return event.kind == "hit" and int(event.get("damage", 1)) > 0
+
 func _feedback(weapon_attack: bool = false) -> void:
 	# A shove counts as a blow too (the knockback weapons deal no damage but hit just as hard).
 	if model.events.any(func(e: Dictionary) -> bool: return (e.kind == "hit" and int(e.id) >= 0 and int(e.get("damage", 1)) > 0 or e.kind == "push") and float(e.get("delay", 0.0)) <= 0.0):
@@ -1009,6 +1017,11 @@ func _feedback(weapon_attack: bool = false) -> void:
 		if sound != "" and not heard.has(sound):
 			heard[sound] = true
 			_sound(sound)
+		# Every other blow that lands (an enemy on you, a fairy on an enemy, a mine) makes the sword's
+		# hit sound too, once per beat (a chain's own links and the bosses' sounds keep theirs).
+		elif sound == "" and not weapon_attack and not casting and not heard.has("blow") and _blow_lands(event):
+			heard["blow"] = true
+			_sound("sword_swing", -3.0)
 		# The meteor's rumble is timed to land with the rock (0.35 s into its fall).
 		if event.kind == "meteor" and not heard.has("meteor") and sfx != null:
 			heard["meteor"] = true
