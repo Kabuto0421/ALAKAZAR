@@ -1609,6 +1609,12 @@ func _draw_big_outlines() -> void:
 ## A pop-up beside the cursor for the hazard tiles: the name, and what happens (the side panel says the same).
 var hover_layer: Node2D
 func _draw_hover_popup() -> void:
+	if model != null and _shows_self_fairy_ghost():
+		# The picked fairy hovers at your shoulder, breathing: pressing yourself uses it.
+		var item: Resource = model.item_definition(selected_item)
+		var side := TILE * 0.7
+		var at := _center(model.player.cell) + Vector2(TILE * 0.3, -TILE * 0.38 + 4.0 * sin(clock * 3.0))
+		hover_layer.draw_texture_rect(item.icon, Rect2(at - Vector2.ONE * side / 2.0, Vector2.ONE * side), false, Color(1, 1, 1, 0.8 + 0.15 * sin(clock * 4.0)))
 	if model == null or model.phase != Rules.Phase.PLAYER or busy or show_rules or not model.inside(hover_cell):
 		return
 	var info := _hazard_at(hover_cell)
@@ -2027,6 +2033,12 @@ func _draw_board() -> void:
 			_draw_big_ghost(item_origin,aim)
 		elif model.item_targets(selected_item).has(hover_cell):
 			_draw_big_ghost(hover_cell,Vector2i.RIGHT)
+	elif _shows_self_fairy_ghost():
+		# A fairy used on yourself: a dashed ring round your own tile (its silhouette floats over you, drawn
+		# on the layer above the units: see _draw_hover_popup).
+		var self_item: Resource = model.item_definition(selected_item)
+		var self_middle := _center(model.player.cell)
+		_dashed_rect(Rect2(self_middle - Vector2.ONE * (TILE / 2.0 - 4.0), Vector2.ONE * (TILE - 8.0)), self_item.color, 3)
 	elif _shows_fairy_ghost():
 		# A fairy about to be put down: its silhouette on the tile under the cursor (the way the 2x2
 		# fairies show theirs), so it reads that a fairy is picked.
@@ -2363,6 +2375,13 @@ func _draw_weapons() -> void:
 			else:
 				draw_rect(rect,Color(0,0,0,0.62))
 				_text(pos+Vector2(70,56),"封印",26,Color("ff5b62"))
+
+## True while a fairy that is used by pressing yourself is picked (it needs no hovering: there is one tile).
+func _shows_self_fairy_ghost() -> bool:
+	if selected_item.is_empty() or busy or item_origin != Vector2i(-1,-1) or Rules.BIG_FAIRIES.has(selected_item):
+		return false
+	var item: Resource = model.item_definition(selected_item)
+	return item != null and item.icon != null and item.target == Rules.ItemDefinition.Target.SELF
 
 ## True while a fairy that is set down on a tile is picked and the cursor is over a tile it can go on.
 func _shows_fairy_ghost() -> bool:
