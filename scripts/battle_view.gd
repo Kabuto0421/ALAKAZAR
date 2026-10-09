@@ -1587,7 +1587,43 @@ func _draw_big_outlines() -> void:
 		draw_rect(rect.grow(-2.0), Color(1.0, 0.5, 0.35, 0.10))
 		draw_rect(rect.grow(-2.0), Color(1.0, 0.5, 0.35, 0.9), false, 3.0)
 
+## A pop-up beside the cursor for the hazard tiles: the name, and what happens (the side panel says the same).
+var hover_layer: Node2D
+func _draw_hover_popup() -> void:
+	if model == null or model.phase != Rules.Phase.PLAYER or busy or show_rules or not model.inside(hover_cell):
+		return
+	var info := _hazard_at(hover_cell)
+	if info.is_empty():
+		return
+	var canvas := hover_layer
+	var color: Color = info.get("color", Color("ff5b62"))
+	var lines: Array = []
+	if str(info.get("state","")) != "":
+		lines.append(str(info.state))
+	lines.append_array(info.lines)
+	var width := 300.0
+	var height := 52.0 + lines.size() * 26.0
+	var cell_rect := Rect2(BOARD + Vector2(hover_cell) * TILE, Vector2.ONE * TILE)
+	var at := Vector2(cell_rect.end.x + 10.0, cell_rect.position.y)
+	if at.x + width > 1128.0:
+		at.x = cell_rect.position.x - 10.0 - width
+	at.y = clampf(at.y, 90.0, 700.0 - height)
+	canvas.draw_rect(Rect2(at + Vector2(4, 5), Vector2(width, height)), Color(0, 0, 0, 0.45))
+	canvas.draw_rect(Rect2(at, Vector2(width, height)), Color(0.04, 0.08, 0.1, 0.96))
+	canvas.draw_rect(Rect2(at, Vector2(width, height)), color, false, 3.0)
+	canvas.draw_string(ui_font, at + Vector2(14, 31), str(info.title), HORIZONTAL_ALIGNMENT_LEFT, -1, 24, color)
+	var y := at.y + 58.0
+	for line in lines:
+		canvas.draw_string(ui_font, Vector2(at.x + 14, y + 14), str(line), HORIZONTAL_ALIGNMENT_LEFT, -1, 17, INK)
+		y += 26.0
+
 func _draw() -> void:
+	if hover_layer == null:
+		hover_layer = Node2D.new()
+		hover_layer.z_index = 7
+		add_child(hover_layer)
+		hover_layer.draw.connect(_draw_hover_popup)
+	hover_layer.queue_redraw()
 	draw_rect(Rect2(0,0,1152,720),Color("070b0d"))
 	for x in range(0,1152,24):
 		draw_line(Vector2(x,0),Vector2(x,720),Color("0d1718"))
@@ -2947,6 +2983,19 @@ func _draw_released_soldier() -> void:
 ## for the inspector: {title, icon (fairy id or ""), turns, state, lines, color}.
 const CANNON_FAIRIES := {"lance": "cannon_fairy", "vane": "vane_cannon", "firework": "firework_fairy", "capacitor": "capacitor_fairy"}
 const DIRECTION_NAMES := {Vector2i.RIGHT: "右", Vector2i.LEFT: "左", Vector2i.UP: "上", Vector2i.DOWN: "下"}
+## The boss hazard tiles (the shark's coming surface, marked lightning, marked burning floor), with the
+## text the side panel and the pop-up beside the cursor both show.
+func _hazard_at(cell: Vector2i) -> Dictionary:
+	for enemy in model.enemies:
+		if enemy.get("diving", false) and enemy.hp > 0 and enemy.dive_area.has(cell):
+			var landing: bool = model.footprint({"cell":enemy.dive_anchor, "size":2}).has(cell)
+			return {"title": "浮上の危険マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "嵐鮫の体が出てくるマス" if landing else "浮上の衝撃が届くマス", "lines": ["潜った嵐鮫が次の敵ターンに", "ここから浮上する", "いると%dダメージ＋ノックバック" % Rules.DIVE_DAMAGE], "color": Color("ff5b62")}
+	if model.storm.get("marks", []).has(cell):
+		return {"title": "落雷の予告マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに雷が落ちる", "立っていると1ダメージ", "雷は4本、それぞれS字の4マス"], "color": Color("ffe45a")}
+	if model.floor_cells.has(cell):
+		return {"title": "燃える床の予告", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに床が燃える", "立っていると1ダメージ", "敵や味方も巻き込まれる"], "color": Color("ff8b3a")}
+	return {}
+
 func _placed_at(cell: Vector2i) -> Dictionary:
 	if not model.inside(cell):
 		return {}
@@ -2984,15 +3033,9 @@ func _placed_at(cell: Vector2i) -> Dictionary:
 		return {"icon": "cat_fairy", "title": "猫のフィールド", "turns": int(model.cat_at_zone(cell).turns), "state": "", "lines": ["敵は入れず、避けて動く", "（中の敵は出て行く）", "攻撃は止めない"]}
 	if not model.blessing.is_empty() and model.blessed(cell):
 		return {"icon": "blessing_fairy", "title": "加護の地", "turns": int(model.blessing.turns), "state": "今、中にいる" if model.blessed(model.player.cell) else "今は外にいる", "lines": ["中にいる間、攻撃が", "当たったマスの", "上下左右（十字）にも当たる"] + (["中でターンを終えるとHP+%d" % Rules.BLESS_HEAL] if model.blessing.get("plus", false) else [])}
-	# Hazard tiles of the bosses: the shark's coming surface, the marked lightning, the marked burning floor.
-	for enemy in model.enemies:
-		if enemy.get("diving", false) and enemy.hp > 0 and enemy.dive_area.has(cell):
-			var landing: bool = model.footprint({"cell":enemy.dive_anchor, "size":2}).has(cell)
-			return {"title": "浮上の危険マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "嵐鮫の体が出てくるマス" if landing else "浮上の衝撃が届くマス", "lines": ["潜った嵐鮫が次の敵ターンに", "ここから浮上する", "いると%dダメージ＋ノックバック" % Rules.DIVE_DAMAGE, "体が出るマスは特に危険"], "color": Color("ff5b62")}
-	if model.storm.get("marks", []).has(cell):
-		return {"title": "落雷の予告マス", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに雷が落ちる", "立っていると1ダメージ", "雷は4本、それぞれS字の4マス"], "color": Color("ffe45a")}
-	if model.floor_cells.has(cell):
-		return {"title": "燃える床の予告", "kind": "危険マス", "icon": "", "turns": 0, "state": "", "lines": ["次の敵ターンに床が燃える", "立っていると1ダメージ", "敵や味方も巻き込まれる"], "color": Color("ff8b3a")}
+	var hazard := _hazard_at(cell)
+	if not hazard.is_empty():
+		return hazard
 	if model.circle_tiles.has(cell):
 		return {"title": "魔法陣の白マス", "icon": "", "turns": 0, "state": "", "lines": ["白マスで囲むと", "内側と白線上の敵に", "99ダメージ", "（使った白線は消える）"], "color": CIRCLE_WHITE}
 	return {}
