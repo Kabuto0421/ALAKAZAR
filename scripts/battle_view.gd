@@ -484,9 +484,11 @@ func _advance() -> void:
 func _equip(index: int) -> void:
 	if busy or show_rules or model.phase != Rules.Phase.PLAYER:
 		return
+	# Pressing the weapon already in hand while a fairy is picked means "no fairy, the weapon then".
+	var same_weapon: bool = index == model.weapon
 	if model.equip(index):
-		# A fairy picked before the weapon stays picked: only its reach (the new weapon's range) changes.
-		if selected_item.is_empty():
+		# A fairy picked before another weapon stays picked: only its reach (the new weapon's range) changes.
+		if selected_item.is_empty() or same_weapon:
 			_cancel_item()
 		else:
 			_update_controls()
@@ -2249,7 +2251,7 @@ func _draw_weapons() -> void:
 	if model.board_size < 7:
 		_text(Vector2(352,605),"武器  %d / 3" % model.owned_weapons.size(),23,INK)
 		# Shrinks to fit left of the info panel (it used to run under it).
-		var swap_hint := "タップ・JKL・ホイールで装備 0AP"
+		var swap_hint := "別の武器＝届く範囲が変わる／今の武器＝妖精をやめる" if not selected_item.is_empty() else "タップ・JKL・ホイールで装備 0AP"
 		var hint_size := 18
 		while hint_size > 13 and _text_width(swap_hint,hint_size) > 268:
 			hint_size -= 1
