@@ -336,6 +336,17 @@ func advance() -> void:
 
 # --- camp -----------------------------------------------------------------
 
+## True when the camp offers nothing at all (full HP, nothing to forge, no fairy to class up): the
+## player may then go on without picking one.
+func camp_stuck() -> bool:
+	return state == State.CAMP and battle.start_hp >= Battle.MAX_HP and not can_forge() and not can_class_up()
+
+func camp_continue() -> bool:
+	if not camp_stuck():
+		return false
+	_leave_camp()
+	return true
+
 func camp_rest() -> bool:
 	if state != State.CAMP:
 		return false
