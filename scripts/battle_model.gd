@@ -144,6 +144,7 @@ const FORMATIONS = [
 ]
 ## Layer 2 (Steam build): holed boards fought in order after the first layer.
 const LAYER2_FORMATIONS = [
+	preload("res://scenes/formations/layer2_mask.tscn"),
 	preload("res://scenes/formations/sample_cross.tscn"),
 	preload("res://scenes/formations/layer2_ring.tscn"),
 	preload("res://scenes/formations/layer2_walls.tscn"),
