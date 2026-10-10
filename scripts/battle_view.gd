@@ -1704,8 +1704,10 @@ func _draw() -> void:
 	if model.layer2_board:
 		stage_title = "2層目"
 	_text(Vector2(44,62),stage_title,25,Color("ff8b8f") if Rules.BOSS_LEVELS.has(model.level) else CYAN)
-	_text(Vector2(260,62),"ターン %02d" % model.round_number,23)
-	_text(Vector2(480,62),"敵 残り %d" % model.enemies.size(),23)
+	# In the storm shark's room the weather's name sits at the board's top-left corner, so the words give way to it.
+	var storm_bar := model.storm_active()
+	_text(Vector2(190 if storm_bar else 260,62),"ターン %02d" % model.round_number,23)
+	_text(Vector2(532 if storm_bar else 480,62),"敵 残り %d" % model.enemies.size(),23)
 	_draw_sheath()
 	_draw_board()
 	_draw_big_outlines()
