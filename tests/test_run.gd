@@ -3413,6 +3413,8 @@ func _storm_shark() -> void:
 	# The plan shown on the board is exactly where the wave takes everyone.
 	var wp := _shark_room()
 	wp.player.cell = Vector2i(2,3)
+	wp.storm.weather = "tsunami"
+	wp.storm.marks = []
 	wp.storm.wind = Vector2i.RIGHT
 	wp.storm.wave = wp.wave_cells(Vector2i.RIGHT, 3)
 	wp.player.cell = wp.storm.wave[0]
