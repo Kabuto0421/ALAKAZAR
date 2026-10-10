@@ -64,7 +64,8 @@ func _render() -> void:
 		add_child(battle_view)
 		return
 	# Camp tune at the camp; the draft tune for picks, rewards and the end screens.
-	bgm.theme = "camp" if run.state in [Run.State.CAMP, Run.State.CAMP_FORGE, Run.State.CAMP_FAIRY] else "draft"
+	var resting: bool = run.state in [Run.State.CAMP, Run.State.CAMP_FORGE, Run.State.CAMP_FAIRY]
+	bgm.theme = ("camp2" if resting else "draft2") if run.layer == 2 else "camp" if resting else "draft"
 	bgm.sync(false, false)
 	screen = Control.new()
 	screen.name = "DraftScreen"

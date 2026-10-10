@@ -257,7 +257,7 @@ func _start(level: int, keep_inventory: bool = false) -> void:
 		weapon_effects.remove_child(effect)
 		effect.queue_free()
 	model.reset(level,keep_inventory)
-	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else ("shark" if model.boss2_variant == 1 else "rotorick") if model.level == Rules.BOSS2_LEVEL else "battle"
+	bgm.theme = "king" if model.level == Rules.FINAL_LEVEL else "boss" if model.level == Rules.BOSS_LEVEL or Rules.LATE_LEVELS.has(model.level) else ("shark" if model.boss2_variant == 1 else "rotorick") if model.level == Rules.BOSS2_LEVEL else "battle2" if model.layer2_board else "battle"
 	TILE = 64.0 if model.board_size <= 8 else floorf(512.0/model.board_size)
 	# The small opening boards (4x4, 5x5) are drawn bigger, so the first fights fill the
 	# space the larger boards use; they keep the 6x6 board's centre.

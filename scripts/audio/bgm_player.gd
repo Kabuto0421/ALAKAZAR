@@ -12,6 +12,11 @@ const SHARK_DROP := 53.0
 ## Between fights: the draft (picks and rewards) and the camp.
 const DRAFT = preload("res://assets/audio/bgm/draft_loop.ogg")
 const CAMP = preload("res://assets/audio/bgm/camp_loop.ogg")
+## Layer 2: the enemy's side in the fights (dark ruins and neon), the fairies' side (a hero's theme) at the
+## camp and the draft.
+const LAYER2_BATTLE = preload("res://assets/audio/bgm/layer2_battle_loop.ogg")
+const LAYER2_DRAFT = preload("res://assets/audio/bgm/layer2_draft_loop.ogg")
+const LAYER2_CAMP = preload("res://assets/audio/bgm/layer2_camp_loop.ogg")
 ## Rotorick's loop in three sample-aligned versions, played together and cross-faded
 ## by the reel: normal, 5 (broken machine) and 7 (jackpot).
 const ROTORICK_LAYERS = {
@@ -35,7 +40,7 @@ const SfxPlayer = preload("res://scripts/audio/sfx_player.gd")
 
 var player := AudioStreamPlayer.new()
 var muted := false
-## Loop played during the fight: "battle", "boss" (first boss) or "rotorick".
+## Loop played during the fight: "battle", "boss" (first boss) or "rotorick" (layer 2's: "battle2", "draft2", "camp2").
 var theme := "battle"
 var rotorick := AudioStreamSynchronized.new()
 var layer := "normal"
@@ -73,7 +78,7 @@ func _ready() -> void:
 
 ## Idempotent: call whenever the view refreshes; only a change of track restarts playback.
 func sync(result_shown: bool, won: bool) -> void:
-	var fight: AudioStream = _king_stream() if theme == "king" else BOSS if theme == "boss" else _rotorick_stream() if theme == "rotorick" else SHARK if theme == "shark" else DRAFT if theme == "draft" else CAMP if theme == "camp" else BATTLE
+	var fight: AudioStream = _king_stream() if theme == "king" else BOSS if theme == "boss" else _rotorick_stream() if theme == "rotorick" else SHARK if theme == "shark" else DRAFT if theme == "draft" else CAMP if theme == "camp" else LAYER2_BATTLE if theme == "battle2" else LAYER2_DRAFT if theme == "draft2" else LAYER2_CAMP if theme == "camp2" else BATTLE
 	var victory: AudioStream = KING_VICTORY if theme == "king" else VICTORY
 	var track: AudioStream = (victory if won else DEFEAT) if result_shown else fight
 	if player.stream == track:
