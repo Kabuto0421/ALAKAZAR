@@ -2292,6 +2292,140 @@ def layer2_battle_theme():
     return mix
 
 
+
+# --- layer 2's fight, the chip-tune version: only pulse, triangle and noise channels, then a bit-crush ----
+
+def chip_pulse(note, seconds, duty=0.25, vol=0.1, vibrato=0.0, attack=0.001, release=0.015):
+    """A NES-style pulse channel: a bright square with a chosen duty, a flat gate, no filter to speak of."""
+    pitch = (lambda t: 1 + vibrato * math.sin(2 * math.pi * 6.0 * max(0.0, t - 0.12))) if vibrato else None
+    return synth(note, seconds, "pulse", duty=duty, vol=vol, attack=attack, decay=1.0, sustain=1.0,
+                 release=release, cutoff=(13000, 13000, 1.0), pitch=pitch)
+
+
+def chip_tri(note, seconds, vol=0.3):
+    """The triangle channel: the bass, softer than it is loud, with no envelope but the gate."""
+    return synth(note, seconds, "tri", vol=vol, attack=0.001, decay=1.0, sustain=1.0, release=0.01,
+                 cutoff=(13000, 13000, 1.0))
+
+
+def chip_noise(rng, seconds, vol, rate_hz, decay):
+    """The noise channel: a random level held for a while (the higher the rate, the brighter), dying away."""
+    n = int(seconds * RATE)
+    hold = max(1, int(RATE / rate_hz))
+    level = 0.0
+    out = [0.0] * n
+    for i in range(n):
+        if i % hold == 0:
+            level = rng.choice((-1.0, 1.0))
+        out[i] = level * math.exp(-i / RATE * decay) * vol
+    return out
+
+
+def chip_kick(rng, vol=0.5):
+    """A triangle dropping fast in pitch, with a tick of noise."""
+    n = int(0.14 * RATE)
+    out = [0.0] * n
+    phase = 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += (48 + 150 * math.exp(-t * 38)) / RATE
+        p = phase % 1.0
+        out[i] = (1.0 - 4.0 * abs(p - 0.5)) * math.exp(-t * 17) * vol
+    tick = chip_noise(rng, 0.012, vol * 0.4, 6000, 60)
+    return [a + (tick[i] if i < len(tick) else 0.0) for i, a in enumerate(out)]
+
+
+def chip_snare(rng, vol=0.22):
+    noise = chip_noise(rng, 0.13, vol, 9000, 26)
+    body = chip_tri(170, 0.04, vol * 0.5)
+    return [a + (body[i] if i < len(body) else 0.0) for i, a in enumerate(noise)]
+
+
+def chip_tom(note, vol=0.4):
+    """A tom/kettle drum on the triangle channel: a quick slide down onto the note."""
+    return synth(note, 0.3, "tri", vol=vol, attack=0.001, decay=0.12, sustain=0.0, release=0.1,
+                 cutoff=(9000, 3000, 0.1), pitch=lambda t: 1 + 0.9 * math.exp(-t * 30))
+
+
+def chip_crush(total, levels=38, hold=2):
+    """The whole mix to a coarse DAC: fewer sample values, and every second sample held."""
+    import numpy
+    arr = numpy.array(total, dtype=numpy.float64)
+    arr = numpy.repeat(arr[::hold], hold)[:len(total)]
+    top = float(numpy.max(numpy.abs(arr))) or 1.0
+    arr = numpy.round(arr / top * levels) / levels * top
+    return arr.tolist()
+
+
+def layer2_battle_chip_theme():
+    """The same fight music as layer2_battle_theme (same notes, same four parts), but in chip-tune: two
+    pulse channels (the lead, and chords as fast arpeggios), a triangle bass, noise drums, then a bit-crush."""
+    bar_len = 16 * STEP
+    plan = L2_PLAN_A + L2_PLAN_D + L2_PLAN_D + L2_PLAN_A
+    sections = ["calm"] * 8 + ["theme"] * 8 + ["peak"] * 8 + ["ebb"] * 8
+    mix = Mix(32 * bar_len, wrap=True)
+    rng = random.Random(24)
+    for bar in range(32):
+        section, idx = sections[bar], bar % 8
+        chord = L2_CHORDS[plan[bar]]
+        t0 = bar * bar_len
+        quiet = section in ("calm", "ebb")
+        peak = section == "peak"
+        for beat in range(4):
+            bt = t0 + beat * 4 * STEP
+            if quiet or peak or beat == 0:
+                mix.put("kick", bt, chip_kick(rng, 0.55))
+        if section == "theme":
+            mix.put("kick", t0 + 10 * STEP, chip_kick(rng, 0.4))
+        for step in (4, 12) if (quiet or peak) else (8,):
+            mix.put("snare", t0 + step * STEP, chip_snare(rng, 0.24 if peak else 0.17))
+        for s in range(0, 16, 1 if peak else 2):
+            mix.put("hat", t0 + s * STEP, chip_noise(rng, 0.03, 0.05 if s % 4 else 0.08, 14000, 120))
+        if bar % 2 == 1 and not peak:
+            mix.put("hat", t0 + 14 * STEP, chip_noise(rng, 0.09, 0.08, 12000, 30))
+        # Triangle bass: the gallop (root, root, octave, root, root, fifth, octave, root).
+        root = midi(chord["bass"]) + 12
+        pattern = [0, 0, 12, 0, 0, 7, 12, 0]
+        if bar % 2 == 1:
+            pattern[-1] = 1
+        for e, off in enumerate(pattern):
+            mix.put("bass", t0 + e * 2 * STEP, chip_tri(root + off, 2 * STEP * 0.85, 0.42))
+        # Chords as the classic fast arpeggio on a thin pulse: three tones, one every thirty-second.
+        tones = [midi(n) for n in chord["pad"][:3]]
+        arp_vol = 0.045 if quiet else 0.06 if peak else 0.05
+        for k in range(32):
+            mix.put("arp", t0 + k * STEP / 2, chip_pulse(tones[k % 3] + 12, STEP / 2 * 0.9, 0.125, arp_vol))
+        # A low pulse drone underneath in the quiet parts.
+        if quiet:
+            mix.put("drone", t0, chip_pulse(38, bar_len * 0.95, 0.5, 0.025))
+        # Kettle drums as triangle toms.
+        if section == "theme" and idx < 7 or peak or (quiet and idx in (0, 4)):
+            mix.put("tom", t0, chip_tom(38, 0.4))
+            if peak:
+                mix.put("tom", t0 + 8 * STEP, chip_tom(38, 0.34))
+        if section == "theme" and idx == 7:
+            for s in range(8, 16):
+                mix.put("tom", t0 + s * STEP, chip_tom(45 + (s - 8) // 2, 0.18 + 0.03 * (s - 8)))
+        # Melodies on the pulse channel.
+        if section in ("theme", "peak"):
+            for step, length, note in L2_THEME[idx]:
+                m = mirror_note(note)
+                mix.put("lead", t0 + step * STEP, chip_pulse(m, length * STEP * 0.93, 0.25, 0.13, vibrato=0.004))
+                if peak:
+                    mix.put("lead", t0 + step * STEP, chip_pulse(m + 12, length * STEP * 0.93, 0.125, 0.07))
+        elif section == "calm" and idx >= 4:
+            for step, length, note in L2_RUINS[idx - 4]:
+                mix.put("lead", t0 + step * STEP, chip_pulse(midi(note), length * STEP * 0.9, 0.5, 0.09, vibrato=0.004))
+    mix.put("fx", 16 * bar_len, chip_noise(rng, 1.5, 0.12, 5000, 3.0))
+    mix.put("fx", 0, chip_noise(rng, 1.0, 0.07, 6000, 4.0))
+    for s in range(8):
+        mix.put("snare", 23 * bar_len + (8 + s) * STEP, chip_snare(rng, 0.07 + 0.025 * s))
+    mix.echo("lead", STEP * 3, 0.25, 0.22)
+    mix.post = chip_crush
+    mix.loudness = 0.85
+    return mix
+
+
 def l2_harp_notes(chord):
     """A rolling harp figure for a chord: root, fifth, octave, third, fifth, and back down."""
     base = midi(chord["bass"]) + 12
@@ -2406,6 +2540,7 @@ def main():
               "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
               "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting),
               "layer2_battle_loop.ogg": lambda: with_tempo(124, layer2_battle_theme),
+              "layer2_battle_chip_loop.ogg": lambda: with_tempo(124, layer2_battle_chip_theme),
               "layer2_camp_loop.ogg": lambda: with_tempo(72, layer2_camp_theme),
               "layer2_draft_loop.ogg": lambda: with_tempo(108, layer2_draft_theme),
               "title_theme.ogg": lambda: with_tempo(100, lambda: title_theme(os.environ.get("TITLE_OPENING", "roll"))),
