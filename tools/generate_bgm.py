@@ -2174,6 +2174,20 @@ L2_THEME = [
     [(0, 4, "B4"), (4, 4, "G4"), (8, 4, "A4"), (12, 4, "B4")],
     [(0, 16, "A4")],
 ]
+# The enemy's own tune for the fights: 8 bars over L2_PLAN_D (D | Bb | Gm | A | D | A | Gm | A), all in its scale
+# (D Eb F# G A Bb C, with E and C# only over the A chord). It opens on the fairies' D, then bends through
+# the step from Eb up to F# (the augmented second), answers itself higher, runs up to the top, and falls
+# onto A so the loop drops back to D.
+L2_ENEMY_THEME = [
+    [(0, 3, "D5"), (3, 1, "Eb5"), (4, 2, "F#5"), (6, 2, "Eb5"), (8, 4, "D5"), (12, 2, "C5"), (14, 2, "Bb4")],
+    [(0, 2, "A4"), (2, 2, "Bb4"), (4, 3, "D5"), (7, 1, "C5"), (8, 4, "Bb4"), (12, 4, "A4")],
+    [(0, 3, "G4"), (3, 1, "A4"), (4, 2, "Bb4"), (6, 2, "D5"), (8, 4, "G5"), (12, 2, "F#5"), (14, 2, "D5")],
+    [(0, 3, "E5"), (3, 1, "D5"), (4, 2, "C#5"), (6, 2, "D5"), (8, 6, "E5"), (14, 2, "C#5")],
+    [(0, 2, "D5"), (2, 2, "F#5"), (4, 2, "A5"), (6, 2, "F#5"), (8, 3, "Eb5"), (11, 1, "D5"), (12, 4, "F#5")],
+    [(0, 4, "E5"), (4, 2, "C#5"), (6, 2, "E5"), (8, 4, "A5"), (12, 4, "E5")],
+    [(0, 2, "D5"), (2, 2, "Bb4"), (4, 2, "G4"), (6, 2, "Bb4"), (8, 2, "D5"), (10, 2, "G5"), (12, 2, "F#5"), (14, 2, "D5")],
+    [(0, 2, "E5"), (2, 1, "D5"), (3, 1, "C#5"), (4, 2, "D5"), (6, 2, "E5"), (8, 8, "A4")],
+]
 # The ruins' own few notes over bars 5-8 of the quiet start.
 L2_RUINS = [
     [(0, 4, "D4"), (4, 4, "Eb4"), (8, 8, "F#4")],
@@ -2261,6 +2275,9 @@ def chip_crush(total, levels=48, hold=1):
     arr = numpy.array(total, dtype=numpy.float64)
     arr = numpy.repeat(arr[::hold], hold)[:len(total)]
     top = float(numpy.max(numpy.abs(arr))) or 1.0
+    # A soft squash first: the drum hits stack up on a few peaks, which would otherwise keep the whole
+    # mix quiet next to the other tracks.
+    arr = numpy.tanh(arr / top * 1.7) / numpy.tanh(1.7) * top
     arr = numpy.round(arr / top * levels) / levels * top
     return arr.tolist()
 
@@ -2305,6 +2322,7 @@ def _kit_synth():
         "echo": (0.35, 0.4),
         "post": None,
         "loudness": 1.0,
+        "duck_lead": 0.2,
         "fx_band": (3000, 11000),
         "riser_vol": 1.0,
     }
@@ -2327,19 +2345,20 @@ def _kit_chip():
         return chip_pulse(midi(notes[0]) - 12, seconds * 0.95, 0.5, v * 0.4, cutoff=1200)
 
     return {
-        "kick": lambda rng, v: chip_kick(rng, v * 0.6),
+        "kick": lambda rng, v: chip_kick(rng, v * 0.34),
         "snare": lambda rng, v: chip_snare(rng, v * 0.9),
         "hat": lambda rng, seconds, v: chip_noise(rng, seconds, v * 0.3, 5500, 140 if seconds < 0.05 else 40),
-        "bass": lambda note, steps, v: chip_tri(note + 12, steps * STEP * 0.8, v * 0.62),
+        "bass": lambda note, steps, v: chip_tri(note + 12, steps * STEP * 0.8, v * 0.42),
         "arp_bar": arp_bar,
-        "lead": lambda note, steps, glide, v: chip_pulse(note, steps * STEP * 0.93, 0.25, v * 0.85, vibrato=0.004, cutoff=3200),
-        "lute": lambda note, v: chip_pulse(note, 0.07, 0.25, v * 0.7, cutoff=2600),
+        "lead": lambda note, steps, glide, v: chip_pulse(note, steps * STEP * 0.93, 0.25, v * 2.1, vibrato=0.004, cutoff=3200),
+        "lute": lambda note, v: chip_pulse(note, 0.07, 0.25, v * 1.2, cutoff=2600),
         "pad": pad,
         "stab": stab_chord,
         "timp": lambda rng, note, v: chip_tom(note, v * 0.8),
         "echo": (0.25, 0.2),
         "post": chip_crush,
         "loudness": 0.8,
+        "duck_lead": 0.0,
         "fx_band": (1200, 4800),
         "riser_vol": 0.5,
     }
@@ -2347,8 +2366,8 @@ def _kit_chip():
 
 def layer2_fight_theme(kit_name="synth"):
     """The enemy's side of layer 2 as a fight: ruins and neon, D Phrygian dominant, 36 bars (132 BPM).
-    The ruins' few notes on a bouzouki over the groove, then the theme (the fairies' tune turned into the
-    enemy's scale) at the peak, doubled at the climax. Same plan as layer 1's battle loop, so the same
+    The ruins' few notes on a bouzouki over the groove, then the enemy's own tune (L2_ENEMY_THEME) at the
+    peak, doubled at the climax. Same plan as layer 1's battle loop, so the same
     edge-of-the-seat drive: rolling off-beat bass, an arpeggio that opens up, a clap roll and a drop-out
     beat before the spike, a kick-less break."""
     kit = _kit_synth() if kit_name == "synth" else _kit_chip()
@@ -2409,10 +2428,10 @@ def layer2_fight_theme(kit_name="synth"):
             mix.put("timp", t0 + 6 * STEP, kit["timp"](rng, "D2", 0.2))
         # Melodies.
         if peak or climax:
-            phrase = L2_THEME[idx if peak else 4 + idx]
+            phrase = L2_ENEMY_THEME[idx if peak else 4 + idx]
             prev = None
             for step, length, note in phrase:
-                m = mirror_note(note)
+                m = midi(note)
                 mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, 0.15))
                 if climax:
                     mix.put("lead", t0 + step * STEP, kit["lead"](m + 12, length, None, 0.1))
@@ -2445,7 +2464,8 @@ def layer2_fight_theme(kit_name="synth"):
     mix.duck("arp", kicks, 0.45)
     mix.duck("stab", kicks, 0.3)
     mix.duck("bass", kicks, 0.3, length=0.12)
-    mix.duck("lead", kicks, 0.2)
+    if kit["duck_lead"]:
+        mix.duck("lead", kicks, kit["duck_lead"])
     if kit["post"]:
         mix.post = kit["post"]
     mix.loudness = kit["loudness"]
