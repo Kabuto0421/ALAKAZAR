@@ -112,8 +112,8 @@ var sulk_flip := false
 var hp := 5
 ## Yellow AP boxes drawn under the hearts (enemies only; 0 draws none).
 var ap_boxes := 0
-## True for units whose breaking sets something off (a moving prison, a holy spirit, a fortress):
-## a small skull by the hearts says so.
+## True for units whose breaking sets something off (a moving prison, a holy spirit):
+## a small skull over their head says so.
 var death_mark := false
 var weapon_row := 0
 var facing := 0
@@ -774,10 +774,9 @@ func _draw_status() -> void:
 			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
 		_draw_heart(heart_at.call(i),size,Color("ff5b62"),i < hp)
 	if death_mark and kind != "player":
-		# Left of the hearts, on their line (the pixel font has no skull glyph, so it is drawn).
+		# Over the head, centred (the pixel font has no skull glyph, so it is drawn).
 		var skull_px := 2.2 if span > 1 else 1.7
-		var left_heart: Vector2 = heart_at.call(0)
-		draw_skull(status_layer, Vector2(left_heart.x - 5.5 - skull_px * 4.5, left_heart.y - 0.5), skull_px)
+		draw_skull(status_layer, Vector2(0, -32.0 - grow - skull_px * 2.0), skull_px)
 	if ap_boxes > 0 and kind != "player":
 		# AP under the hearts: small gold boxes, centred like the hearts above them (twice the size on the 2x2 bodies).
 		var rows_used := 2 if two_rows else 1
