@@ -87,6 +87,9 @@ const TYPES = {
 	"jester": {"name": "道化兵", "hp": 2, "ap": 1},
 	"dragon": {"name": "竜装兵", "hp": 3, "ap": 2},
 }
+## Units whose breaking sets something off (they carry a skull by their hearts): the moving prison lets
+## out executioners, the holy spirit holy knights, a fortress's fall weakens the king's barrier.
+const DEATH_EFFECT_TYPES := ["prison", "fortress", "holy"]
 ## Final boss room: soldiers the fortresses send out and the king raises again (no bosses).
 ## How each soldier tends to act, in two short lines for the inspector (taken from the
 ## enemy planner: its "intent" and the rules it follows).

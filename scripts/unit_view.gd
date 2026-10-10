@@ -112,6 +112,9 @@ var sulk_flip := false
 var hp := 5
 ## Yellow AP boxes drawn under the hearts (enemies only; 0 draws none).
 var ap_boxes := 0
+## True for units whose breaking sets something off (a moving prison, a holy spirit, a fortress):
+## a small skull by the hearts says so.
+var death_mark := false
 var weapon_row := 0
 var facing := 0
 var flash := 0.0
@@ -770,6 +773,11 @@ func _draw_status() -> void:
 			# The new heart pops in.
 			size *= 1.0 + 0.8 * maxf(0.0, 1.0 - sparkle_elapsed / 0.25)
 		_draw_heart(heart_at.call(i),size,Color("ff5b62"),i < hp)
+	if death_mark and kind != "player":
+		# Left of the hearts, on their line (the pixel font has no skull glyph, so it is drawn).
+		var skull_px := 2.2 if span > 1 else 1.7
+		var left_heart: Vector2 = heart_at.call(0)
+		draw_skull(status_layer, Vector2(left_heart.x - 5.5 - skull_px * 4.5, left_heart.y - 0.5), skull_px)
 	if ap_boxes > 0 and kind != "player":
 		# AP under the hearts: small gold boxes, centred like the hearts above them (twice the size on the 2x2 bodies).
 		var rows_used := 2 if two_rows else 1
@@ -924,3 +932,22 @@ func _draw_player_sprite(texture: Texture2D, source: Rect2, enlarge_down_sword: 
 		# Keep the feet on their original baseline while giving the generated front-facing pose more presence.
 		destination = Rect2(-38, -49-hop_height*1.1875, 76, 76)
 	draw_texture_rect_region(texture, destination, source, tint)
+
+
+## A small pixel skull centred on `center`, `px` canvas units per pixel: the mark of "something happens
+## when this breaks". Dark outline, bone body, dark eyes and nose.
+const SKULL := ["..XXXXX..", ".XXXXXXX.", "XXXXXXXXX", "XddXXXddX", "XddXXXddX", ".XXXdXXX.", "..XXXXX..", "..X.X.X.."]
+static func draw_skull(canvas: CanvasItem, center: Vector2, px: float) -> void:
+	var origin := center - Vector2(SKULL[0].length(), SKULL.size()) * px / 2.0
+	for y in range(SKULL.size()):
+		for x in range(SKULL[y].length()):
+			if SKULL[y][x] == ".":
+				continue
+			var at := origin + Vector2(x, y) * px
+			canvas.draw_rect(Rect2(at - Vector2.ONE * 0.6, Vector2.ONE * (px + 1.2)), Color("1a0f12"))
+	for y in range(SKULL.size()):
+		for x in range(SKULL[y].length()):
+			var mark: String = SKULL[y][x]
+			if mark == ".":
+				continue
+			canvas.draw_rect(Rect2(origin + Vector2(x, y) * px, Vector2.ONE * px), Color("2b1a22") if mark == "d" else Color("f1ead2"))
