@@ -3317,7 +3317,7 @@ func _storm_shark() -> void:
 	var m := _shark_room()
 	var shark: Dictionary = m.storm_shark()
 	verify(not shark.is_empty() and shark.hp == 8 and shark.ap == 2 and shark.size == 2 and m.board_size == 8,"The storm shark: HP 8, AP 2, 2x2, on an 8x8 board")
-	verify(m.storm_active() and m.storm.wind != Vector2i.ZERO,"A fight with it is a storm (the wind is already blowing)")
+	verify(m.storm_active() and m.weather_id() != "" and not m.weather_id() in ["calm", "storm"],"A fight with it is a storm (the first weather is drawn, and it is neither the calm nor the great storm)")
 	verify(Rules.new().storm.is_empty(),"Other fights have no storm")
 	# Dive: it goes under, its tiles are free, a 12-tile shadow lies on the player.
 	m.player.cell = Vector2i(3,3)
@@ -3406,6 +3406,9 @@ func _storm_shark() -> void:
 	# The enemy turn starts with the great wave rushing over the board.
 	var rush := _shark_room()
 	rush.player.cell = Vector2i(1,1)
+	rush.storm.weather = "tsunami"
+	rush.storm.wind = Vector2i.RIGHT
+	rush.storm.wave = rush.wave_cells(Vector2i.RIGHT, 3)
 	rush.storm_enemy_turn()
 	verify(rush.events.any(func(e): return e.kind == "tsunami" and e.dir == rush.storm.wind),"The enemy turn begins with the tsunami rushing across the board")
 	# The wave carries everyone, wherever they stand.
@@ -3422,24 +3425,106 @@ func _storm_shark() -> void:
 	ahead.player.cell = Vector2i(5,0)
 	ahead._storm_wind_push()
 	verify(ahead.player.cell == Vector2i(ahead.board_size - 1,0),"Someone standing in the tsunami's path ahead of it is swept to the far side")
-	# Thunder alternates: marks, then the strike.
+	# Thunder: the marks are laid when the weather is drawn (so they stand over the player's whole turn), and fall at the start of the enemy turn.
 	var t := _shark_room()
 	t.player.cell = Vector2i(4,4)
-	t._storm_thunder()
-	verify(t.storm.centers.size() == 4 and t.storm.marks.size() >= 14 and t.storm.marks.all(func(c): return t.inside(c)),"First, four lightning bolts are marked")
+	t._place_thunder()
+	verify(t.storm.centers.size() == 4 and t.storm.marks.size() >= 14 and t.storm.marks.all(func(c): return t.inside(c)),"Four lightning bolts are marked")
 	verify(t.storm.centers.all(func(c): return absi(c.x - 4) <= 2 and absi(c.y - 4) <= 2 and t.storm.marks.has(c)),"...each centred inside the 5x5 round the player")
 	verify(Rules.THUNDER_SHAPES.size() == 4 and Rules.THUNDER_SHAPES.all(func(shape): return shape.size() == 4),"A bolt is an S-mino (flat or upright, either way round)")
 	var marked: Array = t.storm.marks.duplicate()
 	t.player.cell = marked[0]
 	var thp: int = t.player.hp
-	t._storm_thunder()
-	verify(t.player.hp == thp - 1 and t.storm.marks.is_empty(),"Next turn they strike: 1 damage to a player still standing there")
-	t._storm_thunder()
+	t.storm.weather = "thunder"
+	t.storm_enemy_turn()
+	verify(t.player.hp == thp - 1 and t.storm.marks.is_empty(),"The bolts fall at the start of the enemy turn: 1 damage to a player still standing there")
+	t.storm.weather = "thunder"
+	t.player.cell = Vector2i(4,4)
+	t._place_thunder()
 	var marks2: Array = t.storm.marks.duplicate()
 	t.player.cell = Vector2i(0,0) if not marks2.has(Vector2i(0,0)) else Vector2i(7,7)
 	var thp2: int = t.player.hp
-	t._storm_thunder()
+	t.storm_enemy_turn()
 	verify(t.player.hp == thp2,"A player who stepped off the marks is not hurt")
+	# The weather roulette: one weather a turn, never the same twice, never the calm or the great storm first.
+	var seen_weather := {}
+	var repeats := 0
+	var bad_first := 0
+	for seed_value in 40:
+		var wr := _shark_room()
+		wr.slot_seed = seed_value * 31 + 5
+		wr.storm = {"weather": "", "wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "groups": [], "shape": "bolts"}
+		wr.round_number = 1
+		wr.storm_roll_weather()
+		if wr.weather_id() in ["calm", "storm"]:
+			bad_first += 1
+		var previous: String = wr.weather_id()
+		for turn in 12:
+			wr.round_number += 1
+			wr.storm_roll_weather()
+			seen_weather[wr.weather_id()] = true
+			if wr.weather_id() == previous:
+				repeats += 1
+			previous = wr.weather_id()
+			# What each weather sets up for the coming turn.
+			var wid: String = wr.weather_id()
+			var wants_wave: bool = wid in ["tsunami", "storm"]
+			var wants_bolts: bool = wid in ["thunder", "storm"]
+			verify((wr.storm.wind != Vector2i.ZERO and not wr.storm.wave.is_empty()) == wants_wave and (not wr.storm.marks.is_empty()) == wants_bolts,"The weather %s sets up exactly its own hazards" % wid)
+	verify(seen_weather.size() == 5 and repeats == 0 and bad_first == 0,"All five weathers come up, never twice in a row, and the first is never calm or the great storm")
+	# Calm: the shark sleeps (AP 0, no dive) unless it is under the water, which it comes up from.
+	var cm := _shark_room()
+	cm.storm.weather = "calm"
+	cm.storm.marks = []
+	var cmp := Planner.new()
+	cm.phase = Rules.Phase.PLAYER
+	var shark_home: Vector2i = cm.storm_shark().cell
+	for turn in 4:
+		cm.player.cell = Vector2i(0,3)
+		_enemy_turn(cm)
+		cm.storm.weather = "calm"
+	verify(cm.storm_shark().cell == shark_home and not cm.storm_shark().get("diving", false),"In the calm the shark neither moves nor dives")
+	# Whirl: everyone but the shark is pulled up to 2 tiles towards the middle; the plan on the board matches.
+	var wh := _shark_room()
+	wh.enemies.clear()
+	var whs: Dictionary = wh.make_enemy("storm_shark", Vector2i(5,5), 0)
+	wh.enemies.append(whs)
+	var whs_soldier: Dictionary = wh.make_enemy("heavy", Vector2i(7,0), 1)
+	wh.enemies.append(whs_soldier)
+	wh.player.cell = Vector2i(0,3)
+	wh.storm.weather = "whirl"
+	var whirl_plan: Array = wh.storm_wave_plan()
+	wh._storm_whirl()
+	verify(wh.player.cell == Vector2i(2,3) and whs_soldier.cell == Vector2i(6,1) and whs.cell == Vector2i(5,5),"The whirlpool pulls the player and the soldiers two tiles to the middle; the shark stays")
+	var whirl_ok := not whirl_plan.is_empty()
+	for entry in whirl_plan:
+		var now: Vector2i = wh.player.cell if int(entry.id) == -1 else (wh.enemies.filter(func(e): return e.id == entry.id)[0].cell)
+		whirl_ok = whirl_ok and now == entry.to
+	verify(whirl_ok,"The whirlpool's plan matches where it really takes everyone")
+	# Great storm: lightning and the wave together.
+	var gs := _shark_room()
+	gs.player.cell = Vector2i(2,0)
+	gs.storm.weather = "storm"
+	gs.storm.wind = Vector2i.RIGHT
+	gs.storm.wave = gs.wave_cells(Vector2i.RIGHT, 3)
+	gs._place_thunder()
+	gs.storm_enemy_turn()
+	verify(gs.events.any(func(e): return e.kind == "tsunami") and gs.events.any(func(e): return e.kind == "thunder") and gs.player.cell.x == gs.board_size - 1,"The great storm brings the wave and the lightning together")
+	# Rage: at HP 2 or less the shark roars once and has AP 3 from then on.
+	var rg := _shark_room()
+	var rgs: Dictionary = rg.storm_shark()
+	rgs.hp = 2
+	rg.storm.weather = "tsunami"
+	rg.storm.wave = []
+	rg.storm.wind = Vector2i.ZERO
+	rg.phase = Rules.Phase.PLAYER
+	var rgp := Planner.new()
+	rgp.begin(rg)
+	verify(rgs.get("enraged", false) and rgs.ap == Rules.SHARK_RAGE_AP and rg.events.any(func(e): return e.kind == "roar"),"At HP 2 the shark roars and has AP 3")
+	var calm_rage := _shark_room()
+	calm_rage.storm_shark().hp = 3
+	rgp.begin(calm_rage)
+	verify(not calm_rage.storm_shark().get("enraged", false) and calm_rage.storm_shark().ap == 2,"At HP 3 it is not yet enraged (AP 2)")
 	# Whole fights: the planner plays many turns with no hang.
 	for seed_value in 12:
 		var g := _shark_room()

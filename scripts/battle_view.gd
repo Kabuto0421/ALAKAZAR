@@ -542,7 +542,12 @@ func _enemy_turn() -> void:
 		_sync_units(true)
 		_feedback()
 		queue_redraw()
-		await get_tree().create_timer(maxf(0.35, _chain_time() + 0.3)).timeout
+		var weather_wait := 0.0
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind in ["whirl", "calm"]):
+			weather_wait = 0.9  # the whirlpool pulls, or the sea settles, before anything else moves
+		if model.events.any(func(e: Dictionary) -> bool: return e.kind == "roar"):
+			weather_wait = maxf(weather_wait, 0.8)
+		await get_tree().create_timer(maxf(maxf(0.35, _chain_time() + 0.3), weather_wait)).timeout
 		if token != generation:
 			return
 	await get_tree().create_timer(0.12).timeout
@@ -929,6 +934,8 @@ func _sync_units(animate: bool) -> void:
 		view.facing = int(unit.get("facing",2)) if unit.type == "holy_knight" else 1 if id < 0 else int(unit.get("facing",3)) if unit.type in UnitView.BOSS_KINDS or unit.type == "jester" else 3
 		view.braced = unit.get("state","") == "brace"
 		view.frozen = int(unit.get("frozen",0))
+		view.resting = unit.type == "storm_shark" and model.weather_id() == "calm" and not unit.get("diving", false)
+		view.enraged = unit.type == "storm_shark" and unit.get("enraged", false)
 		view.time_stopped = id >= 0 and model.time_stopped()
 		# The stopped world is drawn over the enemies but under you and your allies.
 		view.z_index = 0 if id >= 0 and model.time_stopped() else 2
@@ -1299,6 +1306,11 @@ func _ap_boxes(enemy: Dictionary) -> int:
 		return 0
 	var type: Dictionary = Rules.TYPES[enemy.type]
 	var base_ap: int = Rules.JESTER_AWAKE_AP if enemy.type == "jester" and enemy.get("awake", false) else int(type.ap)
+	if enemy.type == "storm_shark":
+		# 怒り: AP 3; 凪: it sleeps through the turn (no AP), unless it is under the water.
+		if model.weather_id() == "calm" and not enemy.get("diving", false):
+			return 0
+		return Rules.SHARK_RAGE_AP if enemy.get("enraged", false) else base_ap
 	return base_ap + (1 if enemy.type == "slot" and int(enemy.get("reel",0)) == 7 else 0)
 
 ## Where a hovered enemy could step with one AP (its plain move tiles; the big prison and shark show the
@@ -2509,11 +2521,13 @@ func _draw_intel() -> void:
 		_text(Vector2(852,133),"敵の情報",26,CYAN)
 		_text(Vector2(852,295),"敵や味方にカーソルを",23,INK)
 		_text(Vector2(852,330),"合わせて確認",23,INK)
-		if not model.storm.get("wave", []).is_empty() and model.storm.get("wind", Vector2i.ZERO) != Vector2i.ZERO:
-			# What the tsunami does, written where it can be read at leisure (the alert only holds a moment).
-			_text(Vector2(852,408),"津波",23,Color(0.6, 1.0, 0.95))
-			_text(Vector2(852,438),"あなた・召喚妖精が流される",19,Color(1.0, 0.85, 0.5))
-			_text(Vector2(852,464),"（嵐鮫と設置物は動かない）",17,Color(0.8, 0.9, 0.9))
+		if model.weather_id() != "":
+			# What this turn's weather does, written where it can be read at leisure (the alert only holds a moment).
+			var weather_info: Dictionary = Rules.WEATHERS[model.weather_id()]
+			var weather_style: Dictionary = WEATHER_STYLE[model.weather_id()]
+			_text(Vector2(852,408),"今の天気：" + str(weather_info.name),23,Color(weather_style.text))
+			_text(Vector2(852,438),str(weather_info.info[0]),19,Color(1.0, 0.85, 0.5))
+			_text(Vector2(852,464),str(weather_info.info[1]),17,Color(0.8, 0.9, 0.9))
 		_text(Vector2(852,540),"右クリックで固定",20,MUTED)
 
 ## A hammer's echo tile: hatched in orange (the blow spreads here too).
@@ -3038,9 +3052,9 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_text(Vector2(852,440),"2×2で縦横に1マスずつ動く",18,tone)
 		_text(Vector2(852,464),"ときどき潜り、影の下に浮上",18,CYAN)
 		_text(Vector2(852,488),"2ダメージ＋ノックバック",18,CYAN)
-		_text(Vector2(852,514),"嵐：S字の雷4本",15,MUTED)
-		_text(Vector2(852,534),"津波：あなた・召喚妖精を運ぶ",15,MUTED)
-		_text(Vector2(852,552),"（嵐鮫と設置物は動かない）",15,MUTED)
+		_text(Vector2(852,514),"天気は毎ターン変わる（凪・雷・",15,MUTED)
+		_text(Vector2(852,534),"津波・大渦・大嵐）",15,MUTED)
+		_text(Vector2(852,552),"怒り（HP2以下）：AP3" if not enemy.get("enraged", false) else "怒り中：AP3",15,Color("ff9a8a") if enemy.get("enraged", false) else MUTED)
 		_draw_threat(enemy,576)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
@@ -3491,16 +3505,106 @@ func _draw_storm_frame() -> void:
 		return
 	draw_set_transform(Vector2.ZERO)
 	var extent := Vector2.ONE * model.board_size * TILE
-	# Digital rain over the floor: small falling blocks.
-	for k in range(36):
+	if shark_intro:
+		_draw_digital_rain(extent, 1.0, Color(0.45, 1.0, 0.9))
+		_draw_shark_lurk()
+		return
+	var weather: String = model.weather_id()
+	var style: Dictionary = WEATHER_STYLE.get(weather, WEATHER_STYLE["tsunami"])
+	# A new weather: the old sky gives way to the new one with a front sweeping across the board.
+	var changed_round := int(model.storm.get("changed_round", -1))
+	if changed_round != weather_round:
+		weather_round = changed_round
+		weather_before = weather_now
+		weather_now = weather
+		weather_changed_at = clock
+	var k := clampf((clock - weather_changed_at) / 1.2, 0.0, 1.0)
+	_draw_digital_rain(extent, lerpf(WEATHER_STYLE.get(weather_before, style).rain, style.rain, k), Color(style.tint).lerp(Color(0.45, 1.0, 0.9), 0.5))
+	if k < 1.0 and weather_before != "":
+		var old_style: Dictionary = WEATHER_STYLE.get(weather_before, style)
+		draw_rect(Rect2(BOARD, extent), Color(old_style.tint, old_style.tint_alpha * (1.0 - k)))
+	draw_rect(Rect2(BOARD, extent), Color(style.tint, style.tint_alpha * (0.4 + 0.6 * k)))
+	if k < 1.0:
+		# The front: a bright band of the new weather's colour crossing the board, and a flash as it starts.
+		var front := BOARD.x + extent.x * ease(k, 0.6)
+		draw_rect(Rect2(BOARD.x, BOARD.y, front - BOARD.x, extent.y), Color(style.tint, 0.16 * (1.0 - k)))
+		draw_rect(Rect2(front - 18.0, BOARD.y, 36.0, extent.y), Color(style.tint.lightened(0.5), 0.5 * (1.0 - k)))
+		draw_rect(Rect2(BOARD, extent), Color(1, 1, 1, 0.22 * maxf(0.0, 1.0 - k * 6.0)))
+	match weather:
+		"calm":
+			_draw_calm_light(extent)
+		"thunder", "storm":
+			# A slow flicker of the clouds now and then.
+			var beat := fposmod(clock, 3.4)
+			if beat < 0.12:
+				draw_rect(Rect2(BOARD, extent), Color(1.0, 0.97, 0.8, 0.1 * (1.0 - beat / 0.12)))
+		"whirl":
+			_draw_whirl(extent)
+	if weather in ["tsunami", "storm"]:
+		_draw_tsunami()
+	_announce_weather()
+
+## The storm's weather as it was and is, to play the change from one to the other.
+var weather_round := -2
+var weather_before := ""
+var weather_now := ""
+var weather_changed_at := -100.0
+
+## Digital rain over the floor: small falling blocks (none in the calm, heavier in the great storm).
+func _draw_digital_rain(extent: Vector2, amount: float, color: Color) -> void:
+	for k in range(int(36.0 * amount)):
 		var seed_x := fposmod(float(k) * 53.0 + 17.0, extent.x)
 		var fall := fposmod(clock * (90.0 + (k % 5) * 25.0) + float(k) * 71.0, extent.y + 40.0) - 20.0
 		var length := 14.0 + (k % 4) * 6.0
-		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(0.45, 1.0, 0.9, 0.16))
-	if shark_intro:
-		_draw_shark_lurk()
-		return
-	_draw_tsunami()
+		draw_rect(Rect2(BOARD + Vector2(seed_x, fall), Vector2(3, length)), Color(color, 0.16))
+
+## The calm: warm slanting light across the water and motes of it drifting up.
+func _draw_calm_light(extent: Vector2) -> void:
+	for ray in range(3):
+		var x := BOARD.x + extent.x * (0.15 + 0.3 * ray) + sin(clock * 0.4 + ray) * 12.0
+		var slant := extent.y * 0.35
+		var points := PackedVector2Array([Vector2(x, BOARD.y), Vector2(x + 46.0, BOARD.y), Vector2(x + 46.0 - slant, BOARD.y + extent.y), Vector2(x - slant, BOARD.y + extent.y)])
+		draw_colored_polygon(points, Color(1.0, 0.95, 0.65, 0.05))
+	for mote in range(16):
+		var px := BOARD.x + fposmod(float(mote) * 97.0 + sin(clock * 0.6 + mote) * 18.0, extent.x)
+		var py := BOARD.y + extent.y - fposmod(clock * (14.0 + (mote % 4) * 5.0) + float(mote) * 53.0, extent.y)
+		var twinkle := 0.5 + 0.5 * sin(clock * 3.0 + mote * 1.7)
+		draw_circle(Vector2(px, py), 2.0 + (mote % 3), Color(1.0, 0.97, 0.7, 0.18 + 0.3 * twinkle))
+
+## The whirlpool: spiral arms turning round the middle of the board, and where everyone will be pulled to.
+func _draw_whirl(extent: Vector2) -> void:
+	var middle := BOARD + extent / 2.0
+	var reach := extent.x * 0.56
+	for arm in range(4):
+		var points := PackedVector2Array()
+		for step in range(40):
+			var along := float(step) / 39.0
+			var radius := reach * along
+			var angle := float(arm) * TAU / 4.0 + along * 3.6 - clock * 1.4
+			points.append(middle + Vector2(cos(angle), sin(angle)) * radius)
+		draw_polyline(points, Color(0.7, 0.8, 1.0, 0.3), 4.0, true)
+		draw_polyline(points, Color(1.0, 1.0, 1.0, 0.14), 1.5, true)
+	draw_circle(middle, 16.0 + 4.0 * sin(clock * 3.0), Color(0.05, 0.08, 0.25, 0.55))
+	# What it will do to each thing it pulls: an arrow, and the tile it ends on (the player's boldest).
+	for entry in _wave_plan():
+		if entry.to == entry.from:
+			continue
+		var is_player: bool = int(entry.id) == -1
+		var size: int = entry.size
+		var bold := 1.0 if is_player else 0.6
+		var from_c: Vector2 = _center(entry.from) + Vector2.ONE * TILE / 2.0 * float(size - 1)
+		var to_c: Vector2 = _center(entry.to) + Vector2.ONE * TILE / 2.0 * float(size - 1)
+		var landing := Rect2(BOARD + Vector2(entry.to) * TILE + Vector2.ONE * 3, Vector2.ONE * (TILE * size - 6))
+		draw_rect(landing, Color(0.7, 0.8, 1.0, (0.14 + 0.1 * (0.5 + 0.5 * sin(clock * 7.0))) * bold))
+		draw_rect(landing, Color(0.82, 0.9, 1.0, bold), false, 4 if is_player else 2)
+		var way := (to_c - from_c).normalized()
+		var tail := from_c + way * TILE * 0.18
+		var tip := to_c - way * TILE * 0.12
+		var side := way.orthogonal()
+		var arrow_color := Color(0.85, 0.92, 1.0, bold)
+		draw_line(tail, tip, arrow_color, 6 if is_player else 3)
+		draw_line(tip, tip - way * 18.0 + side * 13.0, arrow_color, 6 if is_player else 3)
+		draw_line(tip, tip - way * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
 
 ## The entrance's first seven seconds: the board seen from above the water, the shark only a
 ## dark shape circling below, closing in on where it will rise as the music builds.
@@ -3571,15 +3675,36 @@ func _draw_shark_title() -> void:
 	draw_string_outline(ui_font, jp_base, jp, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, 8, Color(0.02, 0.1, 0.12, 0.9 * fade))
 	draw_string(ui_font, jp_base, jp, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.6, 1.0, 0.95, fade))
 
-## The tsunami's warning: the tiles it will cover washed in cyan, and where each thing it
-## carries will land (the wave itself rushes over the board when the enemy turn begins: _draw_fx).
+## How each weather looks: the tint over the board, the alert band, its stripes and its words, and how
+## heavy the digital rain falls.
+const WEATHER_STYLE := {
+	"calm": {"tint": Color(1.0, 0.93, 0.55), "tint_alpha": 0.07, "band": Color(0.13, 0.1, 0.02), "stripe": Color(1.0, 0.9, 0.45), "text": Color(1.0, 0.96, 0.62), "rain": 0.0},
+	"thunder": {"tint": Color(0.6, 0.45, 1.0), "tint_alpha": 0.1, "band": Color(0.06, 0.03, 0.12), "stripe": Color(1.0, 0.9, 0.3), "text": Color(1.0, 0.93, 0.45), "rain": 1.0},
+	"tsunami": {"tint": Color(0.3, 0.85, 1.0), "tint_alpha": 0.08, "band": Color(0.01, 0.06, 0.1), "stripe": Color(0.4, 1.0, 1.0), "text": Color(0.6, 1.0, 0.95), "rain": 1.2},
+	"whirl": {"tint": Color(0.5, 0.6, 1.0), "tint_alpha": 0.1, "band": Color(0.03, 0.04, 0.13), "stripe": Color(0.6, 0.72, 1.0), "text": Color(0.78, 0.85, 1.0), "rain": 0.7},
+	"storm": {"tint": Color(1.0, 0.3, 0.4), "tint_alpha": 0.15, "band": Color(0.11, 0.01, 0.03), "stripe": Color(1.0, 0.4, 0.45), "text": Color(1.0, 0.58, 0.58), "rain": 1.8},
+}
+
+## The weather's name, with the way the wave runs for a tsunami or the great storm.
+func _weather_label() -> String:
+	var weather: String = model.weather_id()
+	if weather == "":
+		return ""
+	var label: String = Rules.WEATHERS[weather].name
+	var wind: Vector2i = model.storm.get("wind", Vector2i.ZERO)
+	if weather in ["tsunami", "storm"] and wind != Vector2i.ZERO:
+		label += " " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, "")
+	return label
+
 ## The alert and its slide to the corner, drawn on the layer above the units.
 func _draw_tsunami_alert() -> void:
-	if model == null or model.storm.get("wind", Vector2i.ZERO) == Vector2i.ZERO or model.storm.get("wave", []).is_empty():
+	if model == null or model.weather_id() == "":
 		return
 	var age := clock - tsunami_alert_start
 	if age >= TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE or tsunami_alert_round != model.round_number:
 		return
+	var weather: String = model.weather_id()
+	var style: Dictionary = WEATHER_STYLE[weather]
 	var canvas := tsunami_layer
 	var label_at: Vector2 = BOARD + Vector2(0, -16)
 	var extent := Vector2.ONE * model.board_size * TILE
@@ -3587,13 +3712,11 @@ func _draw_tsunami_alert() -> void:
 	var move := clampf((age - TSUNAMI_ALERT_HOLD) / TSUNAMI_ALERT_MOVE, 0.0, 1.0)
 	move = move * move * (3.0 - 2.0 * move)
 	# Steady, no blinking: the alert holds long enough to read, then the words go to the corner.
-	var flash := 0.5
 	var fade := 1.0 - move
-	var blink := 1.0
-	# The alert band: dark water with cyan stripes above and below.
+	# The alert band: dark water with stripes above and below, in the weather's colours.
 	var band := Rect2(BOARD.x, middle.y - 110.0, extent.x, 220.0)
-	canvas.draw_rect(band, Color(0.01, 0.06, 0.1, 0.86 * fade))
-	var stripe := Color(0.4, 1.0, 1.0, 0.75 * fade)
+	canvas.draw_rect(band, Color(style.band, 0.86 * fade))
+	var stripe := Color(style.stripe, 0.75 * fade)
 	canvas.draw_rect(Rect2(band.position, Vector2(band.size.x, 6.0)), stripe)
 	canvas.draw_rect(Rect2(band.position + Vector2(0, band.size.y - 6.0), Vector2(band.size.x, 6.0)), stripe)
 	var big_size := 120
@@ -3601,19 +3724,18 @@ func _draw_tsunami_alert() -> void:
 	var start_at := Vector2(middle.x - big_width / 2.0, middle.y + 20.0)
 	var at := start_at.lerp(label_at, move)
 	var size := int(lerpf(float(big_size), 56.0, move))
-	var text_alpha := 1.0 if move > 0.0 else blink
-	canvas.draw_string_outline(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(0.02, 0.1, 0.12, 0.95 * text_alpha))
-	var text_color := Color(0.6, 1.0, 0.95)
-	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(text_color, text_alpha))
+	canvas.draw_string_outline(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 10, Color(0.02, 0.05, 0.08, 0.95))
+	canvas.draw_string(ui_font, at, tsunami_label, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(style.text))
 	if move <= 0.0:
-		var note := "あなた・召喚妖精が流される"
+		var info: Array = Rules.WEATHERS[weather].info
+		var note: String = info[0]
 		var note_width := ui_font.get_string_size(note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
 		canvas.draw_string(ui_font, Vector2(middle.x - note_width / 2.0, middle.y + 66.0), note, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.5))
-		var note2 := "（嵐鮫と設置物は動かない）"
+		var note2: String = info[1]
 		var note2_width := ui_font.get_string_size(note2, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-		canvas.draw_string(ui_font, Vector2(middle.x - note2_width / 2.0, middle.y + 96.0), note2, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.8, 0.9, 0.9, 0.85 * blink))
+		canvas.draw_string(ui_font, Vector2(middle.x - note2_width / 2.0, middle.y + 96.0), note2, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.85, 0.92, 0.92, 0.9))
 
-const TSUNAMI_ALERT_HOLD := 2.8
+const TSUNAMI_ALERT_HOLD := 1.8
 const TSUNAMI_ALERT_MOVE := 0.6
 var tsunami_alert_round := -1
 var tsunami_layer: Node2D
@@ -3659,11 +3781,15 @@ func _draw_tsunami() -> void:
 		draw_line(tail, tip, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 + side * 13.0, arrow_color, 6 if is_player else 3)
 		draw_line(tip, tip - dir * 18.0 - side * 13.0, arrow_color, 6 if is_player else 3)
-	var wave_label: String = "津波 " + {Vector2i.UP: "↑", Vector2i.DOWN: "↓", Vector2i.LEFT: "←", Vector2i.RIGHT: "→"}.get(wind, "")
+
+## Each new turn the weather is announced as an alert in the middle of the board (the way Rotorick's reel
+## is), and then the words slide up to the corner where they stay. The alert is drawn on a layer above
+## the units, so the shark cannot hide it.
+func _announce_weather() -> void:
+	var label := _weather_label()
+	if label == "":
+		return
 	var label_at: Vector2 = BOARD + Vector2(0, -16)
-	# Each new turn the direction is announced as an alert in the middle of the board (the way Rotorick's
-	# reel is), and then the words slide up to the corner where they stay. The alert is drawn on a layer
-	# above the units, so the shark cannot hide it.
 	# Not while the shark makes its entrance (its title card is on the board then): the alert waits for the end.
 	if shark_intro or shark_title_t >= 0.0:
 		tsunami_alert_round = -1
@@ -3676,12 +3802,14 @@ func _draw_tsunami() -> void:
 		tsunami_layer.z_index = 6
 		add_child(tsunami_layer)
 		tsunami_layer.draw.connect(_draw_tsunami_alert)
-	tsunami_label = wave_label
+	tsunami_label = label
 	tsunami_layer.queue_redraw()
 	if clock - tsunami_alert_start < TSUNAMI_ALERT_HOLD + TSUNAMI_ALERT_MOVE:
 		return
-	draw_string_outline(ui_font, label_at, wave_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.1, 0.12, 0.95))
-	_text(label_at, wave_label, 56, Color(0.6, 1.0, 0.95))
+	var style: Dictionary = WEATHER_STYLE[model.weather_id()]
+	draw_string_outline(ui_font, label_at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 56, 10, Color(0.02, 0.05, 0.08, 0.95))
+	_text(label_at, label, 56, Color(style.text))
+
 
 ## The lightning coming down: one great bolt per mino falls from the top of the screen onto it
 ## (thick, glowing, with forks), the mino's tiles blaze white and a shock ring rolls out.
@@ -3906,7 +4034,7 @@ func _wave_plan() -> Array:
 	return _wave_cache
 
 ## Fairy effects: small and quick, except the firework, which is allowed to show off.
-const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "barrier_block":0.8, "chain_cut":0.9, "barrier_break":1.7, "barrier_up":1.4, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "awaken":0.9, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
+const FX_LIFE = {"cross_strike":1.0, "emerge":1.6, "tsunami":2.6, "calm":1.3, "whirl":1.5, "dive":0.8, "surface":0.9, "thunder":1.1, "thunder_warn":0.45, "knock":0.3, "knock_home":0.8, "barrier_block":0.8, "chain_cut":0.9, "barrier_break":1.7, "barrier_up":1.4, "wind":0.3, "bolt":0.42, "warp":0.42, "summon":0.5, "ambush":0.42, "shot":0.45, "muzzle":0.35, "slash":0.45, "blast":0.8, "firework":0.95, "javelin":0.4, "arrow":0.4, "quake":0.75, "dash":0.4, "roar":0.7, "burn":0.6, "awaken":0.9, "zap":0.45, "spark":0.35, "resonate":0.5, "push":0.35, "bump":0.5, "discharge":0.5, "block":0.45, "analyzed":0.6, "smash":0.5, "axe":0.7, "chalk":0.5, "circle":0.1, "pull":0.45, "swap":0.5, "bite":0.45, "fall":0.6, "gravity":0.6, "devour":0.85, "gulp":0.75, "windup":0.7, "freeze":0.8, "meteor":1.0, "chain":0.05, "heal":1.0, "time_stop":1.2}
 const FIREWORK_COLORS = [Color("ff5b8a"), Color("ffd35b"), Color("6bdcff"), Color("b58cff"), Color("8dffb0")]
 
 func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
@@ -4052,6 +4180,17 @@ func _draw_fx(effect: Dictionary, pos: Vector2, fade: float) -> void:
 			_draw_quake(effect, pos, t)
 		"tsunami":
 			_draw_tsunami_rush(effect, t, fade)
+		"calm":
+			# Warm light spreads out over the board and the water settles.
+			var calm_mid := BOARD + Vector2.ONE * model.board_size * TILE / 2.0
+			draw_arc(calm_mid, 30.0 + t * TILE * model.board_size * 0.65, 0.0, TAU, 56, Color(1.0, 0.95, 0.6, fade * 0.55), 5.0, true)
+			draw_arc(calm_mid, 10.0 + t * TILE * model.board_size * 0.45, 0.0, TAU, 56, Color(1.0, 1.0, 0.85, fade * 0.4), 3.0, true)
+		"whirl":
+			# Rings drawn in towards the middle of the board.
+			var whirl_mid := BOARD + Vector2.ONE * model.board_size * TILE / 2.0
+			for ring in range(4):
+				var along := fposmod(t * 1.6 + float(ring) * 0.25, 1.0)
+				draw_arc(whirl_mid, (1.0 - along) * TILE * model.board_size * 0.6 + 12.0, 0.0, TAU, 56, Color(0.75, 0.85, 1.0, fade * (0.2 + 0.45 * along)), 4.0, true)
 		"emerge":
 			_draw_shark_emerge(effect, t, fade)
 		"cross_strike":

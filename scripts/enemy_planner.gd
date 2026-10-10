@@ -52,6 +52,12 @@ func begin(model: RefCounted) -> void:
 			enemy.intent = "接近"
 		elif enemy.type == "storm_shark":
 			enemy.intent = "浮上" if enemy.get("diving", false) else "接近・潜水"
+			# 怒り: AP 3 for good. 凪: it sleeps through the turn (unless it is under the water: it comes up).
+			if enemy.get("enraged", false):
+				enemy.ap = Rules.SHARK_RAGE_AP
+			if model.weather_id() == "calm" and not enemy.get("diving", false):
+				enemy.ap = 0
+				enemy.intent = "凪で休む"
 		elif enemy.type == "shield":
 			enemy.intent = "盾を構えて前進"
 		elif enemy.type == "analyst":
@@ -104,7 +110,7 @@ func beat(model: RefCounted, index: int) -> void:
 			_prison_action(model, enemy)
 			continue
 		if enemy.type == "storm_shark":
-			if enemy.get("diving", false) or enemy.ap == Rules.TYPES.storm_shark.ap:
+			if enemy.get("diving", false) or enemy.ap == (Rules.SHARK_RAGE_AP if enemy.get("enraged", false) else Rules.TYPES.storm_shark.ap):
 				if model.shark_opening(enemy):
 					continue
 			_prison_action(model, enemy)
@@ -184,7 +190,7 @@ func finish(model: RefCounted) -> void:
 		model.phase = Rules.Phase.PLAYER
 		model.player.ap = model.turn_start_ap()
 		model.combo_boost = -1
-		model.storm_roll_wind()
+		model.storm_roll_weather()
 		model.add_log("TURN %02d / あなたのターン" % model.round_number)
 
 ## Anything that can move and stands in the cat's field (a 2x2 with any tile in it) runs out of
