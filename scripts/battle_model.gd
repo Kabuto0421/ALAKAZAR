@@ -1152,30 +1152,32 @@ func equip(index: int) -> bool:
 	weapon = index
 	return true
 
-## Where a 2x2 enemy lands when the player swaps with it by striking its tile `cell` from where they
-## stand: a block that holds the player's old tile and not `cell` (which the player takes), as near to
-## where it was as possible. It may land partly on its own old tiles, but not on anything else.
-## (-1,-1) when no such block is free (inside the board, no obstacles or other units); the king and
-## the fortresses are rooted and never move.
+## Where a big enemy (2x2, or the king's 3x3) lands when the player swaps with it by striking its tile
+## `cell` from where they stand: a block that holds the player's old tile and not `cell` (which the
+## player takes), as near to where it was as possible. It may land partly on its own old tiles, but not
+## on anything else. (-1,-1) when no such block is free (inside the board, no obstacles or other units).
+## The king and the fortresses can be swapped too, though nothing else moves them.
 func swap_landing(enemy: Dictionary, cell: Vector2i) -> Vector2i:
-	if int(enemy.get("size", 1)) != 2 or enemy.type in IMMOVABLE:
+	var size: int = int(enemy.get("size", 1))
+	if size < 2:
 		return Vector2i(-1, -1)
 	var best := Vector2i(-1, -1)
 	var best_gap := 9999
-	for offset in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
-		var anchor: Vector2i = player.cell - offset
-		var gap: int = absi(anchor.x - enemy.cell.x) + absi(anchor.y - enemy.cell.y)
-		if gap >= best_gap:
-			continue
-		var fits := true
-		for tile in footprint({"cell":anchor, "size":2}):
-			if not inside(tile) or tile == cell:
-				fits = false
-			elif tile != player.cell and (blocked(tile) or (not enemy_at(tile).is_empty() and enemy_at(tile).id != enemy.id)):
-				fits = false
-		if fits:
-			best = anchor
-			best_gap = gap
+	for dy in range(size):
+		for dx in range(size):
+			var anchor: Vector2i = player.cell - Vector2i(dx, dy)
+			var gap: int = absi(anchor.x - enemy.cell.x) + absi(anchor.y - enemy.cell.y)
+			if gap >= best_gap:
+				continue
+			var fits := true
+			for tile in footprint({"cell":anchor, "size":size}):
+				if not inside(tile) or tile == cell:
+					fits = false
+				elif tile != player.cell and (blocked(tile) or (not enemy_at(tile).is_empty() and enemy_at(tile).id != enemy.id)):
+					fits = false
+			if fits:
+				best = anchor
+				best_gap = gap
 	return best
 
 func player_action(cell: Vector2i) -> bool:

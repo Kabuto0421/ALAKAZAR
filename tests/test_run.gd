@@ -1581,10 +1581,20 @@ func _mechanic_weapons() -> void:
 	for wall in [Vector2i(2,3), Vector2i(1,3), Vector2i(0,1)]:
 		m.obstacles.append(wall)
 	verify(m.swap_landing(big,Vector2i(2,1)) == Vector2i(-1,-1) and not m.player_action(Vector2i(2,1)) and big.cell == Vector2i(2,1) and m.player.ap == 2,"With no room to land, the swap with a 2x2 does nothing and costs nothing")
+	# The rooted bosses can be swapped too: a fortress (2x2) and the king (3x3).
 	m = _weapon_room("swap_staff",[])
 	var root: Dictionary = m.make_enemy("fortress",Vector2i(2,1),0)
 	m.enemies.append(root)
-	verify(m.swap_landing(root,Vector2i(2,1)) == Vector2i(-1,-1),"A fortress is rooted: no swap")
+	verify(m.swap_landing(root,Vector2i(2,1)) == Vector2i(1,2) and m.player_action(Vector2i(2,1)) and root.cell == Vector2i(1,2) and m.player.cell == Vector2i(2,1),"A fortress can be swapped")
+	m = _weapon_room("swap_staff",[])
+	m.player.cell = Vector2i(2,3)
+	var lord: Dictionary = m.make_enemy("king",Vector2i(3,2),0)
+	m.enemies.append(lord)
+	verify(m.footprint(lord).has(Vector2i(3,2)) and m.footprint(lord).size() == 9,"The king is a 3x3 block")
+	var landing: Vector2i = m.swap_landing(lord,Vector2i(3,2))
+	verify(landing != Vector2i(-1,-1) and m.footprint({"cell":landing,"size":3}).has(Vector2i(2,3)) and not m.footprint({"cell":landing,"size":3}).has(Vector2i(3,2)),"The king would land on a 3x3 block that holds the player's old tile")
+	var king_hp: int = lord.hp
+	verify(m.player_action(Vector2i(3,2)) and m.player.cell == Vector2i(3,2) and lord.cell == landing and lord.hp == king_hp,"The swap staff swaps with the king without damage")
 	# Forged: the first swap each turn is free, the next one costs AP again.
 	m = _weapon_room("swap_staff",[Vector2i(2,1)])
 	m.weapon_power[m.weapon] = 1
