@@ -1565,10 +1565,26 @@ func _mechanic_weapons() -> void:
 	# 鎖鎌: hit two tiles away and drag the enemy in.
 	m = _weapon_room("sickle",[Vector2i(3,2)])
 	verify(m.player_action(Vector2i(3,2)) and m.enemies[0].hp == 4 and m.enemies[0].cell == Vector2i(2,2),"The sickle hits and pulls the enemy next to the player")
-	# 入替の杖: trade places, no damage; not with a 2x2.
+	# 入替の杖: trade places, no damage.
 	m = _weapon_room("swap_staff",[Vector2i(2,1)])
 	verify(m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(2,1) and m.enemies[0].cell == Vector2i(1,2) and m.enemies[0].hp == 5,"The swap staff trades places without damage")
 	verify(m.player.ap == 1,"An unforged swap costs 1 AP")
+	# ... and with a 2x2 too: the block moves to hold the player's old tile, the player takes the struck tile.
+	m = _weapon_room("swap_staff",[])
+	var big: Dictionary = m.make_enemy("prison",Vector2i(2,1),0)
+	m.enemies.append(big)
+	verify(m.swap_landing(big,Vector2i(2,1)) == Vector2i(1,2),"A swapped 2x2 lands holding the player's old tile")
+	verify(m.player_action(Vector2i(2,1)) and m.player.cell == Vector2i(2,1) and big.cell == Vector2i(1,2) and big.hp == 1 and m.footprint(big).has(Vector2i(1,2)) and not m.footprint(big).has(Vector2i(2,1)),"The swap staff trades places with a 2x2 enemy without damage")
+	m = _weapon_room("swap_staff",[])
+	big = m.make_enemy("prison",Vector2i(2,1),0)
+	m.enemies.append(big)
+	for wall in [Vector2i(2,3), Vector2i(1,3), Vector2i(0,1)]:
+		m.obstacles.append(wall)
+	verify(m.swap_landing(big,Vector2i(2,1)) == Vector2i(-1,-1) and not m.player_action(Vector2i(2,1)) and big.cell == Vector2i(2,1) and m.player.ap == 2,"With no room to land, the swap with a 2x2 does nothing and costs nothing")
+	m = _weapon_room("swap_staff",[])
+	var root: Dictionary = m.make_enemy("fortress",Vector2i(2,1),0)
+	m.enemies.append(root)
+	verify(m.swap_landing(root,Vector2i(2,1)) == Vector2i(-1,-1),"A fortress is rooted: no swap")
 	# Forged: the first swap each turn is free, the next one costs AP again.
 	m = _weapon_room("swap_staff",[Vector2i(2,1)])
 	m.weapon_power[m.weapon] = 1
