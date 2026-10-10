@@ -2481,6 +2481,109 @@ def l2_tremolo_with(mix, kit, t0, note, steps, vol):
         mix.put("lute", t0 + k * 2 * STEP, kit["lute"](note, vol * (1.0 if k == 0 else 0.75)))
 
 
+# The chords of the first fight version (Eb and Bb as full major triads).
+L2_CHORDS_V1 = {
+    "D":  {"bass": "D2", "pad": ["D3", "F#3", "A3", "D4"], "arp": ["D4", "F#4", "A4", "D5"], "minor": False},
+    "Eb": {"bass": "Eb2", "pad": ["Eb3", "G3", "Bb3", "Eb4"], "arp": ["Eb4", "G4", "Bb4", "Eb5"], "minor": False},
+    "Gm": {"bass": "G1", "pad": ["G3", "Bb3", "D4", "G4"], "arp": ["G3", "Bb3", "D4", "G4"], "minor": True},
+    "A":  {"bass": "A1", "pad": ["A3", "C#4", "E4", "A4"], "arp": ["A3", "C#4", "E4", "A4"], "minor": False},
+    "Bb": {"bass": "Bb1", "pad": ["Bb3", "D4", "F4", "Bb4"], "arp": ["Bb3", "D4", "F4", "Bb4"], "minor": False},
+    "Bm": {"bass": "B1", "pad": ["B3", "D4", "F#4", "B4"], "arp": ["B3", "D4", "F#4", "B4"], "minor": True},
+    "G":  {"bass": "G1", "pad": ["G3", "B3", "D4", "G4"], "arp": ["G3", "B3", "D4", "G4"], "minor": False},
+}
+
+
+def layer2_battle_theme():
+    """The first version of layer 2's fight (the one the game uses): the enemy's side, ruins and neon, D Phrygian dominant, 124 BPM, 32 bars.
+    A (8 bars) the quiet ruins: gallop bass, arpeggio, drone, a few notes on the bouzouki.
+    B (8) the theme comes in dark. C (8) the peak: the theme doubled an octave up, full drums.
+    D (8) the ebb back into the ruins, ending on A so the loop falls to D."""
+    bar_len = 16 * STEP
+    plan = L2_PLAN_A + L2_PLAN_D + L2_PLAN_D + L2_PLAN_A
+    sections = ["calm"] * 8 + ["theme"] * 8 + ["peak"] * 8 + ["ebb"] * 8
+    mix = Mix(32 * bar_len, wrap=True)
+    rng = random.Random(24)
+    kicks = []
+    for bar in range(32):
+        section, idx = sections[bar], bar % 8
+        chord = L2_CHORDS_V1[plan[bar]]
+        t0 = bar * bar_len
+        quiet = section in ("calm", "ebb")
+        peak = section == "peak"
+        k_vol = 0.5 if quiet else 0.9 if peak else 0.7
+        bass_v = 0.40 if quiet else 0.50 if peak else 0.46
+        arp_v = 0.055 if quiet else 0.085 if peak else 0.065
+        arp_cut = 1300 + idx * 120 if quiet else 2800 if peak else 2000
+        for beat in range(4):
+            bt = t0 + beat * 4 * STEP
+            if quiet or peak or beat == 0:
+                mix.put("kick", bt, kick(k_vol))
+                kicks.append(bt)
+        if section == "theme":
+            mix.put("kick", t0 + 10 * STEP, kick(0.5))
+            kicks.append(t0 + 10 * STEP)
+        for step in (4, 12) if (quiet or peak) else (8,):
+            mix.put("clap", t0 + step * STEP, snare(rng, 0.2 if peak else 0.12))
+        if peak:
+            mix.put("clap", t0 + 15 * STEP, snare(rng, 0.07))
+        for s in range(0, 16, 1 if peak else 2):
+            mix.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 13000, 0.05 if not peak else (0.06 if s % 4 == 0 else 0.035)))
+        if bar % 2 == 1 and not peak:
+            mix.put("hat", t0 + 14 * STEP, noise_hit(rng, 0.09, 6000, 12000, 0.09))
+        # The gallop: root, root, octave, root, root, fifth, octave, root in eighths; every second
+        # bar ends on the Phrygian step above the root.
+        root = midi(chord["bass"])
+        pattern = [0, 0, 12, 0, 0, 7, 12, 0]
+        if bar % 2 == 1:
+            pattern[-1] = 1
+        for e, off in enumerate(pattern):
+            mix.put("bass", t0 + e * 2 * STEP, bass_note(root + off, steps=2, vol=bass_v if e % 4 == 0 else bass_v * 0.85))
+        for s in range(16):
+            mix.put("arp", t0 + s * STEP, pluck(chord["arp"][ARP_ORDER[s % 8]], arp_cut, vol=arp_v * (1.2 if s % 4 == 0 else 1.0)))
+        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=700 if quiet else 1100 if peak else 850,
+                                     vol=0.06 if quiet else 0.09 if peak else 0.075))
+        # Kettle drums: a low D under the bar, both halves at the peak.
+        if section == "theme" and idx < 7 or (peak and True) or (quiet and idx in (0, 4)):
+            mix.put("timp", t0, timpani(rng, "D2", 0.34 if quiet else 0.5))
+            if peak:
+                mix.put("timp", t0 + 8 * STEP, timpani(rng, "D2", 0.42))
+        if section == "theme" and idx == 7:
+            for s in range(8, 16):
+                mix.put("timp", t0 + s * STEP, timpani(rng, "A2", 0.2 + 0.05 * (s - 8)))
+        # Melodies.
+        if section in ("theme", "peak"):
+            prev = None
+            for step, length, note in L2_THEME[idx]:
+                m = mirror_note(note)
+                mix.put("lead", t0 + step * STEP, lead(m, length, glide_from=prev, vol=0.15))
+                if peak:
+                    mix.put("lead", t0 + step * STEP, lead(m + 12, length, vol=0.1))
+                l2_tremolo(mix, "lute", t0 + step * STEP, m, length, 0.05)
+                prev = m
+        elif section == "calm" and idx >= 4:
+            prev = None
+            for step, length, note in L2_RUINS[idx - 4]:
+                m = midi(note)
+                mix.put("lead", t0 + step * STEP, lead(m, length, glide_from=prev, vol=0.09))
+                l2_tremolo(mix, "lute", t0 + step * STEP, m + 12, length, 0.06)
+                prev = m
+    # The rise into the peak, and crashes where a section opens.
+    mix.put("fx", 14 * bar_len, riser(rng, 2 * bar_len))
+    mix.put("fx", 16 * bar_len, noise_hit(rng, 2.0, 2500, 11000, 0.2))
+    mix.put("fx", 0, noise_hit(rng, 1.4, 3000, 11000, 0.1))
+    mix.put("fx", 8 * bar_len, noise_hit(rng, 1.4, 3000, 11000, 0.12))
+    for s in range(8):
+        mix.put("clap", 23 * bar_len + (8 + s) * STEP, snare(rng, 0.06 + 0.02 * s))
+    mix.echo("arp", STEP * 3, 0.35, 0.45)
+    mix.echo("lead", STEP * 3, 0.36, 0.38)
+    mix.echo("lute", STEP * 3, 0.3, 0.3)
+    mix.duck("pad", kicks, 0.65)
+    mix.duck("arp", kicks, 0.45)
+    mix.duck("bass", kicks, 0.3, length=0.12)
+    mix.duck("lead", kicks, 0.18)
+    return mix
+
+
 def l2_harp_notes(chord):
     """A rolling harp figure for a chord: root, fifth, octave, third, fifth, and back down."""
     base = midi(chord["bass"]) + 12
@@ -2594,7 +2697,8 @@ def main():
               "king_rage_sting.ogg": lambda: with_tempo(120, king_rage_sting),
               "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
               "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting),
-              "layer2_battle_loop.ogg": lambda: with_tempo(132, layer2_fight_theme),
+              "layer2_battle_loop.ogg": lambda: with_tempo(124, layer2_battle_theme),
+              "layer2_battle_fight_loop.ogg": lambda: with_tempo(132, layer2_fight_theme),
               "layer2_battle_chip_loop.ogg": lambda: with_tempo(132, lambda: layer2_fight_theme("chip")),
               "layer2_camp_loop.ogg": lambda: with_tempo(72, layer2_camp_theme),
               "layer2_draft_loop.ogg": lambda: with_tempo(108, layer2_draft_theme),

@@ -12,9 +12,9 @@ const SHARK_DROP := 53.0
 ## Between fights: the draft (picks and rewards) and the camp.
 const DRAFT = preload("res://assets/audio/bgm/draft_loop.ogg")
 const CAMP = preload("res://assets/audio/bgm/camp_loop.ogg")
-## Layer 2: the enemy's side in the fights (the chip-tune fight; layer2_battle_loop.ogg is the cyber-synth version of it), the fairies' side (a hero's theme) at the
+## Layer 2: the enemy's side in the fights (layer2_battle_loop.ogg, the first version, ruins and neon; the other fight versions are layer2_battle_fight_loop and layer2_battle_chip_loop), the fairies' side (a hero's theme) at the
 ## camp and the draft.
-const LAYER2_BATTLE = preload("res://assets/audio/bgm/layer2_battle_chip_loop.ogg")
+const LAYER2_BATTLE = preload("res://assets/audio/bgm/layer2_battle_loop.ogg")
 const LAYER2_DRAFT = preload("res://assets/audio/bgm/layer2_draft_loop.ogg")
 const LAYER2_CAMP = preload("res://assets/audio/bgm/layer2_camp_loop.ogg")
 ## Rotorick's loop in three sample-aligned versions, played together and cross-faded
