@@ -3308,7 +3308,7 @@ const WEATHERS := {
 	"thunder": {"name": "雷", "weight": 3, "info": ["4本の雷が落ちる", "予告マスにいると1ダメージ"]},
 	"tsunami": {"name": "津波", "weight": 2, "info": ["あなた・召喚妖精が流される", "（嵐鮫と設置物は動かない）"]},
 	"whirl": {"name": "大渦", "weight": 2, "info": ["嵐鮫以外が盤の中心へ", "2マス引き寄せられる"]},
-	"storm": {"name": "大嵐", "weight": 2, "info": ["雷と津波が同時に来る", "悪い目！"]},
+	"storm": {"name": "大嵐", "weight": 2, "info": ["雷と津波が同時に来る", "予告マスと矢印に注意"]},
 }
 ## How many tiles the whirlpool pulls everyone towards the middle of the board.
 const WHIRL_PULL := 2
