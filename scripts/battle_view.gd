@@ -912,6 +912,7 @@ func _sync_units(animate: bool) -> void:
 		var view: Node2D = actors[id]
 		view.hp = _shown_hp(id, unit.hp)
 		view.ap_boxes = _ap_boxes(unit) if id >= 0 else 0
+		view.death_mark = Rules.DEATH_EFFECT_TYPES.has(unit.type)
 		view.holo_goal = 0.0 if unit.get("diving", false) else 1.0
 		# "!" on enemies about to hit the player, and on a glutton about to bite them.
 		view.charge_warning = id != -1 and threats.has(id)
@@ -3058,7 +3059,8 @@ func _draw_big_range(enemy: Dictionary) -> void:
 		_draw_threat(enemy,576)
 	else:
 		_text(Vector2(852,450),"2×2で縦横に1マスずつ動く",18,tone)
-		_text(Vector2(852,476),"壊すと執行兵が2体出る",19,CYAN)
+		UnitView.draw_skull(self, Vector2(862,468), 1.7)
+		_text(Vector2(878,476),"壊すと執行兵が2体出る",19,CYAN)
 		_draw_released_soldier()
 		_draw_threat(enemy,568)
 	_text(Vector2(852,596 if enemy.type in ["prison", "storm_shark"] else 574),"固定中・右クリックで解除" if selected_enemy_id==int(enemy.id) else "右クリックで固定",18,MUTED)
