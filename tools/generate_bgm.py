@@ -2201,98 +2201,6 @@ def l2_tremolo(mix, bus, t0, note, steps, vol):
         mix.put(bus, t0 + k * 2 * STEP, bouzouki(note, vol * (1.0 if k == 0 else 0.75)))
 
 
-def layer2_battle_theme():
-    """The enemy's side of layer 2: ruins and neon, D Phrygian dominant, 124 BPM, 32 bars.
-    A (8 bars) the quiet ruins: gallop bass, arpeggio, drone, a few notes on the bouzouki.
-    B (8) the theme comes in dark. C (8) the peak: the theme doubled an octave up, full drums.
-    D (8) the ebb back into the ruins, ending on A so the loop falls to D."""
-    bar_len = 16 * STEP
-    plan = L2_PLAN_A + L2_PLAN_D + L2_PLAN_D + L2_PLAN_A
-    sections = ["calm"] * 8 + ["theme"] * 8 + ["peak"] * 8 + ["ebb"] * 8
-    mix = Mix(32 * bar_len, wrap=True)
-    rng = random.Random(24)
-    kicks = []
-    for bar in range(32):
-        section, idx = sections[bar], bar % 8
-        chord = L2_CHORDS[plan[bar]]
-        t0 = bar * bar_len
-        quiet = section in ("calm", "ebb")
-        peak = section == "peak"
-        k_vol = 0.5 if quiet else 0.9 if peak else 0.7
-        bass_v = 0.40 if quiet else 0.50 if peak else 0.46
-        arp_v = 0.055 if quiet else 0.085 if peak else 0.065
-        arp_cut = 1300 + idx * 120 if quiet else 2800 if peak else 2000
-        for beat in range(4):
-            bt = t0 + beat * 4 * STEP
-            if quiet or peak or beat == 0:
-                mix.put("kick", bt, kick(k_vol))
-                kicks.append(bt)
-        if section == "theme":
-            mix.put("kick", t0 + 10 * STEP, kick(0.5))
-            kicks.append(t0 + 10 * STEP)
-        for step in (4, 12) if (quiet or peak) else (8,):
-            mix.put("clap", t0 + step * STEP, snare(rng, 0.2 if peak else 0.12))
-        if peak:
-            mix.put("clap", t0 + 15 * STEP, snare(rng, 0.07))
-        for s in range(0, 16, 1 if peak else 2):
-            mix.put("hat", t0 + s * STEP, noise_hit(rng, 0.03, 7000, 13000, 0.05 if not peak else (0.06 if s % 4 == 0 else 0.035)))
-        if bar % 2 == 1 and not peak:
-            mix.put("hat", t0 + 14 * STEP, noise_hit(rng, 0.09, 6000, 12000, 0.09))
-        # The gallop: root, root, octave, root, root, fifth, octave, root in eighths; every second
-        # bar ends on the Phrygian step above the root.
-        root = midi(chord["bass"])
-        pattern = [0, 0, 12, 0, 0, 7, 12, 0]
-        if bar % 2 == 1:
-            pattern[-1] = 1
-        for e, off in enumerate(pattern):
-            mix.put("bass", t0 + e * 2 * STEP, bass_note(root + off, steps=2, vol=bass_v if e % 4 == 0 else bass_v * 0.85))
-        for s in range(16):
-            mix.put("arp", t0 + s * STEP, pluck(chord["arp"][ARP_ORDER[s % 8]], arp_cut, vol=arp_v * (1.2 if s % 4 == 0 else 1.0)))
-        mix.put("pad", t0, pad_chord(chord["pad"], bar_len - 0.1, cutoff=700 if quiet else 1100 if peak else 850,
-                                     vol=0.06 if quiet else 0.09 if peak else 0.075))
-        # Kettle drums: a low D under the bar, both halves at the peak.
-        if section == "theme" and idx < 7 or (peak and True) or (quiet and idx in (0, 4)):
-            mix.put("timp", t0, timpani(rng, "D2", 0.34 if quiet else 0.5))
-            if peak:
-                mix.put("timp", t0 + 8 * STEP, timpani(rng, "D2", 0.42))
-        if section == "theme" and idx == 7:
-            for s in range(8, 16):
-                mix.put("timp", t0 + s * STEP, timpani(rng, "A2", 0.2 + 0.05 * (s - 8)))
-        # Melodies.
-        if section in ("theme", "peak"):
-            prev = None
-            for step, length, note in L2_THEME[idx]:
-                m = mirror_note(note)
-                mix.put("lead", t0 + step * STEP, lead(m, length, glide_from=prev, vol=0.15))
-                if peak:
-                    mix.put("lead", t0 + step * STEP, lead(m + 12, length, vol=0.1))
-                l2_tremolo(mix, "lute", t0 + step * STEP, m, length, 0.05)
-                prev = m
-        elif section == "calm" and idx >= 4:
-            prev = None
-            for step, length, note in L2_RUINS[idx - 4]:
-                m = midi(note)
-                mix.put("lead", t0 + step * STEP, lead(m, length, glide_from=prev, vol=0.09))
-                l2_tremolo(mix, "lute", t0 + step * STEP, m + 12, length, 0.06)
-                prev = m
-    # The rise into the peak, and crashes where a section opens.
-    mix.put("fx", 14 * bar_len, riser(rng, 2 * bar_len))
-    mix.put("fx", 16 * bar_len, noise_hit(rng, 2.0, 2500, 11000, 0.2))
-    mix.put("fx", 0, noise_hit(rng, 1.4, 3000, 11000, 0.1))
-    mix.put("fx", 8 * bar_len, noise_hit(rng, 1.4, 3000, 11000, 0.12))
-    for s in range(8):
-        mix.put("clap", 23 * bar_len + (8 + s) * STEP, snare(rng, 0.06 + 0.02 * s))
-    mix.echo("arp", STEP * 3, 0.35, 0.45)
-    mix.echo("lead", STEP * 3, 0.36, 0.38)
-    mix.echo("lute", STEP * 3, 0.3, 0.3)
-    mix.duck("pad", kicks, 0.65)
-    mix.duck("arp", kicks, 0.45)
-    mix.duck("bass", kicks, 0.3, length=0.12)
-    mix.duck("lead", kicks, 0.18)
-    return mix
-
-
-
 # --- layer 2's fight, the chip-tune version: only pulse, triangle and noise channels, then a bit-crush ----
 
 def chip_pulse(note, seconds, duty=0.25, vol=0.1, vibrato=0.0, attack=0.001, release=0.015):
@@ -2357,73 +2265,190 @@ def chip_crush(total, levels=38, hold=2):
     return arr.tolist()
 
 
-def layer2_battle_chip_theme():
-    """The same fight music as layer2_battle_theme (same notes, same four parts), but in chip-tune: two
-    pulse channels (the lead, and chords as fast arpeggios), a triangle bass, noise drums, then a bit-crush."""
+# The fight's plan: like layer 1's battle loop it is mostly a low groove that keeps a little tension,
+# builds once (a rising arpeggio filter, a clap roll, a drop-out beat), spikes with the theme,
+# peaks with a twin lead and stabs, ebbs and breaks (no kick) before it comes round again.
+# Per-section levels: kick, open hat, 16th ticks, clap, arp (vol, cutoff start, cutoff end), pad (vol,
+# cutoff), bass vol.
+L2_FIGHT = [
+    # name     bars  chords                       kick  hat   tick  clap  arp_v arp_c0 arp_c1 pad_v pad_c bass
+    ("calm",    4, ["D", "D", "Eb", "D"],           0.50, 0.10, 0.04, 0.00, 0.06, 1100, 1100, 0.06, 700,  0.40),
+    ("groove",  8, L2_PLAN_A,                       0.62, 0.14, 0.05, 0.22, 0.075, 1300, 1700, 0.07, 800,  0.45),
+    ("build",   4, ["Eb", "D", "Gm", "A"],          0.78, 0.18, 0.07, 0.32, 0.09, 1700, 4200, 0.08, 1100, 0.48),
+    ("peak",    8, L2_PLAN_D,                       0.88, 0.20, 0.07, 0.40, 0.10, 4200, 4200, 0.09, 1300, 0.50),
+    ("climax",  4, ["D", "A", "Gm", "A"],           0.95, 0.22, 0.09, 0.46, 0.095, 5000, 5000, 0.10, 1700, 0.52),
+    ("glow",    4, ["D", "Bb", "Gm", "A"],          0.62, 0.14, 0.05, 0.22, 0.08, 2600, 1000, 0.07, 900,  0.44),
+    ("break",   4, ["D", "D", "Eb", "A"],           0.00, 0.00, 0.04, 0.00, 0.07, 800,  800,  0.08, 700,  0.30),
+]
+
+
+def _kit_synth():
+    """The cyber voices of layer 1 (the filtered saw bass, the pluck arpeggio, the detuned saw pad), for layer 2."""
+    def arp_bar(mix, t0, chord, cutoff, vol, stop=16):
+        for s in range(stop):
+            mix.put("arp", t0 + s * STEP, pluck(chord["arp"][ARP_ORDER[s % 8]], cutoff, vol=vol * (1.15 if s % 4 == 0 else 1.0)))
+
+    def stab_chord(notes):
+        return stab(notes, 0.05)
+
+    return {
+        "kick": lambda rng, v: kick(v),
+        "snare": lambda rng, v: snare(rng, v),
+        "hat": lambda rng, seconds, v: noise_hit(rng, seconds, 6000, 12000, v),
+        "bass": lambda note, steps, v: bass_note(note, steps, v),
+        "arp_bar": arp_bar,
+        "lead": lambda note, steps, glide, v: lead(note, steps, glide_from=glide, vol=v),
+        "lute": lambda note, v: bouzouki(note, v),
+        "pad": lambda notes, seconds, cut, v: pad_chord(notes, seconds, cutoff=cut, vol=v),
+        "stab": stab_chord,
+        "timp": lambda rng, note, v: timpani(rng, note, v),
+        "echo": (0.35, 0.4),
+        "post": None,
+        "loudness": 1.0,
+    }
+
+
+def _kit_chip():
+    """Only a NES's channels: pulse (lead and arpeggio), triangle (bass, toms), noise (drums), then a bit-crush."""
+    def arp_bar(mix, t0, chord, cutoff, vol, stop=16):
+        tones = [midi(n) for n in chord["pad"][:3]]
+        for k in range(stop * 2):
+            mix.put("arp", t0 + k * STEP / 2, chip_pulse(tones[k % 3] + 12, STEP / 2 * 0.9, 0.125, vol * 0.8))
+
+    def stab_chord(notes):
+        voices = [chip_pulse(midi(n), STEP * 0.6, 0.25, 0.035) for n in notes]
+        return [sum(v) for v in zip(*voices)]
+
+    def pad(notes, seconds, cut, v):
+        return chip_pulse(midi(notes[0]) - 12, seconds * 0.95, 0.5, v * 0.45)
+
+    return {
+        "kick": lambda rng, v: chip_kick(rng, v * 0.6),
+        "snare": lambda rng, v: chip_snare(rng, v),
+        "hat": lambda rng, seconds, v: chip_noise(rng, seconds, v * 0.5, 14000, 120 if seconds < 0.05 else 30),
+        "bass": lambda note, steps, v: chip_tri(note + 12, steps * STEP * 0.85, v * 0.8),
+        "arp_bar": arp_bar,
+        "lead": lambda note, steps, glide, v: chip_pulse(note, steps * STEP * 0.93, 0.25, v * 0.85, vibrato=0.004),
+        "lute": lambda note, v: chip_pulse(note, 0.07, 0.125, v * 0.8),
+        "pad": pad,
+        "stab": stab_chord,
+        "timp": lambda rng, note, v: chip_tom(note, v * 0.8),
+        "echo": (0.25, 0.2),
+        "post": chip_crush,
+        "loudness": 0.85,
+    }
+
+
+def layer2_fight_theme(kit_name="synth"):
+    """The enemy's side of layer 2 as a fight: ruins and neon, D Phrygian dominant, 36 bars (132 BPM).
+    The ruins' few notes on a bouzouki over the groove, then the theme (the fairies' tune turned into the
+    enemy's scale) at the peak, doubled at the climax. Same plan as layer 1's battle loop, so the same
+    edge-of-the-seat drive: rolling off-beat bass, an arpeggio that opens up, a clap roll and a drop-out
+    beat before the spike, a kick-less break."""
+    kit = _kit_synth() if kit_name == "synth" else _kit_chip()
     bar_len = 16 * STEP
-    plan = L2_PLAN_A + L2_PLAN_D + L2_PLAN_D + L2_PLAN_A
-    sections = ["calm"] * 8 + ["theme"] * 8 + ["peak"] * 8 + ["ebb"] * 8
-    mix = Mix(32 * bar_len, wrap=True)
+    plan = []
+    for name, count, chords, *levels in L2_FIGHT:
+        for i in range(count):
+            plan.append((name, i, count, chords[i], levels))
+    bars = len(plan)
+    mix = Mix(bars * bar_len, wrap=True)
     rng = random.Random(24)
-    for bar in range(32):
-        section, idx = sections[bar], bar % 8
-        chord = L2_CHORDS[plan[bar]]
+    kicks = []
+    starts = {}
+    for bar, (name, idx, count, key, levels) in enumerate(plan):
+        k_vol, hat, tick, clap, arp_v, arp_c0, arp_c1, pad_v, pad_c, bass_v = levels
+        chord = L2_CHORDS[key]
         t0 = bar * bar_len
-        quiet = section in ("calm", "ebb")
-        peak = section == "peak"
+        arp_cut = arp_c0 + (arp_c1 - arp_c0) * (idx / max(1, count - 1))
+        starts.setdefault(name, bar)
+        climax = name == "climax"
+        peak = name == "peak"
+        # One beat of silence right before the peak lands.
+        stop_beat = 3 if name == "build" and idx == count - 1 else -1
+        root = midi(chord["bass"])
         for beat in range(4):
             bt = t0 + beat * 4 * STEP
-            if quiet or peak or beat == 0:
-                mix.put("kick", bt, chip_kick(rng, 0.55))
-        if section == "theme":
-            mix.put("kick", t0 + 10 * STEP, chip_kick(rng, 0.4))
-        for step in (4, 12) if (quiet or peak) else (8,):
-            mix.put("snare", t0 + step * STEP, chip_snare(rng, 0.24 if peak else 0.17))
-        for s in range(0, 16, 1 if peak else 2):
-            mix.put("hat", t0 + s * STEP, chip_noise(rng, 0.03, 0.05 if s % 4 else 0.08, 14000, 120))
-        if bar % 2 == 1 and not peak:
-            mix.put("hat", t0 + 14 * STEP, chip_noise(rng, 0.09, 0.08, 12000, 30))
-        # Triangle bass: the gallop (root, root, octave, root, root, fifth, octave, root).
-        root = midi(chord["bass"]) + 12
-        pattern = [0, 0, 12, 0, 0, 7, 12, 0]
-        if bar % 2 == 1:
-            pattern[-1] = 1
-        for e, off in enumerate(pattern):
-            mix.put("bass", t0 + e * 2 * STEP, chip_tri(root + off, 2 * STEP * 0.85, 0.42))
-        # Chords as the classic fast arpeggio on a thin pulse: three tones, one every thirty-second.
-        tones = [midi(n) for n in chord["pad"][:3]]
-        arp_vol = 0.045 if quiet else 0.06 if peak else 0.05
-        for k in range(32):
-            mix.put("arp", t0 + k * STEP / 2, chip_pulse(tones[k % 3] + 12, STEP / 2 * 0.9, 0.125, arp_vol))
-        # A low pulse drone underneath in the quiet parts.
-        if quiet:
-            mix.put("drone", t0, chip_pulse(38, bar_len * 0.95, 0.5, 0.025))
-        # Kettle drums as triangle toms.
-        if section == "theme" and idx < 7 or peak or (quiet and idx in (0, 4)):
-            mix.put("tom", t0, chip_tom(38, 0.4))
-            if peak:
-                mix.put("tom", t0 + 8 * STEP, chip_tom(38, 0.34))
-        if section == "theme" and idx == 7:
-            for s in range(8, 16):
-                mix.put("tom", t0 + s * STEP, chip_tom(45 + (s - 8) // 2, 0.18 + 0.03 * (s - 8)))
-        # Melodies on the pulse channel.
-        if section in ("theme", "peak"):
-            for step, length, note in L2_THEME[idx]:
+            if beat == stop_beat:
+                continue
+            if k_vol:
+                mix.put("kick", bt, kit["kick"](rng, k_vol))
+                kicks.append(bt)
+            # Rolling off-16th bass: the kick owns the downbeat. The climax bounces root-octave-root, and
+            # on every second bar the last sixteenth leans on the Phrygian step above the root.
+            for s in (1, 2, 3):
+                note = root
+                if (climax and s == 2) or (peak and s == 3 and beat == 3):
+                    note += 12
+                if bar % 2 == 1 and beat == 3 and s == 3 and not peak:
+                    note += 1
+                mix.put("bass", bt + s * STEP, kit["bass"](note, 1, bass_v))
+            if hat:
+                mix.put("hat", bt + 2 * STEP, kit["hat"](rng, 0.09, hat))
+            for s in ((0, 1, 3) if climax else (1, 3)):
+                mix.put("hat", bt + s * STEP, kit["hat"](rng, 0.03, tick))
+            if clap and beat in (1, 3):
+                mix.put("clap", bt, kit["snare"](rng, clap * 0.55))
+            if climax:
+                mix.put("stab", bt + 2 * STEP, kit["stab"](chord["arp"][:3]))
+        mix.put("pad", t0, kit["pad"](chord["pad"], bar_len - 0.1, pad_c, pad_v))
+        kit["arp_bar"](mix, t0, chord, arp_cut, arp_v, 16 if stop_beat < 0 else stop_beat * 4)
+        # Kettle drums.
+        if peak or climax or (name == "groove" and idx % 4 == 0):
+            mix.put("timp", t0, kit["timp"](rng, "D2", 0.34 if name == "groove" else 0.45))
+            if climax:
+                mix.put("timp", t0 + 8 * STEP, kit["timp"](rng, "D2", 0.4))
+        if name == "break":
+            mix.put("timp", t0, kit["timp"](rng, "D2", 0.3))
+            mix.put("timp", t0 + 6 * STEP, kit["timp"](rng, "D2", 0.2))
+        # Melodies.
+        if peak or climax:
+            phrase = L2_THEME[idx if peak else 4 + idx]
+            prev = None
+            for step, length, note in phrase:
                 m = mirror_note(note)
-                mix.put("lead", t0 + step * STEP, chip_pulse(m, length * STEP * 0.93, 0.25, 0.13, vibrato=0.004))
-                if peak:
-                    mix.put("lead", t0 + step * STEP, chip_pulse(m + 12, length * STEP * 0.93, 0.125, 0.07))
-        elif section == "calm" and idx >= 4:
+                mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, 0.15))
+                if climax:
+                    mix.put("lead", t0 + step * STEP, kit["lead"](m + 12, length, None, 0.1))
+                l2_tremolo_with(mix, kit, t0 + step * STEP, m, length, 0.05)
+                prev = m
+        elif name == "groove" and idx >= 4:
+            prev = None
             for step, length, note in L2_RUINS[idx - 4]:
-                mix.put("lead", t0 + step * STEP, chip_pulse(midi(note), length * STEP * 0.9, 0.5, 0.09, vibrato=0.004))
-    mix.put("fx", 16 * bar_len, chip_noise(rng, 1.5, 0.12, 5000, 3.0))
-    mix.put("fx", 0, chip_noise(rng, 1.0, 0.07, 6000, 4.0))
-    for s in range(8):
-        mix.put("snare", 23 * bar_len + (8 + s) * STEP, chip_snare(rng, 0.07 + 0.025 * s))
-    mix.echo("lead", STEP * 3, 0.25, 0.22)
-    mix.post = chip_crush
-    mix.loudness = 0.85
+                m = midi(note)
+                mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, 0.09))
+                l2_tremolo_with(mix, kit, t0 + step * STEP, m + 12, length, 0.06)
+                prev = m
+        elif name == "glow" and idx == 0:
+            # The climax settles onto one long D (the echo carries it).
+            mix.put("lead", t0, kit["lead"](midi("D5"), 16, midi("Eb5"), 0.13))
+    peak_bar, top = starts["peak"], starts["climax"]
+    mix.put("fx", (peak_bar - 2) * bar_len, riser(rng, 2 * bar_len))
+    for s in range(8, 16):
+        mix.put("clap", (peak_bar - 1) * bar_len + s * STEP, kit["snare"](rng, 0.08 + 0.02 * (s - 8)))
+    mix.put("fx", peak_bar * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.16))
+    mix.put("fx", top * bar_len - 4 * STEP, riser(rng, 4 * STEP, vol=0.15))
+    mix.put("fx", top * bar_len, noise_hit(rng, 2.2, 2500, 11000, 0.2))
+    echo_fb, echo_mix = kit["echo"]
+    mix.echo("arp", STEP * 3, 0.35, 0.45 if kit_name == "synth" else 0.2)
+    mix.echo("lead", STEP * 3, echo_fb, echo_mix)
+    mix.echo("lute", STEP * 3, 0.3, 0.3)
+    mix.echo("stab", STEP * 3, 0.25, 0.3)
+    mix.duck("pad", kicks, 0.7)
+    mix.duck("arp", kicks, 0.45)
+    mix.duck("stab", kicks, 0.3)
+    mix.duck("bass", kicks, 0.3, length=0.12)
+    mix.duck("lead", kicks, 0.2)
+    if kit["post"]:
+        mix.post = kit["post"]
+    mix.loudness = kit["loudness"]
     return mix
+
+
+def l2_tremolo_with(mix, kit, t0, note, steps, vol):
+    """A lute note held by repeating it every eighth (the kit's own lute voice)."""
+    for k in range(max(1, steps // 2)):
+        mix.put("lute", t0 + k * 2 * STEP, kit["lute"](note, vol * (1.0 if k == 0 else 0.75)))
 
 
 def l2_harp_notes(chord):
@@ -2539,8 +2564,8 @@ def main():
               "king_rage_sting.ogg": lambda: with_tempo(120, king_rage_sting),
               "king_fall.ogg": lambda: with_tempo(120, king_fall_sting),
               "rotorick_intro.ogg": lambda: with_tempo(152, rotorick_intro_sting),
-              "layer2_battle_loop.ogg": lambda: with_tempo(124, layer2_battle_theme),
-              "layer2_battle_chip_loop.ogg": lambda: with_tempo(124, layer2_battle_chip_theme),
+              "layer2_battle_loop.ogg": lambda: with_tempo(132, layer2_fight_theme),
+              "layer2_battle_chip_loop.ogg": lambda: with_tempo(132, lambda: layer2_fight_theme("chip")),
               "layer2_camp_loop.ogg": lambda: with_tempo(72, layer2_camp_theme),
               "layer2_draft_loop.ogg": lambda: with_tempo(108, layer2_draft_theme),
               "title_theme.ogg": lambda: with_tempo(100, lambda: title_theme(os.environ.get("TITLE_OPENING", "roll"))),
