@@ -112,6 +112,10 @@ var sulk_flip := false
 var hp := 5
 ## Yellow AP boxes drawn under the hearts (enemies only; 0 draws none).
 var ap_boxes := 0
+## 凪: the storm shark sleeping through the turn (z z z over its head).
+var resting := false
+## 怒り: the storm shark in its rage (a red glow and an anger mark).
+var enraged := false
 ## True for units whose breaking sets something off (a moving prison, a holy spirit):
 ## a skull in a red ring, left of the hearts, says so.
 var death_mark := false
@@ -782,6 +786,18 @@ func _draw_status() -> void:
 		status_layer.draw_circle(badge, radius, Color(0.12, 0.02, 0.04, 0.92))
 		status_layer.draw_arc(badge, radius - 1.0, 0.0, TAU, 28, Color("ff3b3b"), 2.0, true)
 		draw_skull(status_layer, badge + Vector2(0, 0.5), radius / 7.0)
+	if resting:
+		for k in range(3):
+			var rise := fposmod(Time.get_ticks_msec() * 0.0006 + float(k) / 3.0, 1.0)
+			status_layer.draw_string(BADGE_FONT, Vector2(8.0 + k * 11.0 + grow, -26.0 - grow - rise * 26.0), "z", HORIZONTAL_ALIGNMENT_LEFT, -1, 12 + k * 4, Color(0.9, 0.97, 1.0, 1.0 - rise))
+	if enraged:
+		var glow := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.012)
+		var span_px := 32.0 + grow
+		status_layer.draw_rect(Rect2(Vector2(-span_px, -span_px - 6.0), Vector2(span_px * 2.0, span_px * 2.0)), Color(1.0, 0.1, 0.1, 0.1 + 0.1 * glow))
+		# The anger mark: four red strokes round a gap, over its brow.
+		var mark := Vector2(-span_px + 8.0, -span_px + 2.0)
+		for stroke in [Vector2(-5, -5), Vector2(5, -5), Vector2(-5, 5), Vector2(5, 5)]:
+			status_layer.draw_line(mark + stroke * 0.5, mark + stroke * 1.6, Color(1.0, 0.2, 0.2, 0.9), 2.5)
 	if ap_boxes > 0 and kind != "player":
 		# AP under the hearts: small gold boxes, centred like the hearts above them (twice the size on the 2x2 bodies).
 		var rows_used := 2 if two_rows else 1

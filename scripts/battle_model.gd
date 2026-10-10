@@ -384,8 +384,8 @@ func reset(next_level: int = 0, keep_inventory: bool = false) -> void:
 		enemies[-1].home = cell
 	layout.free()
 	if enemies.any(func(e: Dictionary) -> bool: return e.type == STORM_BOSS):
-		storm = {"wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "groups": [], "shape": "bolts"}
-		storm_roll_wind()
+		storm = {"weather": "", "wind": Vector2i.ZERO, "wave": [], "crest": 3, "marks": [], "centers": [], "groups": [], "shape": "bolts"}
+		storm_roll_weather()
 	add_log("あなたから行動。武器はタップで持ち替え・0 AP")
 
 ## Deep copy used to look ahead (e.g. which enemies would hit the player).
@@ -3349,14 +3349,55 @@ func shark_opening(shark: Dictionary) -> bool:
 func storm_active() -> bool:
 	return not storm.is_empty()
 
-## A new tsunami for the player's coming turn: a direction and the crescent of tiles it covers.
-func storm_roll_wind() -> void:
-	if storm.is_empty():
+## The weather of the storm: each enemy turn brings one, drawn at the end of the turn before so the
+## player sees it coming (the way Rotorick's reel is shown first). `weight` is how often it is drawn.
+const WEATHERS := {
+	"calm": {"name": "凪", "weight": 1, "info": ["嵐鮫は動かず、潜りもしない", "攻めるチャンス！"]},
+	"thunder": {"name": "雷", "weight": 3, "info": ["4本の雷が落ちる", "予告マスにいると1ダメージ"]},
+	"tsunami": {"name": "津波", "weight": 2, "info": ["あなた・召喚妖精が流される", "（嵐鮫と設置物は動かない）"]},
+	"whirl": {"name": "大渦", "weight": 2, "info": ["嵐鮫以外が盤の中心へ", "2マス引き寄せられる"]},
+	"storm": {"name": "大嵐", "weight": 2, "info": ["雷と津波が同時に来る", "悪い目！"]},
+}
+## How many tiles the whirlpool pulls everyone towards the middle of the board.
+const WHIRL_PULL := 2
+## The shark's rage: at this HP or less it gets AP 3 for the rest of the fight.
+const SHARK_RAGE_HP := 2
+const SHARK_RAGE_AP := 3
+
+## Weather names a weather id (empty when there is no storm).
+func weather_id() -> String:
+	return str(storm.get("weather", ""))
+
+## Draws the weather for the enemy turn that comes next: never the one just gone, and the first of
+## the fight is neither the calm nor the great storm. A tsunami (or the great storm) fixes a
+## direction and a crest; thunder (or the great storm) lays its marks now, round the player,
+## so they stand over the player's whole turn. Time standing still holds the weather as it is.
+func storm_roll_weather() -> void:
+	if storm.is_empty() or storm.get("held", false):
 		return
-	var roll := _storm_rng("wind")
-	storm.wind = CARDINALS[roll.randi_range(0, 3)]
-	storm.crest = roll.randi_range(2, maxi(2, board_size - 3))
-	storm.wave = wave_cells(storm.wind, storm.crest)
+	var roll := _storm_rng("weather")
+	var last: String = weather_id()
+	var pool: Array = []
+	for id in WEATHERS:
+		if id == last or (last == "" and id in ["calm", "storm"]):
+			continue
+		for i in int(WEATHERS[id].weight):
+			pool.append(id)
+	var pick: String = pool[roll.randi_range(0, pool.size() - 1)]
+	storm.previous = last
+	storm.weather = pick
+	storm.changed_round = round_number
+	storm.wind = Vector2i.ZERO
+	storm.wave = []
+	storm.marks = []
+	storm.centers = []
+	storm.groups = []
+	if pick in ["tsunami", "storm"]:
+		storm.wind = CARDINALS[roll.randi_range(0, 3)]
+		storm.crest = roll.randi_range(2, maxi(2, board_size - 3))
+		storm.wave = wave_cells(storm.wind, storm.crest)
+	if pick in ["thunder", "storm"]:
+		_place_thunder()
 
 ## The tsunami's shape: a curling band two tiles thick, bulging forward in the middle (a
 ## crescent crest), running across the whole board and about to travel towards `dir`.
@@ -3384,25 +3425,45 @@ func wave_cells(dir: Vector2i, crest: int) -> Array[Vector2i]:
 ## The great wave runs over the whole board (that is how it is drawn), so it carries everyone
 ## on it, wherever they stand, towards its direction.
 func _wave_hits(_unit: Dictionary) -> bool:
+	if weather_id() == "whirl":
+		return true
 	return storm.get("wind", Vector2i.ZERO) != Vector2i.ZERO and not storm.get("wave", []).is_empty()
 
-## At the start of the enemy turn: the tsunami sweeps everyone it covers (but the shark) on in
-## its direction until something stops them, then
-## lightning is either called down on last turn's marks or new marks are laid.
+## At the start of the enemy turn the weather happens: the tsunami sweeps everyone it covers (but the
+## shark) on in its direction until something stops them, the whirlpool pulls them to the middle,
+## the marked lightning falls, or the sea is calm. The shark's rage starts here too.
 func storm_enemy_turn() -> void:
-	if storm.is_empty() or time_stopped() or storm_shark().is_empty():
+	if storm.is_empty() or storm_shark().is_empty():
 		return
-	if not storm.wave.is_empty() and storm.wind != Vector2i.ZERO:
+	if time_stopped():
+		storm.held = true
+		return
+	storm.held = false
+	var shark := storm_shark()
+	if shark.hp <= SHARK_RAGE_HP and not shark.get("enraged", false):
+		shark.enraged = true
+		events.append({"kind":"roar", "cell":shark.cell + Vector2i.ONE, "id":-2})
+		add_log("嵐鮫が怒り狂った！ AP%d" % SHARK_RAGE_AP)
+	var weather := weather_id()
+	if weather == "calm":
+		events.append({"kind":"calm", "id":-2, "cell":Vector2i.ZERO})
+		add_log("凪：嵐鮫は動かない")
+	if weather in ["tsunami", "storm"] and not storm.wave.is_empty() and storm.wind != Vector2i.ZERO:
 		events.append({"kind":"tsunami", "id":-2, "cell":Vector2i.ZERO, "dir":storm.wind, "crest":storm.get("crest", 3)})
-	_storm_wind_push()
-	_storm_thunder()
+		_storm_wind_push()
+	if weather == "whirl":
+		events.append({"kind":"whirl", "id":-2, "cell":Vector2i(board_size / 2, board_size / 2)})
+		_storm_whirl()
+	if weather in ["thunder", "storm"]:
+		_strike_thunder()
 
 ## Where the wave would carry everyone if the enemy turn began now, worked out on a copy:
 ## [{id, from, to, size}] for the player, the allies and the enemies it can move (`to` equals
 ## `from` for one that is blocked). The board shows it so the player sees where each lands.
 func storm_wave_plan() -> Array:
 	var plan: Array = []
-	if storm.is_empty() or storm.wind == Vector2i.ZERO or time_stopped() or storm_shark().is_empty():
+	var whirl: bool = weather_id() == "whirl"
+	if storm.is_empty() or (storm.wind == Vector2i.ZERO and not whirl) or time_stopped() or storm_shark().is_empty():
 		return plan
 	var sim: RefCounted = clone()
 	var before: Array = []
@@ -3414,7 +3475,10 @@ func storm_wave_plan() -> Array:
 	for enemy in enemies:
 		if enemy.hp > 0 and enemy.type not in [STORM_BOSS, "shadow"] and not enemy.get("diving", false) and _wave_hits(enemy):
 			before.append([enemy.id, enemy.cell, int(enemy.get("size", 1))])
-	sim._storm_wind_push()
+	if whirl:
+		sim._storm_whirl()
+	else:
+		sim._storm_wind_push()
 	var after := {sim.player.id: sim.player.cell}
 	for ally in sim.allies:
 		after[ally.id] = ally.cell
@@ -3480,19 +3544,23 @@ const THUNDER_SHAPES := [
 ## The lightning: four bolt-shaped sets of tiles at once, their middles inside the 5x5 round the
 ## player and kept apart where there is room. Whoever stands on a marked tile when it strikes
 ## takes 1.
-func _storm_thunder() -> void:
-	if not storm.marks.is_empty():
-		var cells: Array = storm.marks.duplicate()
-		events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0] if not storm.centers.is_empty() else player.cell, "cells":cells, "groups":storm.groups.duplicate(true)})
-		storm.marks = []
-		storm.centers = []
-		storm.groups = []
-		if cells.has(player.cell):
-			player.hp -= 1
-			events.append({"kind":"hit", "cell":player.cell, "id":-1, "damage":1})
-			add_log("雷に打たれた / HP −1")
-			check_outcome()
+## The marked bolts fall: whoever stands on a marked tile (the player) takes 1.
+func _strike_thunder() -> void:
+	if storm.marks.is_empty():
 		return
+	var cells: Array = storm.marks.duplicate()
+	events.append({"kind":"thunder", "id":-2, "cell":storm.centers[0] if not storm.centers.is_empty() else player.cell, "cells":cells, "groups":storm.groups.duplicate(true)})
+	storm.marks = []
+	storm.centers = []
+	storm.groups = []
+	if cells.has(player.cell):
+		player.hp -= 1
+		events.append({"kind":"hit", "cell":player.cell, "id":-1, "damage":1})
+		add_log("雷に打たれた / HP −1")
+		check_outcome()
+
+## Lays four bolts round the player (see below); they fall at the start of the next enemy turn.
+func _place_thunder() -> void:
 	var roll := _storm_rng("thunder")
 	var candidates: Array = []
 	for spot in square_around(player.cell, 2):
@@ -3542,6 +3610,63 @@ func _storm_thunder() -> void:
 	storm.marks = marks
 	events.append({"kind":"thunder_warn", "cells":marks, "id":-2, "cell":centers[0] if not centers.is_empty() else player.cell})
 	add_log("雷が落ちる…")
+
+## The whirlpool: everyone but the shark (and what is rooted) is pulled up to WHIRL_PULL tiles towards
+## the middle of the board, one tile at a time along the longer way there, stopping when something is
+## in the way or the middle is reached. Those nearest the middle go first, so a line moves together.
+func _storm_whirl() -> void:
+	var middle := Vector2(board_size - 1, board_size - 1) / 2.0
+	var units: Array = [player]
+	units.append_array(allies.filter(func(a: Dictionary) -> bool: return a.hp > 0))
+	units.append_array(enemies.filter(func(e: Dictionary) -> bool: return e.hp > 0 and e.type not in [STORM_BOSS, "shadow"] and e.type not in IMMOVABLE and not e.get("diving", false)))
+	var gap_to_middle := func(u: Dictionary) -> float:
+		return (Vector2(u.cell) + Vector2.ONE * (float(u.get("size", 1)) - 1.0) / 2.0).distance_to(middle)
+	units.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return gap_to_middle.call(a) < gap_to_middle.call(b))
+	for unit in units:
+		var start: Vector2i = unit.cell
+		for step in range(WHIRL_PULL):
+			var centre := Vector2(unit.cell) + Vector2.ONE * (float(unit.get("size", 1)) - 1.0) / 2.0
+			var toward := middle - centre
+			var ways: Array[Vector2i] = []
+			var along_x := Vector2i(int(signf(toward.x)), 0) if absf(toward.x) >= 0.6 else Vector2i.ZERO
+			var along_y := Vector2i(0, int(signf(toward.y))) if absf(toward.y) >= 0.6 else Vector2i.ZERO
+			if absf(toward.x) >= absf(toward.y):
+				ways = [along_x, along_y]
+			else:
+				ways = [along_y, along_x]
+			var moved := false
+			for way in ways:
+				if way != Vector2i.ZERO and _can_shift(unit, way):
+					unit.cell += way
+					trigger_mine(unit)
+					moved = true
+					break
+			if not moved or unit.hp <= 0:
+				break
+		if unit.cell != start:
+			events.append({"kind":"wind", "cell":start, "to":unit.cell, "id":unit.id})
+	trigger_fairies()
+	check_outcome()
+
+## Could `unit` (one tile or a block) take one step `way`: inside the board, and the tiles it would
+## stand on (but those it stands on now) free of terrain, fairies, cannons, the shadow, and anyone else?
+func _can_shift(unit: Dictionary, way: Vector2i) -> bool:
+	var moved := {"cell": unit.cell + way, "size": unit.get("size", 1)}
+	var own := footprint(unit)
+	for tile in footprint(moved):
+		if not inside(tile):
+			return false
+		if own.has(tile):
+			continue
+		if obstacles.has(tile) or walls.has(tile) or pits.has(tile) or fairies.has(tile) or not cannon_at(tile).is_empty() or shadow.get("cell", Vector2i(-1, -1)) == tile:
+			return false
+		if tile == player.cell and unit != player:
+			return false
+		if not enemy_at(tile).is_empty() and enemy_at(tile).id != unit.id:
+			return false
+		if not ally_at(tile).is_empty() and ally_at(tile).id != unit.id:
+			return false
+	return true
 
 # --- Rotorick: the slot boss --------------------------------------------------
 
