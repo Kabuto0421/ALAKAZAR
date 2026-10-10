@@ -2151,12 +2151,16 @@ def title_cue_sheet(fanfare, march, march_start, cut, length):
 
 L2_CHORDS = {
     "D":  {"bass": "D2", "pad": ["D3", "F#3", "A3", "D4"], "arp": ["D4", "F#4", "A4", "D5"], "minor": False},
-    "Eb": {"bass": "Eb2", "pad": ["Eb3", "G3", "Bb3", "Eb4"], "arp": ["Eb4", "G4", "Bb4", "Eb5"], "minor": False},
+    # Eb and Bb are bare power chords (root and fifth): no third, so neither can turn bright.
+    "Eb": {"bass": "Eb2", "pad": ["Eb3", "Bb3", "Eb4", "Bb4"], "arp": ["Eb4", "Bb4", "Eb5", "Bb5"], "minor": False},
     "Gm": {"bass": "G1", "pad": ["G3", "Bb3", "D4", "G4"], "arp": ["G3", "Bb3", "D4", "G4"], "minor": True},
     "A":  {"bass": "A1", "pad": ["A3", "C#4", "E4", "A4"], "arp": ["A3", "C#4", "E4", "A4"], "minor": False},
-    "Bb": {"bass": "Bb1", "pad": ["Bb3", "D4", "F4", "Bb4"], "arp": ["Bb3", "D4", "F4", "Bb4"], "minor": False},
+    "Bb": {"bass": "Bb1", "pad": ["Bb3", "F4", "Bb4", "F5"], "arp": ["Bb3", "F4", "Bb4", "F5"], "minor": False},
     "Bm": {"bass": "B1", "pad": ["B3", "D4", "F#4", "B4"], "arp": ["B3", "D4", "F#4", "B4"], "minor": True},
     "G":  {"bass": "G1", "pad": ["G3", "B3", "D4", "G4"], "arp": ["G3", "B3", "D4", "G4"], "minor": False},
+    # The enemy's fights stay dark: minor chords, no major third anywhere (D minor with the Phrygian Eb).
+    "Dm": {"bass": "D2", "pad": ["D3", "F3", "A3", "D4"], "arp": ["D4", "F4", "A4", "D5"], "minor": True},
+    "Am": {"bass": "A1", "pad": ["A3", "C4", "E4", "A4"], "arp": ["A3", "C4", "E4", "A4"], "minor": True},
 }
 L2_PLAN_A = ["D", "D", "Eb", "D", "Gm", "D", "Eb", "A"]       # the ruins
 L2_PLAN_D = ["D", "Bb", "Gm", "A", "D", "A", "Gm", "A"]       # the same tune's chords in the enemy's scale
@@ -2174,19 +2178,19 @@ L2_THEME = [
     [(0, 4, "B4"), (4, 4, "G4"), (8, 4, "A4"), (12, 4, "B4")],
     [(0, 16, "A4")],
 ]
-# The enemy's own tune for the fights: 8 bars over L2_PLAN_D (D | Bb | Gm | A | D | A | Gm | A), all in its scale
-# (D Eb F# G A Bb C, with E and C# only over the A chord). It opens on the fairies' D, then bends through
-# the step from Eb up to F# (the augmented second), answers itself higher, runs up to the top, and falls
-# onto A so the loop drops back to D.
+# The enemy's own tune for the fights: 8 bars over Dm | Bb | Gm | Am | Dm | Bb | Eb | Am, in D minor with the
+# Phrygian Eb (D Eb F G A Bb C; E only over the Am chord): dark all the way, and low, never above the F an
+# octave over the tonic. It opens on a hammered D that sighs down from the Eb, answers itself higher, and falls onto A
+# so the loop drops back to D.
 L2_ENEMY_THEME = [
-    [(0, 3, "D5"), (3, 1, "Eb5"), (4, 2, "F#5"), (6, 2, "Eb5"), (8, 4, "D5"), (12, 2, "C5"), (14, 2, "Bb4")],
-    [(0, 2, "A4"), (2, 2, "Bb4"), (4, 3, "D5"), (7, 1, "C5"), (8, 4, "Bb4"), (12, 4, "A4")],
-    [(0, 3, "G4"), (3, 1, "A4"), (4, 2, "Bb4"), (6, 2, "D5"), (8, 4, "G5"), (12, 2, "F#5"), (14, 2, "D5")],
-    [(0, 3, "E5"), (3, 1, "D5"), (4, 2, "C#5"), (6, 2, "D5"), (8, 6, "E5"), (14, 2, "C#5")],
-    [(0, 2, "D5"), (2, 2, "F#5"), (4, 2, "A5"), (6, 2, "F#5"), (8, 3, "Eb5"), (11, 1, "D5"), (12, 4, "F#5")],
-    [(0, 4, "E5"), (4, 2, "C#5"), (6, 2, "E5"), (8, 4, "A5"), (12, 4, "E5")],
-    [(0, 2, "D5"), (2, 2, "Bb4"), (4, 2, "G4"), (6, 2, "Bb4"), (8, 2, "D5"), (10, 2, "G5"), (12, 2, "F#5"), (14, 2, "D5")],
-    [(0, 2, "E5"), (2, 1, "D5"), (3, 1, "C#5"), (4, 2, "D5"), (6, 2, "E5"), (8, 8, "A4")],
+    [(0, 2, "D5"), (2, 1, "D5"), (3, 1, "Eb5"), (4, 2, "D5"), (6, 2, "C5"), (8, 4, "A4"), (12, 2, "Bb4"), (14, 2, "A4")],
+    [(0, 2, "Bb4"), (2, 1, "Bb4"), (3, 1, "C5"), (4, 2, "Bb4"), (6, 2, "A4"), (8, 4, "F4"), (12, 4, "G4")],
+    [(0, 2, "G4"), (2, 1, "G4"), (3, 1, "A4"), (4, 2, "Bb4"), (6, 2, "D5"), (8, 3, "F5"), (11, 1, "D5"), (12, 4, "Bb4")],
+    [(0, 4, "A4"), (4, 2, "C5"), (6, 2, "E5"), (8, 2, "D5"), (10, 2, "C5"), (12, 4, "A4")],
+    [(0, 2, "D5"), (2, 1, "D5"), (3, 1, "Eb5"), (4, 2, "F5"), (6, 2, "Eb5"), (8, 4, "D5"), (12, 2, "C5"), (14, 2, "D5")],
+    [(0, 3, "F5"), (3, 1, "Eb5"), (4, 2, "D5"), (6, 2, "Bb4"), (8, 4, "D5"), (12, 4, "F5")],
+    [(0, 2, "G5"), (2, 2, "F5"), (4, 2, "Eb5"), (6, 2, "D5"), (8, 4, "Bb4"), (12, 2, "C5"), (14, 2, "D5")],
+    [(0, 2, "E5"), (2, 2, "D5"), (4, 2, "C5"), (6, 2, "D5"), (8, 8, "A4")],
 ]
 # The ruins' own few notes over bars 5-8 of the quiet start.
 L2_RUINS = [
@@ -2288,14 +2292,14 @@ def chip_crush(total, levels=48, hold=1):
 # Per-section levels: kick, open hat, 16th ticks, clap, arp (vol, cutoff start, cutoff end), pad (vol,
 # cutoff), bass vol.
 L2_FIGHT = [
-    # name     bars  chords                       kick  hat   tick  clap  arp_v arp_c0 arp_c1 pad_v pad_c bass
-    ("calm",    4, ["D", "D", "Eb", "D"],           0.50, 0.10, 0.04, 0.00, 0.06, 1100, 1100, 0.06, 700,  0.40),
-    ("groove",  8, L2_PLAN_A,                       0.62, 0.14, 0.05, 0.22, 0.075, 1300, 1700, 0.07, 800,  0.45),
-    ("build",   4, ["Eb", "D", "Gm", "A"],          0.78, 0.18, 0.07, 0.32, 0.09, 1700, 4200, 0.08, 1100, 0.48),
-    ("peak",    8, L2_PLAN_D,                       0.88, 0.20, 0.07, 0.40, 0.10, 4200, 4200, 0.09, 1300, 0.50),
-    ("climax",  4, ["D", "A", "Gm", "A"],           0.95, 0.22, 0.09, 0.46, 0.095, 5000, 5000, 0.10, 1700, 0.52),
-    ("glow",    4, ["D", "Bb", "Gm", "A"],          0.62, 0.14, 0.05, 0.22, 0.08, 2600, 1000, 0.07, 900,  0.44),
-    ("break",   4, ["D", "D", "Eb", "A"],           0.00, 0.00, 0.04, 0.00, 0.07, 800,  800,  0.08, 700,  0.30),
+    # name     bars  chords                                          kick  hat   tick  clap  arp_v arp_c0 arp_c1 pad_v pad_c bass
+    ("calm",    4, ["Dm", "Dm", "Eb", "Dm"],                          0.50, 0.10, 0.04, 0.00, 0.06, 1100, 1100, 0.06, 700,  0.40),
+    ("groove",  8, ["Dm", "Bb", "Gm", "Am", "Dm", "Bb", "Eb", "Am"], 0.62, 0.14, 0.05, 0.22, 0.075, 1300, 1700, 0.07, 800,  0.45),
+    ("build",   4, ["Eb", "Dm", "Gm", "Am"],                          0.78, 0.18, 0.07, 0.32, 0.09, 1700, 4200, 0.08, 1100, 0.48),
+    ("peak",    8, ["Dm", "Bb", "Gm", "Am", "Dm", "Bb", "Eb", "Am"], 0.88, 0.20, 0.07, 0.40, 0.10, 4200, 4200, 0.09, 1300, 0.50),
+    ("climax",  4, ["Dm", "Gm", "Eb", "Am"],                          0.95, 0.22, 0.09, 0.46, 0.095, 5000, 5000, 0.10, 1700, 0.52),
+    ("glow",    4, ["Dm", "Bb", "Gm", "Am"],                          0.62, 0.14, 0.05, 0.22, 0.08, 2600, 1000, 0.07, 900,  0.44),
+    ("break",   4, ["Dm", "Dm", "Eb", "Am"],                          0.00, 0.00, 0.04, 0.00, 0.07, 800,  800,  0.08, 700,  0.30),
 ]
 
 
@@ -2365,9 +2369,10 @@ def _kit_chip():
 
 
 def layer2_fight_theme(kit_name="synth"):
-    """The enemy's side of layer 2 as a fight: ruins and neon, D Phrygian dominant, 36 bars (132 BPM).
-    The ruins' few notes on a bouzouki over the groove, then the enemy's own tune (L2_ENEMY_THEME) at the
-    peak, doubled at the climax. Same plan as layer 1's battle loop, so the same
+    """The enemy's side of layer 2 as a fight: dark ruins and neon, D minor with the Phrygian Eb, 36 bars
+    (132 BPM). Minor chords all the way (nothing in it turns bright); the enemy's own tune
+    (L2_ENEMY_THEME) is in every part but the intro: under the groove, rising through the build, in full
+    at the peak, with a low octave beneath at the climax. Same plan as layer 1's battle loop, so the same
     edge-of-the-seat drive: rolling off-beat bass, an arpeggio that opens up, a clap roll and a drop-out
     beat before the spike, a kick-less break."""
     kit = _kit_synth() if kit_name == "synth" else _kit_chip()
@@ -2426,27 +2431,25 @@ def layer2_fight_theme(kit_name="synth"):
         if name == "break":
             mix.put("timp", t0, kit["timp"](rng, "D2", 0.3))
             mix.put("timp", t0 + 6 * STEP, kit["timp"](rng, "D2", 0.2))
-        # Melodies.
-        if peak or climax:
-            phrase = L2_ENEMY_THEME[idx if peak else 4 + idx]
+        # The tune is there in every part but the intro: softly under the groove, rising through the build, in
+        # full at the peak, with a low octave under it at the climax, quiet again in the glow and the break.
+        if name != "calm":
+            if name == "build":
+                phrase = L2_ENEMY_THEME[4 + idx]
+            elif name == "climax":
+                phrase = L2_ENEMY_THEME[4 + idx]
+            else:
+                phrase = L2_ENEMY_THEME[idx % 8]
+            vol = {"groove": 0.10, "build": 0.12, "peak": 0.15, "climax": 0.16, "glow": 0.09, "break": 0.08}[name]
             prev = None
             for step, length, note in phrase:
                 m = midi(note)
-                mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, 0.15))
+                mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, vol))
                 if climax:
-                    mix.put("lead", t0 + step * STEP, kit["lead"](m + 12, length, None, 0.1))
-                l2_tremolo_with(mix, kit, t0 + step * STEP, m, length, 0.05)
+                    mix.put("lead", t0 + step * STEP, kit["lead"](m - 12, length, None, vol * 0.65))
+                if name in ("groove", "peak", "climax"):
+                    l2_tremolo_with(mix, kit, t0 + step * STEP, m, length, 0.05)
                 prev = m
-        elif name == "groove" and idx >= 4:
-            prev = None
-            for step, length, note in L2_RUINS[idx - 4]:
-                m = midi(note)
-                mix.put("lead", t0 + step * STEP, kit["lead"](m, length, prev, 0.09))
-                l2_tremolo_with(mix, kit, t0 + step * STEP, m + 12, length, 0.06)
-                prev = m
-        elif name == "glow" and idx == 0:
-            # The climax settles onto one long D (the echo carries it).
-            mix.put("lead", t0, kit["lead"](midi("D5"), 16, midi("Eb5"), 0.13))
     peak_bar, top = starts["peak"], starts["climax"]
     band_lo, band_hi = kit["fx_band"]
     mix.put("fx", (peak_bar - 2) * bar_len, riser(rng, 2 * bar_len, vol=0.12 * kit["riser_vol"]))
