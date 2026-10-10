@@ -2203,11 +2203,11 @@ def l2_tremolo(mix, bus, t0, note, steps, vol):
 
 # --- layer 2's fight, the chip-tune version: only pulse, triangle and noise channels, then a bit-crush ----
 
-def chip_pulse(note, seconds, duty=0.25, vol=0.1, vibrato=0.0, attack=0.001, release=0.015):
+def chip_pulse(note, seconds, duty=0.25, vol=0.1, vibrato=0.0, attack=0.001, release=0.015, cutoff=13000):
     """A NES-style pulse channel: a bright square with a chosen duty, a flat gate, no filter to speak of."""
     pitch = (lambda t: 1 + vibrato * math.sin(2 * math.pi * 6.0 * max(0.0, t - 0.12))) if vibrato else None
     return synth(note, seconds, "pulse", duty=duty, vol=vol, attack=attack, decay=1.0, sustain=1.0,
-                 release=release, cutoff=(13000, 13000, 1.0), pitch=pitch)
+                 release=release, cutoff=(cutoff, cutoff, 1.0), pitch=pitch)
 
 
 def chip_tri(note, seconds, vol=0.3):
@@ -2239,12 +2239,12 @@ def chip_kick(rng, vol=0.5):
         phase += (48 + 150 * math.exp(-t * 38)) / RATE
         p = phase % 1.0
         out[i] = (1.0 - 4.0 * abs(p - 0.5)) * math.exp(-t * 17) * vol
-    tick = chip_noise(rng, 0.012, vol * 0.4, 6000, 60)
+    tick = chip_noise(rng, 0.012, vol * 0.4, 3000, 60)
     return [a + (tick[i] if i < len(tick) else 0.0) for i, a in enumerate(out)]
 
 
 def chip_snare(rng, vol=0.22):
-    noise = chip_noise(rng, 0.13, vol, 9000, 26)
+    noise = chip_noise(rng, 0.13, vol, 4200, 26)
     body = chip_tri(170, 0.04, vol * 0.5)
     return [a + (body[i] if i < len(body) else 0.0) for i, a in enumerate(noise)]
 
@@ -2255,7 +2255,7 @@ def chip_tom(note, vol=0.4):
                  cutoff=(9000, 3000, 0.1), pitch=lambda t: 1 + 0.9 * math.exp(-t * 30))
 
 
-def chip_crush(total, levels=38, hold=2):
+def chip_crush(total, levels=48, hold=1):
     """The whole mix to a coarse DAC: fewer sample values, and every second sample held."""
     import numpy
     arr = numpy.array(total, dtype=numpy.float64)
@@ -2305,37 +2305,43 @@ def _kit_synth():
         "echo": (0.35, 0.4),
         "post": None,
         "loudness": 1.0,
+        "fx_band": (3000, 11000),
+        "riser_vol": 1.0,
     }
 
 
 def _kit_chip():
-    """Only a NES's channels: pulse (lead and arpeggio), triangle (bass, toms), noise (drums), then a bit-crush."""
+    """Only a NES's channels: pulse (lead and arpeggio), triangle (bass, toms), noise (drums), then a bit-crush.
+    The parts behind the tune are kept soft on the ear: the arpeggio is a slow, round, quiet pulse (one tone
+    a sixteenth, not a buzzing thirty-second), the hats are dull and short, the bass is a little lower."""
     def arp_bar(mix, t0, chord, cutoff, vol, stop=16):
         tones = [midi(n) for n in chord["pad"][:3]]
-        for k in range(stop * 2):
-            mix.put("arp", t0 + k * STEP / 2, chip_pulse(tones[k % 3] + 12, STEP / 2 * 0.9, 0.125, vol * 0.8))
+        for k in range(stop):
+            mix.put("arp", t0 + k * STEP, chip_pulse(tones[k % 3] + 12, STEP * 0.8, 0.25, vol * 0.42, cutoff=2200))
 
     def stab_chord(notes):
-        voices = [chip_pulse(midi(n), STEP * 0.6, 0.25, 0.035) for n in notes]
+        voices = [chip_pulse(midi(n), STEP * 0.6, 0.25, 0.028, cutoff=2600) for n in notes]
         return [sum(v) for v in zip(*voices)]
 
     def pad(notes, seconds, cut, v):
-        return chip_pulse(midi(notes[0]) - 12, seconds * 0.95, 0.5, v * 0.45)
+        return chip_pulse(midi(notes[0]) - 12, seconds * 0.95, 0.5, v * 0.4, cutoff=1200)
 
     return {
         "kick": lambda rng, v: chip_kick(rng, v * 0.6),
-        "snare": lambda rng, v: chip_snare(rng, v),
-        "hat": lambda rng, seconds, v: chip_noise(rng, seconds, v * 0.5, 14000, 120 if seconds < 0.05 else 30),
-        "bass": lambda note, steps, v: chip_tri(note + 12, steps * STEP * 0.85, v * 0.8),
+        "snare": lambda rng, v: chip_snare(rng, v * 0.9),
+        "hat": lambda rng, seconds, v: chip_noise(rng, seconds, v * 0.3, 5500, 140 if seconds < 0.05 else 40),
+        "bass": lambda note, steps, v: chip_tri(note + 12, steps * STEP * 0.8, v * 0.62),
         "arp_bar": arp_bar,
-        "lead": lambda note, steps, glide, v: chip_pulse(note, steps * STEP * 0.93, 0.25, v * 0.85, vibrato=0.004),
-        "lute": lambda note, v: chip_pulse(note, 0.07, 0.125, v * 0.8),
+        "lead": lambda note, steps, glide, v: chip_pulse(note, steps * STEP * 0.93, 0.25, v * 0.85, vibrato=0.004, cutoff=3200),
+        "lute": lambda note, v: chip_pulse(note, 0.07, 0.25, v * 0.7, cutoff=2600),
         "pad": pad,
         "stab": stab_chord,
         "timp": lambda rng, note, v: chip_tom(note, v * 0.8),
         "echo": (0.25, 0.2),
         "post": chip_crush,
-        "loudness": 0.85,
+        "loudness": 0.8,
+        "fx_band": (1200, 4800),
+        "riser_vol": 0.5,
     }
 
 
@@ -2423,12 +2429,13 @@ def layer2_fight_theme(kit_name="synth"):
             # The climax settles onto one long D (the echo carries it).
             mix.put("lead", t0, kit["lead"](midi("D5"), 16, midi("Eb5"), 0.13))
     peak_bar, top = starts["peak"], starts["climax"]
-    mix.put("fx", (peak_bar - 2) * bar_len, riser(rng, 2 * bar_len))
+    band_lo, band_hi = kit["fx_band"]
+    mix.put("fx", (peak_bar - 2) * bar_len, riser(rng, 2 * bar_len, vol=0.12 * kit["riser_vol"]))
     for s in range(8, 16):
         mix.put("clap", (peak_bar - 1) * bar_len + s * STEP, kit["snare"](rng, 0.08 + 0.02 * (s - 8)))
-    mix.put("fx", peak_bar * bar_len, noise_hit(rng, 1.6, 3000, 11000, 0.16))
-    mix.put("fx", top * bar_len - 4 * STEP, riser(rng, 4 * STEP, vol=0.15))
-    mix.put("fx", top * bar_len, noise_hit(rng, 2.2, 2500, 11000, 0.2))
+    mix.put("fx", peak_bar * bar_len, noise_hit(rng, 1.6, band_lo, band_hi, 0.16))
+    mix.put("fx", top * bar_len - 4 * STEP, riser(rng, 4 * STEP, vol=0.15 * kit["riser_vol"]))
+    mix.put("fx", top * bar_len, noise_hit(rng, 2.2, band_lo, band_hi, 0.2))
     echo_fb, echo_mix = kit["echo"]
     mix.echo("arp", STEP * 3, 0.35, 0.45 if kit_name == "synth" else 0.2)
     mix.echo("lead", STEP * 3, echo_fb, echo_mix)
